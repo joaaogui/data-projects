@@ -1,0 +1,21 @@
+{
+  "name": "@data-projects/tailwind-config",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./base.ts",
+  "types": "./base.ts",
+  "exports": {
+    ".": {
+      "types": "./base.ts",
+      "default": "./base.ts"
+    }
+  },
+  "dependencies": {
+    "tailwindcss-animate": "catalog:"
+  },
+  "devDependencies": {
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:"
+  }
+}
