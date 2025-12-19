@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Providers, ThemeToggle } from "@data-projects/ui";
 
@@ -65,6 +66,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${roboto.variable} font-sans antialiased gradient-bg min-h-screen`}>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-17815630894"
+          strategy="afterInteractive"
+        />
+        <Script id="google-ads" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'AW-17815630894');
+          `}
+        </Script>
         <Providers posthogApiKey={process.env.NEXT_PUBLIC_POSTHOG_KEY}>
           <div className="fixed right-4 top-4 z-50">
             <ThemeToggle iconClassName="text-primary" />
