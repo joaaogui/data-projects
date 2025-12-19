@@ -1,0 +1,55 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0f0f"/>
+      <stop offset="50%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ff0000"/>
+      <stop offset="50%" style="stop-color:#ef4444"/>
+      <stop offset="100%" style="stop-color:#f97316"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  
+  <circle cx="100" cy="100" r="200" fill="#ff0000" opacity="0.05"/>
+  <circle cx="1100" cy="530" r="250" fill="#f97316" opacity="0.05"/>
+  
+  <g transform="translate(600, 200)">
+    <rect x="-80" y="-55" width="160" height="110" rx="20" fill="#ff0000" filter="url(#glow)"/>
+    <path d="M-25 -30 L-25 30 L35 0 Z" fill="white"/>
+  </g>
+  
+  <text x="600" y="360" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="bold" fill="url(#textGradient)" text-anchor="middle">
+    YouTube Analyzer
+  </text>
+  
+  <text x="600" y="420" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#a1a1aa" text-anchor="middle">
+    Channel Statistics &amp; Video Performance
+  </text>
+  
+  <g transform="translate(300, 500)">
+    <rect x="0" y="0" width="140" height="50" rx="8" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <text x="70" y="32" font-family="system-ui, sans-serif" font-size="16" fill="#e4e4e7" text-anchor="middle">Analytics</text>
+  </g>
+  
+  <g transform="translate(530, 500)">
+    <rect x="0" y="0" width="140" height="50" rx="8" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <text x="70" y="32" font-family="system-ui, sans-serif" font-size="16" fill="#e4e4e7" text-anchor="middle">Metrics</text>
+  </g>
+  
+  <g transform="translate(760, 500)">
+    <rect x="0" y="0" width="140" height="50" rx="8" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <text x="70" y="32" font-family="system-ui, sans-serif" font-size="16" fill="#e4e4e7" text-anchor="middle">Free Tool</text>
+  </g>
+</svg>
+
