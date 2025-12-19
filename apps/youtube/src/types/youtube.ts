@@ -3,7 +3,6 @@ export interface ScoreComponents {
   reachScore: number;
   consistencyScore: number;
   communityScore: number;
-  efficiencyScore: number;
 }
 
 export interface EngagementRates {
@@ -11,7 +10,8 @@ export interface EngagementRates {
   commentRate: number;
   engagementRate: number;
   viewsPerDay: number;
-  viewsPerMinute: number;
+  viewsPerHour: number;
+  viewsPerContentMin: number;
   engagementPerMinute: number;
 }
 
@@ -20,7 +20,6 @@ export interface VideoData {
   title: string;
   days: number;
   duration: number;
-  isShort: boolean;
   views: number;
   likes: number;
   comments: number;

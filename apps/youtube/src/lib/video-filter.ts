@@ -110,8 +110,20 @@ export function executeQuery(
 ): QueryResult {
   let result = [...videos];
 
+  console.log(`[Video Filter] Starting with ${videos.length} videos`);
+  console.log(`[Video Filter] Query:`, JSON.stringify(query, null, 2));
+
   if (query.filters) {
+    const filterFields = Object.keys(query.filters);
+    console.log(`[Video Filter] Sample values from first 3 videos:`);
+    videos.slice(0, 3).forEach((v, i) => {
+      const values: Record<string, unknown> = {};
+      filterFields.forEach(f => { values[f] = getNestedValue(v, f); });
+      console.log(`  Video ${i + 1}: ${JSON.stringify(values)}`);
+    });
+    
     result = result.filter((video) => matchesFilters(video, query.filters!));
+    console.log(`[Video Filter] After filters: ${result.length} videos`);
   }
 
   if (query.sort) {
@@ -144,7 +156,6 @@ export async function fetchAIQuery(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, provider }),
   });
-
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || "Failed to process question");

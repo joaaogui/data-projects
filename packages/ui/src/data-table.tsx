@@ -6,11 +6,13 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   getPaginationRowModel,
+  getFilteredRowModel,
   flexRender,
   type ColumnDef,
   type SortingState,
   type TableMeta,
   type Row,
+  type FilterFn,
 } from "@tanstack/react-table";
 import { cn } from "@data-projects/shared";
 import {
@@ -34,6 +36,9 @@ export interface DataTableProps<TData, TValue> {
     showInfo?: boolean;
     itemName?: string;
   };
+  globalFilter?: string;
+  onGlobalFilterChange?: (value: string) => void;
+  globalFilterFn?: FilterFn<TData>;
   emptyMessage?: string;
   rowClassName?: (row: Row<TData>, index: number) => string;
   stickyHeader?: boolean;
@@ -71,6 +76,9 @@ export function DataTable<TData, TValue>({
   meta,
   defaultSorting = [],
   pagination,
+  globalFilter,
+  onGlobalFilterChange,
+  globalFilterFn,
   emptyMessage = "No results found.",
   rowClassName,
   stickyHeader = true,
@@ -83,10 +91,14 @@ export function DataTable<TData, TValue>({
     meta,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     ...(pagination && { getPaginationRowModel: getPaginationRowModel() }),
     onSortingChange: setSorting,
+    onGlobalFilterChange,
+    globalFilterFn,
     state: {
       sorting,
+      globalFilter,
     },
     ...(pagination && {
       initialState: {
@@ -97,7 +109,8 @@ export function DataTable<TData, TValue>({
     }),
   });
 
-  const hasPagination = pagination && data.length > (pagination.pageSize ?? 25);
+  const filteredRowCount = table.getFilteredRowModel().rows.length;
+  const hasPagination = pagination && filteredRowCount > (pagination.pageSize ?? 25);
 
   return (
     <div className="flex flex-col h-full">
@@ -170,9 +183,12 @@ export function DataTable<TData, TValue>({
               Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
               {Math.min(
                 (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                data.length
+                filteredRowCount
               )}{" "}
-              of {data.length} {pagination?.itemName ?? "items"}
+              of {filteredRowCount} {pagination?.itemName ?? "items"}
+              {globalFilter && filteredRowCount !== data.length && (
+                <span className="text-muted-foreground/70"> (filtered from {data.length})</span>
+              )}
             </p>
           )}
           <div className="flex items-center gap-2 ml-auto">
@@ -203,5 +219,5 @@ export function DataTable<TData, TValue>({
   );
 }
 
-export { type ColumnDef, type SortingState, type TableMeta, type Row } from "@tanstack/react-table";
+export { type ColumnDef, type SortingState, type TableMeta, type Row, type FilterFn } from "@tanstack/react-table";
 

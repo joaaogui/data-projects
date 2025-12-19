@@ -1,9 +1,9 @@
 "use client";
 
-import { Eye, Clock, MessageSquare, ThumbsUp, Zap, type LucideIcon } from "lucide-react";
+import { Eye, Clock, MessageSquare, ThumbsUp, type LucideIcon } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@data-projects/ui";
 
-export type MetricType = "views" | "engagement" | "consistency" | "community" | "efficiency";
+export type MetricType = "views" | "engagement" | "consistency" | "community";
 
 export type MetricWeights = Record<MetricType, number>;
 
@@ -18,9 +18,8 @@ interface MetricConfig {
 export const DEFAULT_WEIGHTS: MetricWeights = {
   views: 35,
   engagement: 20,
-  consistency: 15,
+  consistency: 80,
   community: 15,
-  efficiency: 15,
 };
 
 export const METRIC_CONFIGS: Record<MetricType, MetricConfig> = {
@@ -52,16 +51,9 @@ export const METRIC_CONFIGS: Record<MetricType, MetricConfig> = {
     label: "Community",
     description: "Comment-to-like ratio measuring discussion depth. Higher ratios indicate more engaged community conversations.",
   },
-  efficiency: {
-    type: "efficiency",
-    icon: Zap,
-    color: "text-orange-500",
-    label: "Efficiency",
-    description: "Views per minute of content. Measures how efficiently the video generates views relative to its length.",
-  },
 };
 
-export const METRIC_TYPES: MetricType[] = ["views", "engagement", "consistency", "community", "efficiency"];
+export const METRIC_TYPES: MetricType[] = ["views", "engagement", "consistency", "community"];
 
 export function getMetricsSortedByWeight(weights: MetricWeights): MetricConfig[] {
   return [...METRIC_TYPES]
@@ -121,7 +113,6 @@ type ScoreComponentsMap = {
   engagement?: number | null;
   consistency?: number | null;
   community?: number | null;
-  efficiency?: number | null;
 };
 
 interface MetricIconsRowProps {

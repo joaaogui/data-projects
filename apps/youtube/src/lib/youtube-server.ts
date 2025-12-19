@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import type { VideoData, PlaylistItem, VideoDetails } from "@/types/youtube";
-import { calculateVideoScore, parseISO8601Duration, isShortVideo } from "./scoring";
+import { calculateVideoScore, parseISO8601Duration } from "./scoring";
 
 const API_URL = "https://www.googleapis.com/youtube/v3";
 const API_KEY = process.env.YOUTUBE_API_KEY;
@@ -162,10 +162,14 @@ export async function searchChannels(
 }
 
 export async function fetchChannelVideos(channelId: string): Promise<VideoData[]> {
+  console.log(`[YouTube Server] Fetching videos for channel: ${channelId}`);
   const uploadsPlaylistId = await getUploadsPlaylistId(channelId);
+  console.log(`[YouTube Server] Uploads playlist ID: ${uploadsPlaylistId}`);
   const playlistItems = await getPlaylistItems(uploadsPlaylistId);
+  console.log(`[YouTube Server] Found ${playlistItems.length} playlist items`);
   const videoIds = playlistItems.map(item => item.contentDetails.videoId);
   const detailsMap = await getBatchVideoDetails(videoIds);
+  console.log(`[YouTube Server] Got details for ${detailsMap.size} videos`);
   
   const videos: VideoData[] = [];
   
@@ -189,7 +193,6 @@ export async function fetchChannelVideos(channelId: string): Promise<VideoData[]
         title: item.snippet.title,
         days,
         duration,
-        isShort: isShortVideo(duration),
         views,
         likes,
         comments,

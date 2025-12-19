@@ -19,7 +19,6 @@ Available video fields:
 - title: string (video title)
 - days: number (days since upload - IMPORTANT: 0 = uploaded today, 1 = yesterday, 30 = one month ago, 365 = one year ago. Higher number = OLDER video)
 - duration: number (video length in seconds)
-- isShort: boolean (true if YouTube Short)
 - views: number (view count)
 - likes: number (like count)
 - comments: number (comment count)
@@ -45,11 +44,12 @@ Operators: "eq", "gt", "gte", "lt", "lte", "contains" (for title only)
 Examples:
 - "most viewed video" → { "sort": { "field": "views", "order": "desc" }, "limit": 1, "explanation": "Video with the highest view count" }
 - "videos from last week" → { "filters": { "days": { "lte": 7 } }, "explanation": "All videos uploaded in the last 7 days" }
-- "top 5 shorts by engagement" → { "filters": { "isShort": { "eq": true } }, "sort": { "field": "rates.engagementRate", "order": "desc" }, "limit": 5, "explanation": "Top 5 YouTube Shorts sorted by engagement rate" }
 - "videos over 1 million views" → { "filters": { "views": { "gte": 1000000 } }, "explanation": "All videos with 1M+ views" }
 - "longest video" → { "sort": { "field": "duration", "order": "desc" }, "limit": 1, "explanation": "Video with the longest duration" }
 - "oldest videos" → { "sort": { "field": "days", "order": "desc" }, "explanation": "Videos sorted by age, oldest first (highest days = oldest)" }
 - "newest videos" → { "sort": { "field": "days", "order": "asc" }, "explanation": "Videos sorted by age, newest first (lowest days = newest)" }
+- "hidden gems" or "underrated" → { "sort": { "field": "views", "order": "asc" }, "limit": 20, "explanation": "Videos with lowest views (potential hidden gems)" }
+- "high engagement low views" → { "sort": { "field": "rates.engagementRate", "order": "desc" }, "filters": { "views": { "lt": 100000 } }, "limit": 20, "explanation": "High engagement videos with under 100K views" }
 
 Time references:
 - "last month" = days <= 30
@@ -152,6 +152,8 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log(`[AI Query] Question: "${question}" | Provider: ${provider}`);
+
     let text: string;
     try {
       if (provider === "gemini") {
@@ -171,6 +173,8 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log(`[AI Query] Raw response: ${text}`);
+
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error("[AI Query] Failed to extract JSON from response");
@@ -181,6 +185,8 @@ export async function POST(request: Request) {
     }
 
     const query = JSON.parse(jsonMatch[0]);
+
+    console.log(`[AI Query] Parsed query:`, JSON.stringify(query, null, 2));
 
     return Response.json(query, {
       headers: mergeHeaders(corsHeaders, withRateLimitHeaders(rateLimitResult)),

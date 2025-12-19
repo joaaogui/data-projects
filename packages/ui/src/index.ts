@@ -23,6 +23,7 @@ export {
   type SortingState,
   type TableMeta,
   type Row,
+  type FilterFn,
 } from "./data-table";
 
 export {

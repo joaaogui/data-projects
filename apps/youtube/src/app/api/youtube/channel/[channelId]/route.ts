@@ -42,7 +42,9 @@ export async function GET(
       );
     }
 
+    console.log(`[Channel API] Fetching videos for channel: ${validation.sanitized}`);
     const videos = await fetchChannelVideos(validation.sanitized!);
+    console.log(`[Channel API] Found ${videos.length} videos`);
 
     return Response.json(videos, {
       headers: mergeHeaders(

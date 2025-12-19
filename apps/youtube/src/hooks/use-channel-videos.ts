@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchChannelVideos } from "@/services/channel";
 
-const CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;           
+const CACHE_MAX_AGE_MS = 5 * 60 * 1000;           
 
 export function useChannelVideos(channelId: string | null) {
   return useQuery({

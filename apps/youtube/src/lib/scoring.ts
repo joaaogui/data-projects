@@ -13,14 +13,14 @@ export interface ScoringResult {
     reachScore: number;
     consistencyScore: number;
     communityScore: number;
-    efficiencyScore: number;
   };
   rates: {
     likeRate: number;
     commentRate: number;
     engagementRate: number;
     viewsPerDay: number;
-    viewsPerMinute: number;
+    viewsPerHour: number;
+    viewsPerContentMin: number;
     engagementPerMinute: number;
   };
 }
@@ -31,10 +31,9 @@ const CONFIG = {
   
   WEIGHTS: {
     reach: 0.40,
-    engagement: 0.20,
-    consistency: 0.15,
+    engagement: 0.25,
+    consistency: 0.25,
     community: 0.10,
-    efficiency: 0.15,
   },
   
   BENCHMARKS: {
@@ -75,9 +74,14 @@ function calculateViewsPerDay(metrics: VideoMetrics): number {
   return metrics.views / metrics.days;
 }
 
-function calculateViewsPerMinute(metrics: VideoMetrics): number {
-  const minutes = metrics.duration / 60;
-  if (minutes === 0) return 0;
+function calculateViewsPerHour(metrics: VideoMetrics): number {
+  const hoursPerDay = 24;
+  if (metrics.days === 0) return metrics.views / hoursPerDay;
+  return metrics.views / metrics.days / hoursPerDay;
+}
+
+function calculateViewsPerContentMin(metrics: VideoMetrics): number {
+  const minutes = Math.max(metrics.duration / 60, 1);
   return metrics.views / minutes;
 }
 
@@ -104,20 +108,19 @@ function calculateReachScore(metrics: VideoMetrics): number {
 }
 
 function calculateConsistencyScore(metrics: VideoMetrics): number {
-  const engagementRate = calculateEngagementRate(metrics);
+  const viewsPerDay = calculateViewsPerDay(metrics);
+  if (viewsPerDay === 0) return 0;
   
-  let ageFactor: number;
-  if (metrics.days <= 7) {
-    ageFactor = 1;
-  } else if (metrics.days <= 90) {
-    ageFactor = 1 + (metrics.days - 7) / 83 * 0.2;
-  } else {
-    ageFactor = 1.2 + Math.min((metrics.days - 90) / 275, 0.3);
-  }
+  const minDaysForConfidence = 14;
+  const confidenceFactor = Math.min(metrics.days / minDaysForConfidence, 1);
   
-  const consistencyIndex = engagementRate * ageFactor;
+  const ageFactor = Math.sqrt(metrics.days + 1);
+  const consistencyIndex = viewsPerDay * ageFactor * confidenceFactor;
   
-  return sigmoidNormalize(consistencyIndex, 50, 0.5);
+  const logIndex = Math.log10(consistencyIndex + 1);
+  const score = (logIndex - 2.5) * 20;
+  
+  return Math.max(0, Math.min(100, score));
 }
 
 function calculateCommunityScore(metrics: VideoMetrics): number {
@@ -133,30 +136,17 @@ function calculateCommunityScore(metrics: VideoMetrics): number {
   return sigmoidNormalize(communityIndex, 15, 0.6);
 }
 
-function calculateEfficiencyScore(metrics: VideoMetrics): number {
-  if (metrics.duration === 0) return 50;
-  
-  const viewsPerMinute = calculateViewsPerMinute(metrics);
-  const logVPM = Math.log10(viewsPerMinute + 1);
-  
-  const score = (logVPM - 2) * 25;
-  
-  return Math.max(0, Math.min(100, score));
-}
-
 export function calculateVideoScore(metrics: VideoMetrics): ScoringResult {
   const engagementScore = calculateEngagementScore(metrics);
   const reachScore = calculateReachScore(metrics);
   const consistencyScore = calculateConsistencyScore(metrics);
   const communityScore = calculateCommunityScore(metrics);
-  const efficiencyScore = calculateEfficiencyScore(metrics);
   
   const score = 
     engagementScore * CONFIG.WEIGHTS.engagement +
     reachScore * CONFIG.WEIGHTS.reach +
     consistencyScore * CONFIG.WEIGHTS.consistency +
-    communityScore * CONFIG.WEIGHTS.community +
-    efficiencyScore * CONFIG.WEIGHTS.efficiency;
+    communityScore * CONFIG.WEIGHTS.community;
   
   return {
     score: Math.round(score * 10) / 10,
@@ -165,14 +155,14 @@ export function calculateVideoScore(metrics: VideoMetrics): ScoringResult {
       reachScore: Math.round(reachScore * 10) / 10,
       consistencyScore: Math.round(consistencyScore * 10) / 10,
       communityScore: Math.round(communityScore * 10) / 10,
-      efficiencyScore: Math.round(efficiencyScore * 10) / 10,
     },
     rates: {
       likeRate: Math.round(calculateLikeRate(metrics) * 10) / 10,
       commentRate: Math.round(calculateCommentRate(metrics) * 100) / 100,
       engagementRate: Math.round(calculateEngagementRate(metrics) * 10) / 10,
       viewsPerDay: Math.round(calculateViewsPerDay(metrics)),
-      viewsPerMinute: Math.round(calculateViewsPerMinute(metrics)),
+      viewsPerHour: Math.round(calculateViewsPerHour(metrics)),
+      viewsPerContentMin: Math.round(calculateViewsPerContentMin(metrics)),
       engagementPerMinute: Math.round(calculateEngagementPerMinute(metrics)),
     },
   };
@@ -200,10 +190,6 @@ export function formatDuration(seconds: number): string {
     return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
-}
-
-export function isShortVideo(durationSeconds: number): boolean {
-  return durationSeconds <= 60;
 }
 
 export function getScoreLabel(score: number): {

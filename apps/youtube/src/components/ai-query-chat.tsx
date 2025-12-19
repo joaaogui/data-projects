@@ -28,7 +28,6 @@ interface AIQueryChatProps {
 
 const EXAMPLE_QUESTIONS = [
   "Hidden gems with high engagement but low views",
-  "Are Shorts or long-form performing better?",
   "Which recent video is growing the fastest?",
   "Videos that sparked the most community discussion",
   "Most efficient content by engagement per minute",
