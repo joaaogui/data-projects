@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Info } from "lucide-react";
-import { SuggestionLinks } from "@data-projects/ui";
+import { SearchChannel } from "@/components/search-channel";
+import { RecentChannels } from "@/components/recent-channels";
+import { BarChart3, Sparkles, TrendingUp } from "lucide-react";
 
 function YouTubeIcon({ className }: Readonly<{ className?: string }>) {
   return (
@@ -9,25 +10,36 @@ function YouTubeIcon({ className }: Readonly<{ className?: string }>) {
     </svg>
   );
 }
-import { SearchChannel } from "@/components/search-channel";
 
-const SUGGESTIONS = ["VSauce", "Veritasium", "Luiz Do Som"];
+const FEATURES = [
+  { icon: BarChart3, label: "Score every video", description: "Multi-factor scoring across reach, engagement, consistency, and community" },
+  { icon: Sparkles, label: "AI-powered insights", description: "Ask natural language questions about any channel's video catalog" },
+  { icon: TrendingUp, label: "Engagement breakdown", description: "Rates, trends, and per-1K metrics for likes, comments, and views" },
+];
+
+const FEATURED_CHANNELS = [
+  { id: "UC6nSFpj9HTCZ5t-N3Rm3-HA", name: "Vsauce", description: "Science & curiosity" },
+  { id: "UCHnyfMqiRRG1u-2MsSQLbXA", name: "Veritasium", description: "Science & engineering" },
+  { id: "UCYO_jab_esuFRV4b17AJtAw", name: "3Blue1Brown", description: "Math visualizations" },
+];
 
 export default function HomePage() {
   return (
     <main className="min-h-screen flex flex-col">
-      <div className="flex-1 flex items-center justify-center px-4">
-        <div className="w-full max-w-xl space-y-8 text-center">
-          <div className="flex justify-center">
-            <YouTubeIcon className="h-32 w-32 text-primary" />
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              <span className="bg-gradient-to-r from-primary via-red-500 to-orange-500 bg-clip-text text-transparent">YouTube Analyzer</span>
+      <div className="flex-1 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-2xl space-y-10 text-center">
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <YouTubeIcon className="h-14 w-14 text-primary" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight">
+              Understand any YouTube channel{" "}
+              <span className="bg-gradient-to-r from-primary via-red-500 to-orange-500 bg-clip-text text-transparent">
+                in seconds
+              </span>
             </h1>
-            <p className="text-muted-foreground">
-              Analyze channel statistics and video performance
+            <p className="text-lg text-muted-foreground max-w-md mx-auto">
+              Analyze video performance, score content quality, and uncover hidden patterns with AI
             </p>
           </div>
 
@@ -35,24 +47,33 @@ export default function HomePage() {
             <SearchChannel />
           </div>
 
-          <div className="text-sm text-muted-foreground">
-            <p>
-              Try searching for{" "}
-              <SuggestionLinks
-                suggestions={SUGGESTIONS}
-                hrefForSuggestion={(suggestion) =>
-                  `/channel/search/${encodeURIComponent(suggestion)}`
-                }
-                linkClassName="hover:text-primary"
-              />
-            </p>
+          <div className="flex flex-wrap justify-center gap-6 text-sm">
+            {FEATURES.map((f) => (
+              <div key={f.label} className="flex items-center gap-2 text-muted-foreground">
+                <f.icon className="h-4 w-4 text-primary/70" />
+                <span>{f.label}</span>
+              </div>
+            ))}
           </div>
 
-          <div className="flex items-start gap-2 text-xs text-muted-foreground/70 bg-muted/30 rounded-lg p-3 text-left">
-            <Info className="h-4 w-4 shrink-0 mt-0.5" />
-            <p>
-              This app uses the YouTube Data API with limited daily quota. Results are cached locally for 30 days to minimize API usage.
+          <RecentChannels />
+
+          <div className="space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Or try these channels
             </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg mx-auto">
+              {FEATURED_CHANNELS.map((ch) => (
+                <Link
+                  key={ch.id}
+                  href={`/channel/${ch.id}`}
+                  className="group rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm p-4 text-center hover:bg-muted/50 hover:border-primary/30 transition-all"
+                >
+                  <p className="font-semibold group-hover:text-primary transition-colors">{ch.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{ch.description}</p>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -68,6 +89,8 @@ export default function HomePage() {
           >
             YouTube Data API
           </a>
+          <span className="mx-1.5">&middot;</span>
+          <span className="text-muted-foreground/70">Results cached locally for 30 days</span>
         </p>
         <a
           href="https://github.com/joaaogui/data-projects"

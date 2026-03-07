@@ -21,6 +21,7 @@ export {
   type DataTableProps,
   type ColumnDef,
   type SortingState,
+  type VisibilityState,
   type TableMeta,
   type Row,
   type FilterFn,

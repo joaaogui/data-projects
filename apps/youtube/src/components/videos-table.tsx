@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   DataTable,
   SortButton,
   type ColumnDef,
   type FilterFn,
+  type VisibilityState,
   Button,
   Input,
   Popover,
@@ -15,11 +16,15 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@data-projects/ui";
-import { ExternalLink, SlidersHorizontal, Search, X } from "lucide-react";
+import { ExternalLink, SlidersHorizontal, Search, X, Columns3, Check, Download } from "lucide-react";
 import type { VideoData } from "@/types/youtube";
-import { getScoreLabel, formatDuration } from "@/lib/scoring";
-import { MetricIconsRow, DEFAULT_WEIGHTS, METRIC_TYPES, type MetricWeights } from "./metric-icon";
+import { formatDuration } from "@/lib/scoring";
+import { DEFAULT_WEIGHTS, METRIC_TYPES, type MetricWeights } from "./metric-icon";
 import { WeightsEditor } from "./weights-editor";
+import { QuickFilters, getFilterPredicate, type QuickFilterId } from "./quick-filters";
+import { ScoreRing } from "./score-ring";
+import { AIQueryPanel } from "./ai-query-chat";
+import { VideoDetailPanel } from "./video-detail-panel";
 import Image from "next/image";
 
 const formatNumber = (num: number) => num.toLocaleString("en-US");
@@ -41,41 +46,6 @@ function recalculateScore(video: VideoData, weights: MetricWeights): number {
   return Math.round(score * 10) / 10;
 }
 
-function ScoreBadge({ score }: Readonly<{ score: number }>) {
-  const { label, color } = getScoreLabel(score);
-  
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className={`text-lg font-bold tabular-nums ${color}`}>
-        {score.toFixed(1)}
-      </span>
-      <span className={`text-xs font-medium ${color}`}>
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function ScoreBreakdown({ video, weights }: Readonly<{ video: VideoData; weights: MetricWeights }>) {
-  const { scoreComponents } = video;
-  
-  if (!scoreComponents) {
-    return null;
-  }
-  
-  return (
-    <MetricIconsRow 
-      weights={weights}
-      values={{
-        views: scoreComponents.reachScore,
-        engagement: scoreComponents.engagementScore,
-        consistency: scoreComponents.consistencyScore,
-        community: scoreComponents.communityScore,
-      }}
-      className="text-sm"
-    />
-  );
-}
 
 function getEfficiencyColor(viewsPerContentMin: number): string {
   if (viewsPerContentMin >= 100000) return "text-emerald-500";
@@ -101,11 +71,46 @@ function getEngagementColor(rate: number): string {
   return "text-muted-foreground";
 }
 
+function formatCompact(num: number): string {
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return formatNumber(num);
+}
+
 interface VideosTableProps {
   data: VideoData[];
 }
 
 const WEIGHTS_STORAGE_KEY = "youtube-metric-weights";
+const COLUMNS_STORAGE_KEY = "youtube-column-visibility";
+
+const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
+  viewsPerDay: false,
+  viewsPerHour: false,
+  viewsPerContentMin: false,
+  likes: false,
+  comments: false,
+};
+
+const COLUMN_LABELS: Record<string, string> = {
+  title: "Title",
+  score: "Score",
+  duration: "Duration",
+  days: "Age",
+  views: "Views",
+  engagement: "Engagement",
+  viewsPerDay: "Views/Day",
+  viewsPerHour: "Views/Hour",
+  viewsPerContentMin: "Views/Dur",
+  likes: "Likes",
+  comments: "Comments",
+};
+
+const TOGGLEABLE_COLUMNS = [
+  "duration", "days", "views", "engagement",
+  "viewsPerDay", "viewsPerHour", "viewsPerContentMin",
+  "likes", "comments",
+];
 
 function loadWeightsFromStorage(): MetricWeights {
   if (typeof window === "undefined") return { ...DEFAULT_WEIGHTS };
@@ -125,19 +130,90 @@ function saveWeightsToStorage(weights: MetricWeights): void {
   } catch {}
 }
 
+function loadColumnsFromStorage(): VisibilityState {
+  if (typeof window === "undefined") return { ...DEFAULT_HIDDEN_COLUMNS };
+  try {
+    const stored = localStorage.getItem(COLUMNS_STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return { ...DEFAULT_HIDDEN_COLUMNS };
+}
+
+function saveColumnsToStorage(visibility: VisibilityState): void {
+  try {
+    localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(visibility));
+  } catch {}
+}
+
 const globalFilterFn: FilterFn<VideoData> = (row, _columnId, filterValue: string) => {
   const search = filterValue.toLowerCase();
   const title = row.original.title.toLowerCase();
   return title.includes(search);
 };
 
+function ColumnVisibilityToggle({
+  visibility,
+  onChange,
+}: Readonly<{
+  visibility: VisibilityState;
+  onChange: (visibility: VisibilityState) => void;
+}>) {
+  const hiddenCount = TOGGLEABLE_COLUMNS.filter(id => visibility[id] === false).length;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-7 px-2">
+          <Columns3 className="h-3.5 w-3.5 sm:mr-1.5" />
+          <span className="hidden sm:inline">Columns</span>
+          {hiddenCount > 0 && (
+            <span className="ml-1 text-xs text-muted-foreground">
+              ({TOGGLEABLE_COLUMNS.length - hiddenCount}/{TOGGLEABLE_COLUMNS.length})
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-48 p-1.5">
+        <div className="flex flex-col">
+          {TOGGLEABLE_COLUMNS.map((id) => {
+            const isVisible = visibility[id] !== false;
+            return (
+              <button
+                key={id}
+                onClick={() => onChange({ ...visibility, [id]: !isVisible })}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted transition-colors text-left"
+              >
+                <span className="w-4 h-4 flex items-center justify-center">
+                  {isVisible && <Check className="h-3.5 w-3.5 text-primary" />}
+                </span>
+                {COLUMN_LABELS[id] ?? id}
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function VideosTable({ data }: Readonly<VideosTableProps>) {
   const [weights, setWeights] = useState<MetricWeights>({ ...DEFAULT_WEIGHTS });
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({ ...DEFAULT_HIDDEN_COLUMNS });
   const [isHydrated, setIsHydrated] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");
+  const [activeFilters, setActiveFilters] = useState<Set<QuickFilterId>>(new Set());
+  const [highlightedVideoIds, setHighlightedVideoIds] = useState<Set<string>>(new Set());
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const handleHighlight = useCallback((ids: Set<string>) => {
+    setHighlightedVideoIds(ids);
+  }, []);
 
   useEffect(() => {
     setWeights(loadWeightsFromStorage());
+    setColumnVisibility(loadColumnsFromStorage());
     setIsHydrated(true);
   }, []);
 
@@ -147,31 +223,111 @@ export function VideosTable({ data }: Readonly<VideosTableProps>) {
     }
   }, [weights, isHydrated]);
 
+  useEffect(() => {
+    if (isHydrated) {
+      saveColumnsToStorage(columnVisibility);
+    }
+  }, [columnVisibility, isHydrated]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+
+      if (e.key === "/" && !isInput) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      if (e.key === "Escape") {
+        if (selectedVideoId) {
+          setSelectedVideoId(null);
+        } else if (document.activeElement === searchInputRef.current) {
+          searchInputRef.current?.blur();
+          setSearchFilter("");
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [selectedVideoId]);
+
+  const handleFilterToggle = useCallback((id: QuickFilterId) => {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (id === "all") {
+        return new Set();
+      }
+      next.delete("all");
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
   const processedData = useMemo(() => {
-    return data.map(video => ({
+    const scored = data.map(video => ({
       ...video,
       score: recalculateScore(video, weights),
     }));
-  }, [data, weights]);
+
+    const predicate = getFilterPredicate(activeFilters);
+    return predicate ? scored.filter(predicate) : scored;
+  }, [data, weights, activeFilters]);
+
+  const handleExportCsv = useCallback(() => {
+    const headers = ["Title", "Score", "Views", "Likes", "Comments", "Duration (s)", "Days Old", "Engagement/1K", "URL"];
+    const rows = processedData.map((v) => [
+      `"${v.title.replaceAll('"', '""')}"`,
+      v.score.toFixed(1),
+      v.views,
+      v.likes,
+      v.comments,
+      v.duration,
+      v.days,
+      v.rates?.engagementRate?.toFixed(1) ?? "",
+      v.url,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "youtube-videos.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [processedData]);
+
+  const selectedVideo = useMemo(
+    () => (selectedVideoId ? processedData.find((v) => v.videoId === selectedVideoId) ?? null : null),
+    [selectedVideoId, processedData]
+  );
 
   const columns: ColumnDef<VideoData>[] = useMemo(() => [
     {
       accessorKey: "title",
       header: "Title",
+      enableHiding: false,
       cell: ({ row }) => (
-        <div className="flex items-center gap-3 min-w-[280px]">
+        <div className="flex items-center gap-3 min-w-[280px] group/title">
           <Image
             src={row.original.thumbnail}
             alt={row.original.title}
             width={80}
             height={45}
-            className="rounded object-cover flex-shrink-0"
+            className="rounded object-cover flex-shrink-0 transition-transform duration-200 group-hover/title:scale-110"
           />
           <a
             href={row.original.url}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-primary hover:underline line-clamp-2 flex items-center gap-1"
+            onClick={(e) => e.stopPropagation()}
           >
             {row.original.title}
             <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-50" />
@@ -181,6 +337,7 @@ export function VideosTable({ data }: Readonly<VideosTableProps>) {
     },
     {
       accessorKey: "score",
+      enableHiding: false,
       header: ({ column }) => (
         <SortButton
           sorted={column.getIsSorted()}
@@ -190,10 +347,11 @@ export function VideosTable({ data }: Readonly<VideosTableProps>) {
         </SortButton>
       ),
       cell: ({ row }) => (
-        <div className="flex flex-col items-center gap-1">
-          <ScoreBadge score={row.original.score} />
-          <ScoreBreakdown video={row.original} weights={weights} />
-        </div>
+        <ScoreRing
+          score={row.original.score}
+          scoreComponents={row.original.scoreComponents}
+          weights={weights}
+        />
       ),
     },
     {
@@ -240,6 +398,54 @@ export function VideosTable({ data }: Readonly<VideosTableProps>) {
       ),
     },
     {
+      id: "engagement",
+      accessorFn: (row) => row.rates.engagementRate,
+      header: ({ column }) => (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <SortButton
+                sorted={column.getIsSorted()}
+                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              >
+                Engagement
+              </SortButton>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Weighted engagements per 1K views</p>
+            <p className="text-muted-foreground text-xs mt-1">Comments weighted 5x more than likes</p>
+          </TooltipContent>
+        </Tooltip>
+      ),
+      cell: ({ row }) => {
+        const rate = row.original.rates?.engagementRate ?? 0;
+        const color = getEngagementColor(rate);
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex flex-col cursor-help">
+                <span className={`tabular-nums font-medium ${color}`}>
+                  {rate.toFixed(1)}<span className="text-xs opacity-70 font-normal">/1K</span>
+                </span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {formatCompact(row.original.likes)} likes &middot; {formatCompact(row.original.comments)} comments
+                </span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Weighted engagements per 1K views</p>
+              <p className="text-muted-foreground text-xs mt-1">(likes + comments &times; 5) / views &times; 1000</p>
+              <div className="text-muted-foreground text-xs mt-2 space-y-0.5">
+                <p>Like rate: {row.original.rates?.likeRate?.toFixed(1) ?? "-"}/1K views</p>
+                <p>Comment rate: {row.original.rates?.commentRate?.toFixed(2) ?? "-"}/1K views</p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        );
+      },
+    },
+    {
       id: "viewsPerDay",
       accessorFn: (row) => row.rates?.viewsPerDay ?? 0,
       header: ({ column }) => (
@@ -277,17 +483,9 @@ export function VideosTable({ data }: Readonly<VideosTableProps>) {
       cell: ({ row }) => {
         const vph = row.original.rates?.viewsPerHour ?? 0;
         return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="tabular-nums cursor-help">
-                {formatNumber(Math.round(vph))}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Average views per hour since upload</p>
-              <p className="text-muted-foreground text-xs mt-1">views / days / 24</p>
-            </TooltipContent>
-          </Tooltip>
+          <span className="tabular-nums">
+            {formatNumber(Math.round(vph))}
+          </span>
         );
       },
     },
@@ -308,7 +506,6 @@ export function VideosTable({ data }: Readonly<VideosTableProps>) {
           </TooltipTrigger>
           <TooltipContent>
             <p>Views per minute of video duration</p>
-            <p className="text-muted-foreground text-xs mt-1">Min 1 minute for shorts</p>
           </TooltipContent>
         </Tooltip>
       ),
@@ -316,141 +513,51 @@ export function VideosTable({ data }: Readonly<VideosTableProps>) {
         const vpcm = row.original.rates?.viewsPerContentMin ?? 0;
         const color = getEfficiencyColor(vpcm);
         return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className={`tabular-nums font-medium cursor-help ${color}`}>
-                {formatNumber(vpcm)}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Views per minute of video duration</p>
-              <p className="text-muted-foreground text-xs mt-1">views / max(duration, 1 min)</p>
-            </TooltipContent>
-          </Tooltip>
+          <span className={`tabular-nums font-medium ${color}`}>
+            {formatNumber(vpcm)}
+          </span>
         );
       },
     },
     {
       accessorKey: "likes",
       header: ({ column }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <SortButton
-                sorted={column.getIsSorted()}
-                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              >
-                Likes
-              </SortButton>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Total likes and rate per 1K views</p>
-          </TooltipContent>
-        </Tooltip>
+        <SortButton
+          sorted={column.getIsSorted()}
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Likes
+        </SortButton>
       ),
       cell: ({ row }) => (
         <div className="flex flex-col">
           <span className="tabular-nums">{formatNumber(row.original.likes)}</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="text-sm text-muted-foreground tabular-nums cursor-help">
-                {row.original.rates?.likeRate?.toFixed(1) ?? '-'}<span className="text-xs opacity-70">/1K</span>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Likes per 1,000 views</p>
-            </TooltipContent>
-          </Tooltip>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {row.original.rates?.likeRate?.toFixed(1) ?? '-'}<span className="opacity-70">/1K</span>
+          </span>
         </div>
       ),
     },
     {
       accessorKey: "comments",
       header: ({ column }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <SortButton
-                sorted={column.getIsSorted()}
-                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              >
-                Comments
-              </SortButton>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Total comments and rate per 1K views</p>
-          </TooltipContent>
-        </Tooltip>
+        <SortButton
+          sorted={column.getIsSorted()}
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Comments
+        </SortButton>
       ),
       cell: ({ row }) => (
         <div className="flex flex-col">
           <span className="tabular-nums">{formatNumber(row.original.comments)}</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="text-sm text-muted-foreground tabular-nums cursor-help">
-                {row.original.rates?.commentRate?.toFixed(2) ?? '-'}<span className="text-xs opacity-70">/1K</span>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Comments per 1,000 views</p>
-            </TooltipContent>
-          </Tooltip>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {row.original.rates?.commentRate?.toFixed(2) ?? '-'}<span className="opacity-70">/1K</span>
+          </span>
         </div>
       ),
     },
-    {
-      id: "engagement",
-      accessorFn: (row) => row.rates.engagementRate,
-      header: ({ column }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <SortButton
-                sorted={column.getIsSorted()}
-                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              >
-                Engagement
-              </SortButton>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Weighted engagements per 1K views</p>
-            <p className="text-muted-foreground text-xs mt-1">Comments weighted 5x more than likes</p>
-          </TooltipContent>
-        </Tooltip>
-      ),
-      cell: ({ row }) => {
-        const rate = row.original.rates?.engagementRate ?? 0;
-        const color = getEngagementColor(rate);
-        return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className={`tabular-nums font-medium cursor-help ${color}`}>
-                {rate.toFixed(1)}<span className="text-xs opacity-70 font-normal">/1K</span>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Weighted engagements per 1K views</p>
-              <p className="text-muted-foreground text-xs mt-1">(likes + comments * 5) / views</p>
-              <p className="text-muted-foreground text-xs">Comments weighted 5x more than likes</p>
-            </TooltipContent>
-          </Tooltip>
-        );
-      },
-    },
   ], [weights]);
-
-  const avgScore = processedData.length > 0 
-    ? processedData.reduce((sum, v) => sum + (v.score || 0), 0) / processedData.length 
-    : 0;
-  const avgEngagement = processedData.length > 0
-    ? processedData.reduce((sum, v) => sum + (v.rates?.engagementRate || 0), 0) / processedData.length
-    : 0;
-  const avgViewsPerContentMin = processedData.length > 0
-    ? processedData.reduce((sum, v) => sum + (v.rates?.viewsPerContentMin || 0), 0) / processedData.length
-    : 0;
 
   const isDefaultWeights = METRIC_TYPES.every(
     t => weights[t] === DEFAULT_WEIGHTS[t]
@@ -458,76 +565,111 @@ export function VideosTable({ data }: Readonly<VideosTableProps>) {
 
   return (
     <div className="flex flex-col h-full gap-3 sm:gap-4">
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm flex-shrink-0">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder="Search videos..."
-            value={searchFilter}
-            onChange={(e) => setSearchFilter(e.target.value)}
-            className="h-7 sm:h-8 pl-8 pr-8 text-xs sm:text-sm bg-muted/50 border-transparent focus:border-border"
+      <div className="flex flex-col gap-2 sm:gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              placeholder='Search videos... ( / )'
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="h-7 sm:h-8 pl-8 pr-8 text-xs sm:text-sm bg-muted/50 border-transparent focus:border-border"
+            />
+            {searchFilter && (
+              <button
+                onClick={() => setSearchFilter("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1 ml-auto">
+          <ColumnVisibilityToggle
+            visibility={columnVisibility}
+            onChange={setColumnVisibility}
           />
-          {searchFilter && (
-            <button
-              onClick={() => setSearchFilter("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 px-2">
+                <SlidersHorizontal className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">Weights</span>
+                {!isDefaultWeights && (
+                  <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="p-3">
+              <WeightsEditor weights={weights} onChange={setWeights} />
+            </PopoverContent>
+          </Popover>
+          <AIQueryPanel videos={data} onHighlight={handleHighlight} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 px-2" onClick={handleExportCsv}>
+                <Download className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Export as CSV</TooltipContent>
+          </Tooltip>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg bg-muted/50 px-2 py-1 sm:px-3 sm:py-1.5">
-          <span className="text-muted-foreground hidden sm:inline">Avg score:</span>
-          <span className="text-muted-foreground sm:hidden">Score</span>
-          <span className="font-semibold">{avgScore.toFixed(1)}</span>
-        </div>
-        <div className="flex items-center gap-1.5 rounded-lg bg-muted/50 px-2 py-1 sm:px-3 sm:py-1.5">
-          <span className="text-muted-foreground hidden sm:inline">Avg engagement:</span>
-          <span className="text-muted-foreground sm:hidden">Eng</span>
-          <span className="font-semibold">{avgEngagement.toFixed(1)}<span className="text-xs opacity-70 font-normal">/1K</span></span>
-        </div>
-        <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5">
-          <span className="text-muted-foreground">Avg views/dur:</span>
-          <span className="font-semibold">{formatNumber(Math.round(avgViewsPerContentMin))}</span>
-        </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-6 sm:h-7 px-1.5 sm:px-2 ml-auto">
-              <SlidersHorizontal className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1.5" />
-              <span className="hidden sm:inline">Adjust</span>
-              {!isDefaultWeights && (
-                <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary" />
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="p-3">
-            <WeightsEditor weights={weights} onChange={setWeights} />
-          </PopoverContent>
-        </Popover>
+        <QuickFilters videos={data} activeFilters={activeFilters} onToggle={handleFilterToggle} />
       </div>
 
-      <div className="hidden sm:flex flex-wrap items-center gap-4 text-sm text-muted-foreground flex-shrink-0">
-        <MetricIconsRow weights={weights} showLabel showWeight />
-        <div className="ml-auto text-muted-foreground">
-          /1K = per 1,000 views
-        </div>
-      </div>
+      <div className="flex-1 min-h-0 flex gap-0">
+        <div className="flex-1 min-w-0">
+          <DataTable
+            columns={columns}
+            data={processedData}
+            defaultSorting={[{ id: "score", desc: true }]}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+            globalFilter={searchFilter}
+            onGlobalFilterChange={setSearchFilter}
+            globalFilterFn={globalFilterFn}
+            pagination={{
+              pageSize: 25,
+              showInfo: true,
+              itemName: "videos",
+            }}
+            emptyMessage={searchFilter ? "No videos match your search." : "No videos found."}
+            rowClassName={(row) => {
+              const classes: string[] = ["border-l-2"];
+              const score = row.original.score;
+              if (score >= 70) classes.push("border-l-emerald-500/60");
+              else if (score >= 55) classes.push("border-l-green-500/50");
+              else if (score >= 40) classes.push("border-l-yellow-500/40");
+              else if (score >= 25) classes.push("border-l-orange-500/30");
+              else classes.push("border-l-red-500/20");
 
-      <div className="flex-1 min-h-0">
-        <DataTable
-          columns={columns}
-          data={processedData}
-          defaultSorting={[{ id: "score", desc: true }]}
-          globalFilter={searchFilter}
-          onGlobalFilterChange={setSearchFilter}
-          globalFilterFn={globalFilterFn}
-          pagination={{
-            pageSize: 25,
-            showInfo: true,
-            itemName: "videos",
-          }}
-          emptyMessage={searchFilter ? "No videos match your search." : "No videos found."}
-        />
+              if (selectedVideoId === row.original.videoId) {
+                classes.push("bg-primary/10 !border-l-primary");
+              }
+              if (highlightedVideoIds.size > 0) {
+                classes.push(
+                  highlightedVideoIds.has(row.original.videoId)
+                    ? "ring-1 ring-primary/40 bg-primary/5"
+                    : "opacity-40"
+                );
+              }
+              return classes.join(" ");
+            }}
+            onRowClick={(row) => setSelectedVideoId(
+              selectedVideoId === row.original.videoId ? null : row.original.videoId
+            )}
+          />
+        </div>
+        {selectedVideo && (
+          <VideoDetailPanel
+            video={selectedVideo}
+            allVideos={processedData}
+            weights={weights}
+            onClose={() => setSelectedVideoId(null)}
+            onSelectVideo={setSelectedVideoId}
+          />
+        )}
       </div>
     </div>
   );

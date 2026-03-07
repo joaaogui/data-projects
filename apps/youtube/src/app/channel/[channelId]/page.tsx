@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, Skeleton, Button, Navbar } from "@data-projects/ui";
 import { VideosTable } from "@/components/videos-table";
 import { SearchChannel } from "@/components/search-channel";
-import { AIQueryChat } from "@/components/ai-query-chat";
+import { ChannelDashboard } from "@/components/channel-dashboard";
+import { saveRecentChannel } from "@/components/recent-channels";
 import { useChannelInfo } from "@/hooks/use-channel-info";
 import { useChannelVideos } from "@/hooks/use-channel-videos";
 import { CHANNEL_PREFIX } from "@/services/channel";
@@ -42,6 +43,17 @@ export default function ChannelPage() {
     isLoading: isLoadingVideos,
     isFetching: isFetchingVideos,
   } = useChannelVideos(channelId);
+
+  useEffect(() => {
+    if (channelInfo) {
+      saveRecentChannel({
+        channelId,
+        channelTitle: channelInfo.channelTitle,
+        thumbnail: channelInfo.thumbnails.default.url,
+        visitedAt: Date.now(),
+      });
+    }
+  }, [channelId, channelInfo]);
 
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["channel-videos", channelId] });
@@ -90,12 +102,12 @@ export default function ChannelPage() {
 
       <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
         {isLoadingChannel && (
-          <Card className="mb-6 flex-shrink-0">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <Skeleton className="h-16 w-16 rounded-full" />
+          <Card className="mb-4 flex-shrink-0">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 sm:h-12 sm:w-12 rounded-full" />
                 <div className="space-y-2">
-                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-5 w-48" />
                   <Skeleton className="h-4 w-32" />
                 </div>
               </div>
@@ -104,40 +116,34 @@ export default function ChannelPage() {
         )}
 
         {channelInfo && (
-          <Card className="mb-6 overflow-hidden flex-shrink-0">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                  <Image
-                    src={channelInfo.thumbnails.default.url}
-                    alt={channelInfo.channelTitle}
-                    width={64}
-                    height={64}
-                    className="h-10 w-10 sm:h-16 sm:w-16 rounded-full ring-2 ring-border transition-all shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base sm:text-xl font-semibold truncate">
-                        {channelInfo.channelTitle}
-                      </h2>
-                      <a
-                        href={`${CHANNEL_PREFIX}${channelId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-primary transition-colors shrink-0"
-                        title="Open in YouTube"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </div>
-                    {videos ? (
-                      <p className="text-sm sm:text-base text-muted-foreground">
-                        {videos.length} videos found
-                      </p>
-                    ) : (
-                      <p className="text-sm sm:text-base text-muted-foreground">Loading videos...</p>
-                    )}
+          <Card className="mb-4 overflow-hidden flex-shrink-0">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-3">
+                <Image
+                  src={channelInfo.thumbnails.default.url}
+                  alt={channelInfo.channelTitle}
+                  width={64}
+                  height={64}
+                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-full ring-2 ring-border transition-all shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base sm:text-lg font-semibold truncate">
+                      {channelInfo.channelTitle}
+                    </h2>
+                    <a
+                      href={`${CHANNEL_PREFIX}${channelId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-primary transition-colors shrink-0"
+                      title="Open in YouTube"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
                   </div>
+                  {videos && (
+                    <p className="text-sm text-muted-foreground">{videos.length} videos analyzed</p>
+                  )}
                 </div>
                 <Button
                   variant="outline"
@@ -156,21 +162,26 @@ export default function ChannelPage() {
         )}
 
         {(isLoadingVideos || isFetchingVideos) && !videos && (
-          <div className="space-y-2 flex-shrink-0">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <Skeleton key={`skeleton-${n}`} className="h-16 w-full" />
-            ))}
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center py-16">
+            <div className="relative">
+              <YouTubeIcon className="h-12 w-12 text-primary animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Loading videos...</p>
+              <p className="text-xs text-muted-foreground">Fetching data from YouTube API</p>
+            </div>
           </div>
         )}
 
         {videos && videos.length > 0 && (
-          <div className="flex-1 min-h-0">
-            <VideosTable data={videos} />
-          </div>
+          <>
+            <ChannelDashboard videos={videos} />
+            <div className="flex-1 min-h-0">
+              <VideosTable data={videos} />
+            </div>
+          </>
         )}
       </main>
-
-      {videos && videos.length > 0 && <AIQueryChat videos={videos} />}
     </div>
   );
 }

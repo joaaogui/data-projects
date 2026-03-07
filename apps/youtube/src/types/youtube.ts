@@ -18,6 +18,7 @@ export interface EngagementRates {
 export interface VideoData {
   videoId: string;
   title: string;
+  publishedAt: string;
   days: number;
   duration: number;
   views: number;

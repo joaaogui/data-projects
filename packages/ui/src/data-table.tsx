@@ -10,6 +10,7 @@ import {
   flexRender,
   type ColumnDef,
   type SortingState,
+  type VisibilityState,
   type TableMeta,
   type Row,
   type FilterFn,
@@ -31,6 +32,8 @@ export interface DataTableProps<TData, TValue> {
   data: TData[];
   meta?: TableMeta<TData>;
   defaultSorting?: SortingState;
+  columnVisibility?: VisibilityState;
+  onColumnVisibilityChange?: (visibility: VisibilityState) => void;
   pagination?: {
     pageSize?: number;
     showInfo?: boolean;
@@ -42,6 +45,8 @@ export interface DataTableProps<TData, TValue> {
   emptyMessage?: string;
   rowClassName?: (row: Row<TData>, index: number) => string;
   stickyHeader?: boolean;
+  renderExpandedRow?: (row: Row<TData>) => React.ReactNode;
+  onRowClick?: (row: Row<TData>) => void;
 }
 
 interface SortButtonProps {
@@ -75,6 +80,8 @@ export function DataTable<TData, TValue>({
   data,
   meta,
   defaultSorting = [],
+  columnVisibility: controlledVisibility,
+  onColumnVisibilityChange,
   pagination,
   globalFilter,
   onGlobalFilterChange,
@@ -82,8 +89,22 @@ export function DataTable<TData, TValue>({
   emptyMessage = "No results found.",
   rowClassName,
   stickyHeader = true,
+  renderExpandedRow,
+  onRowClick,
 }: Readonly<DataTableProps<TData, TValue>>) {
   const [sorting, setSorting] = React.useState<SortingState>(defaultSorting);
+  const [expandedRowId, setExpandedRowId] = React.useState<string | null>(null);
+  const [internalVisibility, setInternalVisibility] = React.useState<VisibilityState>({});
+
+  const columnVisibility = controlledVisibility ?? internalVisibility;
+  const handleVisibilityChange: React.Dispatch<React.SetStateAction<VisibilityState>> = (updater) => {
+    const next = typeof updater === "function" ? updater(columnVisibility) : updater;
+    if (onColumnVisibilityChange) {
+      onColumnVisibilityChange(next);
+    } else {
+      setInternalVisibility(next);
+    }
+  };
 
   const table = useReactTable({
     data,
@@ -94,10 +115,12 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     ...(pagination && { getPaginationRowModel: getPaginationRowModel() }),
     onSortingChange: setSorting,
+    onColumnVisibilityChange: handleVisibilityChange,
     onGlobalFilterChange,
     globalFilterFn,
     state: {
       sorting,
+      columnVisibility,
       globalFilter,
     },
     ...(pagination && {
@@ -140,32 +163,50 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row, index) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className={cn(
-                    "border-border/30 transition-colors hover:bg-muted/30",
-                    rowClassName?.(row, index)
-                  )}
-                  style={{
-                    animationDelay: `${index * 20}ms`,
-                  }}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+              table.getRowModel().rows.map((row, index) => {
+                const isExpanded = renderExpandedRow && expandedRowId === row.id;
+                return (
+                  <React.Fragment key={row.id}>
+                    <TableRow
+                      data-state={row.getIsSelected() && "selected"}
+                      className={cn(
+                        "border-border/30 transition-colors hover:bg-muted/30",
+                        (renderExpandedRow || onRowClick) && "cursor-pointer",
+                        isExpanded && "bg-muted/40",
+                        rowClassName?.(row, index)
                       )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                      style={{
+                        animationDelay: `${index * 20}ms`,
+                      }}
+                      onClick={(() => {
+                        if (onRowClick) return () => onRowClick(row);
+                        if (renderExpandedRow) return () => setExpandedRowId(prev => prev === row.id ? null : row.id);
+                        return undefined;
+                      })()}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  {isExpanded && (
+                    <TableRow className="border-border/30 bg-muted/20 hover:bg-muted/20">
+                      <TableCell colSpan={row.getVisibleCells().length} className="p-0">
+                        {renderExpandedRow(row)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </React.Fragment>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={table.getAllLeafColumns().length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {emptyMessage}
@@ -219,5 +260,5 @@ export function DataTable<TData, TValue>({
   );
 }
 
-export { type ColumnDef, type SortingState, type TableMeta, type Row, type FilterFn } from "@tanstack/react-table";
+export { type ColumnDef, type SortingState, type VisibilityState, type TableMeta, type Row, type FilterFn } from "@tanstack/react-table";
 

@@ -186,11 +186,13 @@ export async function fetchChannelVideos(channelId: string): Promise<VideoData[]
       const days = getDaysToToday(item.contentDetails.videoPublishedAt);
       const duration = parseISO8601Duration(contentDetails.duration);
       
+      const publishedAt = item.contentDetails.videoPublishedAt;
       const scoring = calculateVideoScore({ views, likes, comments, days, duration });
       
       videos.push({
         videoId,
         title: item.snippet.title,
+        publishedAt,
         days,
         duration,
         views,
