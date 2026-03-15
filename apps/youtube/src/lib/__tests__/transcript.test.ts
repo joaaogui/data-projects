@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("youtube-transcript-api-js", () => {
   const MockApi = vi.fn();
@@ -7,7 +7,10 @@ vi.mock("youtube-transcript-api-js", () => {
 });
 
 vi.mock("node:child_process", () => ({
-  execFile: vi.fn(),
+  execFile: vi.fn((_cmd: string, _args: string[], cbOrOpts?: unknown, cb?: unknown) => {
+    const callback = typeof cbOrOpts === "function" ? cbOrOpts : cb;
+    if (typeof callback === "function") callback(new Error("not found"), "", "");
+  }),
 }));
 
 vi.mock("../utils", () => ({
@@ -15,13 +18,13 @@ vi.mock("../utils", () => ({
   runWorkerPool: vi.fn().mockResolvedValue(undefined),
 }));
 
-import {
-  fetchFullTranscriptWithStatus,
-  fetchFullTranscript,
-  fetchTranscriptExcerpt,
-  fetchTranscriptBatch,
-} from "../transcript";
 import { YouTubeTranscriptApi } from "youtube-transcript-api-js";
+import {
+  fetchFullTranscript,
+  fetchFullTranscriptWithStatus,
+  fetchTranscriptBatch,
+  fetchTranscriptExcerpt,
+} from "../transcript";
 import { runWorkerPool } from "../utils";
 
 const mockFetch = YouTubeTranscriptApi.prototype.fetch as ReturnType<
