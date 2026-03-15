@@ -34,7 +34,7 @@ export function createCache<T>(options: CacheOptions = {}) {
 
   function set(key: string, data: T): void {
     if (store.size >= maxSize) {
-      const oldestKey = store.keys().next().value as string | undefined;
+      const oldestKey = store.keys().next().value;
       if (oldestKey) store.delete(oldestKey);
     }
     store.set(key, { data, timestamp: now() });

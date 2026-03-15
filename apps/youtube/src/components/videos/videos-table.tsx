@@ -71,8 +71,8 @@ function VideoCard({
       type="button"
       onClick={onClick}
       className={`w-full text-left flex items-start gap-3 rounded-xl border p-2.5 transition-all duration-150 border-l-2 ${borderClass} ${isSelected
-          ? "bg-primary/8 !border-l-primary border-l-[3px] shadow-sm"
-          : "border-border/30 hover:bg-muted/30"
+        ? "bg-primary/8 !border-l-primary border-l-[3px] shadow-sm"
+        : "border-border/30 hover:bg-muted/30"
         } ${hasHighlights
           ? isHighlighted
             ? "ring-1 ring-primary/30 bg-primary/5 shadow-sm shadow-primary/10"
@@ -80,15 +80,15 @@ function VideoCard({
           : ""
         }`}
     >
-      <Image
-        src={video.thumbnail}
-        alt={video.title}
-        width={96}
-        height={54}
-        sizes="96px"
-        style={{ width: 96, height: "auto" }}
-        className="rounded-lg object-cover flex-shrink-0"
-      />
+      <div className="relative w-24 aspect-video flex-shrink-0">
+        <Image
+          src={video.thumbnail}
+          alt={video.title}
+          fill
+          sizes="96px"
+          className="rounded-lg object-cover"
+        />
+      </div>
       <div className="flex-1 min-w-0 space-y-1">
         <p className="text-sm font-medium line-clamp-2 leading-snug">{video.title}</p>
         <div className="flex items-center gap-2 flex-wrap">
@@ -409,15 +409,15 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
       enableHiding: false,
       cell: ({ row }) => (
         <div className="flex items-center gap-3 min-w-[280px] group/title cursor-pointer hover:shadow-md">
-          <Image
-            src={row.original.thumbnail}
-            alt={row.original.title}
-            width={80}
-            height={45}
-            sizes="80px"
-            style={{ width: 80, height: "auto" }}
-            className="rounded object-cover flex-shrink-0 transition-transform duration-200 group-hover/title:scale-110"
-          />
+          <div className="relative w-20 aspect-video flex-shrink-0">
+            <Image
+              src={row.original.thumbnail}
+              alt={row.original.title}
+              fill
+              sizes="80px"
+              className="rounded object-cover transition-transform duration-200 group-hover/title:scale-110"
+            />
+          </div>
           <span className="line-clamp-2 group-hover/title:text-primary transition-colors cursor-pointer">
             {row.original.title}
           </span>

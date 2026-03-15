@@ -90,31 +90,3 @@ export async function fetchChannelPlaylists(channelId: string): Promise<Playlist
   return response.json();
 }
 
-export interface SagaBatchResult {
-  segments: Array<{ name: string; videoIds: string[]; reasoning?: string; videoEvidence?: Record<string, string> }>;
-  tailContext: string;
-}
-
-export async function analyzeSagaBatch(
-  videos: Array<{ videoId: string; title: string; publishedAt: string }>,
-  overlapContext?: string,
-  knownSagaNames?: string[]
-): Promise<SagaBatchResult> {
-  const response = await fetch("/api/youtube/sagas/analyze", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ videos, overlapContext, knownSagaNames }),
-  });
-
-  if (response.status === 429) {
-    throw new Error("Too many requests. Please wait a moment and try again.");
-  }
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to analyze saga batch");
-  }
-
-  return response.json();
-}
-

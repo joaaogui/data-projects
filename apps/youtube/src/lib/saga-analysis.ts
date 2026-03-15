@@ -4,6 +4,70 @@ import type { Saga, VideoData } from "@/types/youtube";
 export const BATCH_SIZE = 30;
 export const OVERLAP = 3;
 
+export interface UncategorizedRun { start: number; end: number }
+
+export function splitLargeRun(run: UncategorizedRun, maxSize: number): UncategorizedRun[] {
+  const size = run.end - run.start + 1;
+  if (size <= maxSize) return [run];
+  const subRuns: UncategorizedRun[] = [];
+  let pos = run.start;
+  while (pos <= run.end) {
+    const end = Math.min(pos + maxSize - 1, run.end);
+    subRuns.push({ start: pos, end });
+    pos = end + 1;
+  }
+  return subRuns;
+}
+
+export function findUncategorizedRuns(sorted: VideoData[], sagaVideoIds: Set<string>): UncategorizedRun[] {
+  const runs: UncategorizedRun[] = [];
+  let runStart = -1;
+  for (let i = 0; i < sorted.length; i++) {
+    if (sagaVideoIds.has(sorted[i].videoId)) {
+      if (runStart >= 0) runs.push({ start: runStart, end: i - 1 });
+      runStart = -1;
+    } else if (runStart === -1) {
+      runStart = i;
+    }
+  }
+  if (runStart >= 0) runs.push({ start: runStart, end: sorted.length - 1 });
+  return runs;
+}
+
+export function buildRunContext(
+  run: UncategorizedRun,
+  sorted: VideoData[],
+  allSagas: Saga[]
+): { overlapContext: string; batchVideos: VideoData[] } {
+  const runSize = run.end - run.start + 1;
+  const contextSize = runSize <= 2 ? 4 : 2;
+  const contextStart = Math.max(0, run.start - contextSize);
+  const contextEnd = Math.min(sorted.length - 1, run.end + contextSize);
+  const batchVideos = sorted.slice(contextStart, contextEnd + 1);
+
+  const contextBefore = sorted.slice(contextStart, run.start);
+  const contextAfter = sorted.slice(run.end + 1, contextEnd + 1);
+
+  let overlapContext = "";
+  if (contextBefore.length > 0) {
+    const beforeSagas = allSagas.filter((s) =>
+      contextBefore.some((v) => s.videoIds.includes(v.videoId))
+    );
+    if (beforeSagas.length > 0) {
+      overlapContext += `Previous saga: "${beforeSagas.at(-1)?.name}". `;
+    }
+  }
+  if (contextAfter.length > 0) {
+    const afterSagas = allSagas.filter((s) =>
+      contextAfter.some((v) => s.videoIds.includes(v.videoId))
+    );
+    if (afterSagas.length > 0) {
+      overlapContext += `Next saga: "${afterSagas[0]?.name}".`;
+    }
+  }
+  return { overlapContext, batchVideos };
+}
+
 export function buildPlaylistSagas(
   playlists: Awaited<ReturnType<typeof fetchChannelPlaylists>>,
   videos: VideoData[]

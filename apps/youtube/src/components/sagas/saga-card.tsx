@@ -106,14 +106,13 @@ export function SagaCard({
         {Array.from({ length: 4 }, (_, i) => {
           const v = thumbnails[i];
           return v ? (
-            <div key={v.videoId} className="relative flex-1 min-w-0">
+            <div key={v.videoId} className="relative flex-1 min-w-0 aspect-video">
               <Image
                 src={v.thumbnail}
                 alt=""
-                width={120}
-                height={68}
-                style={{ width: "100%", height: "auto" }}
-                className="w-full h-auto object-cover rounded-sm"
+                fill
+                sizes="120px"
+                className="object-cover rounded-sm"
               />
             </div>
           ) : (

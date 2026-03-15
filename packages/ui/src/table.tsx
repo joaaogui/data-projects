@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
 import { cn } from "@data-projects/shared";
+import * as React from "react";
 
 interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
   "aria-label"?: string;
@@ -11,7 +11,7 @@ interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
 
 const Table = React.forwardRef<HTMLTableElement, TableProps>(
   (
-    { className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledby, noWrapper = false, ...props },
+    { className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledby, noWrapper = false, children, ...props },
     ref
   ) => {
     const table = (
@@ -21,7 +21,9 @@ const Table = React.forwardRef<HTMLTableElement, TableProps>(
         aria-labelledby={ariaLabelledby}
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
-      />
+      >
+        {children}
+      </table>
     );
 
     if (noWrapper) {
@@ -131,13 +133,7 @@ const TableCaption = React.forwardRef<
 TableCaption.displayName = "TableCaption";
 
 export {
-  Table,
-  TableHeader,
-  TableBody,
-  TableFooter,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableCaption,
+  Table, TableBody, TableCaption, TableCell, TableFooter,
+  TableHead, TableHeader, TableRow
 };
 

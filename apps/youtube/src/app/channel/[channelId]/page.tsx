@@ -48,6 +48,9 @@ function ChannelPageContent() {
     accountData,
   } = useChannel();
 
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
   const autoSyncTriggered = useRef(false);
 
   const searchParams = useSearchParams();
@@ -88,7 +91,7 @@ function ChannelPageContent() {
     }
   }, [source, isLoadingVideos, isFetchingVideos, isVideoSyncing, syncVideos]);
 
-  const isInitialLoading = isLoadingVideos || (source === "none" && isVideoSyncing);
+  const isInitialLoading = !hydrated || isLoadingVideos || (source === "none" && isVideoSyncing);
 
   if (channelError) {
     return (
@@ -108,7 +111,7 @@ function ChannelPageContent() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} appName="YouTube Analyzer" search={<SearchChannel initialValue={channelInfo?.channelTitle} compact />} themeIconClassName="text-primary" />
+      <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} appName="YouTube Analyzer" search={<SearchChannel initialValue={hydrated ? channelInfo?.channelTitle : undefined} compact />} themeIconClassName="text-primary" />
       <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
         <ErrorBoundary>
           <ChannelHeader

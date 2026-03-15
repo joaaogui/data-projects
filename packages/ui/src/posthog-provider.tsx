@@ -12,7 +12,7 @@ function PostHogPageView() {
 
   useEffect(() => {
     if (pathname && posthog) {
-      let url = window.origin + pathname;
+      let url = globalThis.origin + pathname;
       if (searchParams.toString()) {
         url = url + `?${searchParams.toString()}`;
       }
@@ -37,11 +37,11 @@ export function PostHogProvider({
   children,
   apiKey,
   apiHost = "https://us.i.posthog.com",
-}: PostHogProviderProps) {
+}: Readonly<PostHogProviderProps>) {
   const isValid = isValidPostHogKey(apiKey);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && isValid) {
+    if (globalThis.window !== undefined && isValid) {
       posthog.init(apiKey, {
         api_host: apiHost,
         person_profiles: "identified_only",

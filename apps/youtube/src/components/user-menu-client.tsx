@@ -28,7 +28,6 @@ export function UserMenuClient({ name, email, image, signOutAction }: Readonly<U
               width={32}
               height={32}
               className="rounded-full"
-              style={{ width: 32, height: "auto" }}
               referrerPolicy="no-referrer"
             />
           ) : (

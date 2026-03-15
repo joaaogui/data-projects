@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useMemo, type ReactNode } from 
 import { useAccountData, type AccountDataResult } from "./use-account-data";
 import { useChannelInfo } from "./use-channel-info";
 import { useChannelVideos } from "./use-channel-videos";
-import { useSync, type SyncJobState } from "./use-sync";
+import { useSync, type SyncJobState, type SyncJobType } from "./use-sync";
 
 interface ChannelContextValue {
   channelId: string;
@@ -23,13 +23,17 @@ interface ChannelContextValue {
 
   videoSync: SyncJobState | null;
   transcriptSync: SyncJobState | null;
+  sagaSync: SyncJobState | null;
   videoLogs: SyncLogEntry[];
   transcriptLogs: SyncLogEntry[];
+  sagaLogs: SyncLogEntry[];
   syncVideos: () => Promise<void> | void;
   syncTranscripts: (options?: { retry?: boolean }) => Promise<void> | void;
-  cancelSync: (type: "videos" | "transcripts") => Promise<void> | void;
+  syncSagas: (options?: { mode?: "full" | "incremental" | "reset" }) => Promise<void> | void;
+  cancelSync: (type: SyncJobType) => Promise<void> | void;
   isVideoSyncing: boolean;
   isTranscriptSyncing: boolean;
+  isSagaSyncing: boolean;
   isSyncing: boolean;
 
   handleRefresh: () => void;
@@ -64,13 +68,17 @@ export function ChannelProvider({
   const {
     videoSync,
     transcriptSync,
+    sagaSync,
     videoLogs,
     transcriptLogs,
+    sagaLogs,
     syncVideos,
     syncTranscripts,
+    syncSagas,
     cancelSync,
     isVideoSyncing,
     isTranscriptSyncing,
+    isSagaSyncing,
     isSyncing,
   } = useSync(channelId);
 
@@ -100,13 +108,17 @@ export function ChannelProvider({
       isFetchingVideos,
       videoSync,
       transcriptSync,
+      sagaSync,
       videoLogs,
       transcriptLogs,
+      sagaLogs,
       syncVideos,
       syncTranscripts,
+      syncSagas,
       cancelSync,
       isVideoSyncing,
       isTranscriptSyncing,
+      isSagaSyncing,
       isSyncing,
       handleRefresh,
       accountData,
@@ -114,9 +126,9 @@ export function ChannelProvider({
     [
       channelId, channelInfo, isLoadingChannel, channelError,
       videos, source, fresh, fetchedAt, isLoadingVideos, isFetchingVideos,
-      videoSync, transcriptSync, videoLogs, transcriptLogs,
-      syncVideos, syncTranscripts, cancelSync,
-      isVideoSyncing, isTranscriptSyncing, isSyncing, handleRefresh,
+      videoSync, transcriptSync, sagaSync, videoLogs, transcriptLogs, sagaLogs,
+      syncVideos, syncTranscripts, syncSagas, cancelSync,
+      isVideoSyncing, isTranscriptSyncing, isSagaSyncing, isSyncing, handleRefresh,
       accountData,
     ]
   );

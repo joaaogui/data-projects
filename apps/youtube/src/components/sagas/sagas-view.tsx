@@ -29,28 +29,20 @@ interface SagasViewProps {
 }
 
 function ProgressBar({ progress }: Readonly<{ progress: AnalysisProgress }>) {
-  const isActive = progress.phase === "transcribing" || progress.phase === "analyzing";
-  if (!isActive && progress.phase !== "paused") return null;
+  if (progress.phase !== "analyzing") return null;
 
-  const pct = progress.videosTotal > 0
-    ? Math.min(100, (progress.videosProcessed / progress.videosTotal) * 100)
+  const pct = progress.totalBatches > 0
+    ? Math.min(100, (progress.currentBatch / progress.totalBatches) * 100)
     : 0;
-
-  const phaseLabels: Record<string, string> = {
-    transcribing: "Transcribing videos...",
-    analyzing: "Analyzing stories...",
-    paused: "Stopping after current batch...",
-  };
-  const phaseLabel = phaseLabels[progress.phase] ?? "Processing...";
 
   return (
     <div className="flex-shrink-0 rounded-2xl border border-border/50 bg-card p-3 space-y-2">
       <div className="flex items-center justify-between text-xs">
         <span className="text-muted-foreground">
-          {phaseLabel} Batch {progress.currentBatch} of {progress.totalBatches}
+          Analyzing stories... Batch {progress.currentBatch} of {progress.totalBatches}
         </span>
         <span className="font-medium tabular-nums">
-          {progress.videosProcessed.toLocaleString()} / {progress.videosTotal.toLocaleString()} videos
+          {Math.round(pct)}%
         </span>
       </div>
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -80,7 +72,7 @@ export function SagasView({ channelId, videos }: Readonly<SagasViewProps>) {
   const [sortBy, setSortBy] = useState<"date" | "views" | "runtime" | "videos">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  const isActive = progress.phase === "transcribing" || progress.phase === "analyzing";
+  const isActive = progress.phase === "analyzing";
   const hasResults = sagas.some((s) => s.source === "ai-detected");
   const hasUncategorized = uncategorizedVideoIds.length > 0;
   const displaySagas = useMemo(() => sagas.filter((s) => s.id !== "standalone"), [sagas]);

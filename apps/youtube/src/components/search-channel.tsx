@@ -31,7 +31,6 @@ export function SearchChannel({ initialValue = "", compact = false }: Readonly<S
               alt=""
               width={32}
               height={32}
-              style={{ height: "auto" }}
               className="h-8 w-8 rounded-full object-cover ring-1 ring-border/50"
             />
           ) : (

@@ -7,7 +7,7 @@ import { Button, Card, CardContent, Tooltip, TooltipContent, TooltipTrigger } fr
 import dayjs from "dayjs";
 import { Calendar, ChevronDown, ChevronUp, Eye, Minus, ThumbsUp, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const COLLAPSED_KEY = "youtube-dashboard-collapsed";
 
@@ -62,14 +62,15 @@ function TrendIcon({ value }: Readonly<{ value: number }>) {
 }
 
 export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
-  const [collapsed, setCollapsed] = useState(() => {
-    if (globalThis.window === undefined) return false;
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
     try {
-      return localStorage.getItem(COLLAPSED_KEY) === "true";
-    } catch {
-      return false;
-    }
-  });
+      if (localStorage.getItem(COLLAPSED_KEY) === "true") {
+        setCollapsed(true);
+      }
+    } catch { }
+  }, []);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
@@ -213,14 +214,12 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
                     <span className="text-xs font-medium uppercase tracking-wider">Top Performer</span>
                   </div>
                   <div className="flex items-center gap-2.5 mt-1.5">
-                    <div className="relative flex-shrink-0">
+                    <div className="relative flex-shrink-0 w-14 aspect-video">
                       <Image
                         src={stats.topVideo.thumbnail}
                         alt={stats.topVideo.title}
-                        width={56}
-                        height={32}
+                        fill
                         sizes="56px"
-                        style={{ width: 56, height: "auto" }}
                         className="rounded-lg object-cover ring-1 ring-border/30"
                       />
                       <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 flex items-center justify-center">

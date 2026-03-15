@@ -102,7 +102,7 @@ export const syncJobs = pgTable(
     channelId: text("channel_id")
       .notNull()
       .references(() => channels.id, { onDelete: "cascade" }),
-    type: text("type").$type<"videos" | "transcripts">().notNull(),
+    type: text("type").$type<"videos" | "transcripts" | "sagas">().notNull(),
     status: text("status")
       .$type<"pending" | "running" | "completed" | "failed">()
       .notNull()

@@ -29,7 +29,7 @@ export interface SyncJob {
   id: string;
   channelId: string;
   channelTitle: string | null;
-  type: "videos" | "transcripts";
+  type: "videos" | "transcripts" | "sagas";
   status: "pending" | "running" | "completed" | "failed";
   progress: FetchProgress | null;
   error: string | null;

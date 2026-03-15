@@ -56,6 +56,12 @@ interface SortButtonProps {
   className?: string;
 }
 
+function SortIcon({ sorted }: Readonly<{ sorted: false | "asc" | "desc" }>) {
+  if (sorted === "asc") return <ArrowUp className="ml-2 h-4 w-4" />;
+  if (sorted === "desc") return <ArrowDown className="ml-2 h-4 w-4" />;
+  return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
+}
+
 export function SortButton({ children, sorted, onClick, className }: Readonly<SortButtonProps>) {
   return (
     <Button
@@ -64,13 +70,7 @@ export function SortButton({ children, sorted, onClick, className }: Readonly<So
       className={cn("-ml-4 h-8 px-2", className)}
     >
       {children}
-      {sorted === "asc" ? (
-        <ArrowUp className="ml-2 h-4 w-4" />
-      ) : sorted === "desc" ? (
-        <ArrowDown className="ml-2 h-4 w-4" />
-      ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
-      )}
+      <SortIcon sorted={sorted} />
     </Button>
   );
 }
@@ -135,6 +135,12 @@ export function DataTable<TData, TValue>({
   const filteredRowCount = table.getFilteredRowModel().rows.length;
   const hasPagination = pagination && filteredRowCount > (pagination.pageSize ?? 25);
 
+  function getRowClickHandler(row: Row<TData>) {
+    if (onRowClick) return () => onRowClick(row);
+    if (renderExpandedRow) return () => setExpandedRowId(prev => prev === row.id ? null : row.id);
+    return undefined;
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 min-h-0 rounded-xl border border-border/50 bg-card/30 backdrop-blur-sm overflow-auto">
@@ -178,11 +184,7 @@ export function DataTable<TData, TValue>({
                       style={{
                         animationDelay: `${index * 20}ms`,
                       }}
-                      onClick={(() => {
-                        if (onRowClick) return () => onRowClick(row);
-                        if (renderExpandedRow) return () => setExpandedRowId(prev => prev === row.id ? null : row.id);
-                        return undefined;
-                      })()}
+                      onClick={getRowClickHandler(row)}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>

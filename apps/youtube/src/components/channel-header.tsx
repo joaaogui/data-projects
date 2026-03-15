@@ -72,15 +72,13 @@ export function ChannelHeader({
       <CardContent className="p-4 sm:p-5 relative">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="relative group shrink-0">
+            <div className="relative group shrink-0 h-12 w-12 sm:h-16 sm:w-16">
               <Image
                 src={channelInfo.thumbnails.default.url}
                 alt={channelInfo.channelTitle}
-                width={64}
-                height={64}
-                sizes="64px"
-                style={{ height: "auto" }}
-                className="h-12 w-12 sm:h-16 sm:w-16 rounded-full ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all duration-300"
+                fill
+                sizes="(min-width: 640px) 64px, 48px"
+                className="rounded-full object-cover ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all duration-300"
               />
               <div className="absolute -inset-1 rounded-full bg-primary/10 blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
             </div>

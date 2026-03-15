@@ -98,6 +98,7 @@ export type SyncPhase =
   | "details"
   | "saving"
   | "transcripts"
+  | "analyzing"
   | "done";
 
 export interface FetchProgress {

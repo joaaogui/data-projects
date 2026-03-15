@@ -58,7 +58,6 @@ export function RecentChannels() {
                 width={24}
                 height={24}
                 sizes="24px"
-                style={{ height: "auto" }}
                 className="h-6 w-6 rounded-full object-cover ring-1 ring-border/30 group-hover:ring-primary/30 transition-all"
               />
             ) : (

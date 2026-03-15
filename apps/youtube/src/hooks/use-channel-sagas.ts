@@ -1,37 +1,59 @@
 "use client";
 
 import { useSagaStorage } from "@/hooks/use-saga-storage";
-import { sagaAnalysisStore } from "@/lib/saga-analysis-store";
 import type { Saga, VideoData } from "@/types/youtube";
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo } from "react";
+import { useChannel } from "./use-channel-context";
+import type { SyncJobState } from "./use-sync";
 
-export type { AnalysisPhase, AnalysisProgress } from "@/lib/saga-analysis-store";
+export interface AnalysisProgress {
+  phase: "idle" | "analyzing" | "done" | "error";
+  currentBatch: number;
+  totalBatches: number;
+  error?: string;
+}
+
+function toProgress(sagaSync: SyncJobState | null, hasAiSagas: boolean): AnalysisProgress {
+  if (!sagaSync) {
+    return {
+      phase: hasAiSagas ? "done" : "idle",
+      currentBatch: 0,
+      totalBatches: 0,
+    };
+  }
+
+  switch (sagaSync.status) {
+    case "pending":
+    case "running":
+      return {
+        phase: "analyzing",
+        currentBatch: sagaSync.progress?.fetched ?? 0,
+        totalBatches: sagaSync.progress?.total ?? 0,
+      };
+    case "completed":
+      return { phase: "done", currentBatch: 0, totalBatches: 0 };
+    case "failed":
+      return {
+        phase: "error",
+        currentBatch: 0,
+        totalBatches: 0,
+        error: sagaSync.error ?? "Analysis failed",
+      };
+  }
+}
 
 export function useChannelSagas(channelId: string | null, videos: VideoData[] | undefined) {
   const {
-    allSagas, aiSagas, playlistSagas,
-    setAiSagas, saveAiSagas, deleteAiSagas,
+    allSagas, aiSagas,
     isLoading: isLoadingSagas,
   } = useSagaStorage(channelId);
 
-  const progress = useSyncExternalStore(
-    sagaAnalysisStore.subscribe,
-    sagaAnalysisStore.getSnapshot,
-    sagaAnalysisStore.getSnapshot
+  const { sagaSync, syncSagas, cancelSync } = useChannel();
+
+  const progress = useMemo(
+    () => toProgress(sagaSync, aiSagas.length > 0),
+    [sagaSync, aiSagas.length]
   );
-
-  useEffect(() => { sagaAnalysisStore.saveFn = saveAiSagas; }, [saveAiSagas]);
-  useEffect(() => { sagaAnalysisStore.deleteFn = deleteAiSagas; }, [deleteAiSagas]);
-  useEffect(() => { sagaAnalysisStore.setAiFn = setAiSagas; }, [setAiSagas]);
-  useEffect(() => {
-    sagaAnalysisStore.playlistVideoIds = new Set(playlistSagas.flatMap((s) => s.videoIds));
-  }, [playlistSagas]);
-
-  useEffect(() => {
-    if (aiSagas.length > 0 && progress.phase === "idle" && !sagaAnalysisStore.isRunning()) {
-      sagaAnalysisStore.markDoneIfLoaded();
-    }
-  }, [aiSagas.length, progress.phase]);
 
   const realSagas = useMemo(
     () => [...allSagas].sort((a, b) => a.dateRange.first.localeCompare(b.dateRange.first)),
@@ -66,22 +88,22 @@ export function useChannelSagas(channelId: string | null, videos: VideoData[] | 
 
   const startAnalysis = useCallback(() => {
     if (!channelId || !videos || videos.length === 0) return;
-    sagaAnalysisStore.startAnalysis(channelId, videos, aiSagas, true);
-  }, [channelId, videos, aiSagas]);
+    syncSagas({ mode: "full" });
+  }, [channelId, videos, syncSagas]);
 
   const resetAndReanalyze = useCallback(() => {
     if (!channelId || !videos || videos.length === 0) return;
-    sagaAnalysisStore.startAnalysis(channelId, videos, aiSagas, false);
-  }, [channelId, videos, aiSagas]);
+    syncSagas({ mode: "reset" });
+  }, [channelId, videos, syncSagas]);
 
   const startIncrementalAnalysis = useCallback(() => {
     if (!channelId || !videos || videos.length === 0) return;
-    sagaAnalysisStore.startIncremental(channelId, videos, allSagas, aiSagas);
-  }, [channelId, videos, allSagas, aiSagas]);
+    syncSagas({ mode: "incremental" });
+  }, [channelId, videos, syncSagas]);
 
   const stopAnalysis = useCallback(() => {
-    sagaAnalysisStore.stop();
-  }, []);
+    cancelSync("sagas");
+  }, [cancelSync]);
 
   return {
     sagas,

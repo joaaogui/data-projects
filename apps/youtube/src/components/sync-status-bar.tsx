@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Button } from "@data-projects/ui";
-import { Loader2, CheckCircle2, XCircle, Square, Terminal, ChevronDown, ChevronUp } from "lucide-react";
 import { SyncLogPanel } from "@/components/sync-log-panel";
-import type { SyncJobState } from "@/hooks/use-sync";
+import type { SyncJobState, SyncJobType } from "@/hooks/use-sync";
 import type { FetchProgress, SyncLogEntry } from "@/types/youtube";
+import { Button } from "@data-projects/ui";
+import { CheckCircle2, ChevronDown, ChevronUp, Loader2, Square, Terminal, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 
 function formatSyncPhase(type: string, progress: FetchProgress): string {
   if (type === "transcripts") {
@@ -162,7 +162,7 @@ export interface SyncStatusBarProps {
   videoLogs: SyncLogEntry[];
   transcriptLogs: SyncLogEntry[];
   isSyncing: boolean;
-  onCancel?: (type: "videos" | "transcripts") => void;
+  onCancel?: (type: SyncJobType) => void;
 }
 
 export function SyncStatusBar({ videoSync, transcriptSync, videoLogs, transcriptLogs, isSyncing, onCancel }: Readonly<SyncStatusBarProps>) {

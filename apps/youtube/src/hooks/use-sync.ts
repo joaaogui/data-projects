@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import type { FetchProgress, SyncLogEntry } from "@/types/youtube";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+export type SyncJobType = "videos" | "transcripts" | "sagas";
 
 export interface SyncJobState {
   jobId: string;
-  type: "videos" | "transcripts";
+  type: SyncJobType;
   status: "pending" | "running" | "completed" | "failed";
   progress: FetchProgress | null;
   error: string | null;
@@ -17,19 +19,34 @@ const POLL_INTERVAL_MS = 2000;
 export function useSync(channelId: string | null) {
   const [videoSync, setVideoSync] = useState<SyncJobState | null>(null);
   const [transcriptSync, setTranscriptSync] = useState<SyncJobState | null>(null);
+  const [sagaSync, setSagaSync] = useState<SyncJobState | null>(null);
   const [videoLogs, setVideoLogs] = useState<SyncLogEntry[]>([]);
   const [transcriptLogs, setTranscriptLogs] = useState<SyncLogEntry[]>([]);
+  const [sagaLogs, setSagaLogs] = useState<SyncLogEntry[]>([]);
   const videoPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sagaPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoLogCountRef = useRef(0);
   const transcriptLogCountRef = useRef(0);
+  const sagaLogCountRef = useRef(0);
   const detectedRef = useRef(false);
   const queryClient = useQueryClient();
 
+  function getRefsForType(type: SyncJobType) {
+    switch (type) {
+      case "videos":
+        return { setState: setVideoSync, setLogs: setVideoLogs, pollRef: videoPollRef, logCountRef: videoLogCountRef };
+      case "transcripts":
+        return { setState: setTranscriptSync, setLogs: setTranscriptLogs, pollRef: transcriptPollRef, logCountRef: transcriptLogCountRef };
+      case "sagas":
+        return { setState: setSagaSync, setLogs: setSagaLogs, pollRef: sagaPollRef, logCountRef: sagaLogCountRef };
+    }
+  }
+
   const pollJob = useCallback(
-    async (jobId: string, type: "videos" | "transcripts") => {
+    async (jobId: string, type: SyncJobType) => {
       try {
-        const logCountRef = type === "videos" ? videoLogCountRef : transcriptLogCountRef;
+        const { setState, setLogs, logCountRef } = getRefsForType(type);
         const res = await fetch(`/api/sync/status/${jobId}?logsSince=${logCountRef.current}`);
         if (!res.ok) return false;
         const data = await res.json();
@@ -41,34 +58,42 @@ export function useSync(channelId: string | null) {
           error: data.error,
         };
 
-        if (type === "videos") setVideoSync(state);
-        else setTranscriptSync(state);
+        setState(state);
 
         if (data.logs && data.logs.length > 0) {
-          const setter = type === "videos" ? setVideoLogs : setTranscriptLogs;
-          setter((prev) => [...prev, ...data.logs]);
+          setLogs((prev) => [...prev, ...data.logs]);
           logCountRef.current = data.totalLogs;
         }
 
         if (data.status === "completed" || data.status === "failed") {
           if (data.status === "completed") {
-            queryClient.invalidateQueries({ queryKey: ["channel-videos", channelId] });
-            queryClient.invalidateQueries({ queryKey: ["channel-info", channelId] });
+            if (type === "videos" || type === "transcripts") {
+              queryClient.invalidateQueries({ queryKey: ["channel-videos", channelId] });
+              queryClient.invalidateQueries({ queryKey: ["channel-info", channelId] });
+            }
+            if (type === "sagas") {
+              queryClient.invalidateQueries({ queryKey: ["sagas", channelId] });
+            }
           }
           return true;
+        }
+
+        if (type === "sagas" && data.status === "running") {
+          queryClient.invalidateQueries({ queryKey: ["sagas", channelId] });
         }
       } catch (err) {
         console.warn(`[useSync] Poll error for ${type}:`, err);
       }
       return false;
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [channelId, queryClient]
   );
 
   const startPolling = useCallback(
-    (jobId: string, type: "videos" | "transcripts") => {
-      const ref = type === "videos" ? videoPollRef : transcriptPollRef;
-      if (ref.current) clearTimeout(ref.current);
+    (jobId: string, type: SyncJobType) => {
+      const { pollRef } = getRefsForType(type);
+      if (pollRef.current) clearTimeout(pollRef.current);
 
       let delay = POLL_INTERVAL_MS;
       const MAX_POLL_INTERVAL_MS = 10_000;
@@ -76,15 +101,16 @@ export function useSync(channelId: string | null) {
       const poll = async () => {
         const done = await pollJob(jobId, type);
         if (done) {
-          ref.current = null;
+          pollRef.current = null;
           return;
         }
         delay = Math.min(delay * 1.5, MAX_POLL_INTERVAL_MS);
-        ref.current = setTimeout(poll, delay);
+        pollRef.current = setTimeout(poll, delay);
       };
 
-      ref.current = setTimeout(poll, delay);
+      pollRef.current = setTimeout(poll, delay);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [pollJob]
   );
 
@@ -92,10 +118,13 @@ export function useSync(channelId: string | null) {
     detectedRef.current = false;
     setVideoSync(null);
     setTranscriptSync(null);
+    setSagaSync(null);
     setVideoLogs([]);
     setTranscriptLogs([]);
+    setSagaLogs([]);
     videoLogCountRef.current = 0;
     transcriptLogCountRef.current = 0;
+    sagaLogCountRef.current = 0;
   }, [channelId]);
 
   useEffect(() => {
@@ -106,31 +135,31 @@ export function useSync(channelId: string | null) {
       .then((res) => (res.ok ? res.json() : []))
       .then((jobs: Array<{ jobId: string; type: string; status: string; progress: FetchProgress | null; error: string | null }>) => {
         for (const job of jobs) {
+          const type = job.type as SyncJobType;
           const state: SyncJobState = {
             jobId: job.jobId,
-            type: job.type as "videos" | "transcripts",
+            type,
             status: job.status as SyncJobState["status"],
             progress: job.progress,
             error: job.error,
           };
-          if (job.type === "videos") {
-            setVideoSync(state);
-            startPolling(job.jobId, "videos");
-          } else if (job.type === "transcripts") {
-            setTranscriptSync(state);
-            startPolling(job.jobId, "transcripts");
-          }
+          const { setState } = getRefsForType(type);
+          setState(state);
+          startPolling(job.jobId, type);
         }
       })
       .catch((err) => console.warn("[useSync] Failed to detect active jobs:", err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, startPolling]);
 
   useEffect(() => {
-    const videoRef = videoPollRef;
-    const transcriptRef = transcriptPollRef;
+    const vRef = videoPollRef;
+    const tRef = transcriptPollRef;
+    const sRef = sagaPollRef;
     return () => {
-      if (videoRef.current) clearTimeout(videoRef.current);
-      if (transcriptRef.current) clearTimeout(transcriptRef.current);
+      if (vRef.current) clearTimeout(vRef.current);
+      if (tRef.current) clearTimeout(tRef.current);
+      if (sRef.current) clearTimeout(sRef.current);
     };
   }, [channelId]);
 
@@ -189,42 +218,82 @@ export function useSync(channelId: string | null) {
     }
   }, [channelId, startPolling]);
 
-  const cancelSync = useCallback(async (type: "videos" | "transcripts") => {
-    const state = type === "videos" ? videoSync : transcriptSync;
+  const syncSagas = useCallback(async (options?: { mode?: "full" | "incremental" | "reset" }) => {
+    if (!channelId) return;
+    setSagaLogs([]);
+    sagaLogCountRef.current = 0;
+    try {
+      const res = await fetch(`/api/sync/sagas/${channelId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: options?.mode ?? "full" }),
+      });
+      const data = await res.json();
+      const state: SyncJobState = {
+        jobId: data.jobId,
+        type: "sagas",
+        status: "running",
+        progress: { fetched: 0 },
+        error: null,
+      };
+      setSagaSync(state);
+      startPolling(data.jobId, "sagas");
+    } catch (err) {
+      setSagaSync({
+        jobId: "",
+        type: "sagas",
+        status: "failed",
+        progress: null,
+        error: err instanceof Error ? err.message : "Failed to start saga analysis",
+      });
+    }
+  }, [channelId, startPolling]);
+
+  const cancelSync = useCallback(async (type: SyncJobType) => {
+    const stateMap: Record<SyncJobType, SyncJobState | null> = {
+      videos: videoSync,
+      transcripts: transcriptSync,
+      sagas: sagaSync,
+    };
+    const state = stateMap[type];
     if (!state?.jobId) return;
 
-    const ref = type === "videos" ? videoPollRef : transcriptPollRef;
-    if (ref.current) {
-      clearTimeout(ref.current);
-      ref.current = null;
+    const { pollRef, setState } = getRefsForType(type);
+    if (pollRef.current) {
+      clearTimeout(pollRef.current);
+      pollRef.current = null;
     }
 
     try {
       await fetch(`/api/sync/cancel/${state.jobId}`, { method: "POST" });
     } catch { /* fire-and-forget */ }
 
-    const cancelled: SyncJobState = {
+    setState({
       ...state,
       status: "failed",
       error: "Cancelled by user",
-    };
-    if (type === "videos") setVideoSync(cancelled);
-    else setTranscriptSync(cancelled);
-  }, [videoSync, transcriptSync]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoSync, transcriptSync, sagaSync]);
 
   const isVideoSyncing = videoSync?.status === "running" || videoSync?.status === "pending";
   const isTranscriptSyncing = transcriptSync?.status === "running" || transcriptSync?.status === "pending";
+  const isSagaSyncing = sagaSync?.status === "running" || sagaSync?.status === "pending";
 
   return {
     videoSync,
     transcriptSync,
+    sagaSync,
     videoLogs,
     transcriptLogs,
+    sagaLogs,
     syncVideos,
     syncTranscripts,
+    syncSagas,
     cancelSync,
     isVideoSyncing,
     isTranscriptSyncing,
+    isSagaSyncing,
     isSyncing: isVideoSyncing || isTranscriptSyncing,
   };
 }

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
+/* NOSONAR: valid Tailwind v4 directive */
 
 @layer base {
   :root {

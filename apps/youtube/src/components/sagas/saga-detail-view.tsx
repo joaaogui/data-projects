@@ -21,14 +21,13 @@ function SagaVideoRow({ video, index, evidence }: Readonly<{ video: VideoData; i
       <span className="text-xs text-muted-foreground/50 font-medium tabular-nums pt-1 w-5 text-right shrink-0">
         {index + 1}
       </span>
-      <div className="relative shrink-0">
+      <div className="relative shrink-0 w-[168px] aspect-video">
         <Image
           src={video.thumbnail}
           alt=""
-          width={168}
-          height={94}
-          style={{ width: 168, height: "auto" }}
-          className="rounded-md object-cover w-[168px] h-[94px]"
+          fill
+          sizes="168px"
+          className="rounded-md object-cover"
         />
         <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded tabular-nums font-medium">
           {formatDuration(video.duration)}

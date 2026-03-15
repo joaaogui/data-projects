@@ -54,14 +54,13 @@ function UncategorizedVideoRow({
       >
         {isSelected && <Check className="h-3 w-3" />}
       </button>
-      <div className="relative shrink-0">
+      <div className="relative shrink-0 w-[120px] aspect-video">
         <Image
           src={video.thumbnail}
           alt=""
-          width={120}
-          height={68}
-          style={{ width: 120, height: "auto" }}
-          className="rounded-md object-cover w-[120px] h-[68px]"
+          fill
+          sizes="120px"
+          className="rounded-md object-cover"
         />
         <span className="absolute bottom-0.5 right-0.5 bg-black/80 text-white text-[9px] px-1 py-0.5 rounded tabular-nums font-medium">
           {formatDuration(video.duration)}

@@ -48,14 +48,13 @@ function AdjacentVideoCard({
         {direction === "before" ? "Published before" : "Published after"}
       </p>
       <div className="flex items-start gap-3 sm:gap-4">
-        <div className="relative flex-shrink-0">
+        <div className="relative flex-shrink-0 w-[100px] sm:w-[160px] aspect-video">
           <Image
             src={video.thumbnail}
             alt={video.title}
-            width={160}
-            height={90}
+            fill
             sizes="(min-width: 640px) 160px, 100px"
-            className="rounded-lg object-cover w-[100px] sm:w-[160px]"
+            className="rounded-lg object-cover"
           />
           <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded tabular-nums font-medium">
             {formatDuration(video.duration)}
@@ -93,15 +92,13 @@ function CenterVideoCard({ video }: Readonly<{ video: VideoData }>) {
         Current video
       </p>
       <div className="flex flex-col sm:flex-row gap-5">
-        <div className="relative flex-shrink-0 sm:w-[320px]">
+        <div className="relative flex-shrink-0 sm:w-[320px] aspect-video">
           <Image
             src={video.thumbnail.replace("default", "hqdefault")}
             alt={video.title}
-            width={320}
-            height={180}
+            fill
             sizes="(min-width: 640px) 320px, 100vw"
-            style={{ width: "100%", height: "auto" }}
-            className="rounded-lg object-cover w-full"
+            className="rounded-lg object-cover"
           />
           <span className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded tabular-nums font-medium">
             {formatDuration(video.duration)}
@@ -341,14 +338,15 @@ export function TimelineView({ videos, initialVideoId }: Readonly<TimelineViewPr
                           className="w-full text-left px-3 py-2 text-xs hover:bg-muted/60 transition-colors flex items-center gap-2"
                           onClick={() => goTo(index)}
                         >
-                          <Image
-                            src={video.thumbnail}
-                            alt=""
-                            width={48}
-                            height={27}
-                            style={{ width: 48, height: "auto" }}
-                            className="rounded flex-shrink-0 object-cover"
-                          />
+                          <div className="relative w-12 aspect-video flex-shrink-0">
+                            <Image
+                              src={video.thumbnail}
+                              alt=""
+                              fill
+                              sizes="48px"
+                              className="rounded object-cover"
+                            />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate">{video.title}</p>
                             <p className="text-muted-foreground">

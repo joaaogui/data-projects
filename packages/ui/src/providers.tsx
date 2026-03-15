@@ -1,10 +1,10 @@
 "use client";
 
-import * as React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as React from "react";
+import { PostHogProvider } from "./posthog-provider";
 import { ThemeProvider } from "./theme-provider";
 import { TooltipProvider } from "./tooltip";
-import { PostHogProvider } from "./posthog-provider";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ export function Providers({
   defaultTheme = "system",
   posthogApiKey,
   posthogHost,
-}: ProvidersProps) {
+}: Readonly<ProvidersProps>) {
   const [queryClient] = React.useState(
     () =>
       new QueryClient({

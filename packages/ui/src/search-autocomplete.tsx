@@ -73,6 +73,16 @@ export function SearchAutocomplete<TItem>({
 
   const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const committedValueRef = React.useRef<string | null>(null);
+  const prevInitialRef = React.useRef(initialValue);
+
+  React.useEffect(() => {
+    if (initialValue !== prevInitialRef.current) {
+      prevInitialRef.current = initialValue;
+      setValue(initialValue);
+      setIsSubmitting(false);
+      committedValueRef.current = null;
+    }
+  }, [initialValue]);
 
   const normalizedQuery = React.useMemo(() => value.trim(), [value]);
 
@@ -307,7 +317,7 @@ export function SearchAutocomplete<TItem>({
 
       <Button
         type="submit"
-        disabled={isSubmitting || !value.trim() || undefined}
+        disabled={isSubmitting || !value.trim()}
         data-testid={testIds?.button}
         className={cn(compact ? "h-9 px-3 sm:px-4" : "h-12 px-3 sm:px-6", buttonClassName)}
       >
