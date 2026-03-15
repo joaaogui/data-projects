@@ -1,8 +1,8 @@
-import type { VideoData } from "@/types/youtube";
+import type { Saga, VideoData } from "@/types/youtube";
 import { formatDuration } from "./scoring";
 import { median } from "./utils";
 
-export function compressVideoContext(videos: VideoData[]): string {
+export function compressVideoContext(videos: VideoData[], sagas?: Saga[]): string {
   if (videos.length === 0) return "No videos available.";
 
   const allViews = videos.map((v) => v.views);
@@ -14,34 +14,72 @@ export function compressVideoContext(videos: VideoData[]): string {
   const newest = byAge[0];
   const oldest = byAge.at(-1) ?? byAge[0];
 
+  const sagaMap = new Map<string, string>();
+  if (sagas && sagas.length > 0) {
+    for (const saga of sagas) {
+      for (const videoId of saga.videoIds) {
+        sagaMap.set(videoId, saga.name);
+      }
+    }
+  }
+
   const lines: string[] = [
     `Total: ${videos.length} videos | Newest: ${newest.days}d ago | Oldest: ${oldest.days}d ago`,
     `Views — Total: ${totalViews.toLocaleString()} | Avg: ${avgViews.toLocaleString()} | Median: ${medViews.toLocaleString()}`,
     "",
-    "ID\tTitle\tViews\tLikes\tComments\tDaysOld\tDuration\tScore\tEngagement/1K",
+    "ID\tTitle\tPublished\tViews\tLikes\tComments\tDaysOld\tDuration\tScore\tReach\tEngagement\tMomentum\tEfficiency\tCommunity\tEng/1K\tEng/Min\tSaga",
   ];
 
   for (const v of videos) {
     const title = v.title.length > 80 ? v.title.slice(0, 77) + "..." : v.title;
+    const published = v.publishedAt.slice(0, 10);
+    const sc = v.scoreComponents;
+    const saga = sagaMap.get(v.videoId) ?? "";
     lines.push(
       [
         v.videoId,
         title,
+        published,
         v.views,
         v.likes,
         v.comments,
         v.days,
         formatDuration(v.duration),
-        v.score,
+        v.score.toFixed(0),
+        sc.reachScore.toFixed(0),
+        sc.engagementScore.toFixed(0),
+        sc.momentumScore.toFixed(0),
+        sc.efficiencyScore.toFixed(0),
+        sc.communityScore.toFixed(0),
         v.rates.engagementRate.toFixed(1),
+        v.rates.engagementPerMinute.toFixed(1),
+        saga,
       ].join("\t")
     );
+  }
+
+  if (sagas && sagas.length > 0) {
+    lines.push("");
+    lines.push("## Sagas / Series");
+    const sorted = [...sagas].sort((a, b) => b.videoCount - a.videoCount);
+    for (const s of sorted) {
+      const sagaVideos = videos.filter((v) => s.videoIds.includes(v.videoId));
+      const sagaViews = sagaVideos.reduce((sum, v) => sum + v.views, 0);
+      const avgEng = sagaVideos.length > 0
+        ? (sagaVideos.reduce((sum, v) => sum + v.rates.engagementRate, 0) / sagaVideos.length).toFixed(1)
+        : "0";
+      const dateFirst = s.dateRange.first ? s.dateRange.first.slice(0, 10) : "?";
+      const dateLast = s.dateRange.last ? s.dateRange.last.slice(0, 10) : "?";
+      lines.push(
+        `• "${s.name}" — ${s.videoCount} videos, ${sagaViews.toLocaleString()} total views, ${avgEng} avg eng/1K, ${dateFirst} to ${dateLast} [${s.source}]`
+      );
+    }
   }
 
   return lines.join("\n");
 }
 
-export function generateSuggestions(videos: VideoData[]): string[] {
+export function generateSuggestions(videos: VideoData[], sagas?: Saga[]): string[] {
   if (videos.length === 0) {
     return [
       "What are the most popular videos?",
@@ -75,6 +113,15 @@ export function generateSuggestions(videos: VideoData[]): string[] {
     "What type of content has the best engagement rate?",
     "Compare the top 5 vs bottom 5 performing videos",
   );
+
+  if (sagas && sagas.length > 0) {
+    const topSaga = [...sagas].sort((a, b) => b.videoCount - a.videoCount)[0];
+    if (topSaga) {
+      pool.push(`How does the "${topSaga.name}" saga perform compared to other content?`);
+    }
+    pool.push("Which saga gets the best engagement?");
+    pool.push("Compare the different sagas by performance");
+  }
 
   const shuffled = pool.toSorted(() => Math.random() - 0.5);
   return shuffled.slice(0, 4);

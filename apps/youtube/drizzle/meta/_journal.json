@@ -15,6 +15,20 @@
       "when": 1773548075735,
       "tag": "0001_saga-corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773602857563,
+      "tag": "0002_add-shared-reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773602915831,
+      "tag": "0003_classy_dark_beast",
+      "breakpoints": true
     }
   ]
 }

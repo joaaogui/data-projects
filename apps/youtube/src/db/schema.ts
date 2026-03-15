@@ -14,6 +14,12 @@ export const channels = pgTable("channels", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   thumbnailUrl: text("thumbnail_url"),
+  subscriberCount: bigint("subscriber_count", { mode: "number" }),
+  totalViewCount: bigint("total_view_count", { mode: "number" }),
+  videoCount: integer("video_count"),
+  customUrl: text("custom_url"),
+  description: text("description"),
+  country: text("country"),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -51,6 +57,7 @@ export const videos = pgTable(
     url: text("url").notNull(),
     thumbnail: text("thumbnail").notNull(),
     description: text("description").default(""),
+    topics: jsonb("topics").$type<string[]>(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -84,6 +91,7 @@ export const sagas = pgTable(
     dateRange: jsonb("date_range").$type<{ first: string; last: string }>().notNull(),
     reasoning: text("reasoning"),
     videoEvidence: jsonb("video_evidence").$type<Record<string, string>>(),
+    summary: text("summary"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -148,5 +156,80 @@ export const sagaCorrections = pgTable(
   (table) => [
     index("saga_corrections_channel_idx").on(table.channelId),
     index("saga_corrections_channel_date_idx").on(table.channelId, table.createdAt),
+  ]
+);
+
+export const sharedReports = pgTable("shared_reports", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id")
+    .notNull()
+    .references(() => channels.id, { onDelete: "cascade" }),
+  channelTitle: text("channel_title").notNull(),
+  snapshotData: jsonb("snapshot_data").$type<{
+    videoCount: number;
+    totalViews: number;
+    avgScore: number;
+    avgEngagement: number;
+    scoreDistribution: number[];
+    topPerformers: Array<{ title: string; score: number; views: number; thumbnail: string }>;
+    cadenceLabel: string;
+    createdBy: string;
+  }>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+});
+
+export const comments = pgTable(
+  "comments",
+  {
+    id: text("id").primaryKey(),
+    videoId: text("video_id")
+      .notNull()
+      .references(() => videos.id, { onDelete: "cascade" }),
+    authorName: text("author_name").notNull(),
+    text: text("text").notNull(),
+    likeCount: integer("like_count").notNull().default(0),
+    publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("comments_video_id_idx").on(table.videoId),
+  ]
+);
+
+export const channelSnapshots = pgTable(
+  "channel_snapshots",
+  {
+    id: text("id").primaryKey(),
+    channelId: text("channel_id")
+      .notNull()
+      .references(() => channels.id, { onDelete: "cascade" }),
+    subscriberCount: bigint("subscriber_count", { mode: "number" }),
+    viewCount: bigint("view_count", { mode: "number" }),
+    videoCount: integer("video_count"),
+    snapshotDate: timestamp("snapshot_date", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("channel_snapshots_channel_idx").on(table.channelId),
+    index("channel_snapshots_channel_date_idx").on(table.channelId, table.snapshotDate),
+  ]
+);
+
+export const savedChannels = pgTable(
+  "saved_channels",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    channelId: text("channel_id")
+      .notNull()
+      .references(() => channels.id, { onDelete: "cascade" }),
+    label: text("label"),
+    pinned: integer("pinned").notNull().default(0),
+    lastVisitedAt: timestamp("last_visited_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("saved_channels_user_idx").on(table.userId),
+    index("saved_channels_user_channel_idx").on(table.userId, table.channelId),
   ]
 );

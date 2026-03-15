@@ -6,9 +6,9 @@ import { formatDuration } from "@/lib/scoring";
 import type { ScoreComponents, VideoData } from "@/types/youtube";
 import { Button } from "@data-projects/ui";
 import dayjs from "dayjs";
-import { Calendar, ChevronLeft, ChevronRight, ExternalLink, Eye, FolderOpen, Heart, MessageSquare, ThumbsUp, X } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, ExternalLink, Eye, FolderOpen, Heart, MessageSquare, Star, ThumbsUp, X } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { METRIC_CONFIGS, METRIC_TYPES, getNormalizedWeight, type MetricWeights } from "./metric-icon";
 import { ScoreRing } from "./score-ring";
 
@@ -67,6 +67,9 @@ export function VideoDetailPanel({
   const { accountData } = useChannel();
   const [descExpanded, setDescExpanded] = useState(false);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
+  const [transcript, setTranscript] = useState<{ fullText: string | null; excerpt: string | null; language: string | null } | null>(null);
+  const [transcriptExpanded, setTranscriptExpanded] = useState(false);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const isLiked = accountData.likedVideoIds.has(video.videoId);
@@ -104,6 +107,28 @@ export function VideoDetailPanel({
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [prevVideo, nextVideo, onSelectVideo, onClose]);
+
+  useEffect(() => {
+    setTranscript(null);
+    setTranscriptExpanded(false);
+    setTranscriptLoading(false);
+  }, [video.videoId]);
+
+  const loadTranscript = useCallback(async () => {
+    if (transcript || transcriptLoading) return;
+    setTranscriptLoading(true);
+    try {
+      const res = await fetch(`/api/transcripts/${video.videoId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTranscript(data.transcript);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setTranscriptLoading(false);
+    }
+  }, [video.videoId, transcript, transcriptLoading]);
 
   const publishDate = dayjs(video.publishedAt).format("MMM D, YYYY");
   const hasDescription = video.description && video.description.trim().length > 0;
@@ -181,7 +206,7 @@ export function VideoDetailPanel({
 
               <div className="flex items-start gap-3 sm:gap-4">
                 <ScoreRing score={video.score} scoreComponents={video.scoreComponents} weights={weights} size={64} />
-                <div className="grid grid-cols-3 gap-1.5 sm:gap-2 flex-1">
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 flex-1">
                   <div className="rounded-xl bg-gradient-to-br from-sky-500/5 to-sky-500/10 p-2.5 text-center ring-1 ring-sky-500/10">
                     <Eye className="h-3.5 w-3.5 mx-auto mb-0.5 text-sky-500" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.views)}</p>
@@ -196,6 +221,11 @@ export function VideoDetailPanel({
                     <MessageSquare className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-500" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.comments)}</p>
                     <p className="text-[10px] text-muted-foreground">comments</p>
+                  </div>
+                  <div className="rounded-xl bg-gradient-to-br from-amber-500/5 to-amber-500/10 p-2.5 text-center ring-1 ring-amber-500/10">
+                    <Star className="h-3.5 w-3.5 mx-auto mb-0.5 text-amber-500" />
+                    <p className="text-sm font-semibold tabular-nums">{formatCompact(video.favorites)}</p>
+                    <p className="text-[10px] text-muted-foreground">favorites</p>
                   </div>
                 </div>
               </div>
@@ -240,6 +270,37 @@ export function VideoDetailPanel({
                 )}
               </div>
             )}
+
+            <div>
+              <button
+                onClick={() => {
+                  if (!transcriptExpanded) loadTranscript();
+                  setTranscriptExpanded((e) => !e);
+                }}
+                className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                {transcriptLoading ? (
+                  <>Loading transcript...</>
+                ) : transcriptExpanded ? (
+                  <>Hide transcript</>
+                ) : (
+                  <>Show transcript</>
+                )}
+                {transcript?.language && (
+                  <span className="text-[10px] bg-muted rounded px-1 py-0.5 ml-1">{transcript.language}</span>
+                )}
+              </button>
+              {transcriptExpanded && transcript?.fullText && (
+                <div className="animate-fade-up">
+                  <p className="text-xs text-muted-foreground mt-2 whitespace-pre-line leading-relaxed max-h-[300px] overflow-y-auto">
+                    {transcript.fullText}
+                  </p>
+                </div>
+              )}
+              {transcriptExpanded && !transcriptLoading && !transcript?.fullText && (
+                <p className="text-xs text-muted-foreground/60 mt-2 italic">No transcript available for this video.</p>
+              )}
+            </div>
           </div>
         </div>
 

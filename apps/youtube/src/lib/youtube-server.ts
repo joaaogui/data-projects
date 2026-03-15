@@ -124,8 +124,8 @@ export async function searchChannel(query: string): Promise<ChannelInfo> {
 
 export async function getChannelById(channelId: string): Promise<ChannelInfo> {
   const apiKey = getApiKey();
-  const url = `${API_URL}/channels?part=snippet&id=${channelId}&key=${apiKey}`;
-  const data = await fetchJson<{ items: Array<{ id: string; snippet: { title: string; thumbnails: ChannelInfo["thumbnails"] } }> }>(url);
+  const url = `${API_URL}/channels?part=snippet,statistics&id=${channelId}&key=${apiKey}`;
+  const data = await fetchJson<{ items: Array<{ id: string; snippet: { title: string; customUrl?: string; description?: string; country?: string; thumbnails: ChannelInfo["thumbnails"] }; statistics?: { subscriberCount?: string; viewCount?: string; videoCount?: string } }> }>(url);
   const channel = data.items[0];
 
   if (!channel) {
@@ -136,6 +136,12 @@ export async function getChannelById(channelId: string): Promise<ChannelInfo> {
     channelId: channel.id,
     channelTitle: channel.snippet.title,
     thumbnails: channel.snippet.thumbnails,
+    subscriberCount: Number(channel.statistics?.subscriberCount ?? 0) || undefined,
+    totalViewCount: Number(channel.statistics?.viewCount ?? 0) || undefined,
+    videoCount: Number(channel.statistics?.videoCount ?? 0) || undefined,
+    customUrl: channel.snippet.customUrl,
+    description: channel.snippet.description,
+    country: channel.snippet.country,
   };
 }
 

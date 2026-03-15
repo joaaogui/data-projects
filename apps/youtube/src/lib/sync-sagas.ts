@@ -119,6 +119,7 @@ async function loadChannelSagas(channelId: string): Promise<Saga[]> {
     dateRange: r.dateRange,
     reasoning: r.reasoning ?? undefined,
     videoEvidence: r.videoEvidence ?? undefined,
+    summary: r.summary ?? undefined,
   }));
 }
 

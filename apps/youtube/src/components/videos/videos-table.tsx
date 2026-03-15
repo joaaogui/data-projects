@@ -358,16 +358,31 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
   }, [data, weights, activeFilters]);
 
   const handleExportCsv = useCallback(() => {
-    const headers = ["Title", "Score", "Views", "Likes", "Comments", "Duration (s)", "Days Old", "Engagement/1K", "URL"];
+    const headers = [
+      "Title", "Published", "Score",
+      "Reach", "Engagement", "Momentum", "Efficiency", "Community",
+      "Views", "Likes", "Comments", "Favorites",
+      "Duration (s)", "Days Old",
+      "Engagement/1K", "Eng/Min",
+      "URL",
+    ];
     const rows = processedData.map((v) => [
       `"${v.title.replaceAll('"', '""')}"`,
+      v.publishedAt.slice(0, 10),
       v.score.toFixed(1),
+      v.scoreComponents.reachScore.toFixed(0),
+      v.scoreComponents.engagementScore.toFixed(0),
+      v.scoreComponents.momentumScore.toFixed(0),
+      v.scoreComponents.efficiencyScore.toFixed(0),
+      v.scoreComponents.communityScore.toFixed(0),
       v.views,
       v.likes,
       v.comments,
+      v.favorites,
       v.duration,
       v.days,
       v.rates?.engagementRate?.toFixed(1) ?? "",
+      v.rates?.engagementPerMinute?.toFixed(1) ?? "",
       v.url,
     ]);
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -715,6 +730,35 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
           <TooltipContent>{row.original.comments.toLocaleString("en-US")} comments</TooltipContent>
         </Tooltip>
       ),
+    },
+    {
+      id: "engPerMin",
+      accessorFn: (row) => row.rates?.engagementPerMinute ?? 0,
+      header: ({ column }) => (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <SortButton
+                sorted={column.getIsSorted()}
+                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+              >
+                Eng/Min
+              </SortButton>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Engagements per minute of video duration</p>
+          </TooltipContent>
+        </Tooltip>
+      ),
+      cell: ({ row }) => {
+        const epm = row.original.rates?.engagementPerMinute ?? 0;
+        return (
+          <span className="tabular-nums font-medium">
+            {epm.toFixed(1)}
+          </span>
+        );
+      },
     },
   ], [weights, accountData]);
 

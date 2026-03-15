@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { channels, videos } from "@/db/schema";
 import type { VideoData } from "@/types/youtube";
 import { sql } from "drizzle-orm";
+import { captureChannelSnapshot } from "./channel-snapshots";
 import { VIDEO_UPSERT_BATCH_SIZE } from "./constants";
 import { withSyncJob } from "./sync-job";
 import { fetchChannelVideos, getChannelById } from "./youtube-server";
@@ -21,6 +22,12 @@ export async function syncChannelVideos(channelId: string, jobId: string): Promi
         id: channelId,
         title: channelInfo.channelTitle,
         thumbnailUrl: channelInfo.thumbnails.default.url,
+        subscriberCount: channelInfo.subscriberCount ?? null,
+        totalViewCount: channelInfo.totalViewCount ?? null,
+        videoCount: channelInfo.videoCount ?? null,
+        customUrl: channelInfo.customUrl ?? null,
+        description: channelInfo.description ?? null,
+        country: channelInfo.country ?? null,
         fetchedAt: new Date(),
       })
       .onConflictDoUpdate({
@@ -28,6 +35,12 @@ export async function syncChannelVideos(channelId: string, jobId: string): Promi
         set: {
           title: channelInfo.channelTitle,
           thumbnailUrl: channelInfo.thumbnails.default.url,
+          subscriberCount: channelInfo.subscriberCount ?? null,
+          totalViewCount: channelInfo.totalViewCount ?? null,
+          videoCount: channelInfo.videoCount ?? null,
+          customUrl: channelInfo.customUrl ?? null,
+          description: channelInfo.description ?? null,
+          country: channelInfo.country ?? null,
           fetchedAt: new Date(),
         },
       });
@@ -66,6 +79,8 @@ export async function syncChannelVideos(channelId: string, jobId: string): Promi
     }
 
     log.info(`Save phase: ${allVideos.length} videos in ${((Date.now() - saveStart) / 1000).toFixed(1)}s`);
+
+    captureChannelSnapshot(channelId).catch(() => {});
 
     return { fetched: allVideos.length, total: allVideos.length };
   });

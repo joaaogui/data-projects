@@ -18,6 +18,7 @@ interface PartialVideoData {
   url: string;
   thumbnail: string;
   description: string;
+  topics?: string[];
 }
 
 function dbRowToPartial(row: VideoRow): PartialVideoData {
@@ -38,6 +39,7 @@ function dbRowToPartial(row: VideoRow): PartialVideoData {
     url: row.url,
     thumbnail: row.thumbnail,
     description: row.description ?? "",
+    topics: row.topics ?? undefined,
   };
 }
 

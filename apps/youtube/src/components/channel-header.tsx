@@ -2,11 +2,12 @@
 
 import type { AccountDataResult } from "@/hooks/use-account-data";
 import { CHANNEL_PREFIX } from "@/services/channel-client";
+import { formatCompact } from "@/lib/format";
 import type { ChannelInfo, VideoData } from "@/types/youtube";
 import { Button, Card, CardContent, Popover, PopoverContent, PopoverTrigger, Skeleton } from "@data-projects/ui";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { Bell, ChevronDown, Clock, Database, ExternalLink, FileText, Loader2, RefreshCw, RotateCcw } from "lucide-react";
+import { Bell, ChevronDown, Clock, Database, Eye, ExternalLink, FileText, Loader2, RefreshCw, RotateCcw, Users } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
@@ -104,6 +105,27 @@ export function ChannelHeader({
                   </span>
                 )}
               </div>
+              {(channelInfo.subscriberCount || channelInfo.totalViewCount) && (
+                <div className="flex items-center gap-2.5 text-xs text-muted-foreground mt-0.5">
+                  {channelInfo.subscriberCount != null && (
+                    <span className="flex items-center gap-1">
+                      <Users className="h-3 w-3 text-muted-foreground/60" />
+                      <span className="font-medium text-foreground/70">{formatCompact(channelInfo.subscriberCount)}</span>
+                      <span className="hidden sm:inline text-muted-foreground/50">subscribers</span>
+                    </span>
+                  )}
+                  {channelInfo.totalViewCount != null && (
+                    <>
+                      {channelInfo.subscriberCount != null && <span className="text-muted-foreground/30">&middot;</span>}
+                      <span className="flex items-center gap-1">
+                        <Eye className="h-3 w-3 text-muted-foreground/60" />
+                        <span className="font-medium text-foreground/70">{formatCompact(channelInfo.totalViewCount)}</span>
+                        <span className="hidden sm:inline text-muted-foreground/50">views</span>
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
               {videos && videos.length > 0 && (
                 <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-0.5">
                   <span className="font-medium text-foreground/70">{videos.length} videos</span>

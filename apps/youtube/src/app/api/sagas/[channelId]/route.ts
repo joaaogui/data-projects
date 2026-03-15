@@ -21,6 +21,7 @@ function toSaga(row: typeof sagas.$inferSelect): Saga {
     dateRange: row.dateRange,
     reasoning: row.reasoning ?? undefined,
     videoEvidence: row.videoEvidence ?? undefined,
+    summary: row.summary ?? undefined,
   };
 }
 

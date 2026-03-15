@@ -6,6 +6,12 @@ export interface ChannelInfo {
       url: string;
     };
   };
+  subscriberCount?: number;
+  totalViewCount?: number;
+  videoCount?: number;
+  customUrl?: string;
+  description?: string;
+  country?: string;
 }
 
 export interface ChannelSuggestion {
@@ -50,6 +56,7 @@ export interface VideoData {
   url: string;
   thumbnail: string;
   description: string;
+  topics?: string[];
 }
 
 export interface PlaylistItem {
@@ -132,6 +139,7 @@ export interface Saga {
   dateRange: { first: string; last: string };
   reasoning?: string;
   videoEvidence?: Record<string, string>;
+  summary?: string;
 }
 
 export interface SagaSuggestion {

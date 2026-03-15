@@ -58,6 +58,12 @@ export async function GET(
           channelId: ch.id,
           channelTitle: ch.title,
           thumbnails: { default: { url: ch.thumbnailUrl ?? "" } },
+          subscriberCount: ch.subscriberCount ?? undefined,
+          totalViewCount: ch.totalViewCount ?? undefined,
+          videoCount: ch.videoCount ?? undefined,
+          customUrl: ch.customUrl ?? undefined,
+          description: ch.description ?? undefined,
+          country: ch.country ?? undefined,
         },
         {
           headers: mergeHeaders(
@@ -78,6 +84,12 @@ export async function GET(
         id: channelInfo.channelId,
         title: channelInfo.channelTitle,
         thumbnailUrl: channelInfo.thumbnails.default.url,
+        subscriberCount: channelInfo.subscriberCount ?? null,
+        totalViewCount: channelInfo.totalViewCount ?? null,
+        videoCount: channelInfo.videoCount ?? null,
+        customUrl: channelInfo.customUrl ?? null,
+        description: channelInfo.description ?? null,
+        country: channelInfo.country ?? null,
         fetchedAt: new Date(),
       })
       .onConflictDoNothing();

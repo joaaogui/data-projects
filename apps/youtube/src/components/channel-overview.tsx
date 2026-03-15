@@ -2,6 +2,7 @@
 
 import { useChannelSagas } from "@/hooks/use-channel-sagas";
 import { useChannelStats } from "@/hooks/use-channel-stats";
+import type { CadenceStats, DurationBucket, MonthBucket } from "@/hooks/use-channel-stats";
 import { formatCompact, getScoreColorClass } from "@/lib/format";
 import type { VideoData } from "@/types/youtube";
 import { Minus, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
@@ -242,6 +243,120 @@ function SagasPreview({
   );
 }
 
+function ViewsOverTimeChart({ buckets }: Readonly<{ buckets: MonthBucket[] }>) {
+  if (buckets.length < 2) return null;
+
+  const maxViews = Math.max(...buckets.map((b) => b.totalViews), 1);
+  const maxEng = Math.max(...buckets.map((b) => b.avgEngagement), 1);
+  const width = 600;
+  const height = 120;
+  const pad = 4;
+
+  const viewsCoords = buckets.map((b, i) => ({
+    x: pad + (i / (buckets.length - 1)) * (width - pad * 2),
+    y: pad + (1 - b.totalViews / maxViews) * (height - pad * 2),
+  }));
+  const engCoords = buckets.map((b, i) => ({
+    x: pad + (i / (buckets.length - 1)) * (width - pad * 2),
+    y: pad + (1 - b.avgEngagement / maxEng) * (height - pad * 2),
+  }));
+
+  const viewsPath = viewsCoords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x} ${c.y}`).join(" ");
+  const engPath = engCoords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x} ${c.y}`).join(" ");
+
+  const labelStep = Math.max(1, Math.floor(buckets.length / 8));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-4 text-[10px]">
+        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-sky-500" />Views</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />Engagement/1K</span>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height + 16}`} className="w-full" preserveAspectRatio="none">
+        <path d={viewsPath} fill="none" className="stroke-sky-500" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={engPath} fill="none" className="stroke-emerald-500" strokeWidth={1.5} strokeDasharray="4 3" strokeLinecap="round" strokeLinejoin="round" />
+        {buckets.map((b, i) => i % labelStep === 0 ? (
+          <text key={b.label} x={viewsCoords[i].x} y={height + 12} textAnchor="middle" className="fill-muted-foreground text-[8px]">{b.label}</text>
+        ) : null)}
+      </svg>
+    </div>
+  );
+}
+
+function DurationDistribution({ buckets }: Readonly<{ buckets: DurationBucket[] }>) {
+  const maxCount = Math.max(...buckets.map((b) => b.count), 1);
+  const barWidth = 60;
+  const gap = 12;
+  const chartHeight = 80;
+  const svgWidth = buckets.length * barWidth + (buckets.length - 1) * gap;
+
+  return (
+    <div className="space-y-2">
+      <svg viewBox={`0 0 ${svgWidth} ${chartHeight + 30}`} className="w-full max-w-md">
+        {buckets.map((b, i) => {
+          const barHeight = (b.count / maxCount) * chartHeight;
+          const x = i * (barWidth + gap);
+          const y = chartHeight - barHeight;
+          return (
+            <g key={b.label}>
+              <rect x={x} y={y} width={barWidth} height={barHeight} rx={4} className="fill-primary/70" />
+              <text x={x + barWidth / 2} y={y - 4} textAnchor="middle" className="fill-foreground text-[9px] font-medium">
+                {b.count > 0 ? b.count : ""}
+              </text>
+              <text x={x + barWidth / 2} y={chartHeight + 12} textAnchor="middle" className="fill-muted-foreground text-[9px]">{b.label}</text>
+              {b.count > 0 && (
+                <text x={x + barWidth / 2} y={chartHeight + 24} textAnchor="middle" className="fill-muted-foreground/60 text-[8px]">
+                  avg {b.avgScore.toFixed(0)}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function CadenceCard({ cadence }: Readonly<{ cadence: CadenceStats }>) {
+  const maxCount = Math.max(...cadence.dayOfWeekCounts, 1);
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-3 text-center">
+        <div>
+          <p className="text-lg font-bold tabular-nums">{cadence.avgDaysBetween.toFixed(1)}</p>
+          <p className="text-[10px] text-muted-foreground">avg days between</p>
+        </div>
+        <div>
+          <p className="text-lg font-bold tabular-nums">{cadence.uploadsPerMonth.toFixed(1)}</p>
+          <p className="text-[10px] text-muted-foreground">uploads/month</p>
+        </div>
+        <div>
+          <p className="text-lg font-bold">{cadence.bestDay}</p>
+          <p className="text-[10px] text-muted-foreground">most uploads</p>
+        </div>
+      </div>
+      <div className="flex items-end gap-1 h-12 justify-center">
+        {cadence.dayOfWeekCounts.map((count, i) => (
+          <div key={dayNames[i]} className="flex flex-col items-center gap-1 flex-1">
+            <div
+              className="w-full max-w-[28px] rounded-t bg-primary/60 transition-all"
+              style={{ height: `${(count / maxCount) * 32}px` }}
+            />
+            <span className="text-[9px] text-muted-foreground">{dayNames[i]}</span>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground text-center">
+        {cadence.trend === "accelerating" && "Upload frequency is increasing recently"}
+        {cadence.trend === "decelerating" && "Upload frequency has slowed down recently"}
+        {cadence.trend === "steady" && "Upload frequency is consistent"}
+      </p>
+    </div>
+  );
+}
+
 export function ChannelOverview({
   videos,
   channelId,
@@ -306,6 +421,27 @@ export function ChannelOverview({
           sparklinePoints={stats.sparklinePoints}
           scoreTrend={stats.scoreTrend}
         />
+      </div>
+
+      {/* Views & Engagement Over Time */}
+      {stats.monthlyBuckets.length > 2 && (
+        <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
+          <h3 className="text-sm font-semibold mb-3">Views &amp; Engagement Over Time</h3>
+          <ViewsOverTimeChart buckets={stats.monthlyBuckets} />
+        </div>
+      )}
+
+      {/* Upload Cadence */}
+      <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
+        <h3 className="text-sm font-semibold mb-3">Upload Cadence</h3>
+        <CadenceCard cadence={stats.cadence} />
+      </div>
+
+      {/* Duration Distribution */}
+      <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
+        <h3 className="text-sm font-semibold mb-3">Duration Distribution</h3>
+        <p className="text-xs text-muted-foreground mb-2">Video count by length, with average score per bucket</p>
+        <DurationDistribution buckets={stats.durationBuckets} />
       </div>
 
       {/* Sagas Preview */}
