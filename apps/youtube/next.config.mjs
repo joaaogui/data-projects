@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactCompiler: true,
+  serverExternalPackages: ["pino", "pino-pretty"],
   transpilePackages: ["@data-projects/ui", "@data-projects/shared"],
   images: {
     remotePatterns: [
