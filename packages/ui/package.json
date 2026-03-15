@@ -15,10 +15,7 @@
   },
   "dependencies": {
     "@data-projects/shared": "workspace:*",
-    "@radix-ui/react-dialog": "catalog:",
-    "@radix-ui/react-popover": "catalog:",
-    "@radix-ui/react-slot": "catalog:",
-    "@radix-ui/react-tooltip": "catalog:",
+    "radix-ui": "^1.0.0",
     "class-variance-authority": "catalog:",
     "lucide-react": "catalog:",
     "next-themes": "catalog:",

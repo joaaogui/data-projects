@@ -1,22 +1,19 @@
 "use client";
 
-import { useMemo } from "react";
-import { Card, CardContent, Tooltip, TooltipTrigger, TooltipContent } from "@data-projects/ui";
-import { TrendingUp, TrendingDown, Minus, Eye, ThumbsUp, Calendar, Trophy } from "lucide-react";
+import { formatCompact } from "@/lib/format";
 import { getScoreLabel } from "@/lib/scoring";
 import type { VideoData } from "@/types/youtube";
-import Image from "next/image";
+import { Button, Card, CardContent, Tooltip, TooltipContent, TooltipTrigger } from "@data-projects/ui";
 import dayjs from "dayjs";
+import { Calendar, ChevronDown, ChevronUp, Eye, Minus, ThumbsUp, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import Image from "next/image";
+import { useCallback, useMemo, useState } from "react";
+
+const COLLAPSED_KEY = "youtube-dashboard-collapsed";
 
 interface ChannelDashboardProps {
   videos: VideoData[];
 }
-
-const formatCompact = (num: number): string => {
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-  return num.toLocaleString("en-US");
-};
 
 function Sparkline({ points, className = "" }: Readonly<{ points: number[]; className?: string }>) {
   if (points.length < 2) return null;
@@ -43,11 +40,11 @@ function Sparkline({ points, className = "" }: Readonly<{ points: number[]; clas
   let strokeColor = "stroke-muted-foreground";
   let fillColor = "fill-muted-foreground/5";
   if (trend > 2) {
-    strokeColor = "stroke-emerald-500";
+    strokeColor = "stroke-emerald-600 dark:stroke-emerald-400";
     fillColor = "fill-emerald-500/10";
   } else if (trend < -2) {
-    strokeColor = "stroke-red-400";
-    fillColor = "fill-red-400/10";
+    strokeColor = "stroke-red-500 dark:stroke-red-400";
+    fillColor = "fill-red-500/10";
   }
 
   return (
@@ -59,12 +56,29 @@ function Sparkline({ points, className = "" }: Readonly<{ points: number[]; clas
 }
 
 function TrendIcon({ value }: Readonly<{ value: number }>) {
-  if (value > 2) return <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />;
-  if (value < -2) return <TrendingDown className="h-3.5 w-3.5 text-red-400" />;
+  if (value > 2) return <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />;
+  if (value < -2) return <TrendingDown className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />;
   return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
 }
 
 export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
+  const [collapsed, setCollapsed] = useState(() => {
+    if (globalThis.window === undefined) return false;
+    try {
+      return localStorage.getItem(COLLAPSED_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(COLLAPSED_KEY, String(next)); } catch { }
+      return next;
+    });
+  }, []);
+
   const stats = useMemo(() => {
     if (videos.length === 0) return null;
 
@@ -112,92 +126,152 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
 
   const scoreLabel = getScoreLabel(stats.avgScore);
 
+  if (collapsed) {
+    return (
+      <div className="flex items-center justify-between mb-4 flex-shrink-0 rounded-2xl glass px-3 sm:px-4 py-2.5">
+        <div className="flex items-center gap-2 sm:gap-4 text-sm min-w-0 overflow-hidden">
+          <span className="font-medium shrink-0">{videos.length} videos</span>
+          <span className="text-muted-foreground/40 shrink-0">&middot;</span>
+          <span className="shrink-0">Avg <span className={`font-semibold ${scoreLabel.color}`}>{stats.avgScore.toFixed(1)}</span></span>
+          <span className="text-muted-foreground/40 hidden sm:inline">&middot;</span>
+          <span className="hidden sm:inline">{formatCompact(stats.totalViews)} views</span>
+          <span className="text-muted-foreground/40 hidden sm:inline">&middot;</span>
+          <span className="hidden sm:inline">{stats.cadenceLabel}</span>
+        </div>
+        <Button variant="ghost" size="sm" onClick={toggleCollapsed} className="h-7 w-7 p-0 shrink-0">
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-4 flex-shrink-0">
-      <Card className="bg-card/60 backdrop-blur-sm border-border/50">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Eye className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium uppercase tracking-wider">Total Views</span>
-          </div>
-          <p className="text-xl sm:text-2xl font-bold tabular-nums">{formatCompact(stats.totalViews)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{videos.length} videos</p>
-        </CardContent>
-      </Card>
+    <div className="mb-4 flex-shrink-0 space-y-2">
+      <div className="flex items-center justify-between rounded-2xl glass px-3 sm:px-4 py-2.5 animate-fade-down">
+        <div className="flex items-center gap-2 sm:gap-4 text-sm min-w-0 overflow-hidden">
+          <span className="font-medium shrink-0">{videos.length} videos</span>
+          <span className="text-muted-foreground/40 shrink-0">&middot;</span>
+          <span className="shrink-0">Avg <span className={`font-semibold ${scoreLabel.color}`}>{stats.avgScore.toFixed(1)}</span></span>
+          <span className="text-muted-foreground/40 hidden sm:inline">&middot;</span>
+          <span className="hidden sm:inline">{formatCompact(stats.totalViews)} views</span>
+          <span className="text-muted-foreground/40 hidden sm:inline">&middot;</span>
+          <span className="hidden sm:inline">{stats.cadenceLabel}</span>
+        </div>
+        <Button variant="ghost" size="sm" onClick={toggleCollapsed} className="h-7 w-7 p-0 shrink-0">
+          <ChevronUp className="h-4 w-4" />
+        </Button>
+      </div>
 
-      <Card className="bg-card/60 backdrop-blur-sm border-border/50">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <div className="flex items-center gap-1.5">
-              <TrendIcon value={stats.scoreTrend} />
-              <span className="text-xs font-medium uppercase tracking-wider">Avg Score</span>
-            </div>
-          </div>
-          <div className="flex items-end gap-2">
-            <div>
-              <p className={`text-xl sm:text-2xl font-bold tabular-nums ${scoreLabel.color}`}>
-                {stats.avgScore.toFixed(1)}
-              </p>
-              <p className={`text-xs font-medium ${scoreLabel.color}`}>{scoreLabel.label}</p>
-            </div>
-            <Sparkline points={stats.sparklinePoints} className="w-16 h-6 ml-auto" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Card className="bg-card/60 backdrop-blur-sm border-border/50 cursor-help">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Trophy className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-xs font-medium uppercase tracking-wider">Top Performer</span>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+        <div className="animate-fade-up" style={{ animationDelay: '0ms' }}>
+          <Card className="glass rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300">
+            <CardContent className="p-3 sm:p-4 relative">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-sky-500/8 to-transparent rounded-bl-full" />
+              <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+                <Eye className="h-3.5 w-3.5 text-sky-500" />
+                <span className="text-xs font-medium uppercase tracking-wider">Total Views</span>
               </div>
-              <div className="flex items-center gap-2 mt-1">
-                <Image
-                  src={stats.topVideo.thumbnail}
-                  alt={stats.topVideo.title}
-                  width={48}
-                  height={27}
-                  className="rounded object-cover flex-shrink-0"
-                />
-                <p className="text-xs font-medium line-clamp-2 leading-tight">{stats.topVideo.title}</p>
+              <p className="text-xl sm:text-2xl font-bold tabular-nums animate-count-up" style={{ animationDelay: '150ms' }}>{formatCompact(stats.totalViews)}</p>
+              <p className="text-xs text-muted-foreground mt-1">{videos.length} videos</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="animate-fade-up" style={{ animationDelay: '60ms' }}>
+          <Card className="glass rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300">
+            <CardContent className="p-3 sm:p-4 relative">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-emerald-500/8 to-transparent rounded-bl-full" />
+              <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="animate-slide-right inline-flex" style={{ animationDelay: '200ms' }}>
+                    <TrendIcon value={stats.scoreTrend} />
+                  </span>
+                  <span className="text-xs font-medium uppercase tracking-wider">Avg Score</span>
+                </div>
+              </div>
+              <div className="flex items-end gap-2">
+                <div>
+                  <p className={`text-xl sm:text-2xl font-bold tabular-nums animate-count-up ${scoreLabel.color}`} style={{ animationDelay: '150ms' }}>
+                    {stats.avgScore.toFixed(1)}
+                  </p>
+                  <p className={`text-xs font-medium ${scoreLabel.color}`}>{scoreLabel.label}</p>
+                </div>
+                <Sparkline points={stats.sparklinePoints} className="w-16 h-7 ml-auto" />
               </div>
             </CardContent>
           </Card>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-xs">
-          <p className="font-medium">{stats.topVideo.title}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Score: {stats.topVideo.score.toFixed(1)} &middot; {formatCompact(stats.topVideo.views)} views
-          </p>
-        </TooltipContent>
-      </Tooltip>
+        </div>
 
-      <Card className="bg-card/60 backdrop-blur-sm border-border/50">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <ThumbsUp className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium uppercase tracking-wider">Avg Engagement</span>
-          </div>
-          <p className="text-xl sm:text-2xl font-bold tabular-nums">
-            {stats.avgEngagement.toFixed(1)}
-            <span className="text-sm font-normal text-muted-foreground">/1K</span>
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">weighted per 1K views</p>
-        </CardContent>
-      </Card>
+        <div className="animate-fade-up lg:col-span-2" style={{ animationDelay: '120ms' }}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card className="glass rounded-2xl cursor-help overflow-hidden group hover:glow-primary transition-shadow duration-300 h-full">
+                <CardContent className="p-3 sm:p-4 relative h-full">
+                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-amber-500/8 to-transparent rounded-bl-full" />
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+                    <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="text-xs font-medium uppercase tracking-wider">Top Performer</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 mt-1.5">
+                    <div className="relative flex-shrink-0">
+                      <Image
+                        src={stats.topVideo.thumbnail}
+                        alt={stats.topVideo.title}
+                        width={56}
+                        height={32}
+                        sizes="56px"
+                        style={{ width: 56, height: "auto" }}
+                        className="rounded-lg object-cover ring-1 ring-border/30"
+                      />
+                      <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 flex items-center justify-center">
+                        <Trophy className="h-2.5 w-2.5 text-white" />
+                      </div>
+                    </div>
+                    <p className="text-xs font-medium line-clamp-2 leading-snug">{stats.topVideo.title}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              <p className="font-medium">{stats.topVideo.title}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Score: {stats.topVideo.score.toFixed(1)} &middot; {formatCompact(stats.topVideo.views)} views
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
 
-      <Card className="bg-card/60 backdrop-blur-sm border-border/50 col-span-2 sm:col-span-1">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <Calendar className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium uppercase tracking-wider">Upload Cadence</span>
-          </div>
-          <p className="text-xl sm:text-2xl font-bold tabular-nums">{stats.cadenceLabel}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">average frequency</p>
-        </CardContent>
-      </Card>
+        <div className="animate-fade-up" style={{ animationDelay: '180ms' }}>
+          <Card className="glass rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300">
+            <CardContent className="p-3 sm:p-4 relative">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-violet-500/8 to-transparent rounded-bl-full" />
+              <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+                <ThumbsUp className="h-3.5 w-3.5 text-violet-500" />
+                <span className="text-xs font-medium uppercase tracking-wider">Avg Engagement</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold tabular-nums animate-count-up" style={{ animationDelay: '150ms' }}>
+                {stats.avgEngagement.toFixed(1)}
+                <span className="text-sm font-normal text-muted-foreground">/1K</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">weighted per 1K views</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="animate-fade-up col-span-2 sm:col-span-1" style={{ animationDelay: '240ms' }}>
+          <Card className="glass rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300">
+            <CardContent className="p-3 sm:p-4 relative">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-orange-500/8 to-transparent rounded-bl-full" />
+              <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
+                <Calendar className="h-3.5 w-3.5 text-orange-500" />
+                <span className="text-xs font-medium uppercase tracking-wider">Upload Cadence</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold tabular-nums animate-count-up" style={{ animationDelay: '150ms' }}>{stats.cadenceLabel}</p>
+              <p className="text-xs text-muted-foreground mt-1">average frequency</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

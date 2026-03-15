@@ -1,10 +1,10 @@
 "use client";
 
-import * as React from "react";
-import { Search, Loader2 } from "lucide-react";
 import { cn } from "@data-projects/shared";
-import { Input } from "./input";
+import { Loader2, Search } from "lucide-react";
+import * as React from "react";
 import { Button } from "./button";
+import { Input } from "./input";
 
 export interface SearchAutocompleteTestIds {
   form?: string;
@@ -307,7 +307,7 @@ export function SearchAutocomplete<TItem>({
 
       <Button
         type="submit"
-        disabled={isSubmitting || !value.trim()}
+        disabled={isSubmitting || !value.trim() || undefined}
         data-testid={testIds?.button}
         className={cn(compact ? "h-9 px-3 sm:px-4" : "h-12 px-3 sm:px-6", buttonClassName)}
       >

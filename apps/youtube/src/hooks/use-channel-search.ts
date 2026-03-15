@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchChannelSearch } from "@/services/channel";
+import { fetchChannelSearch } from "@/services/channel-client";
 
 export function useChannelSearch(query: string | null) {
   return useQuery({

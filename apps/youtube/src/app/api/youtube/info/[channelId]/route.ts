@@ -1,6 +1,8 @@
-import { getChannelById } from "@/lib/youtube-server";
+import { db } from "@/db";
+import { channels } from "@/db/schema";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
-import { getSafeErrorMessage } from "@/lib/validation";
+import { getSafeErrorMessage, validateChannelId } from "@/lib/validation";
+import { getChannelById } from "@/lib/youtube-server";
 import {
   corsHeaders,
   mergeHeaders,
@@ -8,6 +10,7 @@ import {
   rateLimitExceededResponse,
   withRateLimitHeaders,
 } from "@data-projects/shared";
+import { eq } from "drizzle-orm";
 
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
@@ -34,14 +37,45 @@ export async function GET(
 
     const { channelId } = await params;
 
-    if (!channelId || channelId.length < 10) {
+    const validation = validateChannelId(channelId);
+    if (!validation.valid) {
       return Response.json(
-        { error: "Invalid channel ID" },
-        { status: 400, headers: corsHeaders }
+        { error: validation.error },
+        { status: 400, headers: corsHeaders },
+      );
+    }
+
+    const cached = await db.select().from(channels).where(eq(channels.id, channelId)).limit(1);
+
+    if (cached.length > 0) {
+      const ch = cached[0];
+      return Response.json(
+        {
+          channelId: ch.id,
+          channelTitle: ch.title,
+          thumbnails: { default: { url: ch.thumbnailUrl ?? "" } },
+        },
+        {
+          headers: mergeHeaders(
+            corsHeaders,
+            withRateLimitHeaders(rateLimitResult),
+            { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" }
+          ),
+        }
       );
     }
 
     const channelInfo = await getChannelById(channelId);
+
+    await db
+      .insert(channels)
+      .values({
+        id: channelInfo.channelId,
+        title: channelInfo.channelTitle,
+        thumbnailUrl: channelInfo.thumbnails.default.url,
+        fetchedAt: new Date(),
+      })
+      .onConflictDoNothing();
 
     return Response.json(channelInfo, {
       headers: mergeHeaders(
@@ -58,6 +92,3 @@ export async function GET(
     );
   }
 }
-
-
-

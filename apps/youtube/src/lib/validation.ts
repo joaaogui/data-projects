@@ -1,6 +1,6 @@
-import { createValidator, getSafeErrorMessage } from "@data-projects/shared";
+import { createValidator } from "@data-projects/shared";
 
-export { getSafeErrorMessage };
+export { getSafeErrorMessage } from "@data-projects/shared";
 
 export const validateSearchQuery = createValidator({
   allowedCharsRegex: /^[\w\s\-':.!?&()@#]+$/,

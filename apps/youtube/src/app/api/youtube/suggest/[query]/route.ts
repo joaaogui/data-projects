@@ -1,35 +1,22 @@
 import { searchChannels } from "@/lib/youtube-server";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateSearchQuery, getSafeErrorMessage } from "@/lib/validation";
+import { db } from "@/db";
+import { suggestionCache } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import type { ChannelSuggestion } from "@/types/youtube";
 import {
   corsHeaders,
-  createCache,
   mergeHeaders,
   optionsResponse,
   rateLimitExceededResponse,
   withRateLimitHeaders,
 } from "@data-projects/shared";
 
+const CACHE_TTL_MS = 60 * 60 * 1000;
+
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
-}
-
-type ChannelSuggestion = {
-  channelId: string;
-  channelTitle: string;
-  thumbnails?: {
-    default?: { url?: string };
-  };
-  videoCount?: number;
-};
-
-const cache = createCache<ChannelSuggestion[]>({
-  ttlMs: 60 * 60 * 1000,
-  maxSize: 1000,
-});
-
-function getCacheKey(query: string) {
-  return `yt-suggest:${query.toLowerCase().trim()}`;
 }
 
 export async function GET(
@@ -67,16 +54,24 @@ export async function GET(
       return Response.json([], { headers: corsHeaders });
     }
 
-    const cacheKey = getCacheKey(q);
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      return Response.json(cached, {
-        headers: mergeHeaders(
-          corsHeaders,
-          withRateLimitHeaders(rateLimitResult),
-          { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200" }
-        ),
-      });
+    const cacheKey = q.toLowerCase().trim();
+    const cached = await db
+      .select()
+      .from(suggestionCache)
+      .where(eq(suggestionCache.query, cacheKey))
+      .limit(1);
+
+    if (cached.length > 0) {
+      const age = Date.now() - cached[0].fetchedAt.getTime();
+      if (age < CACHE_TTL_MS) {
+        return Response.json(cached[0].results, {
+          headers: mergeHeaders(
+            corsHeaders,
+            withRateLimitHeaders(rateLimitResult),
+            { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200" }
+          ),
+        });
+      }
     }
 
     const channels = await searchChannels(q, 8, true);
@@ -87,7 +82,13 @@ export async function GET(
       videoCount: c.videoCount,
     }));
 
-    cache.set(cacheKey, suggestions);
+    db.insert(suggestionCache)
+      .values({ query: cacheKey, results: suggestions, fetchedAt: new Date() })
+      .onConflictDoUpdate({
+        target: suggestionCache.query,
+        set: { results: suggestions, fetchedAt: new Date() },
+      })
+      .catch((err) => console.warn("[Suggest] Cache write failed:", err));
 
     return Response.json(suggestions, {
       headers: mergeHeaders(

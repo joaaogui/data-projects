@@ -1,4 +1,4 @@
-import { fetchChannelVideos } from "@/lib/youtube-server";
+import { dbRowsToVideoData } from "@/lib/video-mapper";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateChannelId, getSafeErrorMessage } from "@/lib/validation";
 import {
@@ -8,6 +8,11 @@ import {
   rateLimitExceededResponse,
   withRateLimitHeaders,
 } from "@data-projects/shared";
+import { db } from "@/db";
+import { videos } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
@@ -32,9 +37,9 @@ export async function GET(
       );
     }
 
-    const { channelId } = await params;
+    const { channelId: rawChannelId } = await params;
 
-    const validation = validateChannelId(channelId);
+    const validation = validateChannelId(rawChannelId);
     if (!validation.valid) {
       return Response.json(
         { error: validation.error },
@@ -42,17 +47,40 @@ export async function GET(
       );
     }
 
-    console.log(`[Channel API] Fetching videos for channel: ${validation.sanitized}`);
-    const videos = await fetchChannelVideos(validation.sanitized!);
-    console.log(`[Channel API] Found ${videos.length} videos`);
+    const channelId = validation.sanitized ?? rawChannelId;
+    const dbRows = await db.select().from(videos).where(eq(videos.channelId, channelId));
 
-    return Response.json(videos, {
-      headers: mergeHeaders(
-        corsHeaders,
-        withRateLimitHeaders(rateLimitResult),
-        { "Cache-Control": "public, s-maxage=21600, stale-while-revalidate=86400" }
-      ),
-    });
+    if (dbRows.length === 0) {
+      return Response.json(
+        { videos: [], source: "none", fresh: false, fetchedAt: null },
+        {
+          headers: mergeHeaders(
+            corsHeaders,
+            withRateLimitHeaders(rateLimitResult)
+          ),
+        }
+      );
+    }
+
+    const oldestFetchMs = dbRows.reduce(
+      (min, r) => Math.min(min, r.fetchedAt.getTime()),
+      dbRows[0].fetchedAt.getTime()
+    );
+    const oldestFetch = new Date(oldestFetchMs);
+    const isFresh = Date.now() - oldestFetch.getTime() < SIX_HOURS_MS;
+
+    const videoData = dbRowsToVideoData(dbRows);
+
+    return Response.json(
+      { videos: videoData, source: "database", fresh: isFresh, fetchedAt: oldestFetch.toISOString() },
+      {
+        headers: mergeHeaders(
+          corsHeaders,
+          withRateLimitHeaders(rateLimitResult),
+          { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" }
+        ),
+      }
+    );
   } catch (error) {
     console.error("Fetch videos error:", error);
     return Response.json(

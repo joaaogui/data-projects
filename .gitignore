@@ -57,3 +57,5 @@ next-env.d.ts
 .scannerwork
 
 
+.env*.local
+cookies.txt

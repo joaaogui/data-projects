@@ -1,89 +1,105 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, Skeleton, Button, Navbar } from "@data-projects/ui";
-import { VideosTable } from "@/components/videos-table";
-import { SearchChannel } from "@/components/search-channel";
 import { ChannelDashboard } from "@/components/channel-dashboard";
+import { ChannelHeader } from "@/components/channel-header";
+import { ChannelTabs } from "@/components/channel-tabs";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { saveRecentChannel } from "@/components/recent-channels";
-import { useChannelInfo } from "@/hooks/use-channel-info";
-import { useChannelVideos } from "@/hooks/use-channel-videos";
-import { CHANNEL_PREFIX } from "@/services/channel";
-import { ExternalLink, RefreshCw, AlertCircle, ArrowLeft } from "lucide-react";
-import Image from "next/image";
+import { SagasView } from "@/components/sagas";
+import { SearchChannel } from "@/components/search-channel";
+import { SyncStatusBar } from "@/components/sync-status-bar";
+import { TimelineView } from "@/components/timeline-view";
+import { VideosTable } from "@/components/videos";
+import { YouTubeIcon } from "@/components/youtube-icon";
+import { ChannelProvider, useChannel } from "@/hooks/use-channel-context";
+import { Button, Navbar, Skeleton } from "@data-projects/ui";
+import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-
-function YouTubeIcon({ className }: Readonly<{ className?: string }>) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-    </svg>
-  );
-}
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 function YouTubeLogo() {
-  return <YouTubeIcon className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />;
+  return <YouTubeIcon className="h-8 w-8 sm:h-10 sm:w-10 text-foreground" />;
 }
 
-export default function ChannelPage() {
-  const params = useParams();
-  const channelId = params.channelId as string;
-  const queryClient = useQueryClient();
-
+function ChannelPageContent() {
   const {
-    data: channelInfo,
-    isLoading: isLoadingChannel,
-    error: channelError,
-  } = useChannelInfo(channelId);
+    channelId,
+    channelInfo,
+    channelError,
+    videos,
+    source,
+    fresh,
+    fetchedAt,
+    isLoadingChannel,
+    isLoadingVideos,
+    isFetchingVideos,
+    videoSync,
+    transcriptSync,
+    videoLogs,
+    transcriptLogs,
+    syncVideos,
+    syncTranscripts,
+    cancelSync,
+    isVideoSyncing,
+    isTranscriptSyncing,
+    isSyncing,
+    handleRefresh,
+    accountData,
+  } = useChannel();
 
-  const {
-    data: videos,
-    isLoading: isLoadingVideos,
-    isFetching: isFetchingVideos,
-  } = useChannelVideos(channelId);
+  const autoSyncTriggered = useRef(false);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const activeTab = (searchParams.get("tab") as "videos" | "timeline" | "sagas") || "videos";
+
+  const setActiveTab = useCallback((tab: "videos" | "timeline" | "sagas") => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "videos") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    const query = params.toString();
+    router.replace(`?${query}`, { scroll: false });
+  }, [searchParams, router]);
+
+  const [timelineVideoId, setTimelineVideoId] = useState<string | null>(null);
+
+  const handleOpenTimeline = useCallback((videoId: string) => {
+    setTimelineVideoId(videoId);
+    setActiveTab("timeline");
+  }, []);
 
   useEffect(() => {
     if (channelInfo) {
-      saveRecentChannel({
-        channelId,
-        channelTitle: channelInfo.channelTitle,
-        thumbnail: channelInfo.thumbnails.default.url,
-        visitedAt: Date.now(),
-      });
+      saveRecentChannel({ channelId, channelTitle: channelInfo.channelTitle, thumbnail: channelInfo.thumbnails.default.url, visitedAt: Date.now() });
     }
   }, [channelId, channelInfo]);
 
-  const handleRefresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["channel-videos", channelId] });
-  }, [channelId, queryClient]);
+  useEffect(() => {
+    if (autoSyncTriggered.current) return;
+    if (isLoadingVideos || isFetchingVideos) return;
+    if (source === "none" && !isVideoSyncing) {
+      autoSyncTriggered.current = true;
+      syncVideos();
+    }
+  }, [source, isLoadingVideos, isFetchingVideos, isVideoSyncing, syncVideos]);
+
+  const isInitialLoading = isLoadingVideos || (source === "none" && isVideoSyncing);
 
   if (channelError) {
     return (
       <div className="h-screen flex flex-col overflow-hidden">
-        <Navbar
-          homeLink={<Link href="/" />}
-          logo={<YouTubeLogo />}
-          appName="YouTube Analyzer"
-          search={<SearchChannel compact />}
-          themeIconClassName="text-primary"
-        />
+        <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} appName="YouTube Analyzer" search={<SearchChannel compact />} themeIconClassName="text-primary" />
         <main className="flex-1 min-h-0 container mx-auto px-4 py-8">
-          <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-            <div className="rounded-full bg-destructive/10 p-4 mb-4">
-              <AlertCircle className="h-8 w-8 text-destructive" />
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Channel Not Found</h2>
-            <p className="text-muted-foreground mb-6 max-w-md">
-              We couldn&apos;t find this YouTube channel. Please try a different search.
-            </p>
-            <Button asChild>
-              <Link href="/">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Home
-              </Link>
-            </Button>
+          <div className="flex flex-col items-center justify-center min-h-[50vh] text-center animate-scale-in">
+            <div className="rounded-full bg-destructive/10 p-4 mb-4"><AlertCircle className="h-8 w-8 text-destructive" /></div>
+            <h2 className="text-2xl font-bold tracking-tight mb-2">Channel Not Found</h2>
+            <p className="text-muted-foreground mb-6 max-w-md">We couldn&apos;t find this YouTube channel. Please try a different search.</p>
+            <Button asChild><Link href="/"><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Link></Button>
           </div>
         </main>
       </div>
@@ -92,96 +108,101 @@ export default function ChannelPage() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <Navbar
-        homeLink={<Link href="/" />}
-        logo={<YouTubeLogo />}
-        appName="YouTube Analyzer"
-        search={<SearchChannel initialValue={channelInfo?.channelTitle} compact />}
-        themeIconClassName="text-primary"
-      />
-
+      <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} appName="YouTube Analyzer" search={<SearchChannel initialValue={channelInfo?.channelTitle} compact />} themeIconClassName="text-primary" />
       <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
-        {isLoadingChannel && (
-          <Card className="mb-4 flex-shrink-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-3">
-                <Skeleton className="h-10 w-10 sm:h-12 sm:w-12 rounded-full" />
-                <div className="space-y-2">
-                  <Skeleton className="h-5 w-48" />
-                  <Skeleton className="h-4 w-32" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <ErrorBoundary>
+          <ChannelHeader
+            channelId={channelId}
+            channelInfo={channelInfo}
+            isLoadingChannel={isLoadingChannel}
+            videos={videos}
+            isVideoSyncing={isVideoSyncing}
+            isTranscriptSyncing={isTranscriptSyncing}
+            isLoadingVideos={isLoadingVideos}
+            isFetchingVideos={isFetchingVideos}
+            onSyncVideos={syncVideos}
+            onSyncTranscripts={syncTranscripts}
+            onRefresh={handleRefresh}
+            fresh={fresh}
+            fetchedAt={fetchedAt}
+            accountData={accountData}
+          />
+        </ErrorBoundary>
+        <SyncStatusBar videoSync={videoSync} transcriptSync={transcriptSync} videoLogs={videoLogs} transcriptLogs={transcriptLogs} isSyncing={isSyncing} onCancel={cancelSync} />
 
-        {channelInfo && (
-          <Card className="mb-4 overflow-hidden flex-shrink-0">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-3">
-                <Image
-                  src={channelInfo.thumbnails.default.url}
-                  alt={channelInfo.channelTitle}
-                  width={64}
-                  height={64}
-                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-full ring-2 ring-border transition-all shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base sm:text-lg font-semibold truncate">
-                      {channelInfo.channelTitle}
-                    </h2>
-                    <a
-                      href={`${CHANNEL_PREFIX}${channelId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-primary transition-colors shrink-0"
-                      title="Open in YouTube"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  </div>
-                  {videos && (
-                    <p className="text-sm text-muted-foreground">{videos.length} videos analyzed</p>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefresh}
-                  disabled={isLoadingVideos || isFetchingVideos}
-                  title="Refresh data"
-                  className="shrink-0"
-                >
-                  <RefreshCw className={`h-4 w-4 ${(isLoadingVideos || isFetchingVideos) ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Refresh</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {(isLoadingVideos || isFetchingVideos) && !videos && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center py-16">
-            <div className="relative">
-              <YouTubeIcon className="h-12 w-12 text-primary animate-pulse" />
-            </div>
+        {isInitialLoading && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center py-16 animate-fade-up">
+            <div className="relative"><YouTubeIcon className="h-12 w-12 text-foreground/60 animate-pulse" /></div>
             <div className="space-y-1">
-              <p className="text-sm font-medium">Loading videos...</p>
-              <p className="text-xs text-muted-foreground">Fetching data from YouTube API</p>
+              <p className="text-sm font-medium">
+                {isVideoSyncing ? "Syncing videos from YouTube..." : "Loading videos..."}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {videoSync?.progress?.phase === "saving"
+                  ? `Saving video ${videoSync.progress.fetched.toLocaleString()} of ${videoSync.progress.total?.toLocaleString()}`
+                  : "This may take a moment for channels with many videos"}
+              </p>
+              {videoSync?.progress?.total && videoSync.progress.phase === "saving" && (
+                <div className="w-48 mx-auto mt-2">
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-primary transition-all duration-300 animate-progress-stripe" style={{ width: `${Math.min(100, (videoSync.progress.fetched / videoSync.progress.total) * 100)}%` }} />
+                  </div>
+                </div>
+              )}
             </div>
+            <div className="mt-6 space-y-2 max-w-4xl mx-auto w-full">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-2xl border border-border/30 p-3" style={{ animationDelay: `${i * 80}ms` }}>
+                  <Skeleton className="w-20 h-11 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3.5 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <Skeleton className="h-8 w-12 rounded-lg" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isInitialLoading && videos?.length === 0 && !isVideoSyncing && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center py-16 animate-scale-in">
+            <div className="rounded-full bg-muted p-4"><AlertCircle className="h-8 w-8 text-muted-foreground" /></div>
+            <p className="text-sm font-medium">No public videos found</p>
+            <p className="text-xs text-muted-foreground">This channel has no publicly available videos to analyze.</p>
           </div>
         )}
 
         {videos && videos.length > 0 && (
           <>
-            <ChannelDashboard videos={videos} />
+            <ErrorBoundary>
+              <ChannelDashboard videos={videos} />
+            </ErrorBoundary>
+            <ChannelTabs activeTab={activeTab} onTabChange={setActiveTab} counts={{ videos: videos.length }} />
             <div className="flex-1 min-h-0">
-              <VideosTable data={videos} />
+              <ErrorBoundary>
+                {activeTab === "videos" && <VideosTable data={videos} onOpenTimeline={handleOpenTimeline} />}
+                {activeTab === "timeline" && <TimelineView videos={videos} initialVideoId={timelineVideoId} />}
+                {activeTab === "sagas" && <SagasView channelId={channelId} videos={videos} />}
+              </ErrorBoundary>
             </div>
           </>
         )}
       </main>
     </div>
+  );
+}
+
+export default function ChannelPage() {
+  const params = useParams();
+  const channelId = params.channelId as string;
+
+  return (
+    <ChannelProvider channelId={channelId}>
+      <Suspense fallback={null}>
+        <ChannelPageContent />
+      </Suspense>
+    </ChannelProvider>
   );
 }

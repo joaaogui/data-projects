@@ -1,22 +1,16 @@
 import dayjs from "dayjs";
-import type { VideoData, PlaylistItem, VideoDetails } from "@/types/youtube";
-import { calculateVideoScore, parseISO8601Duration } from "./scoring";
+import type { VideoData, PlaylistItem, VideoDetails, PlaylistInfo, ChannelInfo, FetchProgress } from "@/types/youtube";
+import { scoreVideoBatch, parseISO8601Duration, type VideoMetrics } from "./scoring";
+
+export type { ChannelInfo } from "@/types/youtube";
+
+export type FetchProgressCallback = (progress: FetchProgress) => void;
 
 const API_URL = "https://www.googleapis.com/youtube/v3";
 const API_KEY = process.env.YOUTUBE_API_KEY;
 const VIDEO_PREFIX = "https://www.youtube.com/watch?v=";
 
 const BATCH_SIZE = 50;
-
-export interface ChannelInfo {
-  channelId: string;
-  channelTitle: string;
-  thumbnails: {
-    default: {
-      url: string;
-    };
-  };
-}
 
 function getApiKey(): string {
   if (!API_KEY) {
@@ -33,7 +27,10 @@ async function fetchJson<T>(url: string): Promise<T> {
   return response.json();
 }
 
-async function getPlaylistItems(playlistId: string): Promise<PlaylistItem[]> {
+async function getPlaylistItems(
+  playlistId: string,
+  onProgress?: FetchProgressCallback
+): Promise<PlaylistItem[]> {
   const apiKey = getApiKey();
   const allVideos: PlaylistItem[] = [];
   let pageToken = "";
@@ -44,14 +41,19 @@ async function getPlaylistItems(playlistId: string): Promise<PlaylistItem[]> {
     const data = await fetchJson<{ items: PlaylistItem[]; nextPageToken?: string }>(url);
     allVideos.push(...data.items);
     pageToken = data.nextPageToken || "";
+    onProgress?.({ phase: "playlist", fetched: allVideos.length });
   } while (pageToken);
 
   return allVideos;
 }
 
-async function getBatchVideoDetails(videoIds: string[]): Promise<Map<string, VideoDetails>> {
+async function getBatchVideoDetails(
+  videoIds: string[],
+  onProgress?: FetchProgressCallback
+): Promise<Map<string, VideoDetails>> {
   const apiKey = getApiKey();
   const detailsMap = new Map<string, VideoDetails>();
+  const total = videoIds.length;
 
   for (let i = 0; i < videoIds.length; i += BATCH_SIZE) {
     const batch = videoIds.slice(i, i + BATCH_SIZE);
@@ -66,6 +68,8 @@ async function getBatchVideoDetails(videoIds: string[]): Promise<Map<string, Vid
         contentDetails: item.contentDetails,
       });
     }
+
+    onProgress?.({ phase: "details", fetched: Math.min(i + BATCH_SIZE, total), total });
   }
 
   return detailsMap;
@@ -161,53 +165,115 @@ export async function searchChannels(
   return channels;
 }
 
-export async function fetchChannelVideos(channelId: string): Promise<VideoData[]> {
-  console.log(`[YouTube Server] Fetching videos for channel: ${channelId}`);
+export async function fetchChannelPlaylists(channelId: string): Promise<PlaylistInfo[]> {
+  const apiKey = getApiKey();
+  const allPlaylists: PlaylistInfo[] = [];
+  let pageToken = "";
+
+  do {
+    const pageParam = pageToken ? `&pageToken=${pageToken}` : "";
+    const url = `${API_URL}/playlists?part=snippet,contentDetails&channelId=${channelId}&maxResults=50&key=${apiKey}${pageParam}`;
+    const data = await fetchJson<{
+      items: Array<{
+        id: string;
+        snippet: { title: string; description: string; thumbnails?: { default?: { url?: string } } };
+        contentDetails: { itemCount: number };
+      }>;
+      nextPageToken?: string;
+    }>(url);
+
+    for (const item of data.items) {
+      allPlaylists.push({
+        playlistId: item.id,
+        title: item.snippet.title,
+        description: item.snippet.description,
+        itemCount: item.contentDetails.itemCount,
+        thumbnail: item.snippet.thumbnails?.default?.url ?? "",
+        videoIds: [],
+      });
+    }
+    pageToken = data.nextPageToken || "";
+  } while (pageToken);
+
+  return allPlaylists;
+}
+
+export async function fetchPlaylistVideoIds(playlistId: string): Promise<string[]> {
+  const items = await getPlaylistItems(playlistId);
+  return items.map((item) => item.contentDetails.videoId);
+}
+
+export async function fetchChannelVideos(
+  channelId: string,
+  onProgress?: FetchProgressCallback
+): Promise<VideoData[]> {
   const uploadsPlaylistId = await getUploadsPlaylistId(channelId);
-  console.log(`[YouTube Server] Uploads playlist ID: ${uploadsPlaylistId}`);
-  const playlistItems = await getPlaylistItems(uploadsPlaylistId);
-  console.log(`[YouTube Server] Found ${playlistItems.length} playlist items`);
+  const playlistItems = await getPlaylistItems(uploadsPlaylistId, onProgress);
   const videoIds = playlistItems.map(item => item.contentDetails.videoId);
-  const detailsMap = await getBatchVideoDetails(videoIds);
-  console.log(`[YouTube Server] Got details for ${detailsMap.size} videos`);
+  const detailsMap = await getBatchVideoDetails(videoIds, onProgress);
   
-  const videos: VideoData[] = [];
-  
+  interface PendingVideo {
+    videoId: string;
+    title: string;
+    publishedAt: string;
+    days: number;
+    duration: number;
+    views: number;
+    likes: number;
+    comments: number;
+    favorites: number;
+    thumbnailUrl: string;
+    description: string;
+  }
+
+  const pending: PendingVideo[] = [];
+
   for (const item of playlistItems) {
     const videoId = item.contentDetails.videoId;
     const details = detailsMap.get(videoId);
-    
-    if (details) {
-      const { statistics: stats, contentDetails } = details;
-      const views = Number(stats.viewCount || 0);
-      const likes = Number(stats.likeCount || 0);
-      const comments = Number(stats.commentCount || 0);
-      const favorites = Number(stats.favoriteCount || 0);
-      const days = getDaysToToday(item.contentDetails.videoPublishedAt);
-      const duration = parseISO8601Duration(contentDetails.duration);
-      
-      const publishedAt = item.contentDetails.videoPublishedAt;
-      const scoring = calculateVideoScore({ views, likes, comments, days, duration });
-      
-      videos.push({
-        videoId,
-        title: item.snippet.title,
-        publishedAt,
-        days,
-        duration,
-        views,
-        likes,
-        comments,
-        favorites,
-        score: scoring.score,
-        scoreComponents: scoring.components,
-        rates: scoring.rates,
-        url: VIDEO_PREFIX + videoId,
-        thumbnail: item.snippet.thumbnails.default.url,
-        description: item.snippet.description,
-      });
-    }
+    if (!details) continue;
+
+    const { statistics: stats, contentDetails } = details;
+    const publishedAt = item.contentDetails.videoPublishedAt ?? item.snippet.publishedAt;
+    if (!publishedAt) continue;
+    const days = getDaysToToday(publishedAt);
+    if (Number.isNaN(days)) continue;
+
+    pending.push({
+      videoId,
+      title: item.snippet.title,
+      publishedAt,
+      days,
+      duration: parseISO8601Duration(contentDetails.duration),
+      views: Number(stats.viewCount || 0),
+      likes: Number(stats.likeCount || 0),
+      comments: Number(stats.commentCount || 0),
+      favorites: Number(stats.favoriteCount || 0),
+      thumbnailUrl: item.snippet.thumbnails.default.url,
+      description: item.snippet.description,
+    });
   }
 
-  return videos;
+  const allMetrics: VideoMetrics[] = pending.map(p => ({
+    views: p.views, likes: p.likes, comments: p.comments, days: p.days, duration: p.duration,
+  }));
+  const scoringResults = scoreVideoBatch(allMetrics);
+
+  return pending.map((p, i) => ({
+    videoId: p.videoId,
+    title: p.title,
+    publishedAt: p.publishedAt,
+    days: p.days,
+    duration: p.duration,
+    views: p.views,
+    likes: p.likes,
+    comments: p.comments,
+    favorites: p.favorites,
+    score: scoringResults[i].score,
+    scoreComponents: scoringResults[i].components,
+    rates: scoringResults[i].rates,
+    url: VIDEO_PREFIX + p.videoId,
+    thumbnail: p.thumbnailUrl,
+    description: p.description,
+  }));
 }

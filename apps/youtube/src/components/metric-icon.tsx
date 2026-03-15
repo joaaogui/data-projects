@@ -1,9 +1,9 @@
 "use client";
 
-import { Eye, Clock, MessageSquare, ThumbsUp, type LucideIcon } from "lucide-react";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@data-projects/ui";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@data-projects/ui";
+import { Clock, Eye, MessageSquare, ThumbsUp, Zap, type LucideIcon } from "lucide-react";
 
-export type MetricType = "views" | "engagement" | "consistency" | "community";
+export type MetricType = "views" | "engagement" | "momentum" | "efficiency" | "community";
 
 export type MetricWeights = Record<MetricType, number>;
 
@@ -16,44 +16,52 @@ interface MetricConfig {
 }
 
 export const DEFAULT_WEIGHTS: MetricWeights = {
-  views: 35,
-  engagement: 20,
-  consistency: 80,
-  community: 15,
+  views: 30,
+  engagement: 25,
+  momentum: 20,
+  efficiency: 15,
+  community: 10,
 };
 
 export const METRIC_CONFIGS: Record<MetricType, MetricConfig> = {
   views: {
     type: "views",
     icon: Eye,
-    color: "text-green-500",
-    label: "Views",
-    description: "Total video views normalized against channel average. Higher views indicate broader reach and discoverability.",
+    color: "text-emerald-600 dark:text-emerald-400",
+    label: "Reach",
+    description: "View count percentile within the channel. Higher rank means broader reach relative to other videos.",
   },
   engagement: {
     type: "engagement",
     icon: ThumbsUp,
-    color: "text-blue-500",
+    color: "text-sky-600 dark:text-sky-400",
     label: "Engagement",
-    description: "Likes and comments per 1,000 views. Measures how actively viewers interact with the content.",
+    description: "Bayesian-smoothed interaction rate (likes + 5x comments per 1K views), ranked within the channel.",
   },
-  consistency: {
-    type: "consistency",
+  momentum: {
+    type: "momentum",
     icon: Clock,
-    color: "text-yellow-500",
-    label: "Consistency",
-    description: "Sustained engagement over time relative to video age. Older videos maintaining engagement score higher.",
+    color: "text-amber-600 dark:text-amber-400",
+    label: "Momentum",
+    description: "View velocity adjusted for age. Rewards videos accumulating views quickly relative to their peers.",
+  },
+  efficiency: {
+    type: "efficiency",
+    icon: Zap,
+    color: "text-orange-600 dark:text-orange-400",
+    label: "Efficiency",
+    description: "Engagement density per minute of content. Short, punchy videos that drive interaction score higher.",
   },
   community: {
     type: "community",
     icon: MessageSquare,
-    color: "text-purple-500",
+    color: "text-violet-600 dark:text-violet-400",
     label: "Community",
-    description: "Comment-to-like ratio measuring discussion depth. Higher ratios indicate more engaged community conversations.",
+    description: "Comment-to-engagement ratio measuring discussion depth, smoothed to prevent small-sample noise.",
   },
 };
 
-export const METRIC_TYPES: MetricType[] = ["views", "engagement", "consistency", "community"];
+export const METRIC_TYPES: MetricType[] = ["views", "engagement", "momentum", "efficiency", "community"];
 
 export function getMetricsSortedByWeight(weights: MetricWeights): MetricConfig[] {
   return [...METRIC_TYPES]
@@ -70,11 +78,11 @@ interface MetricIconProps {
   className?: string;
 }
 
-export function MetricIcon({ 
-  type, 
+export function MetricIcon({
+  type,
   weight,
-  value, 
-  showLabel = false, 
+  value,
+  showLabel = false,
   showWeight = false,
   className = "",
 }: Readonly<MetricIconProps>) {
@@ -111,7 +119,8 @@ export function MetricIcon({
 type ScoreComponentsMap = {
   views?: number | null;
   engagement?: number | null;
-  consistency?: number | null;
+  momentum?: number | null;
+  efficiency?: number | null;
   community?: number | null;
 };
 
@@ -129,10 +138,10 @@ export function getNormalizedWeight(weights: MetricWeights, type: MetricType): n
   return Math.round((weights[type] / total) * 100);
 }
 
-export function MetricIconsRow({ 
+export function MetricIconsRow({
   weights = DEFAULT_WEIGHTS,
-  values, 
-  showLabel = false, 
+  values,
+  showLabel = false,
   showWeight = false,
   className = "",
 }: Readonly<MetricIconsRowProps>) {
@@ -144,11 +153,11 @@ export function MetricIconsRow({
   return (
     <div className={`flex gap-3 ${className}`}>
       {METRIC_TYPES.map((type) => (
-        <MetricIcon 
+        <MetricIcon
           key={type}
           type={type}
           weight={getNormalizedWeight(weights, type)}
-          value={getValue(type)} 
+          value={getValue(type)}
           showLabel={showLabel}
           showWeight={showWeight}
         />

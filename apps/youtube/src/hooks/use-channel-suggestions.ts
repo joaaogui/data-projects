@@ -1,7 +1,7 @@
 "use client";
 
 import { createSuggestionsHook } from "@data-projects/shared";
-import { fetchChannelSuggestions, type ChannelSuggestion } from "@/services/channel";
+import { fetchChannelSuggestions, type ChannelSuggestion } from "@/services/channel-client";
 
 interface UseChannelSuggestionsOptions {
   query: string;

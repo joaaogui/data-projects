@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactCompiler: true,
   transpilePackages: ["@data-projects/ui", "@data-projects/shared"],
   images: {
     remotePatterns: [
@@ -10,6 +11,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'i.ytimg.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
       },
     ],
   },

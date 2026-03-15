@@ -1,21 +1,23 @@
 "use client";
 
-import * as React from "react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  flexRender,
-  type ColumnDef,
-  type SortingState,
-  type VisibilityState,
-  type TableMeta,
-  type Row,
-  type FilterFn,
-} from "@tanstack/react-table";
 import { cn } from "@data-projects/shared";
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type FilterFn,
+  type Row,
+  type SortingState,
+  type TableMeta,
+  type VisibilityState,
+} from "@tanstack/react-table";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import * as React from "react";
+import { Button } from "./button";
 import {
   Table,
   TableBody,
@@ -24,8 +26,6 @@ import {
   TableHeader,
   TableRow,
 } from "./table";
-import { Button } from "./button";
-import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -143,8 +143,8 @@ export function DataTable<TData, TValue>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-border/50 hover:bg-transparent">
                 {headerGroup.headers.map((header) => (
-                  <TableHead 
-                    key={header.id} 
+                  <TableHead
+                    key={header.id}
                     className={cn(
                       "text-xs uppercase tracking-wider",
                       stickyHeader && "bg-card/95 backdrop-blur-sm"
@@ -153,9 +153,9 @@ export function DataTable<TData, TValue>({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -193,13 +193,13 @@ export function DataTable<TData, TValue>({
                         </TableCell>
                       ))}
                     </TableRow>
-                  {isExpanded && (
-                    <TableRow className="border-border/30 bg-muted/20 hover:bg-muted/20">
-                      <TableCell colSpan={row.getVisibleCells().length} className="p-0">
-                        {renderExpandedRow(row)}
-                      </TableCell>
-                    </TableRow>
-                  )}
+                    {isExpanded && (
+                      <TableRow className="border-border/30 bg-muted/20 hover:bg-muted/20">
+                        <TableCell colSpan={row.getVisibleCells().length} className="p-0">
+                          {renderExpandedRow(row)}
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </React.Fragment>
                 );
               })
@@ -220,7 +220,7 @@ export function DataTable<TData, TValue>({
       {hasPagination && (
         <div className="flex-shrink-0 flex items-center justify-between px-2 py-4">
           {pagination?.showInfo !== false && (
-            <p className="text-sm text-muted-foreground">
+            <p className="hidden sm:block text-sm text-muted-foreground">
               Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
               {Math.min(
                 (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
@@ -260,5 +260,5 @@ export function DataTable<TData, TValue>({
   );
 }
 
-export { type ColumnDef, type SortingState, type VisibilityState, type TableMeta, type Row, type FilterFn } from "@tanstack/react-table";
+export { type ColumnDef, type FilterFn, type Row, type SortingState, type TableMeta, type VisibilityState } from "@tanstack/react-table";
 

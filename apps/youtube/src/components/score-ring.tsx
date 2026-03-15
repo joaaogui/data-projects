@@ -1,9 +1,9 @@
 "use client";
 
-import { Tooltip, TooltipTrigger, TooltipContent } from "@data-projects/ui";
 import { getScoreLabel } from "@/lib/scoring";
-import { METRIC_CONFIGS, METRIC_TYPES, getNormalizedWeight, type MetricWeights } from "./metric-icon";
 import type { ScoreComponents } from "@/types/youtube";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@data-projects/ui";
+import { METRIC_CONFIGS, METRIC_TYPES, getNormalizedWeight, type MetricWeights } from "./metric-icon";
 
 interface ScoreRingProps {
   score: number;
@@ -15,7 +15,8 @@ interface ScoreRingProps {
 const METRIC_TO_COMPONENT: Record<string, keyof ScoreComponents> = {
   views: "reachScore",
   engagement: "engagementScore",
-  consistency: "consistencyScore",
+  momentum: "momentumScore",
+  efficiency: "efficiencyScore",
   community: "communityScore",
 };
 
@@ -41,7 +42,7 @@ export function ScoreRing({ score, scoreComponents, weights, size = 48 }: Readon
   const totalWeight = METRIC_TYPES.reduce((s, t) => s + weights[t], 0);
   if (totalWeight === 0) return null;
 
-  const arcs: { d: string; color: string; opacity: number; label: string; value: number; weight: number }[] = [];
+  const arcs: { d: string; metricType: string; opacity: number; label: string; value: number; weight: number }[] = [];
   let currentAngle = 0;
 
   for (const type of METRIC_TYPES) {
@@ -59,7 +60,7 @@ export function ScoreRing({ score, scoreComponents, weights, size = 48 }: Readon
 
     arcs.push({
       d: describeArc(cx, cy, r, currentAngle + gapDeg / 2, currentAngle + sweepDeg + gapDeg / 2),
-      color: config.color.replace("text-", ""),
+      metricType: type,
       opacity,
       label: config.label,
       value,
@@ -70,27 +71,29 @@ export function ScoreRing({ score, scoreComponents, weights, size = 48 }: Readon
   }
 
   const strokeColorMap: Record<string, string> = {
-    "green-500": "stroke-green-500",
-    "blue-500": "stroke-blue-500",
-    "yellow-500": "stroke-yellow-500",
-    "purple-500": "stroke-purple-500",
+    views: "stroke-emerald-600 dark:stroke-emerald-400",
+    engagement: "stroke-sky-600 dark:stroke-sky-400",
+    momentum: "stroke-amber-600 dark:stroke-amber-400",
+    efficiency: "stroke-orange-600 dark:stroke-orange-400",
+    community: "stroke-violet-600 dark:stroke-violet-400",
   };
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div className="flex flex-col items-center gap-0.5 cursor-help">
-          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`Score ${score.toFixed(0)} - ${label}`}>
             <circle cx={cx} cy={cy} r={r} fill="none" className="stroke-muted/30" strokeWidth="3" />
             {arcs.map((arc) => (
               <path
                 key={arc.label}
                 d={arc.d}
                 fill="none"
-                className={strokeColorMap[arc.color] ?? "stroke-muted-foreground"}
+                className={strokeColorMap[arc.metricType] ?? "stroke-muted-foreground"}
                 strokeWidth="3"
                 strokeLinecap="round"
-                style={{ opacity: arc.opacity }}
+                pathLength={1}
+                style={{ opacity: arc.opacity, strokeDasharray: 1, strokeDashoffset: 0, transition: 'stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
               />
             ))}
             <text
@@ -99,7 +102,7 @@ export function ScoreRing({ score, scoreComponents, weights, size = 48 }: Readon
               textAnchor="middle"
               dominantBaseline="central"
               className="fill-foreground font-bold"
-              style={{ fontSize: size * 0.26 }}
+              style={{ fontSize: size * 0.28 }}
             >
               {score.toFixed(0)}
             </text>

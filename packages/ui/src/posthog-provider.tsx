@@ -1,9 +1,9 @@
 "use client";
 
+import { usePathname, useSearchParams } from "next/navigation";
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider, usePostHog } from "posthog-js/react";
-import { useEffect, Suspense } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 
 function PostHogPageView() {
   const pathname = usePathname();
@@ -29,13 +29,19 @@ interface PostHogProviderProps {
   apiHost?: string;
 }
 
+function isValidPostHogKey(key: string): boolean {
+  return key.length > 0 && key.startsWith("phc_");
+}
+
 export function PostHogProvider({
   children,
   apiKey,
   apiHost = "https://us.i.posthog.com",
 }: PostHogProviderProps) {
+  const isValid = isValidPostHogKey(apiKey);
+
   useEffect(() => {
-    if (typeof window !== "undefined" && apiKey) {
+    if (typeof window !== "undefined" && isValid) {
       posthog.init(apiKey, {
         api_host: apiHost,
         person_profiles: "identified_only",
@@ -43,7 +49,11 @@ export function PostHogProvider({
         capture_pageleave: true,
       });
     }
-  }, [apiKey, apiHost]);
+  }, [apiKey, apiHost, isValid]);
+
+  if (!isValid) {
+    return <>{children}</>;
+  }
 
   return (
     <PHProvider client={posthog}>

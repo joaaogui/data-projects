@@ -1,7 +1,6 @@
-import type { Config } from "tailwindcss";
 import { baseConfig } from "@data-projects/tailwind-config";
 
-const config: Config = {
+const config = {
   ...baseConfig,
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -14,7 +13,8 @@ const config: Config = {
     extend: {
       ...baseConfig.theme?.extend,
       fontFamily: {
-        sans: ["var(--font-roboto)", "system-ui", "sans-serif"],
+        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
       },
     },
   },

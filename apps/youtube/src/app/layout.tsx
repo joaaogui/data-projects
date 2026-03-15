@@ -1,13 +1,20 @@
+import { UserMenu } from "@/components/user-menu";
+import { Providers } from "@data-projects/ui";
 import type { Metadata } from "next";
-import { Roboto } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
-import { Providers, ThemeToggle } from "@data-projects/ui";
 
-const roboto = Roboto({
+const geistSans = Geist({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
-  variable: "--font-roboto",
+  variable: "--font-geist-sans",
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+  display: "swap",
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://youtube.joaog.space";
@@ -22,17 +29,28 @@ export const metadata: Metadata = {
     "Free tool to analyze YouTube channel statistics, video performance metrics, views, and engagement. Find the best performing videos from any channel.",
   keywords: [
     "youtube analytics",
-    "channel statistics",
-    "video performance",
-    "youtube metrics",
-    "video analysis",
     "youtube channel analyzer",
-    "video stats",
+    "video performance",
+    "channel statistics",
+    "youtube metrics",
+    "video engagement rate",
+    "youtube video score",
+    "youtube channel analysis tool",
+    "free youtube analytics",
+    "video stats tracker",
+    "youtube content analysis",
+    "youtube AI insights",
   ],
   authors: [{ name: "Joao Guilherme" }],
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/img/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/img/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: "/img/icons/apple-touch-icon.png",
   },
+  manifest: "/img/icons/site.webmanifest",
   openGraph: {
     type: "website",
     locale: "en_US",
@@ -68,7 +86,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${roboto.variable} font-sans antialiased gradient-bg min-h-screen`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased gradient-bg min-h-screen`}>
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-17815630894"
           strategy="afterInteractive"
@@ -82,8 +100,8 @@ export default function RootLayout({
           `}
         </Script>
         <Providers posthogApiKey={process.env.NEXT_PUBLIC_POSTHOG_KEY}>
-          <div className="fixed right-4 top-4 z-50">
-            <ThemeToggle iconClassName="text-primary" />
+          <div className="fixed right-14 sm:right-4 top-2 sm:top-3 z-[60] flex items-center gap-2">
+            <UserMenu />
           </div>
           {children}
         </Providers>

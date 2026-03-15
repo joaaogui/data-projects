@@ -1,11 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { SearchAutocomplete } from "@data-projects/ui";
 import { useChannelSuggestions } from "@/hooks/use-channel-suggestions";
-import type { ChannelSuggestion } from "@/services/channel";
+import type { ChannelSuggestion } from "@/services/channel-client";
+import { SearchAutocomplete } from "@data-projects/ui";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 
 interface SearchChannelProps {
   initialValue?: string;
@@ -13,7 +13,7 @@ interface SearchChannelProps {
 }
 
 export function SearchChannel({ initialValue = "", compact = false }: Readonly<SearchChannelProps>) {
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const router = useRouter();
   return (
     <SearchAutocomplete<ChannelSuggestion>
@@ -31,6 +31,7 @@ export function SearchChannel({ initialValue = "", compact = false }: Readonly<S
               alt=""
               width={32}
               height={32}
+              style={{ height: "auto" }}
               className="h-8 w-8 rounded-full object-cover ring-1 ring-border/50"
             />
           ) : (

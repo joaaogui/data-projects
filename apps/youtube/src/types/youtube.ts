@@ -1,7 +1,25 @@
+export interface ChannelInfo {
+  channelId: string;
+  channelTitle: string;
+  thumbnails: {
+    default: {
+      url: string;
+    };
+  };
+}
+
+export interface ChannelSuggestion {
+  channelId: string;
+  channelTitle: string;
+  thumbnails?: { default?: { url?: string } };
+  videoCount?: number;
+}
+
 export interface ScoreComponents {
   engagementScore: number;
   reachScore: number;
-  consistencyScore: number;
+  momentumScore: number;
+  efficiencyScore: number;
   communityScore: number;
 }
 
@@ -37,6 +55,7 @@ export interface PlaylistItem {
   snippet: {
     title: string;
     description: string;
+    publishedAt?: string;
     thumbnails: {
       default: {
         url: string;
@@ -45,7 +64,7 @@ export interface PlaylistItem {
   };
   contentDetails: {
     videoId: string;
-    videoPublishedAt: string;
+    videoPublishedAt?: string;
   };
 }
 
@@ -61,4 +80,61 @@ export interface VideoDetails {
   contentDetails: {
     duration: string;
   };
+}
+
+export interface PlaylistInfo {
+  playlistId: string;
+  title: string;
+  description: string;
+  itemCount: number;
+  thumbnail: string;
+  videoIds: string[];
+}
+
+export type SyncPhase =
+  | "queued"
+  | "init"
+  | "playlist"
+  | "details"
+  | "saving"
+  | "transcripts"
+  | "done";
+
+export interface FetchProgress {
+  phase?: SyncPhase;
+  fetched: number;
+  total?: number;
+}
+
+export interface SyncLogEntry {
+  ts: number;
+  level: "info" | "warn" | "error";
+  msg: string;
+}
+
+export interface AccountChannelData {
+  isSubscribed: boolean;
+  likedVideoIds: string[];
+  playlists: { id: string; title: string; videoIds: string[] }[];
+}
+
+export type SagaSource = "playlist" | "ai-detected" | "manual";
+
+export interface Saga {
+  id: string;
+  name: string;
+  source: SagaSource;
+  playlistId?: string;
+  videoIds: string[];
+  videoCount: number;
+  dateRange: { first: string; last: string };
+  reasoning?: string;
+  videoEvidence?: Record<string, string>;
+}
+
+export interface SagaSuggestion {
+  videoId: string;
+  sagaId: string;
+  sagaName: string;
+  confidence: "high" | "medium" | "low";
 }
