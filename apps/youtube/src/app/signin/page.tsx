@@ -20,7 +20,14 @@ function GoogleIcon({ className }: Readonly<{ className?: string }>) {
   );
 }
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: Readonly<{
+  searchParams: Promise<{ callbackUrl?: string }>;
+}>) {
+  const { callbackUrl } = await searchParams;
+  const redirectTo = callbackUrl || "/";
+
   return (
     <div className="fixed inset-0 flex items-center justify-center">
       <WebGLBackground />
@@ -45,7 +52,7 @@ export default function SignInPage() {
           <form
             action={async () => {
               "use server";
-              await signIn("google", { redirectTo: "/" });
+              await signIn("google", { redirectTo });
             }}
             className="animate-fade-up"
             style={{ animationDelay: "240ms" }}
