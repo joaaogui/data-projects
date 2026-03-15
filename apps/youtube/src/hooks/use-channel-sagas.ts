@@ -1,7 +1,7 @@
 "use client";
 
 import { useSagaStorage } from "@/hooks/use-saga-storage";
-import type { Saga, VideoData } from "@/types/youtube";
+import type { VideoData } from "@/types/youtube";
 import { useCallback, useMemo } from "react";
 import { useChannel } from "./use-channel-context";
 import type { SyncJobState } from "./use-sync";
@@ -48,7 +48,7 @@ export function useChannelSagas(channelId: string | null, videos: VideoData[] | 
     isLoading: isLoadingSagas,
   } = useSagaStorage(channelId);
 
-  const { sagaSync, syncSagas, cancelSync } = useChannel();
+  const { sagaSync, sagaLogs, syncSagas, cancelSync } = useChannel();
 
   const progress = useMemo(
     () => toProgress(sagaSync, aiSagas.length > 0),
@@ -66,25 +66,7 @@ export function useChannelSagas(channelId: string | null, videos: VideoData[] | 
     return videos.filter((v) => !sagaVideoIds.has(v.videoId)).map((v) => v.videoId);
   }, [videos, realSagas]);
 
-  const sagas = useMemo(() => {
-    if (uncategorizedVideoIds.length === 0) return realSagas;
-
-    const dates = uncategorizedVideoIds
-      .map((id) => videos?.find((v) => v.videoId === id)?.publishedAt)
-      .filter((d): d is string => Boolean(d))
-      .sort((a, b) => a.localeCompare(b));
-
-    const standaloneSaga: Saga = {
-      id: "standalone",
-      name: "Standalone Videos",
-      source: "manual",
-      videoIds: uncategorizedVideoIds,
-      videoCount: uncategorizedVideoIds.length,
-      dateRange: { first: dates[0] ?? "", last: dates.at(-1) ?? "" },
-    };
-
-    return [...realSagas, standaloneSaga];
-  }, [realSagas, uncategorizedVideoIds, videos]);
+  const sagas = realSagas;
 
   const startAnalysis = useCallback(() => {
     if (!channelId || !videos || videos.length === 0) return;
@@ -110,6 +92,7 @@ export function useChannelSagas(channelId: string | null, videos: VideoData[] | 
     uncategorizedVideoIds,
     isLoadingSagas,
     progress,
+    sagaLogs,
     startAnalysis,
     resetAndReanalyze,
     startIncrementalAnalysis,

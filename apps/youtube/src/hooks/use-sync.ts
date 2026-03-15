@@ -91,7 +91,6 @@ export function useSync(channelId: string | null) {
       }
       return false;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [channelId, queryClient]
   );
 
@@ -115,7 +114,6 @@ export function useSync(channelId: string | null) {
 
       pollRef.current = setTimeout(poll, delay);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [pollJob]
   );
 
@@ -154,7 +152,6 @@ export function useSync(channelId: string | null) {
         }
       })
       .catch((err) => console.warn("[useSync] Failed to detect active jobs:", err));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelId, startPolling]);
 
   useEffect(() => {
@@ -324,6 +321,10 @@ export function useSync(channelId: string | null) {
     }
   }, [channelId, startPolling]);
 
+  const pushSagaLog = useCallback((msg: string, level: SyncLogEntry["level"] = "info") => {
+    setSagaLogs((prev) => [...prev, { ts: Date.now(), level, msg }]);
+  }, []);
+
   const cancelSync = useCallback(async (type: SyncJobType) => {
     const stateMap: Record<SyncJobType, SyncJobState | null> = {
       videos: videoSync,
@@ -348,7 +349,6 @@ export function useSync(channelId: string | null) {
       status: "failed",
       error: "Cancelled by user",
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoSync, transcriptSync, sagaSync]);
 
   const isVideoSyncing = videoSync?.status === "running" || videoSync?.status === "pending";
@@ -362,6 +362,7 @@ export function useSync(channelId: string | null) {
     videoLogs,
     transcriptLogs,
     sagaLogs,
+    pushSagaLog,
     syncVideos,
     syncTranscripts,
     syncSagas,

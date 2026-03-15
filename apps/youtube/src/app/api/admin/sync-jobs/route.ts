@@ -8,6 +8,8 @@ export async function GET() {
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
 
+  console.log("[Admin SyncJobs] Request");
+
   try {
     const jobs = await db
       .select({
@@ -26,9 +28,11 @@ export async function GET() {
       .orderBy(desc(syncJobs.createdAt))
       .limit(50);
 
+    console.log("[Admin SyncJobs] Result", { jobCount: jobs.length });
     return NextResponse.json({ jobs });
   } catch (error) {
-    console.error("[Admin SyncJobs] Error:", error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("[Admin SyncJobs] Error:", err.message, err.stack);
     return NextResponse.json({ error: "Failed to fetch sync jobs" }, { status: 500 });
   }
 }

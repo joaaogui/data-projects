@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
 import type { SyncLogEntry } from "@/types/youtube";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export interface JobLogger {
   info(msg: string): void;
@@ -27,21 +27,13 @@ export function createJobLogger(jobId: string, prefix: string): JobLogger {
   async function doFlush() {
     if (buffer.length === 0) return;
     const entries = buffer.splice(0);
-
-    const [row] = await db
-      .select({ logs: syncJobs.logs })
-      .from(syncJobs)
-      .where(eq(syncJobs.id, jobId))
-      .limit(1);
-
-    const current = (row?.logs as SyncLogEntry[] | null) ?? [];
-    const MAX_LOGS = 500;
-    const allLogs = [...current, ...entries];
-    const cappedLogs = allLogs.length > MAX_LOGS ? allLogs.slice(-MAX_LOGS) : allLogs;
+    const entriesJson = JSON.stringify(entries);
 
     await db
       .update(syncJobs)
-      .set({ logs: cappedLogs })
+      .set({
+        logs: sql`(COALESCE(${syncJobs.logs}, '[]'::jsonb) || ${entriesJson}::jsonb)`,
+      })
       .where(eq(syncJobs.id, jobId));
   }
 

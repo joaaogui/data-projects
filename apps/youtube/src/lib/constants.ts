@@ -41,3 +41,16 @@ export const TRANSCRIPT_SYNC_GAP_MS = 100;
 export const TRANSCRIPT_SYNC_STAGGER_MS = 600;
 export const TRANSCRIPT_SYNC_LOG_EVERY_N = 10;
 export const TRANSCRIPT_SYNC_DB_CHUNK_SIZE = 25;
+
+// Sync batching
+export const VIDEO_UPSERT_BATCH_SIZE = 50;
+export const SAGA_DB_BATCH_SIZE = 50;
+
+// Sync rate limiting
+export const SYNC_RATE_LIMIT = { maxRequests: 5, windowMs: 60_000 } as const;
+
+// URLs
+export const YOUTUBE_VIDEO_PREFIX = "https://www.youtube.com/watch?v=";
+
+// Max limits
+export const MAX_SAGAS_PER_CHANNEL = 200;

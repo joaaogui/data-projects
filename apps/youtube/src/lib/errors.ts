@@ -18,7 +18,7 @@ export function isAppError(error: unknown): error is AppError {
 
 export function toErrorResponse(error: unknown): { message: string; status: number } {
   if (isAppError(error)) {
-    return { message: error.message, status: (error as AppError).status };
+    return { message: error.message, status: error.status };
   }
   const message = error instanceof Error ? error.message : "Internal server error";
   return { message, status: 500 };

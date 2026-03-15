@@ -2,7 +2,7 @@
 
 import type { AccountChannelData } from "@/types/youtube";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 async function fetchAccountData(
   channelId: string,
@@ -14,8 +14,6 @@ async function fetchAccountData(
     body: JSON.stringify({ videoIds }),
   });
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    console.error("[useAccountData] failed:", res.status, body.slice(0, 200));
     throw new Error(`Account data fetch failed: ${res.status}`);
   }
   return res.json();
@@ -34,12 +32,20 @@ export function useAccountData(
   channelId: string | null,
   videoIds: string[] | null
 ): AccountDataResult {
-  const idKey = videoIds?.join(",") ?? "";
+  const videoCount = videoIds?.length ?? 0;
+  const stableVideoIds = useRef(videoIds);
+  if (videoIds && stableVideoIds.current !== videoIds) {
+    const prev = stableVideoIds.current;
+    const changed = prev?.length !== videoIds.length || prev[0] !== videoIds[0] || prev.at(-1) !== videoIds.at(-1);
+    if (changed) {
+      stableVideoIds.current = videoIds;
+    }
+  }
 
   const query = useQuery<AccountChannelData>({
-    queryKey: ["account-data", channelId, idKey],
-    queryFn: () => fetchAccountData(channelId!, videoIds!),
-    enabled: !!channelId && !!videoIds && videoIds.length > 0,
+    queryKey: ["account-data", channelId, videoCount],
+    queryFn: () => fetchAccountData(channelId!, stableVideoIds.current!),
+    enabled: !!channelId && !!stableVideoIds.current && videoCount > 0,
     staleTime: 5 * 60_000,
     retry: 1,
   });

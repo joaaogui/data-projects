@@ -5,6 +5,14 @@ export const aiQuerySchema = z.object({
   context: z.string().min(1, "Context is required"),
 });
 
+export const aiQueryMultiTurnSchema = z.object({
+  messages: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    content: z.string(),
+  })).min(1).max(100),
+  context: z.string().max(200_000).optional().default(""),
+});
+
 export const sagaAssignSchema = z.object({
   action: z.enum(["assign", "unassign", "create"]),
   sagaId: z.string().optional(),
@@ -13,12 +21,30 @@ export const sagaAssignSchema = z.object({
 });
 
 export const bulkRequestSchema = z.object({
-  action: z.string().min(1),
+  action: z.enum([
+    "sync-videos",
+    "sync-transcripts",
+    "delete-transcripts",
+    "delete-sagas",
+    "delete-ai-sagas",
+    "delete-videos",
+    "delete-channel",
+  ]),
   channelIds: z.array(z.string()).min(1, "channelIds required"),
 });
 
 export const cleanupSchema = z.object({
-  action: z.string().min(1),
+  action: z.enum([
+    "delete-transcripts",
+    "delete-sagas",
+    "delete-ai-sagas",
+    "delete-sync-jobs",
+    "delete-videos",
+    "delete-channel",
+    "delete-suggestion-cache",
+    "delete-completed-sync-jobs",
+    "delete-null-transcripts",
+  ]),
   channelId: z.string().optional(),
 });
 

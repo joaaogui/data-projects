@@ -86,7 +86,10 @@ export const sagas = pgTable(
     videoEvidence: jsonb("video_evidence").$type<Record<string, string>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index("sagas_channel_id_idx").on(table.channelId)]
+  (table) => [
+    index("sagas_channel_id_idx").on(table.channelId),
+    index("sagas_channel_source_idx").on(table.channelId, table.source),
+  ]
 );
 
 export const suggestionCache = pgTable("suggestion_cache", {
@@ -117,5 +120,33 @@ export const syncJobs = pgTable(
     index("sync_jobs_channel_id_idx").on(table.channelId),
     index("sync_jobs_status_idx").on(table.status),
     index("sync_jobs_channel_status_idx").on(table.channelId, table.status),
+    index("sync_jobs_cleanup_idx").on(table.channelId, table.type, table.status, table.updatedAt),
+  ]
+);
+
+export const sagaCorrections = pgTable(
+  "saga_corrections",
+  {
+    id: text("id").primaryKey(),
+    channelId: text("channel_id")
+      .notNull()
+      .references(() => channels.id, { onDelete: "cascade" }),
+    action: text("action").$type<"assign" | "unassign" | "create">().notNull(),
+    videoId: text("video_id").notNull(),
+    videoTitle: text("video_title").notNull(),
+    videoPublishedAt: timestamp("video_published_at", { withTimezone: true }).notNull(),
+    targetSagaId: text("target_saga_id"),
+    targetSagaName: text("target_saga_name"),
+    previousSagaId: text("previous_saga_id"),
+    previousSagaName: text("previous_saga_name"),
+    neighborContext: jsonb("neighbor_context").$type<{
+      leftSaga?: { id: string; name: string };
+      rightSaga?: { id: string; name: string };
+    }>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("saga_corrections_channel_idx").on(table.channelId),
+    index("saga_corrections_channel_date_idx").on(table.channelId, table.createdAt),
   ]
 );

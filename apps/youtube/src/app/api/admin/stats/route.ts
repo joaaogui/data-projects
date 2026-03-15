@@ -7,7 +7,10 @@ export async function GET() {
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
 
+  console.log("[Admin Stats] Request");
+
   try {
+    const globalStart = Date.now();
     const globalResult = await db.execute(sql`
       SELECT
         (SELECT count(*) FROM channels) AS channels,
@@ -20,7 +23,9 @@ export async function GET() {
         (SELECT count(*) FROM videos v LEFT JOIN transcripts t ON t.video_id = v.id WHERE t.video_id IS NULL) AS videos_without_transcripts
     `);
     const globalRow = globalResult.rows[0];
+    console.log("[Admin Stats] Global query", { ms: Date.now() - globalStart });
 
+    const channelStart = Date.now();
     const channelRows = await db.execute(sql`
       SELECT
         c.id,
@@ -41,6 +46,7 @@ export async function GET() {
       GROUP BY c.id, c.title, c.thumbnail_url, c.fetched_at
       ORDER BY c.fetched_at DESC
     `);
+    console.log("[Admin Stats] Channel query", { ms: Date.now() - channelStart, channelCount: channelRows.rows.length });
 
     const g = globalRow as Record<string, unknown>;
 
@@ -58,7 +64,8 @@ export async function GET() {
       channels: channelRows.rows,
     });
   } catch (error) {
-    console.error("[Admin Stats] Error:", error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("[Admin Stats] Error:", err.message, err.stack);
     return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 });
   }
 }

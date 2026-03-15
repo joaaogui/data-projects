@@ -23,11 +23,13 @@ export async function OPTIONS() {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session) {
+    console.log(`[AI Query] POST auth=failed`);
     return Response.json(
       { error: "Not authenticated" },
       { status: 401, headers: corsHeaders }
     );
   }
+  console.log(`[AI Query] POST auth=ok`);
 
   try {
     const clientIp = getClientIp(request);
@@ -47,7 +49,15 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     if (body.messages) {
+      if (!Array.isArray(body.messages) || body.messages.length === 0 || body.messages.length > 100) {
+        return Response.json(
+          { error: "messages must be an array with 1-100 items" },
+          { status: 400, headers: corsHeaders }
+        );
+      }
       const context = (body.context ?? "").slice(0, 200_000);
+      const messageCount = body.messages.length;
+      console.log(`[AI Query] mode=multi-turn contextLength=${context.length} messageCount=${messageCount} model=${getModel()}`);
 
       const result = streamText({
         model: getModel(),
@@ -75,7 +85,7 @@ export async function POST(request: Request) {
     }
     const { question, context } = parsed.data;
     const trimmedContext = context.slice(0, 200_000);
-
+    console.log(`[AI Query] mode=single contextLength=${trimmedContext.length} model=${getModel()}`);
     console.log(
       `[AI Query] Question: "${question}" | Context: ${trimmedContext.length} chars`
     );
@@ -95,7 +105,10 @@ export async function POST(request: Request) {
       ),
     });
   } catch (error) {
-    console.error("AI query error:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : undefined;
+    console.error(`[AI Query] Error: ${errMsg}`);
+    if (errStack) console.error(`[AI Query] Stack: ${errStack}`);
     return Response.json(
       { error: "Failed to process question" },
       { status: 500, headers: corsHeaders }

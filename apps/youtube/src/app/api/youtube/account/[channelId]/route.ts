@@ -9,6 +9,7 @@ import type { AccountChannelData } from "@/types/youtube";
 import { NextResponse, type NextRequest } from "next/server";
 
 const MAX_VIDEO_IDS = 5000;
+const TAG = "[Account]";
 
 export async function POST(
   req: NextRequest,
@@ -31,6 +32,9 @@ export async function POST(
   const rawIds: unknown[] = Array.isArray(body.videoIds) ? body.videoIds : [];
   const videoIds: string[] = rawIds.filter((id): id is string => typeof id === "string").slice(0, MAX_VIDEO_IDS);
 
+  console.log(`${TAG} Request received channelId=${channelId} videoIdsCount=${videoIds.length}`);
+
+  const fetchStart = Date.now();
   try {
     const [likedSet, isSubscribed, allPlaylists] = await Promise.all([
       videoIds.length > 0
@@ -40,7 +44,8 @@ export async function POST(
       fetchUserPlaylists(token),
     ]);
 
-    console.log("[account-route] liked:", likedSet.size, "| subscribed:", isSubscribed, "| playlists:", allPlaylists.length);
+    const fetchMs = Date.now() - fetchStart;
+    console.log(`${TAG} Parallel fetch completed in ${fetchMs}ms liked=${likedSet.size} subscribed=${isSubscribed} playlists=${allPlaylists.length}`);
 
     const videoIdSet = new Set(videoIds);
     const playlists = allPlaylists
@@ -58,8 +63,10 @@ export async function POST(
 
     return NextResponse.json(result);
   } catch (err) {
-    console.error("[account-route] ERROR:", err);
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 502 });
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const errStack = err instanceof Error ? err.stack : undefined;
+    console.error(`${TAG} Error: ${errMsg}`);
+    if (errStack) console.error(`${TAG} Stack: ${errStack}`);
+    return NextResponse.json({ error: errMsg }, { status: 502 });
   }
 }

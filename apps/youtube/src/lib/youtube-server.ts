@@ -1,6 +1,6 @@
+import type { ChannelInfo, FetchProgress, PlaylistInfo, PlaylistItem, VideoData, VideoDetails } from "@/types/youtube";
 import dayjs from "dayjs";
-import type { VideoData, PlaylistItem, VideoDetails, PlaylistInfo, ChannelInfo, FetchProgress } from "@/types/youtube";
-import { scoreVideoBatch, parseISO8601Duration, type VideoMetrics } from "./scoring";
+import { parseISO8601Duration, scoreVideoBatch, type VideoMetrics } from "./scoring";
 
 export type { ChannelInfo } from "@/types/youtube";
 
@@ -19,10 +19,23 @@ function getApiKey(): string {
   return API_KEY;
 }
 
+function redactKey(url: string): string {
+  return url.replace(/key=[^&]+/, "key=REDACTED");
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    let detail = "";
+    try {
+      const body = await response.json();
+      detail = body?.error?.message ?? JSON.stringify(body).slice(0, 500);
+    } catch {
+      detail = await response.text().catch(() => "(unreadable body)");
+    }
+    throw new Error(
+      `YouTube API ${response.status}: ${detail} [${redactKey(url)}]`
+    );
   }
   return response.json();
 }
@@ -58,10 +71,10 @@ async function getBatchVideoDetails(
   for (let i = 0; i < videoIds.length; i += BATCH_SIZE) {
     const batch = videoIds.slice(i, i + BATCH_SIZE);
     const ids = batch.join(",");
-    
+
     const url = `${API_URL}/videos?part=statistics,contentDetails&id=${ids}&key=${apiKey}`;
     const data = await fetchJson<{ items: Array<{ id: string; statistics: VideoDetails["statistics"]; contentDetails: VideoDetails["contentDetails"] }> }>(url);
-    
+
     for (const item of data.items) {
       detailsMap.set(item.id, {
         statistics: item.statistics,
@@ -84,11 +97,11 @@ async function getUploadsPlaylistId(channelId: string): Promise<string> {
   const url = `${API_URL}/channels?part=contentDetails&id=${channelId}&key=${apiKey}`;
   const data = await fetchJson<{ items: Array<{ contentDetails?: { relatedPlaylists?: { uploads?: string } } }> }>(url);
   const uploadsPlaylistId = data.items[0]?.contentDetails?.relatedPlaylists?.uploads;
-  
+
   if (!uploadsPlaylistId) {
     throw new Error("Could not find uploads playlist");
   }
-  
+
   return uploadsPlaylistId;
 }
 
@@ -97,11 +110,11 @@ export async function searchChannel(query: string): Promise<ChannelInfo> {
   const url = `${API_URL}/search?part=snippet&q=${encodeURIComponent(query)}&type=channel&key=${apiKey}`;
   const data = await fetchJson<{ items: Array<{ id: { channelId: string }; snippet: { channelTitle: string; thumbnails: ChannelInfo["thumbnails"] } }> }>(url);
   const channel = data.items[0];
-  
+
   if (!channel) {
     throw new Error("Channel not found");
   }
-  
+
   return {
     channelId: channel.id.channelId,
     channelTitle: channel.snippet.channelTitle,
@@ -114,11 +127,11 @@ export async function getChannelById(channelId: string): Promise<ChannelInfo> {
   const url = `${API_URL}/channels?part=snippet&id=${channelId}&key=${apiKey}`;
   const data = await fetchJson<{ items: Array<{ id: string; snippet: { title: string; thumbnails: ChannelInfo["thumbnails"] } }> }>(url);
   const channel = data.items[0];
-  
+
   if (!channel) {
     throw new Error("Channel not found");
   }
-  
+
   return {
     channelId: channel.id,
     channelTitle: channel.snippet.title,
@@ -140,7 +153,7 @@ export async function searchChannels(
   const url = `${API_URL}/search?part=snippet&q=${encodeURIComponent(query)}&type=channel&maxResults=${safeMax}&key=${apiKey}`;
   const data = await fetchJson<{ items: Array<{ id?: { channelId?: string }; snippet?: { channelTitle?: string; thumbnails?: ChannelInfo["thumbnails"] } }> }>(url);
   const items = data.items || [];
-  
+
   const channels: ChannelWithStats[] = items.map((item) => ({
     channelId: item.id?.channelId,
     channelTitle: item.snippet?.channelTitle,
@@ -152,11 +165,11 @@ export async function searchChannels(
     const statsUrl = `${API_URL}/channels?part=statistics&id=${channelIds}&key=${apiKey}`;
     const statsData = await fetchJson<{ items: Array<{ id: string; statistics?: { videoCount?: string } }> }>(statsUrl);
     const statsMap = new Map<string, number>();
-    
+
     for (const item of statsData.items || []) {
       statsMap.set(item.id, Number(item.statistics?.videoCount || 0));
     }
-    
+
     for (const channel of channels) {
       channel.videoCount = statsMap.get(channel.channelId);
     }
@@ -211,7 +224,7 @@ export async function fetchChannelVideos(
   const playlistItems = await getPlaylistItems(uploadsPlaylistId, onProgress);
   const videoIds = playlistItems.map(item => item.contentDetails.videoId);
   const detailsMap = await getBatchVideoDetails(videoIds, onProgress);
-  
+
   interface PendingVideo {
     videoId: string;
     title: string;

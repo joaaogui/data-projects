@@ -8,12 +8,16 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ channelId: string }> }
 ) {
+  const start = Date.now();
+  console.log("[Sync Active] request received");
   const session = await auth();
   if (!session) {
+    console.log("[Sync Active] auth failed", { elapsedMs: Date.now() - start });
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const { channelId } = await params;
+  console.log("[Sync Active] params", { channelId });
 
   const activeJobs = await db
     .select({
@@ -33,5 +37,10 @@ export async function GET(
     )
     .orderBy(desc(syncJobs.createdAt));
 
+  console.log("[Sync Active] db query complete", {
+    channelId,
+    count: activeJobs.length,
+    elapsedMs: Date.now() - start,
+  });
   return NextResponse.json(activeJobs);
 }

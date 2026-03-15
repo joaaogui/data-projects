@@ -3,7 +3,9 @@ import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "./schema";
 
 function createDb() {
-  const sql = neon(process.env.POSTGRES_URL!);
+  const url = process.env.POSTGRES_URL;
+  if (!url) throw new Error("Missing required environment variable: POSTGRES_URL");
+  const sql = neon(url);
   return drizzle(sql, { schema });
 }
 

@@ -31,11 +31,13 @@ export async function OPTIONS() {
 export async function POST(request: Request) {
   const session = await auth();
   if (!session) {
+    console.log(`[Saga Analyze] POST auth=failed`);
     return Response.json(
       { error: "Not authenticated" },
       { status: 401, headers: corsHeaders }
     );
   }
+  console.log(`[Saga Analyze] POST auth=ok`);
 
   try {
     const clientIp = getClientIp(request);
@@ -54,6 +56,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as AnalyzeRequest;
     const { videos, overlapContext, knownSagaNames } = body;
+    console.log(`[Saga Analyze] videoCount=${Array.isArray(videos) ? videos.length : 0} knownSagaNamesCount=${knownSagaNames?.length ?? 0} overlapContextLength=${overlapContext?.length ?? 0}`);
 
     if (!Array.isArray(videos) || videos.length === 0) {
       return Response.json(
@@ -70,22 +73,30 @@ export async function POST(request: Request) {
     }
 
     let result: AnalyzeResponse;
+    const aiStart = Date.now();
     try {
       result = await analyzeBatchFromDb(videos, overlapContext, knownSagaNames);
     } catch (err) {
       const message = err instanceof Error ? err.message : "AI provider error";
-      console.error("[Saga Analyze] AI error:", message);
+      const errStack = err instanceof Error ? err.stack : undefined;
+      console.error(`[Saga Analyze] AI Error: ${message}`);
+      if (errStack) console.error(`[Saga Analyze] Stack: ${errStack}`);
       return Response.json(
         { error: message },
         { status: 503, headers: corsHeaders }
       );
     }
+    const aiMs = Date.now() - aiStart;
+    console.log(`[Saga Analyze] AI call completed in ${aiMs}ms segmentCount=${result.segments?.length ?? 0}`);
 
     return Response.json(result, {
       headers: mergeHeaders(corsHeaders, withRateLimitHeaders(rateLimitResult)),
     });
   } catch (error) {
-    console.error("Saga analyze error:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : undefined;
+    console.error(`[Saga Analyze] Error: ${errMsg}`);
+    if (errStack) console.error(`[Saga Analyze] Stack: ${errStack}`);
     return Response.json(
       { error: "Failed to analyze sagas" },
       { status: 500, headers: corsHeaders }

@@ -9,6 +9,8 @@ import {
   withRateLimitHeaders,
 } from "@data-projects/shared";
 
+const TAG = "[Playlists]";
+
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
 }
@@ -18,6 +20,9 @@ export async function GET(
   { params }: { params: Promise<{ channelId: string }> }
 ) {
   try {
+    const { channelId } = await params;
+    console.log(`${TAG} Request received channelId=${channelId}`);
+
     const clientIp = getClientIp(request);
     const rateLimitResult = checkRateLimit(
       `yt-playlists:${clientIp}`,
@@ -32,7 +37,6 @@ export async function GET(
       );
     }
 
-    const { channelId } = await params;
     const validation = validateChannelId(channelId);
     if (!validation.valid) {
       return Response.json(
@@ -41,6 +45,7 @@ export async function GET(
       );
     }
 
+    const start = Date.now();
     const playlists = await fetchChannelPlaylists(validation.sanitized!);
 
     const playlistsWithVideos = await Promise.all(
@@ -50,6 +55,10 @@ export async function GET(
       }))
     );
 
+    const totalVideoIds = playlistsWithVideos.reduce((sum, pl) => sum + pl.videoIds.length, 0);
+    const elapsedMs = Date.now() - start;
+    console.log(`${TAG} Completed in ${elapsedMs}ms playlistCount=${playlistsWithVideos.length} totalVideoIds=${totalVideoIds}`);
+
     return Response.json(playlistsWithVideos, {
       headers: mergeHeaders(
         corsHeaders,
@@ -58,7 +67,10 @@ export async function GET(
       ),
     });
   } catch (error) {
-    console.error("Fetch playlists error:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : undefined;
+    console.error(`${TAG} Error: ${errMsg}`);
+    if (errStack) console.error(`${TAG} Stack: ${errStack}`);
     return Response.json(
       { error: getSafeErrorMessage(error, "Failed to fetch channel playlists") },
       { status: 500, headers: corsHeaders }

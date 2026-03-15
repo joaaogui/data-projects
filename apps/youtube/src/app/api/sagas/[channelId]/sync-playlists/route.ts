@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { sagas, videos } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { auth } from "@/lib/auth";
+import { handleRouteError } from "@/lib/errors";
 import { fetchChannelPlaylists, fetchPlaylistVideoIds } from "@/lib/youtube-server";
 import type { Saga } from "@/types/youtube";
 
@@ -11,8 +13,16 @@ export async function POST(
 ) {
   const { channelId } = await params;
 
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  console.log(`[Sync Playlists] POST channelId=${channelId}`);
+
   try {
     const playlists = await fetchChannelPlaylists(channelId);
+    console.log(`[Sync Playlists] channelId=${channelId} playlistCount=${playlists.length}`);
 
     const channelVideoRows = await db
       .select({ id: videos.id, publishedAt: videos.publishedAt })
@@ -21,12 +31,16 @@ export async function POST(
 
     const channelVideoIds = new Set(channelVideoRows.map((r) => r.id));
     const publishMap = new Map(channelVideoRows.map((r) => [r.id, r.publishedAt.toISOString()]));
+    console.log(`[Sync Playlists] channelId=${channelId} channelVideoCount=${channelVideoIds.size}`);
 
     const playlistSagas: Saga[] = [];
 
     for (const pl of playlists) {
       const videoIds = await fetchPlaylistVideoIds(pl.playlistId);
       const matched = videoIds.filter((id) => channelVideoIds.has(id));
+      if (matched.length > 0) {
+        console.log(`[Sync Playlists] channelId=${channelId} playlistId=${pl.playlistId} matchedCount=${matched.length}`);
+      }
       if (matched.length === 0) continue;
 
       const dates = matched
@@ -67,12 +81,9 @@ export async function POST(
       );
     }
 
+    console.log(`[Sync Playlists] channelId=${channelId} sagasCreated=${playlistSagas.length}`);
     return NextResponse.json(playlistSagas);
   } catch (error) {
-    console.error("[Sync Playlists] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to sync playlists" },
-      { status: 500 }
-    );
+    return handleRouteError(error);
   }
 }

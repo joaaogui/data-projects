@@ -9,6 +9,8 @@ import {
   withRateLimitHeaders,
 } from "@data-projects/shared";
 
+const TAG = "[Search]";
+
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
 }
@@ -18,6 +20,10 @@ export async function GET(
   { params }: { params: Promise<{ query: string }> }
 ) {
   try {
+    const { query } = await params;
+    const decodedQuery = decodeURIComponent(query);
+    console.log(`${TAG} Request received query=${decodedQuery}`);
+
     const clientIp = getClientIp(request);
     const rateLimitResult = checkRateLimit(
       `yt-search:${clientIp}`,
@@ -32,9 +38,6 @@ export async function GET(
       );
     }
 
-    const { query } = await params;
-    const decodedQuery = decodeURIComponent(query);
-
     const validation = validateSearchQuery(decodedQuery);
     if (!validation.valid) {
       return Response.json(
@@ -43,7 +46,10 @@ export async function GET(
       );
     }
 
+    const apiStart = Date.now();
     const channelInfo = await searchChannel(validation.sanitized!);
+    const apiMs = Date.now() - apiStart;
+    console.log(`${TAG} API call completed in ${apiMs}ms channelId=${channelInfo?.channelId ?? "null"}`);
 
     return Response.json(channelInfo, {
       headers: mergeHeaders(
@@ -53,7 +59,10 @@ export async function GET(
       ),
     });
   } catch (error) {
-    console.error("Search error:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : undefined;
+    console.error(`${TAG} Error: ${errMsg}`);
+    if (errStack) console.error(`${TAG} Stack: ${errStack}`);
     return Response.json(
       { error: getSafeErrorMessage(error, "Failed to search channel") },
       { status: 500, headers: corsHeaders }

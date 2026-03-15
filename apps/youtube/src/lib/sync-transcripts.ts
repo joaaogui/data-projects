@@ -1,15 +1,16 @@
 import { db } from "@/db";
-import { syncJobs, transcripts, videos } from "@/db/schema";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { transcripts, videos } from "@/db/schema";
 import {
   TRANSCRIPT_SYNC_BATCH_SIZE,
   TRANSCRIPT_SYNC_CONCURRENCY,
-  TRANSCRIPT_SYNC_GAP_MS,
-  TRANSCRIPT_SYNC_STAGGER_MS,
-  TRANSCRIPT_SYNC_LOG_EVERY_N,
   TRANSCRIPT_SYNC_DB_CHUNK_SIZE,
+  TRANSCRIPT_SYNC_GAP_MS,
+  TRANSCRIPT_SYNC_LOG_EVERY_N,
+  TRANSCRIPT_SYNC_STAGGER_MS,
 } from "@/lib/constants";
-import { createJobLogger, type JobLogger } from "./sync-logger";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { withSyncJob } from "./sync-job";
+import type { JobLogger } from "./sync-logger";
 import { fetchFullTranscriptWithStatus } from "./transcript";
 import { runWorkerPool, WorkerPoolError } from "./utils";
 
@@ -20,13 +21,11 @@ interface BatchStats {
 }
 
 export async function syncChannelTranscripts(channelId: string, jobId: string): Promise<void> {
-  const t0 = Date.now();
-  const log = createJobLogger(jobId, "Sync Transcripts");
-  log.info(`Starting transcript sync for channel ${channelId}`);
+  await withSyncJob(jobId, "Sync Transcripts", async (log, { isCancelled, updateProgress }) => {
+    log.info(`Starting transcript sync for channel ${channelId}`);
 
-  const totals: BatchStats = { ok: 0, noCaptions: 0, errors: 0 };
+    const totals: BatchStats = { ok: 0, noCaptions: 0, errors: 0 };
 
-  try {
     const pending = await db
       .select({ id: videos.id })
       .from(videos)
@@ -36,36 +35,19 @@ export async function syncChannelTranscripts(channelId: string, jobId: string): 
     const total = pending.length;
     const totalBatches = Math.ceil(total / TRANSCRIPT_SYNC_BATCH_SIZE);
     log.info(`Found ${total} videos missing transcripts (${totalBatches} batches)`);
-
     await log.flush();
-    await db
-      .update(syncJobs)
-      .set({
-        status: "running",
-        progress: { phase: "transcripts", fetched: 0, total },
-        updatedAt: new Date(),
-      })
-      .where(eq(syncJobs.id, jobId));
 
     if (total === 0) {
-      log.info("Nothing to sync, marking completed");
-      await log.flush();
-      await db
-        .update(syncJobs)
-        .set({ status: "completed", progress: { phase: "done", fetched: 0, total: 0 }, updatedAt: new Date() })
-        .where(eq(syncJobs.id, jobId));
-      return;
+      log.info("Nothing to sync");
+      return { fetched: 0, total: 0 };
     }
+
+    await updateProgress({ phase: "transcripts", fetched: 0, total });
 
     let processed = 0;
 
     for (let i = 0; i < pending.length; i += TRANSCRIPT_SYNC_BATCH_SIZE) {
-      const [currentJob] = await db
-        .select({ status: syncJobs.status })
-        .from(syncJobs)
-        .where(eq(syncJobs.id, jobId))
-        .limit(1);
-      if (currentJob?.status !== "running") {
+      if (await isCancelled()) {
         log.warn(`Cancelled at ${processed}/${total} (ok: ${totals.ok}, skip: ${totals.noCaptions}, err: ${totals.errors})`);
         await log.flush();
         return;
@@ -87,45 +69,20 @@ export async function syncChannelTranscripts(channelId: string, jobId: string): 
       processed += videoIds.length;
 
       const batchTime = ((Date.now() - batchStart) / 1000).toFixed(1);
-      const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-      log.info(`Batch ${batchNum} done: ${processed}/${total} in ${batchTime}s [ok:${batchStats.ok} skip:${batchStats.noCaptions} err:${batchStats.errors}] (total ${elapsed}s)`);
+      log.info(`Batch ${batchNum} done: ${processed}/${total} in ${batchTime}s [ok:${batchStats.ok} skip:${batchStats.noCaptions} err:${batchStats.errors}]`);
 
       if (batchStats.errors > 0) {
         log.warn(`${batchStats.errors} transcript(s) failed in batch ${batchNum}`);
       }
 
       await log.flush();
-      await db
-        .update(syncJobs)
-        .set({
-          progress: { phase: "transcripts", fetched: totals.ok + totals.noCaptions, total },
-          updatedAt: new Date(),
-        })
-        .where(eq(syncJobs.id, jobId));
+      await updateProgress({ phase: "transcripts", fetched: totals.ok + totals.noCaptions, total });
     }
 
-    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-    log.info(`Completed in ${elapsed}s — ok: ${totals.ok}, no_captions: ${totals.noCaptions}, errors: ${totals.errors} (of ${total} total)`);
-    await log.flush();
+    log.info(`ok: ${totals.ok}, no_captions: ${totals.noCaptions}, errors: ${totals.errors} (of ${total} total)`);
 
-    await db
-      .update(syncJobs)
-      .set({
-        status: "completed",
-        progress: { phase: "done", fetched: totals.ok + totals.noCaptions, total },
-        updatedAt: new Date(),
-      })
-      .where(eq(syncJobs.id, jobId));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    log.error(`Failed after ${((Date.now() - t0) / 1000).toFixed(1)}s: ${message} (ok: ${totals.ok}, err: ${totals.errors})`);
-    await log.flush();
-    await db
-      .update(syncJobs)
-      .set({ status: "failed", error: message, updatedAt: new Date() })
-      .where(eq(syncJobs.id, jobId));
-    throw error;
-  }
+    return { fetched: totals.ok + totals.noCaptions, total };
+  });
 }
 
 interface TranscriptRow {

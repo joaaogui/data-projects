@@ -13,6 +13,7 @@ export interface ChannelSuggestion {
   channelTitle: string;
   thumbnails?: { default?: { url?: string } };
   videoCount?: number;
+  isStored?: boolean;
 }
 
 export interface ScoreComponents {

@@ -8,12 +8,16 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
+  const start = Date.now();
+  console.log("[Sync Cancel] request received");
   const session = await auth();
   if (!session) {
+    console.log("[Sync Cancel] auth failed", { elapsedMs: Date.now() - start });
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const { jobId } = await params;
+  console.log("[Sync Cancel] params", { jobId });
 
   if (!jobId) {
     return NextResponse.json({ error: "Missing job ID" }, { status: 400 });
@@ -34,6 +38,12 @@ export async function POST(
     );
 
   const cancelled = (result.rowCount ?? 0) > 0;
+  console.log("[Sync Cancel] result", {
+    jobId,
+    cancelled,
+    rowCount: result.rowCount ?? 0,
+    elapsedMs: Date.now() - start,
+  });
 
   return NextResponse.json({ jobId, cancelled });
 }

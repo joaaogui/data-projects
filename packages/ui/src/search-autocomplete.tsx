@@ -273,7 +273,7 @@ export function SearchAutocomplete<TItem>({
           <div
             data-testid={testIds?.dropdown}
             className={cn(
-              "absolute left-0 right-0 top-full mt-2 rounded-md border border-border/50 bg-card/95 backdrop-blur-sm shadow-xl z-[200] overflow-hidden",
+              "absolute left-0 right-0 top-full mt-2 rounded-md border border-border/50 bg-card/95 backdrop-blur-sm shadow-xl z-[9999] overflow-hidden",
               dropdownClassName
             )}
           >

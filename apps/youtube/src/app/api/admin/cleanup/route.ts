@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       );
     }
     const { action, channelId } = parsed.data;
+    console.log("[Admin Cleanup] Request", { action, channelId });
 
     const handler = ACTIONS[action];
     if (!handler) {
@@ -79,9 +80,11 @@ export async function POST(request: NextRequest) {
     }
 
     const deleted = await fn(channelId);
+    console.log("[Admin Cleanup] Result", { action, channelId, deleted });
     return NextResponse.json({ action, channelId, deleted });
   } catch (error) {
-    console.error("[Admin Cleanup] Error:", error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("[Admin Cleanup] Error:", err.message, err.stack);
     return handleRouteError(error);
   }
 }

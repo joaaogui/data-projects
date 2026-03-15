@@ -25,24 +25,26 @@ export function SearchChannel({ initialValue = "", compact = false }: Readonly<S
       getSuggestionValue={(item) => item.channelTitle}
       renderSuggestion={({ item }) => (
         <div className="flex items-center gap-3">
-          {item.thumbnails?.default?.url ? (
-            <Image
-              src={item.thumbnails.default.url}
-              alt=""
-              width={32}
-              height={32}
-              className="h-8 w-8 rounded-full object-cover ring-1 ring-border/50"
-            />
-          ) : (
-            <div className="h-8 w-8 rounded-full bg-muted ring-1 ring-border/50" />
-          )}
+          <div className="relative">
+            {item.thumbnails?.default?.url ? (
+              <Image
+                src={item.thumbnails.default.url}
+                alt={`${item.channelTitle} thumbnail`}
+                width={32}
+                height={32}
+                className={`h-8 w-8 rounded-full object-cover ring-1 ${item.isStored ? "ring-primary/70" : "ring-border/50"}`}
+              />
+            ) : (
+              <div className={`h-8 w-8 rounded-full bg-muted ring-1 ${item.isStored ? "ring-primary/70" : "ring-border/50"}`} />
+            )}
+          </div>
           <div className="flex flex-col min-w-0 flex-1">
             <span className="truncate font-medium">{item.channelTitle}</span>
-            {item.videoCount !== undefined && (
-              <span className="text-xs text-muted-foreground">
-                {item.videoCount.toLocaleString()} videos
-              </span>
-            )}
+            <span className="text-xs text-muted-foreground">
+              {item.isStored && <span className="text-primary font-medium">synced</span>}
+              {item.isStored && item.videoCount !== undefined && " · "}
+              {item.videoCount !== undefined && `${item.videoCount.toLocaleString()} videos`}
+            </span>
           </div>
         </div>
       )}

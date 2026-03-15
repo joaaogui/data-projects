@@ -11,6 +11,8 @@ import { db } from "@/db";
 import { videos } from "@/db/schema";
 import { eq, sql, count, sum, avg, min, max } from "drizzle-orm";
 
+const TAG = "[Channel Stats]";
+
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
 }
@@ -20,6 +22,9 @@ export async function GET(
   { params }: { params: Promise<{ channelId: string }> }
 ) {
   try {
+    const { channelId: rawChannelId } = await params;
+    console.log(`${TAG} Request received channelId=${rawChannelId}`);
+
     const clientIp = getClientIp(request);
     const rateLimitResult = checkRateLimit(
       `yt-channel:${clientIp}`,
@@ -33,8 +38,6 @@ export async function GET(
         corsHeaders
       );
     }
-
-    const { channelId: rawChannelId } = await params;
 
     const validation = validateChannelId(rawChannelId);
     if (!validation.valid) {
@@ -59,6 +62,7 @@ export async function GET(
       .where(eq(videos.channelId, channelId));
 
     if (stats.videoCount === 0) {
+      console.log(`${TAG} Stats not found channelId=${channelId}`);
       return Response.json(
         { stats: null },
         {
@@ -70,6 +74,7 @@ export async function GET(
       );
     }
 
+    console.log(`${TAG} Stats found channelId=${channelId} videoCount=${stats.videoCount}`);
     return Response.json(
       {
         stats: {
@@ -98,7 +103,10 @@ export async function GET(
       }
     );
   } catch (error) {
-    console.error("Fetch channel stats error:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : undefined;
+    console.error(`${TAG} Error: ${errMsg}`);
+    if (errStack) console.error(`${TAG} Stack: ${errStack}`);
     return Response.json(
       {
         error: getSafeErrorMessage(error, "Failed to fetch channel stats"),

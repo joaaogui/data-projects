@@ -12,6 +12,8 @@ import {
 } from "@data-projects/shared";
 import { eq } from "drizzle-orm";
 
+const TAG = "[Channel Info]";
+
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
 }
@@ -21,6 +23,9 @@ export async function GET(
   { params }: { params: Promise<{ channelId: string }> }
 ) {
   try {
+    const { channelId } = await params;
+    console.log(`${TAG} Request received channelId=${channelId}`);
+
     const clientIp = getClientIp(request);
     const rateLimitResult = checkRateLimit(
       `yt-info:${clientIp}`,
@@ -35,8 +40,6 @@ export async function GET(
       );
     }
 
-    const { channelId } = await params;
-
     const validation = validateChannelId(channelId);
     if (!validation.valid) {
       return Response.json(
@@ -48,6 +51,7 @@ export async function GET(
     const cached = await db.select().from(channels).where(eq(channels.id, channelId)).limit(1);
 
     if (cached.length > 0) {
+      console.log(`${TAG} Cache hit channelId=${channelId}`);
       const ch = cached[0];
       return Response.json(
         {
@@ -65,6 +69,7 @@ export async function GET(
       );
     }
 
+    console.log(`${TAG} Cache miss channelId=${channelId} calling API`);
     const channelInfo = await getChannelById(channelId);
 
     await db
@@ -85,7 +90,10 @@ export async function GET(
       ),
     });
   } catch (error) {
-    console.error("Channel info error:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : undefined;
+    console.error(`${TAG} Error: ${errMsg}`);
+    if (errStack) console.error(`${TAG} Stack: ${errStack}`);
     return Response.json(
       { error: getSafeErrorMessage(error, "Failed to fetch channel info") },
       { status: 500, headers: corsHeaders }

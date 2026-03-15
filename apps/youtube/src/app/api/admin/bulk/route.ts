@@ -28,11 +28,13 @@ async function startBulkSync(channelIds: string[], type: "videos" | "transcripts
 
     if (type === "videos") {
       syncChannelVideos(channelId, jobId).catch((err) => {
-        console.error(`[Bulk Sync] Video sync failed for ${channelId}:`, err);
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error("[Admin Bulk] Video sync failed:", { channelId, message: e.message, stack: e.stack });
       });
     } else if (type === "transcripts") {
       syncChannelTranscripts(channelId, jobId).catch((err) => {
-        console.error(`[Bulk Sync] Transcript sync failed for ${channelId}:`, err);
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error("[Admin Bulk] Transcript sync failed:", { channelId, message: e.message, stack: e.stack });
       });
     }
     started++;
@@ -86,10 +88,12 @@ export async function POST(request: NextRequest) {
       );
     }
     const { action, channelIds } = parsed.data;
+    console.log("[Admin Bulk] Request", { action, channelCount: channelIds.length });
 
     if (action === "sync-videos" || action === "sync-transcripts") {
       const type = action === "sync-videos" ? "videos" : "transcripts";
       const started = await startBulkSync(channelIds, type);
+      console.log("[Admin Bulk] Result", { action, started, total: channelIds.length });
       return NextResponse.json({ action, started, total: channelIds.length });
     }
 
@@ -98,9 +102,11 @@ export async function POST(request: NextRequest) {
       totalDeleted += await deleteForChannel(action as CleanupAction, channelId);
     }
 
+    console.log("[Admin Bulk] Result", { action, deleted: totalDeleted, total: channelIds.length });
     return NextResponse.json({ action, deleted: totalDeleted, total: channelIds.length });
   } catch (error) {
-    console.error("[Admin Bulk] Error:", error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("[Admin Bulk] Error:", err.message, err.stack);
     return handleRouteError(error);
   }
 }

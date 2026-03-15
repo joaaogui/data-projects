@@ -3,6 +3,7 @@
 import type { Saga } from "@/types/youtube";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
+import { useChannel } from "./use-channel-context";
 
 async function fetchSagas(channelId: string): Promise<Saga[]> {
   const res = await fetch(`/api/sagas/${channelId}`);
@@ -54,6 +55,7 @@ async function patchSagaApi(
 export function useSagaStorage(channelId: string | null) {
   const queryClient = useQueryClient();
   const queryKey = useMemo(() => ["sagas", channelId], [channelId]);
+  const { pushSagaLog } = useChannel();
 
   const { data: allSagas = [], isLoading } = useQuery({
     queryKey,
@@ -87,8 +89,21 @@ export function useSagaStorage(channelId: string | null) {
 
   const patchMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => patchSagaApi(channelId!, body),
-    onSuccess: (updated) => {
+    onSuccess: (updated, variables) => {
       queryClient.setQueryData(queryKey, updated);
+      const action = variables.action as string;
+      if (action === "assign") {
+        const sagaName = updated.find((s: Saga) => s.id === variables.sagaId)?.name ?? "Unknown";
+        const count = (variables.videoIds as string[])?.length ?? 0;
+        pushSagaLog(`Manual: assigned ${count} video${count === 1 ? "" : "s"} to "${sagaName}"`);
+      } else if (action === "unassign") {
+        const count = (variables.videoIds as string[])?.length ?? 0;
+        pushSagaLog(`Manual: unassigned ${count} video${count === 1 ? "" : "s"}`);
+      } else if (action === "create") {
+        const name = variables.name as string;
+        const count = (variables.videoIds as string[])?.length ?? 0;
+        pushSagaLog(`Manual: created saga "${name}" with ${count} video${count === 1 ? "" : "s"}`);
+      }
     },
   });
 
@@ -126,9 +141,9 @@ export function useSagaStorage(channelId: string | null) {
   }, [channelId, deleteAiMutation]);
 
   const assignVideos = useCallback(
-    (sagaId: string, videoIds: string[]) => {
+    (sagaId: string, videoIds: string[], neighborContext?: { leftSaga?: { id: string; name: string }; rightSaga?: { id: string; name: string } }) => {
       if (!channelId) return Promise.resolve();
-      return patchMutation.mutateAsync({ action: "assign", sagaId, videoIds });
+      return patchMutation.mutateAsync({ action: "assign", sagaId, videoIds, neighborContext });
     },
     [channelId, patchMutation]
   );

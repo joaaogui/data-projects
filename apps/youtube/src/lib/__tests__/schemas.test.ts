@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
 import {
   aiQuerySchema,
-  sagaAssignSchema,
   bulkRequestSchema,
   cleanupSchema,
   sagaAnalyzeSchema,
+  sagaAssignSchema,
   syncSchema,
 } from "@/lib/schemas";
+import { describe, expect, it } from "vitest";
 
 describe("aiQuerySchema", () => {
   it("accepts valid payload", () => {
@@ -81,15 +81,15 @@ describe("sagaAssignSchema", () => {
 describe("bulkRequestSchema", () => {
   it("accepts valid payload", () => {
     const result = bulkRequestSchema.safeParse({
-      action: "sync",
+      action: "sync-videos",
       channelIds: ["ch1", "ch2"],
     });
     expect(result.success).toBe(true);
   });
 
-  it("rejects empty action", () => {
+  it("rejects invalid action", () => {
     const result = bulkRequestSchema.safeParse({
-      action: "",
+      action: "invalid-action",
       channelIds: ["ch1"],
     });
     expect(result.success).toBe(false);
@@ -97,14 +97,14 @@ describe("bulkRequestSchema", () => {
 
   it("rejects empty channelIds array", () => {
     const result = bulkRequestSchema.safeParse({
-      action: "sync",
+      action: "sync-videos",
       channelIds: [],
     });
     expect(result.success).toBe(false);
   });
 
   it("rejects missing channelIds", () => {
-    const result = bulkRequestSchema.safeParse({ action: "sync" });
+    const result = bulkRequestSchema.safeParse({ action: "sync-videos" });
     expect(result.success).toBe(false);
   });
 });
@@ -112,19 +112,19 @@ describe("bulkRequestSchema", () => {
 describe("cleanupSchema", () => {
   it("accepts valid payload with channelId", () => {
     const result = cleanupSchema.safeParse({
-      action: "delete",
+      action: "delete-transcripts",
       channelId: "ch_123",
     });
     expect(result.success).toBe(true);
   });
 
   it("accepts payload without optional channelId", () => {
-    const result = cleanupSchema.safeParse({ action: "purge" });
+    const result = cleanupSchema.safeParse({ action: "delete-suggestion-cache" });
     expect(result.success).toBe(true);
   });
 
-  it("rejects empty action", () => {
-    const result = cleanupSchema.safeParse({ action: "" });
+  it("rejects invalid action", () => {
+    const result = cleanupSchema.safeParse({ action: "invalid" });
     expect(result.success).toBe(false);
   });
 

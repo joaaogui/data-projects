@@ -27,6 +27,7 @@ interface ChannelContextValue {
   videoLogs: SyncLogEntry[];
   transcriptLogs: SyncLogEntry[];
   sagaLogs: SyncLogEntry[];
+  pushSagaLog: (msg: string, level?: "info" | "warn" | "error") => void;
   syncVideos: () => Promise<void> | void;
   syncTranscripts: (options?: { retry?: boolean }) => Promise<void> | void;
   syncSagas: (options?: { mode?: "full" | "incremental" | "reset" }) => Promise<void> | void;
@@ -72,6 +73,7 @@ export function ChannelProvider({
     videoLogs,
     transcriptLogs,
     sagaLogs,
+    pushSagaLog,
     syncVideos,
     syncTranscripts,
     syncSagas,
@@ -89,10 +91,12 @@ export function ChannelProvider({
     queryClient.invalidateQueries({ queryKey: ["channel-info", channelId] });
   }, [queryClient, channelId]);
 
-  const accountData = useAccountData(
-    channelId,
-    videos?.map((v) => v.videoId) ?? null
+  const videoIds = useMemo(
+    () => videos?.map((v) => v.videoId) ?? null,
+    [videos]
   );
+
+  const accountData = useAccountData(channelId, videoIds);
 
   const value = useMemo<ChannelContextValue>(
     () => ({
@@ -112,6 +116,7 @@ export function ChannelProvider({
       videoLogs,
       transcriptLogs,
       sagaLogs,
+      pushSagaLog,
       syncVideos,
       syncTranscripts,
       syncSagas,
@@ -126,7 +131,7 @@ export function ChannelProvider({
     [
       channelId, channelInfo, isLoadingChannel, channelError,
       videos, source, fresh, fetchedAt, isLoadingVideos, isFetchingVideos,
-      videoSync, transcriptSync, sagaSync, videoLogs, transcriptLogs, sagaLogs,
+      videoSync, transcriptSync, sagaSync, videoLogs, transcriptLogs, sagaLogs, pushSagaLog,
       syncVideos, syncTranscripts, syncSagas, cancelSync,
       isVideoSyncing, isTranscriptSyncing, isSagaSyncing, isSyncing, handleRefresh,
       accountData,

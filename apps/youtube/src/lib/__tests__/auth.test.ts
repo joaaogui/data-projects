@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 let capturedConfig: Record<string, unknown> | undefined;
 
@@ -18,12 +18,17 @@ vi.mock("next-auth/providers/google", () => ({
   default: vi.fn(() => ({})),
 }));
 
+interface AuthCallbacks {
+  signIn: (params: { profile?: { email?: string } }) => boolean;
+  session: (params: { session: { user: object; expires: string }; token: Record<string, unknown> }) => Record<string, unknown>;
+}
+
 async function loadAuth(allowedEmails: string) {
   vi.stubEnv("ALLOWED_EMAILS", allowedEmails);
   vi.resetModules();
   capturedConfig = undefined;
   await import("../auth");
-  return capturedConfig.callbacks;
+  return capturedConfig!.callbacks as AuthCallbacks;
 }
 
 describe("auth", () => {

@@ -116,8 +116,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="animate-fade-up" style={{ animationDelay: "160ms" }}>
-            <div className="relative z-10 flex justify-center">
+          <div className="animate-fade-up relative z-20" style={{ animationDelay: "160ms" }}>
+            <div className="relative flex justify-center">
               <div className="w-full max-w-xl animate-pulse-glow rounded-2xl" style={{ animationDelay: "2000ms", animationIterationCount: 3 }}>
                 <SearchChannel />
               </div>

@@ -1,0 +1,40 @@
+name: YouTube App CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/youtube/**', 'packages/**']
+  pull_request:
+    branches: [main]
+    paths: ['apps/youtube/**', 'packages/**']
+
+jobs:
+  quality:
+    name: Lint, Type Check & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/youtube
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
