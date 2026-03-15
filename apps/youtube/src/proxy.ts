@@ -13,7 +13,7 @@ const PUBLIC_ASSET_PREFIXES = [
 
 const PUBLIC_PAGE_PREFIXES = ["/channel/"];
 
-const PUBLIC_EXACT = new Set(["/", "/sitemap.xml", "/robots.txt"]);
+const PUBLIC_EXACT = new Set(["/sitemap.xml", "/robots.txt"]);
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true;
