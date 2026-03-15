@@ -17,20 +17,25 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-const isTest = process.env.NODE_ENV === "test" || process.env.VITEST;
+const skipValidation =
+  process.env.NODE_ENV === "test" ||
+  !!process.env.VITEST ||
+  !!process.env.CI ||
+  !!process.env.SKIP_ENV_VALIDATION;
+
+const BUILD_DEFAULTS: Env = {
+  POSTGRES_URL: "postgresql://build:build@localhost/build",
+  AUTH_SECRET: "build-secret",
+  AUTH_GOOGLE_ID: "build-google-id",
+  AUTH_GOOGLE_SECRET: "build-google-secret",
+  YOUTUBE_API_KEY: "build-api-key",
+};
 
 function loadEnv(): Env {
   const result = envSchema.safeParse(process.env);
   if (result.success) return result.data;
-  if (isTest) {
-    return {
-      POSTGRES_URL: "postgresql://test:test@localhost/test",
-      AUTH_SECRET: "test-secret",
-      AUTH_GOOGLE_ID: "test-google-id",
-      AUTH_GOOGLE_SECRET: "test-google-secret",
-      YOUTUBE_API_KEY: "test-api-key",
-      ...process.env,
-    } as Env;
+  if (skipValidation) {
+    return { ...BUILD_DEFAULTS, ...process.env } as Env;
   }
   throw result.error;
 }
