@@ -37,7 +37,7 @@ const ANALYSIS_STEPS = [
   { label: "Calculating scores...", icon: BarChart3 },
 ] as const;
 
-function StepIcon({ status }: { status: StepStatus }) {
+function StepIcon({ status }: Readonly<{ status: StepStatus }>) {
   if (status === "done") return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
   if (status === "active") return <Loader2 className="h-5 w-5 text-primary animate-spin" />;
   return <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />;
@@ -80,7 +80,7 @@ export function FirstSyncFlow({
   onSyncVideos,
   onCancelSync,
   onReady,
-}: FirstSyncFlowProps) {
+}: Readonly<FirstSyncFlowProps>) {
   const isCompleted = videoSync?.status === "completed";
   const isFailed = videoSync?.status === "failed";
 
@@ -96,10 +96,10 @@ export function FirstSyncFlow({
 function ChannelFoundPhase({
   channelInfo,
   onSyncVideos,
-}: {
+}: Readonly<{
   channelInfo: ChannelInfo;
   onSyncVideos: () => void;
-}) {
+}>) {
   const { remaining, cancel } = useCountdown(3, onSyncVideos, true);
 
   const handleClick = () => {
@@ -135,10 +135,10 @@ function ChannelFoundPhase({
 function AnalyzingPhase({
   videoSync,
   onCancel,
-}: {
+}: Readonly<{
   videoSync: SyncJobState | null;
   onCancel: () => void;
-}) {
+}>) {
   const progress = videoSync?.progress;
   const phase = progress?.phase;
   const status = videoSync?.status;
@@ -149,8 +149,14 @@ function AnalyzingPhase({
     const allDone = status === "completed";
 
     const step1: StepStatus = pastPlaylist ? "done" : "active";
-    const step2: StepStatus = pastDetails ? "done" : pastPlaylist ? "active" : "pending";
-    const step3: StepStatus = allDone ? "done" : pastDetails ? "active" : "pending";
+
+    let step2: StepStatus = "pending";
+    if (pastDetails) step2 = "done";
+    else if (pastPlaylist) step2 = "active";
+
+    let step3: StepStatus = "pending";
+    if (allDone) step3 = "done";
+    else if (pastDetails) step3 = "active";
 
     return [step1, step2, step3];
   })();
@@ -202,7 +208,7 @@ function AnalyzingPhase({
   );
 }
 
-function ReadyPhase({ onReady }: { onReady: () => void }) {
+function ReadyPhase({ onReady }: Readonly<{ onReady: () => void }>) {
   useEffect(() => {
     const id = setTimeout(onReady, 1500);
     return () => clearTimeout(id);
@@ -219,10 +225,10 @@ function ReadyPhase({ onReady }: { onReady: () => void }) {
 function ErrorState({
   videoSync,
   onSyncVideos,
-}: {
+}: Readonly<{
   videoSync: SyncJobState;
   onSyncVideos: () => void;
-}) {
+}>) {
   const retryAfter = videoSync.retryAfterSeconds;
   const { remaining } = useCountdown(retryAfter ?? 0, onSyncVideos, !!retryAfter);
 
@@ -257,7 +263,7 @@ function LoadingState() {
   );
 }
 
-function Wrapper({ children }: { children: React.ReactNode }) {
+function Wrapper({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="animate-fade-up flex max-w-md flex-col items-center text-center mx-auto px-4">

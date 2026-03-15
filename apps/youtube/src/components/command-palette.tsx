@@ -1,13 +1,16 @@
 "use client";
 
 import {
+  BarChart3,
   BookOpen,
   Calendar,
   Database,
   Download,
   FileText,
+  Keyboard,
   LayoutDashboard,
   Search,
+  Share2,
   Sparkles,
   TableProperties,
   type LucideIcon,
@@ -18,9 +21,11 @@ interface CommandPaletteProps {
   onNavigate: (tab: "overview" | "videos" | "timeline" | "sagas") => void;
   onSyncVideos: () => void;
   onSyncTranscripts: () => void;
+  onShareReport?: () => void;
+  channelId?: string;
 }
 
-interface Command {
+interface PaletteCommand {
   id: string;
   label: string;
   icon: LucideIcon;
@@ -29,11 +34,12 @@ interface Command {
   action: () => void;
 }
 
-export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts }: Readonly<CommandPaletteProps>) {
+export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, onShareReport, channelId }: Readonly<CommandPaletteProps>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [showHint, setShowHint] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -41,28 +47,35 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts }: 
     setOpen(false);
     setQuery("");
     setActiveIndex(0);
+    setShowShortcuts(false);
   }, []);
 
-  const commands: Command[] = [
+  const commands: PaletteCommand[] = [
     { id: "nav-overview", label: "Overview", icon: LayoutDashboard, group: "Navigation", action: () => { onNavigate("overview"); close(); } },
     { id: "nav-videos", label: "Videos", icon: TableProperties, group: "Navigation", action: () => { onNavigate("videos"); close(); } },
     { id: "nav-timeline", label: "Timeline", icon: Calendar, group: "Navigation", action: () => { onNavigate("timeline"); close(); } },
     { id: "nav-sagas", label: "Sagas", icon: BookOpen, group: "Navigation", action: () => { onNavigate("sagas"); close(); } },
-    { id: "tool-ai", label: "Ask AI", icon: Sparkles, group: "Tools", shortcut: "⌘J" },
-    { id: "tool-export", label: "Export CSV", icon: Download, group: "Tools" },
-    { id: "tool-search", label: "Search Videos", icon: Search, group: "Tools", shortcut: "/" },
+    {
+      id: "tool-ai", label: "Ask AI", icon: Sparkles, group: "Tools", shortcut: "⌘J",
+      action: () => { onNavigate("videos"); close(); setTimeout(() => document.dispatchEvent(new CustomEvent("open-ai-drawer")), 100); },
+    },
+    {
+      id: "tool-export", label: "Export CSV", icon: Download, group: "Tools",
+      action: () => { onNavigate("videos"); close(); setTimeout(() => document.dispatchEvent(new CustomEvent("export-csv")), 100); },
+    },
+    { id: "tool-search", label: "Search Videos", icon: Search, group: "Tools", shortcut: "/", action: () => { onNavigate("videos"); close(); setTimeout(() => document.dispatchEvent(new CustomEvent("focus-search")), 100); } },
+    ...(onShareReport ? [{ id: "tool-share", label: "Share Report", icon: Share2, group: "Tools", action: () => { onShareReport(); close(); } }] : []),
+    ...(channelId ? [{ id: "tool-compare", label: "Compare Channels", icon: BarChart3, group: "Tools", action: () => { globalThis.open(`/compare?channels=${channelId}`, "_self"); close(); } }] : []),
+    { id: "tool-shortcuts", label: "Keyboard Shortcuts", icon: Keyboard, group: "Tools", action: () => { setShowShortcuts(true); } },
     { id: "sync-videos", label: "Sync Videos", icon: Database, group: "Sync", action: () => { onSyncVideos(); close(); } },
     { id: "sync-transcripts", label: "Sync Transcripts", icon: FileText, group: "Sync", action: () => { onSyncTranscripts(); close(); } },
-  ].map((cmd) => ({
-    ...cmd,
-    action: cmd.action ?? close,
-  }));
+  ];
 
   const filtered = query
     ? commands.filter((c) => c.label.toLowerCase().includes(query.toLowerCase()))
     : commands;
 
-  const groups = filtered.reduce<Record<string, Command[]>>((acc, cmd) => {
+  const groups = filtered.reduce<Record<string, PaletteCommand[]>>((acc, cmd) => {
     if (!acc[cmd.group]) acc[cmd.group] = [];
     acc[cmd.group].push(cmd);
     return acc;
@@ -78,10 +91,15 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts }: 
         e.preventDefault();
         setOpen((prev) => !prev);
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === "j") {
+        e.preventDefault();
+        onNavigate("videos");
+        setTimeout(() => document.dispatchEvent(new CustomEvent("open-ai-drawer")), 100);
+      }
     }
     globalThis.addEventListener("keydown", handleKeyDown);
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [onNavigate]);
 
   useEffect(() => {
     if (open) {
@@ -90,7 +108,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts }: 
   }, [open]);
 
   useEffect(() => {
-    if (typeof globalThis.window === "undefined") return;
+    if (globalThis.window === undefined) return;
     if (localStorage.getItem("youtube-cmdk-seen")) return;
 
     setShowHint(true);
@@ -125,6 +143,14 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts }: 
     active?.scrollIntoView({ block: "nearest" });
   }, [activeIndex]);
 
+  const SHORTCUTS = [
+    { keys: "⌘ K", description: "Open command palette" },
+    { keys: "⌘ J", description: "Open AI assistant" },
+    { keys: "/", description: "Focus video search" },
+    { keys: "← →", description: "Navigate videos in detail view" },
+    { keys: "Esc", description: "Close panel / clear search" },
+  ];
+
   if (!open && !showHint) return null;
 
   let flatIndex = -1;
@@ -132,62 +158,95 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts }: 
   return (
     <>
       {open && (
-        <div role="presentation" className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={close} onKeyDown={handleKeyDown}>
-          <div
-            role="dialog"
+        <div className="fixed inset-0 z-50">
+          <button
+            type="button"
+            className="absolute inset-0 w-full h-full bg-black/50 backdrop-blur-sm border-0 p-0 cursor-default"
+            onClick={close}
+            aria-label="Close command palette"
+            tabIndex={-1}
+          />
+          <dialog
+            open
             aria-modal="true"
             aria-label="Command palette"
-            className="mx-auto mt-[20vh] max-w-lg rounded-2xl border border-border/40 bg-card shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
+            className="relative mx-auto mt-[20vh] w-full max-w-lg rounded-2xl border border-border/40 bg-card shadow-2xl p-0"
           >
-            <div className="flex items-center gap-2 border-b border-border/40 px-4 py-3">
-              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Type a command…"
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
-              />
-              <kbd className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                ESC
-              </kbd>
-            </div>
-
-            <div ref={listRef} className="max-h-[320px] overflow-y-auto p-2">
-              {filtered.length === 0 && (
-                <p className="px-3 py-6 text-center text-sm text-muted-foreground">No results found.</p>
-              )}
-
-              {Object.entries(groups).map(([group, items]) => (
-                <div key={group} className="mb-1">
-                  <p className="px-3 py-1.5 text-xs uppercase tracking-wider text-muted-foreground">{group}</p>
-                  {items.map((cmd) => {
-                    flatIndex++;
-                    const isActive = flatIndex === activeIndex;
-                    const Icon = cmd.icon;
-                    return (
-                      <button
-                        key={cmd.id}
-                        data-active={isActive}
-                        onClick={cmd.action}
-                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${isActive ? "bg-muted" : "hover:bg-muted/60"
-                          }`}
-                      >
-                        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="flex-1 text-left">{cmd.label}</span>
-                        {cmd.shortcut && (
-                          <kbd className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                            {cmd.shortcut}
-                          </kbd>
-                        )}
-                      </button>
-                    );
-                  })}
+            {showShortcuts ? (
+              <>
+                <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Keyboard className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Keyboard Shortcuts</span>
+                  </div>
+                  <button onClick={() => setShowShortcuts(false)} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    Back
+                  </button>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="p-3 space-y-1">
+                  {SHORTCUTS.map((s) => (
+                    <div key={s.keys} className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-muted/40">
+                      <span className="text-sm text-muted-foreground">{s.description}</span>
+                      <kbd className="rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                        {s.keys}
+                      </kbd>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 border-b border-border/40 px-4 py-3">
+                  <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <input
+                    ref={inputRef}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type a command…"
+                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                  />
+                  <kbd className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    ESC
+                  </kbd>
+                </div>
+
+                <div ref={listRef} className="max-h-[320px] overflow-y-auto p-2">
+                  {filtered.length === 0 && (
+                    <p className="px-3 py-6 text-center text-sm text-muted-foreground">No results found.</p>
+                  )}
+
+                  {Object.entries(groups).map(([group, items]) => (
+                    <div key={group} className="mb-1">
+                      <p className="px-3 py-1.5 text-xs uppercase tracking-wider text-muted-foreground">{group}</p>
+                      {items.map((cmd) => {
+                        flatIndex++;
+                        const isActive = flatIndex === activeIndex;
+                        const Icon = cmd.icon;
+                        return (
+                          <button
+                            key={cmd.id}
+                            data-active={isActive}
+                            onClick={cmd.action}
+                            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${isActive ? "bg-muted" : "hover:bg-muted/60"
+                              }`}
+                          >
+                            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="flex-1 text-left">{cmd.label}</span>
+                            {cmd.shortcut && (
+                              <kbd className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                                {cmd.shortcut}
+                              </kbd>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </dialog>
         </div>
       )}
 

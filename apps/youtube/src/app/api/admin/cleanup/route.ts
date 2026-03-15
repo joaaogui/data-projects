@@ -44,11 +44,11 @@ const ACTIONS: Record<string, CleanupFn | { fn: CleanupFn; requiresChannel: bool
   "delete-ai-sagas": deleteAiSagas,
   "delete-sync-jobs": deleteSyncJobs,
   "delete-videos": {
-    fn: async (channelId) => rowCount(await db.delete(videos).where(eq(videos.channelId, channelId as string))),
+    fn: async (channelId) => rowCount(await db.delete(videos).where(eq(videos.channelId, channelId!))),
     requiresChannel: true,
   },
   "delete-channel": {
-    fn: async (channelId) => rowCount(await db.delete(channels).where(eq(channels.id, channelId as string))),
+    fn: async (channelId) => rowCount(await db.delete(channels).where(eq(channels.id, channelId!))),
     requiresChannel: true,
   },
   "delete-suggestion-cache": async () => rowCount(await db.delete(suggestionCache)),

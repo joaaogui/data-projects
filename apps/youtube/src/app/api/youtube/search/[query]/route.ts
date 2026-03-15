@@ -45,7 +45,7 @@ export const GET = withErrorHandling("search", async (request, { params }) => {
   }
 
   const apiStart = Date.now();
-  const channelInfo = await searchChannel(validation.sanitized!);
+  const channelInfo = await searchChannel(validation.sanitized!); // NOSONAR
   const apiMs = Date.now() - apiStart;
   log.info({ apiMs, channelId: channelInfo?.channelId ?? null }, "API call completed");
 

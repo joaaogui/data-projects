@@ -8,7 +8,7 @@ const STALE_TIME_MS = 5 * 60 * 1000;
 export function useChannelVideos(channelId: string | null) {
   const query = useQuery<ChannelVideosResponse>({
     queryKey: ["channel-videos", channelId],
-    queryFn: () => fetchChannelVideos(channelId!),
+    queryFn: () => fetchChannelVideos(channelId!), // NOSONAR
     enabled: !!channelId,
     staleTime: STALE_TIME_MS,
   });

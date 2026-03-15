@@ -55,12 +55,12 @@ export function SyncLogPanel({
 
   if (logs.length === 0 && isActive) {
     return (
-      <div className={`rounded-b-lg border border-t-0 border-border/50 bg-[hsl(var(--background))] p-3 space-y-1.5 ${className}`}>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-2">
+      <div className={`rounded-b-lg border border-t-0 border-border/50 bg-background p-3 space-y-1.5 ${className}`}>
+        {[55, 45, 35].map((w) => (
+          <div key={w} className="flex items-center gap-2">
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-3 w-8" />
-            <Skeleton className="h-3" style={{ width: `${55 - i * 10}%` }} />
+            <Skeleton className="h-3" style={{ width: `${w}%` }} />
           </div>
         ))}
       </div>
@@ -73,7 +73,7 @@ export function SyncLogPanel({
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className={`rounded-b-lg border border-t-0 border-border/50 bg-[hsl(var(--background))] overflow-y-auto font-mono text-xs leading-relaxed ${className}`}
+      className={`rounded-b-lg border border-t-0 border-border/50 bg-background overflow-y-auto font-mono text-xs leading-relaxed ${className}`}
       style={{ maxHeight: 240 }}
     >
       <div className="p-3 space-y-0.5">

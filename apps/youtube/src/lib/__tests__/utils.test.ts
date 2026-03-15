@@ -47,7 +47,7 @@ describe("runWorkerPool", () => {
       },
       { concurrency: 2, gapMs: 0 },
     );
-    expect(processed.sort()).toEqual([1, 2, 3, 4]);
+    expect(processed.toSorted((a, b) => a - b)).toEqual([1, 2, 3, 4]);
   });
 
   it("handles empty items array", async () => {

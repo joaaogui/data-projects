@@ -2,10 +2,33 @@
 
 import { capture } from "@/lib/analytics";
 import type { FetchProgress, SyncLogEntry } from "@/types/youtube";
+import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type SyncJobType = "videos" | "transcripts" | "sagas";
+
+function handleJobCompletion(
+  data: { status: string; progress?: FetchProgress | null },
+  type: SyncJobType,
+  channelId: string | null,
+  queryClient: QueryClient
+): boolean {
+  if (data.status !== "completed" && data.status !== "failed") return false;
+  if (data.status === "completed") {
+    if (type === "videos") {
+      capture("channel_sync_completed", { channelId, videoCount: data.progress?.total });
+    }
+    if (type === "videos" || type === "transcripts") {
+      queryClient.invalidateQueries({ queryKey: ["channel-videos", channelId] });
+      queryClient.invalidateQueries({ queryKey: ["channel-info", channelId] });
+    }
+    if (type === "sagas") {
+      queryClient.invalidateQueries({ queryKey: ["sagas", channelId] });
+    }
+  }
+  return true;
+}
 
 export interface SyncJobState {
   jobId: string;
@@ -67,19 +90,7 @@ export function useSync(channelId: string | null) {
           logCountRef.current = data.totalLogs;
         }
 
-        if (data.status === "completed" || data.status === "failed") {
-          if (data.status === "completed") {
-            if (type === "videos") {
-              capture('channel_sync_completed', { channelId, videoCount: data.progress?.total });
-            }
-            if (type === "videos" || type === "transcripts") {
-              queryClient.invalidateQueries({ queryKey: ["channel-videos", channelId] });
-              queryClient.invalidateQueries({ queryKey: ["channel-info", channelId] });
-            }
-            if (type === "sagas") {
-              queryClient.invalidateQueries({ queryKey: ["sagas", channelId] });
-            }
-          }
+        if (handleJobCompletion(data, type, channelId, queryClient)) {
           return true;
         }
 

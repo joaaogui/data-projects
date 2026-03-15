@@ -70,21 +70,23 @@ function VideoCard({
   const bgClass = getScoreColorClass(score);
   const borderClass = getScoreBorderClass(score);
 
+  let highlightClass = '';
+  if (hasHighlights) {
+    highlightClass = isHighlighted
+      ? "ring-1 ring-primary/30 bg-primary/5 shadow-sm shadow-primary/10"
+      : "opacity-40";
+  }
+
   return (
     <button
       type="button"
       onClick={onClick}
       className={`w-full text-left flex items-start gap-3 rounded-xl border p-2.5 transition-all duration-150 border-l-2 ${borderClass} ${isSelected
-        ? "bg-primary/8 !border-l-primary border-l-[3px] shadow-sm"
+        ? "bg-primary/8 border-l-primary! border-l-[3px] shadow-sm"
         : "border-border/30 hover:bg-muted/30"
-        } ${hasHighlights
-          ? isHighlighted
-            ? "ring-1 ring-primary/30 bg-primary/5 shadow-sm shadow-primary/10"
-            : "opacity-40"
-          : ""
-        }`}
+        } ${highlightClass}`}
     >
-      <div className="relative w-24 aspect-video flex-shrink-0">
+      <div className="relative w-24 aspect-video shrink-0">
         <Image
           src={video.thumbnail}
           alt={video.title}
@@ -149,7 +151,7 @@ function MobileVideoList({
 
   return (
     <div className="flex flex-col gap-2 h-full">
-      <div className="flex items-center gap-1.5 text-xs flex-shrink-0">
+      <div className="flex items-center gap-1.5 text-xs shrink-0">
         <span className="text-muted-foreground mr-0.5">Sort</span>
         {([
           { field: "score" as const, label: "Score" },
@@ -237,7 +239,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (globalThis.window === undefined) return;
     const dismissed = localStorage.getItem("youtube-onboarding-dismissed");
     if (!dismissed) setShowOnboarding(true);
   }, []);
@@ -395,6 +397,20 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
     URL.revokeObjectURL(url);
   }, [processedData]);
 
+  const exportCsvRef = useRef(handleExportCsv);
+  exportCsvRef.current = handleExportCsv;
+
+  useEffect(() => {
+    const onExport = () => exportCsvRef.current();
+    const onFocusSearch = () => searchInputRef.current?.focus();
+    document.addEventListener("export-csv", onExport);
+    document.addEventListener("focus-search", onFocusSearch);
+    return () => {
+      document.removeEventListener("export-csv", onExport);
+      document.removeEventListener("focus-search", onFocusSearch);
+    };
+  }, []);
+
   const visibleHighlightCount = useMemo(
     () => processedData.filter((v) => highlightedVideoIds.has(v.videoId)).length,
     [processedData, highlightedVideoIds]
@@ -423,7 +439,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
       ),
       enableHiding: false,
       size: 40,
-      cell: ({ row }: { row: { original: VideoData } }) => {
+      cell: ({ row }) => {
         if (accountData.isLoading) return <Skeleton className="h-3.5 w-3.5 rounded-full" />;
         const isLiked = accountData.likedVideoIds.has(row.original.videoId);
         const playlists = accountData.playlistMap.get(row.original.videoId);
@@ -453,7 +469,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
       enableHiding: false,
       cell: ({ row }) => (
         <div className="flex items-center gap-3 min-w-[280px] group/title cursor-pointer hover:shadow-md">
-          <div className="relative w-20 aspect-video flex-shrink-0">
+          <div className="relative w-20 aspect-video shrink-0">
             <Image
               src={row.original.thumbnail}
               alt={row.original.title}
@@ -765,7 +781,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
   return (
     <div className="flex flex-col h-full gap-3 sm:gap-4">
       {showOnboarding && (
-        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm flex-shrink-0 animate-fade-down">
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm shrink-0 animate-fade-down">
           <span className="flex-1 text-muted-foreground">
             <strong className="text-foreground">Scores rank each video relative to the channel.</strong> Higher score = outperforms peers in views, engagement, and momentum.
           </span>
@@ -774,7 +790,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
           </Button>
         </div>
       )}
-      <div className="flex flex-col gap-2 sm:gap-3 flex-shrink-0">
+      <div className="flex flex-col gap-2 sm:gap-3 shrink-0">
         <FilterBar
           searchInput={searchInput}
           onSearchInputChange={setSearchInput}
@@ -789,11 +805,9 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
           tableMode={tableMode}
           onTableModeChange={handleTableModeChange}
         />
-        {(tableMode === "full" || activeFilters.size > 0) && (
-          <div className="animate-fade-up" style={{ animationDelay: '50ms' }}>
-            <QuickFilters videos={data} activeFilters={activeFilters} onToggle={handleFilterToggle} />
-          </div>
-        )}
+        <div className="animate-fade-up" style={{ animationDelay: '50ms' }}>
+          <QuickFilters videos={data} activeFilters={activeFilters} onToggle={handleFilterToggle} />
+        </div>
       </div>
 
       <div className="flex-1 min-h-0">
@@ -826,11 +840,9 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
             emptyMessage={searchFilter ? "No videos match your search." : "No videos found."}
             rowStyle={(row) => {
               const score = row.original.score;
-              const color = score >= 80
-                ? "hsl(160 50% 50% / 0.3)"
-                : score >= 40
-                  ? "hsl(172 48% 45% / 0.2)"
-                  : "hsl(240 4% 30% / 0.15)";
+              let color = "hsl(240 4% 30% / 0.15)";
+              if (score >= 80) color = "hsl(160 50% 50% / 0.3)";
+              else if (score >= 40) color = "hsl(172 48% 45% / 0.2)";
               return { "--row-score-color": color } as React.CSSProperties;
             }}
             rowClassName={(row) => {
@@ -839,7 +851,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
               classes.push(getScoreBorderClass(score));
 
               if (selectedVideoId === row.original.videoId) {
-                classes.push("bg-primary/8 !border-l-primary border-l-[3px] shadow-sm");
+                classes.push("bg-primary/8 border-l-primary! border-l-[3px] shadow-sm");
               }
               if (highlightedVideoIds.size > 0 && visibleHighlightCount > 0) {
                 classes.push(

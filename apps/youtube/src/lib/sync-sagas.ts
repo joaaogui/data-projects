@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { sagas, videos } from "@/db/schema";
 import type { Saga, VideoData } from "@/types/youtube";
 import { and, eq, notInArray, sql } from "drizzle-orm";
+import { MAX_SAGAS_PER_CHANNEL, SAGA_DB_BATCH_SIZE } from "./constants";
 import { analyzeBatchFromDb, type SegmentResult } from "./saga-ai";
 import {
   BATCH_SIZE,
@@ -11,7 +12,6 @@ import {
   mergeSagaSegments,
   splitLargeRun,
 } from "./saga-analysis";
-import { SAGA_DB_BATCH_SIZE, MAX_SAGAS_PER_CHANNEL } from "./constants";
 import { type SyncJobContext, withSyncJob } from "./sync-job";
 import type { JobLogger } from "./sync-logger";
 
@@ -26,7 +26,7 @@ function formatDateRange(vids: VideoData[]): string {
     return `${months[d.getMonth()]} ${d.getFullYear()}`;
   };
   const first = fmt(dates[0]);
-  const last = fmt(dates.at(-1)!);
+  const last = fmt(dates.at(-1) ?? dates[0]);
   return first === last ? first : `${first} – ${last}`;
 }
 
@@ -124,7 +124,9 @@ async function loadChannelSagas(channelId: string): Promise<Saga[]> {
 }
 
 async function saveSagasToDb(channelId: string, sagaList: Saga[]): Promise<void> {
-  const toUpsert = sagaList.slice(0, MAX_SAGAS_PER_CHANNEL);
+  const deduped = new Map<string, Saga>();
+  for (const s of sagaList) deduped.set(s.id, s);
+  const toUpsert = [...deduped.values()].slice(0, MAX_SAGAS_PER_CHANNEL);
 
   for (let i = 0; i < toUpsert.length; i += SAGA_DB_BATCH_SIZE) {
     const chunk = toUpsert.slice(i, i + SAGA_DB_BATCH_SIZE);

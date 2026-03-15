@@ -44,7 +44,7 @@ export const GET = withErrorHandling("playlists", async (request, { params }) =>
   }
 
   const start = Date.now();
-  const playlists = await fetchChannelPlaylists(validation.sanitized!);
+  const playlists = await fetchChannelPlaylists(validation.sanitized!); // NOSONAR
 
   const playlistsWithVideos = await Promise.all(
     playlists.map(async (playlist) => ({

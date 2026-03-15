@@ -62,7 +62,13 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const drawerRef = useRef<HTMLDivElement>(null);
+  const drawerRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const handler = () => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 100); };
+    document.addEventListener("open-ai-drawer", handler);
+    return () => document.removeEventListener("open-ai-drawer", handler);
+  }, []);
 
   useFocusTrap(drawerRef, open);
 
@@ -89,8 +95,8 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
 
   useEffect(() => {
     if (status !== "ready" || messages.length === 0) return;
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg.role !== "assistant") return;
+    const lastMsg = messages.at(-1);
+    if (lastMsg?.role !== "assistant") return;
 
     const text = getMessageText(lastMsg);
     const videoIds = parseHighlightedVideoIds(text);
@@ -166,12 +172,12 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
         />
       )}
 
-      <div
+      <dialog
+        open={open || undefined}
         ref={drawerRef}
-        role="dialog"
         aria-modal="true"
         aria-label="AI Assistant"
-        className={`fixed top-0 right-0 h-full w-full sm:w-[420px] sm:max-w-[90vw] z-50 bg-card/95 backdrop-blur-xl border-l border-border shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"
+        className={`fixed inset-[unset] top-0 right-0 m-0 p-0 h-full w-full sm:w-[420px] sm:max-w-[90vw] z-50 bg-card/95 backdrop-blur-xl border-l border-border shadow-2xl flex flex-col transition-transform duration-300 ease-out max-w-none max-h-none ${open ? "translate-x-0" : "translate-x-full"
           }`}
       >
         <div className="flex items-center justify-between p-4 border-b border-border/30">
@@ -244,7 +250,7 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
                   {msg.role === "assistant" ? (
                     <div className="leading-relaxed space-y-1 prose-sm">
                       {renderMarkdown(displayText)}
-                      {status === "streaming" && messages[messages.length - 1]?.id === msg.id && (
+                      {status === "streaming" && messages.at(-1)?.id === msg.id && (
                         <span className="inline-block w-1.5 h-4 ml-0.5 bg-primary/60 animate-pulse rounded-sm align-middle" />
                       )}
                     </div>
@@ -267,7 +273,7 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
             );
           })}
 
-          {isLoading && messages.length > 0 && messages[messages.length - 1].role === "user" && (
+          {isLoading && messages.length > 0 && messages.at(-1)?.role === "user" && (
             <div className="flex justify-start">
               <div className="rounded-xl px-3.5 py-2.5 bg-muted/60">
                 <div className="flex gap-1 items-center py-1">
@@ -324,7 +330,7 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
             </Button>
           </div>
         </div>
-      </div>
+      </dialog>
     </>
   );
 }
@@ -332,47 +338,48 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
 function inlineBold(text: string): React.ReactNode {
   const parts = text.split(/\*\*(.+?)\*\*/g);
   if (parts.length === 1) return text;
-  return parts.map((part, j) =>
-    j % 2 === 1 ? <strong key={j}>{part}</strong> : part,
+  const keyed = parts.map((part, idx) => ({ part, key: `b-${idx}`, bold: idx % 2 === 1 }));
+  return keyed.map(({ part, key, bold }) =>
+    bold ? <strong key={key}>{part}</strong> : part,
   );
 }
 
 function renderMarkdown(text: string): React.ReactNode {
-  const lines = text.split("\n");
-  return lines.map((line, i) => {
-    if (line.trim() === "") return <br key={i} />;
+  const keyedLines = text.split("\n").map((line, idx) => ({ line, key: `md-${idx}` }));
+  return keyedLines.map(({ line, key }) => {
+    if (line.trim() === "") return <br key={key} />;
     if (line.startsWith("### "))
       return (
-        <h4 key={i} className="font-semibold text-sm mt-2 mb-1">
+        <h4 key={key} className="font-semibold text-sm mt-2 mb-1">
           {inlineBold(line.slice(4))}
         </h4>
       );
     if (line.startsWith("## "))
       return (
-        <h3 key={i} className="font-semibold mt-2 mb-1">
+        <h3 key={key} className="font-semibold mt-2 mb-1">
           {inlineBold(line.slice(3))}
         </h3>
       );
     if (line.startsWith("# "))
       return (
-        <h3 key={i} className="font-bold mt-2 mb-1">
+        <h3 key={key} className="font-bold mt-2 mb-1">
           {inlineBold(line.slice(2))}
         </h3>
       );
     if (line.startsWith("- ") || line.startsWith("* ")) {
       return (
-        <li key={i} className="ml-4 list-disc">
+        <li key={key} className="ml-4 list-disc">
           {inlineBold(line.slice(2))}
         </li>
       );
     }
     if (/^\d+\.\s/.test(line)) {
       return (
-        <li key={i} className="ml-4 list-decimal">
+        <li key={key} className="ml-4 list-decimal">
           {inlineBold(line.replace(/^\d+\.\s/, ""))}
         </li>
       );
     }
-    return <p key={i}>{inlineBold(line)}</p>;
+    return <p key={key}>{inlineBold(line)}</p>;
   });
 }

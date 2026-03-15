@@ -59,27 +59,27 @@ export function useSagaStorage(channelId: string | null) {
 
   const { data: allSagas = [], isLoading } = useQuery({
     queryKey,
-    queryFn: () => fetchSagas(channelId!),
+    queryFn: () => fetchSagas(channelId!), // NOSONAR
     enabled: !!channelId,
     staleTime: 60_000,
   });
 
   const syncPlaylistsMutation = useMutation({
-    mutationFn: () => syncPlaylistSagasApi(channelId!),
+    mutationFn: () => syncPlaylistSagasApi(channelId!), // NOSONAR
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
     },
   });
 
   const saveAiMutation = useMutation({
-    mutationFn: (aiSagas: Saga[]) => saveAiSagasApi(channelId!, aiSagas),
+    mutationFn: (aiSagas: Saga[]) => saveAiSagasApi(channelId!, aiSagas), // NOSONAR
     onSuccess: (merged) => {
       queryClient.setQueryData(queryKey, merged);
     },
   });
 
   const deleteAiMutation = useMutation({
-    mutationFn: () => deleteAiSagasApi(channelId!),
+    mutationFn: () => deleteAiSagasApi(channelId!), // NOSONAR
     onSuccess: () => {
       queryClient.setQueryData(queryKey, (prev: Saga[] | undefined) =>
         (prev ?? []).filter((s) => s.source !== "ai-detected")
@@ -88,7 +88,7 @@ export function useSagaStorage(channelId: string | null) {
   });
 
   const patchMutation = useMutation({
-    mutationFn: (body: Record<string, unknown>) => patchSagaApi(channelId!, body),
+    mutationFn: (body: Record<string, unknown>) => patchSagaApi(channelId!, body), // NOSONAR
     onSuccess: (updated, variables) => {
       queryClient.setQueryData(queryKey, updated);
       const action = variables.action as string;

@@ -69,13 +69,13 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
       if (localStorage.getItem(COLLAPSED_KEY) === "true") {
         setCollapsed(true);
       }
-    } catch { }
+    } catch { /* localStorage may be unavailable */ }
   }, []);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
-      try { localStorage.setItem(COLLAPSED_KEY, String(next)); } catch { }
+      try { localStorage.setItem(COLLAPSED_KEY, String(next)); } catch { /* localStorage may be unavailable */ }
       return next;
     });
   }, []);
@@ -129,7 +129,7 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
 
   if (collapsed) {
     return (
-      <div className="flex items-center justify-between mb-4 flex-shrink-0 rounded-2xl bg-card border border-border/40 px-3 sm:px-4 py-2.5">
+      <div className="flex items-center justify-between mb-4 shrink-0 rounded-2xl bg-card border border-border/40 px-3 sm:px-4 py-2.5">
         <div className="flex items-center gap-2 sm:gap-4 text-sm min-w-0 overflow-hidden">
           <span className="font-medium shrink-0">{videos.length} videos</span>
           <span className="text-muted-foreground/40 shrink-0">&middot;</span>
@@ -147,7 +147,7 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
   }
 
   return (
-    <div className="mb-4 flex-shrink-0 space-y-2">
+    <div className="mb-4 shrink-0 space-y-2">
       <div className="flex items-center justify-between rounded-2xl bg-card border border-border/40 px-3 sm:px-4 py-2.5 animate-fade-down">
         <div className="flex items-center gap-2 sm:gap-4 text-sm min-w-0 overflow-hidden">
           <span className="font-medium shrink-0">{videos.length} videos</span>
@@ -211,7 +211,7 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
                     <span className="text-xs font-medium uppercase tracking-wider">Top Performer</span>
                   </div>
                   <div className="flex items-center gap-2.5 mt-1.5">
-                    <div className="relative flex-shrink-0 w-14 aspect-video">
+                    <div className="relative shrink-0 w-14 aspect-video">
                       <Image
                         src={stats.topVideo.thumbnail}
                         alt={stats.topVideo.title}

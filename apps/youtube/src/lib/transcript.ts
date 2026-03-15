@@ -83,12 +83,13 @@ function parseVttToText(vtt: string): string {
 const YT_DLP_MAX_RETRIES = 3;
 const YT_DLP_RETRY_DELAY_MS = 5_000;
 
-const ytDlpAvailable: Promise<boolean> = execFileAsync("which", ["yt-dlp"])
-  .then(() => true)
-  .catch(() => {
-    log.warn("yt-dlp binary not found — subtitle fallback disabled");
-    return false;
-  });
+let ytDlpAvailable = false;
+try {
+  await execFileAsync("which", ["yt-dlp"]);
+  ytDlpAvailable = true;
+} catch {
+  log.warn("yt-dlp binary not found — subtitle fallback disabled");
+}
 
 function assertValidVideoId(videoId: string): void {
   if (!VALID_VIDEO_ID.test(videoId)) {
@@ -125,7 +126,7 @@ async function fetchWithYtDlp(
   videoId: string,
   excerptMaxChars: number,
 ): Promise<TranscriptResult | null> {
-  if (!(await ytDlpAvailable)) return null;
+  if (!ytDlpAvailable) return null;
 
   const tmpDir = await mkdtemp(path.join(tmpdir(), "yt-sub-"));
 

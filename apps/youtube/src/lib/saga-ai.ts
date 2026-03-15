@@ -147,50 +147,66 @@ export async function callAI(prompt: string): Promise<string> {
   return text.trim();
 }
 
-export function parseAiResponse(
-  text: string,
-  videos: VideoInput[]
-): { segments: SegmentResult[]; tailContext: string } {
-  const cleaned = text.replaceAll(/```(?:json)?\s*/g, "").replaceAll(/```\s*$/g, "");
+type RawSegment = { name: string; indices: number[]; reasoning?: string; evidence?: Record<string, string> };
+
+type RawAssignment = { index: number; sagaName: string };
+
+type RawParsed = {
+  segments?: RawSegment[];
+  assignToExisting?: RawAssignment[];
+  continuingAtEnd?: string | null;
+};
+
+function extractAndParseJson(cleaned: string): RawParsed | null {
   const jsonMatch = /\{[\s\S]*\}/.exec(cleaned);
   if (!jsonMatch) {
     log.error({ preview: cleaned.slice(0, 300) }, "No JSON found in AI response");
-    return { segments: [], tailContext: "" };
+    return null;
   }
-
-  let parsed: {
-    segments?: Array<{ name: string; indices: number[]; reasoning?: string; evidence?: Record<string, string> }>;
-    assignToExisting?: Array<{ index: number; sagaName: string }>;
-    continuingAtEnd?: string | null;
-  };
-
   try {
-    parsed = JSON.parse(jsonMatch[0]);
+    return JSON.parse(jsonMatch[0]);
   } catch {
     log.error({ preview: jsonMatch[0].slice(0, 300) }, "JSON parse error in AI response");
-    return { segments: [], tailContext: "" };
+    return null;
   }
+}
 
+function buildVideoEvidence(
+  evidence: Record<string, string>,
+  videos: VideoInput[]
+): Record<string, string> {
+  const videoEvidence: Record<string, string> = {};
+  for (const [idxStr, quote] of Object.entries(evidence)) {
+    const vid = videos[Number(idxStr) - 1]?.videoId;
+    if (vid && quote) videoEvidence[vid] = quote;
+  }
+  return videoEvidence;
+}
+
+function parseSegments(
+  rawSegments: RawSegment[],
+  videos: VideoInput[]
+): SegmentResult[] {
   const segments: SegmentResult[] = [];
-  for (const seg of parsed.segments ?? []) {
+  for (const seg of rawSegments) {
     if (!seg.name || !Array.isArray(seg.indices) || seg.indices.length < 2) continue;
     const videoIds = seg.indices
       .map((idx) => videos[idx - 1]?.videoId)
       .filter((id): id is string => Boolean(id));
-    if (videoIds.length >= 2) {
-      let videoEvidence: Record<string, string> | undefined;
-      if (seg.evidence) {
-        videoEvidence = {};
-        for (const [idxStr, quote] of Object.entries(seg.evidence)) {
-          const vid = videos[Number(idxStr) - 1]?.videoId;
-          if (vid && quote) videoEvidence[vid] = quote;
-        }
-      }
-      segments.push({ name: seg.name, videoIds, reasoning: seg.reasoning, videoEvidence });
-    }
-  }
+    if (videoIds.length < 2) continue;
 
-  for (const assign of parsed.assignToExisting ?? []) {
+    const videoEvidence = seg.evidence ? buildVideoEvidence(seg.evidence, videos) : undefined;
+    segments.push({ name: seg.name, videoIds, reasoning: seg.reasoning, videoEvidence });
+  }
+  return segments;
+}
+
+function applyExistingAssignments(
+  assignments: RawAssignment[],
+  videos: VideoInput[],
+  segments: SegmentResult[]
+): void {
+  for (const assign of assignments) {
     if (!assign.sagaName || typeof assign.index !== "number") continue;
     const videoId = videos[assign.index - 1]?.videoId;
     if (!videoId) continue;
@@ -201,6 +217,18 @@ export function parseAiResponse(
       segments.push({ name: assign.sagaName, videoIds: [videoId] });
     }
   }
+}
+
+export function parseAiResponse(
+  text: string,
+  videos: VideoInput[]
+): { segments: SegmentResult[]; tailContext: string } {
+  const cleaned = text.replaceAll(/```(?:json)?\s*/g, "").replaceAll(/```\s*$/g, "");
+  const parsed = extractAndParseJson(cleaned);
+  if (!parsed) return { segments: [], tailContext: "" };
+
+  const segments = parseSegments(parsed.segments ?? [], videos);
+  applyExistingAssignments(parsed.assignToExisting ?? [], videos, segments);
 
   const tailContext = parsed.continuingAtEnd ?? "";
   return { segments, tailContext };

@@ -29,7 +29,7 @@ export const GET = withErrorHandling("sync-status", async (req, ctx) => {
 
   const { status, type, channelId, progress, logs, error, createdAt, updatedAt } = job[0];
 
-  const logsSince = parseInt(req.nextUrl.searchParams.get("logsSince") ?? "0", 10);
+  const logsSince = Number.parseInt(req.nextUrl.searchParams.get("logsSince") ?? "0", 10);
   const newLogs = (logs ?? []).slice(logsSince);
 
   return NextResponse.json({

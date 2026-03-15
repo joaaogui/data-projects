@@ -16,11 +16,11 @@ export function JobLogRow({
   if (loading && logs.length === 0) {
     return (
       <div className="bg-zinc-950 px-4 py-3 space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-2">
+        {[60, 48, 36].map((w) => (
+          <div key={w} className="flex items-center gap-2">
             <Skeleton className="h-3 w-14 bg-zinc-800" />
             <Skeleton className="h-3 w-8 bg-zinc-800" />
-            <Skeleton className="h-3 bg-zinc-800" style={{ width: `${60 - i * 12}%` }} />
+            <Skeleton className="h-3 bg-zinc-800" style={{ width: `${w}%` }} />
           </div>
         ))}
       </div>

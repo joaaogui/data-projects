@@ -51,7 +51,7 @@ export const GET = withErrorHandling("admin-stats", async (_req, _ctx) => {
   `);
   log.info({ ms: Date.now() - channelStart, channelCount: channelRows.rows.length }, "Channel query complete");
 
-  const g = globalRow as Record<string, unknown>;
+  const g = globalRow;
 
   return NextResponse.json({
     global: {

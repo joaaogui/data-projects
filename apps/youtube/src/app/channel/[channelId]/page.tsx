@@ -14,8 +14,8 @@ import { VideosTable } from "@/components/videos";
 import { YouTubeIcon } from "@/components/youtube-icon";
 import { ChannelProvider, useChannel } from "@/hooks/use-channel-context";
 import { useChannelStats } from "@/hooks/use-channel-stats";
-import { Button, Navbar, Skeleton } from "@data-projects/ui";
-import { AlertCircle, ArrowLeft, Calendar, Eye, Minus, ThumbsUp, TrendingDown, TrendingUp } from "lucide-react";
+import { Button, Navbar, Skeleton, Tooltip, TooltipContent, TooltipTrigger } from "@data-projects/ui";
+import { AlertCircle, ArrowLeft, BarChart3, Calendar, Check, Eye, Loader2, Minus, Share2, ThumbsUp, TrendingDown, TrendingUp } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -73,6 +73,7 @@ function ChannelPageContent() {
   const stats = useChannelStats(videos);
 
   const [hydrated, setHydrated] = useState(false);
+  const [shareState, setShareState] = useState<"idle" | "loading" | "done">("idle");
   useEffect(() => setHydrated(true), []);
 
   const autoSyncTriggered = useRef(false);
@@ -100,7 +101,7 @@ function ChannelPageContent() {
     setActiveTab("timeline");
   }, [setActiveTab]);
 
-  const handleNavigateToVideo = useCallback((videoId: string) => {
+  const handleNavigateToVideo = useCallback((_videoId: string) => {
     setActiveTab("videos");
   }, [setActiveTab]);
 
@@ -108,11 +109,48 @@ function ChannelPageContent() {
     setActiveTab("sagas");
   }, [setActiveTab]);
 
+  const handleShareReport = useCallback(async () => {
+    if (shareState === "loading") return;
+    setShareState("loading");
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to share");
+      }
+      const { reportId } = await res.json();
+      const url = `${globalThis.location.origin}/report/${reportId}`;
+      await navigator.clipboard.writeText(url);
+      setShareState("done");
+      setTimeout(() => setShareState("idle"), 3000);
+    } catch {
+      setShareState("idle");
+    }
+  }, [channelId, shareState]);
+
   useEffect(() => {
     if (channelInfo) {
       saveRecentChannel({ channelId, channelTitle: channelInfo.channelTitle, thumbnail: channelInfo.thumbnails.default.url, visitedAt: Date.now() });
     }
   }, [channelId, channelInfo]);
+
+  const [showFeatureTips, setShowFeatureTips] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!localStorage.getItem("youtube-feature-tips-seen")) {
+      setShowFeatureTips(true);
+    }
+  }, []);
+
+  const dismissFeatureTips = useCallback(() => {
+    setShowFeatureTips(false);
+    localStorage.setItem("youtube-feature-tips-seen", "1");
+  }, []);
 
   const isFirstSync = source === "none" && !isVideoSyncing && !autoSyncTriggered.current;
   const isInitialLoading = !hydrated || isLoadingVideos;
@@ -160,7 +198,7 @@ function ChannelPageContent() {
         <main className="flex-1 min-h-0 flex flex-col overflow-hidden" role="main" aria-label={channelInfo ? `Channel analysis for ${channelInfo.channelTitle}` : "Channel analysis"}>
           {/* Condensed header with KPI strip */}
           {channelInfo && (
-            <div className="flex-shrink-0 border-b border-border/40 px-4 sm:px-6 py-3">
+            <div className="shrink-0 border-b border-border/40 px-4 sm:px-6 py-3">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative h-10 w-10 shrink-0">
@@ -209,6 +247,46 @@ function ChannelPageContent() {
                       value={stats.cadenceLabel}
                       icon={<Calendar className="h-3.5 w-3.5 text-orange-500" />}
                     />
+                    <div className="hidden sm:flex items-center gap-1 ml-1 border-l border-border/30 pl-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 rounded-lg"
+                            onClick={handleShareReport}
+                            disabled={shareState === "loading"}
+                            aria-label="Share channel report"
+                          >
+                            {shareState === "loading" ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : shareState === "done" ? (
+                              <Check className="h-3.5 w-3.5 text-emerald-500" />
+                            ) : (
+                              <Share2 className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {shareState === "done" ? "Link copied!" : "Share report"}
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 rounded-lg"
+                            asChild
+                          >
+                            <Link href={`/compare?channels=${channelId}`}>
+                              <BarChart3 className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Compare with another channel</TooltipContent>
+                      </Tooltip>
+                    </div>
                   </div>
                 )}
               </div>
@@ -216,7 +294,7 @@ function ChannelPageContent() {
           )}
 
           {!channelInfo && isLoadingChannel && (
-            <div className="flex-shrink-0 border-b border-border/40 px-4 sm:px-6 py-3">
+            <div className="shrink-0 border-b border-border/40 px-4 sm:px-6 py-3">
               <div className="flex items-center gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="space-y-1.5">
@@ -228,6 +306,34 @@ function ChannelPageContent() {
           )}
 
           <SyncStatusBar videoSync={videoSync} transcriptSync={transcriptSync} videoLogs={videoLogs} transcriptLogs={transcriptLogs} isSyncing={isSyncing} onCancel={cancelSync} />
+
+          {showFeatureTips && hasVideos && !isInitialLoading && (
+            <div className="shrink-0 px-4 sm:px-6 pt-3 animate-fade-down">
+              <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-xs">
+                <span className="text-muted-foreground flex-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="flex items-center gap-1.5">
+                    <kbd className="rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
+                    <span>Command palette</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <kbd className="rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px]">⌘J</kbd>
+                    <span>Ask AI</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Share2 className="h-3 w-3" />
+                    <span>Share report</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <BarChart3 className="h-3 w-3" />
+                    <span>Compare channels</span>
+                  </span>
+                </span>
+                <button onClick={dismissFeatureTips} className="text-muted-foreground hover:text-foreground transition-colors shrink-0" aria-label="Dismiss tips">
+                  <span className="text-[10px] font-medium">Got it</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Content area */}
           <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 pb-20 md:pb-4">
@@ -282,6 +388,8 @@ function ChannelPageContent() {
         onNavigate={setActiveTab}
         onSyncVideos={syncVideos}
         onSyncTranscripts={() => syncTranscripts()}
+        onShareReport={handleShareReport}
+        channelId={channelId}
       />
     </div>
   );

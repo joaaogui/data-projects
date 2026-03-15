@@ -87,7 +87,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return {
         ...session,
         hasYoutubeAccess: !!t.access_token,
-        accessToken: t.access_token as string | undefined,
+        accessToken: t.access_token,
       };
     },
   },

@@ -1,9 +1,11 @@
-import { dbRowsToVideoData } from "@/lib/video-mapper";
-import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
+import { db } from "@/db";
+import { videos } from "@/db/schema";
 import { CHANNEL_FRESHNESS_MS } from "@/lib/constants";
 import { createTaggedLogger } from "@/lib/logger";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/route-handler";
 import { validateChannelId } from "@/lib/validation";
+import { dbRowsToVideoData } from "@/lib/video-mapper";
 import {
   corsHeaders,
   mergeHeaders,
@@ -11,8 +13,6 @@ import {
   rateLimitExceededResponse,
   withRateLimitHeaders,
 } from "@data-projects/shared";
-import { db } from "@/db";
-import { videos } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 const log = createTaggedLogger("channel-videos");
@@ -78,7 +78,7 @@ export const GET = withErrorHandling("channel-videos", async (request, { params 
 
   const videoData = dbRowsToVideoData(dbRows);
   const responseVideos = compact
-    ? videoData.map(({ description, ...rest }) => rest)
+    ? videoData.map(({ description: _, ...rest }) => rest)
     : videoData;
 
   log.info({ source: "database", fresh: isFresh, videoCount: responseVideos.length }, "Response");

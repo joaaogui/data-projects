@@ -44,6 +44,127 @@ interface SuggestRequest {
   sagas: Array<{ id: string; name: string }>;
 }
 
+interface BatchState {
+  videoIdSet: Set<string>;
+  assignedVideoIds: Set<string>;
+  allSuggestions: SagaSuggestion[];
+  existingSagas: Array<{ id: string; name: string }>;
+  confidenceRank: Record<string, number>;
+}
+
+function collectSuggestions(
+  rawSuggestions: Array<{ videoId: string; sagaName: string; confidence: string }>,
+  existingSagas: Array<{ id: string; name: string }>,
+  videoIdSet: Set<string>,
+  assignedVideoIds: Set<string>,
+  allSuggestions: SagaSuggestion[],
+  confidenceRank: Record<string, number>,
+  batchNum: number
+): void {
+  for (const s of rawSuggestions) {
+    const saga = existingSagas.find((es) => es.name === s.sagaName);
+    if (!saga) {
+      log.debug({ batchNum, sagaName: s.sagaName }, "skipping — saga not found");
+      continue;
+    }
+    if (!s.videoId || !videoIdSet.has(s.videoId)) {
+      log.debug({ batchNum, videoId: s.videoId }, "skipping — videoId not in request set");
+      continue;
+    }
+
+    const confidence = (["high", "medium", "low"].includes(s.confidence)
+      ? s.confidence
+      : "low") as SagaSuggestion["confidence"];
+
+    if (assignedVideoIds.has(s.videoId)) {
+      const existing = allSuggestions.find((x) => x.videoId === s.videoId);
+      if (existing && (confidenceRank[confidence] ?? 0) > (confidenceRank[existing.confidence] ?? 0)) {
+        existing.sagaId = saga.id;
+        existing.sagaName = saga.name;
+        existing.confidence = confidence;
+      }
+      continue;
+    }
+
+    assignedVideoIds.add(s.videoId);
+    allSuggestions.push({
+      videoId: s.videoId,
+      sagaId: saga.id,
+      sagaName: saga.name,
+      confidence,
+    });
+  }
+}
+
+async function processBatch(
+  batch: Array<{ id: string; title: string }>,
+  sagaList: string,
+  transcriptMap: Map<string, string>,
+  batchNum: number,
+  state: BatchState
+): Promise<void> {
+  const videoList = batch
+    .map((v) => {
+      const transcript = transcriptMap.get(v.id) ?? "(no transcript)";
+      return `- videoId: "${v.id}" | title: "${v.title}" | transcript: ${transcript}`;
+    })
+    .join("\n");
+
+  const prompt = `Existing sagas:\n${sagaList}\n\nUncategorized videos:\n${videoList}`;
+
+  let model: ReturnType<typeof getModel>;
+  try {
+    model = getModel();
+  } catch (modelErr) {
+    log.error({ err: modelErr, batchNum }, "failed to get AI model");
+    throw modelErr;
+  }
+
+  const startMs = Date.now();
+  const { text: aiText } = await generateText({
+    model,
+    system: SUGGEST_PROMPT,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.1,
+    maxOutputTokens: 2000,
+  });
+  const elapsedMs = Date.now() - startMs;
+  log.info({ batchNum, elapsedMs, responseLength: aiText.length }, "AI responded");
+
+  const cleaned = aiText.replaceAll(/```(?:json)?\s*/g, "").replaceAll(/```\s*$/g, "");
+  const jsonMatch = /\{[\s\S]*\}/.exec(cleaned);
+
+  if (!jsonMatch) {
+    log.warn({ batchNum }, "no JSON object found in AI response");
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      suggestions?: Array<{
+        videoId: string;
+        sagaName: string;
+        confidence: string;
+      }>;
+    };
+
+    const rawSuggestions = parsed.suggestions ?? [];
+    log.debug({ batchNum, suggestionCount: rawSuggestions.length }, "parsed suggestions");
+
+    collectSuggestions(
+      rawSuggestions,
+      state.existingSagas,
+      state.videoIdSet,
+      state.assignedVideoIds,
+      state.allSuggestions,
+      state.confidenceRank,
+      batchNum
+    );
+  } catch (parseErr) {
+    log.error({ err: parseErr, batchNum, raw: jsonMatch[0].slice(0, 500) }, "JSON parse error");
+  }
+}
+
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
 }
@@ -111,7 +232,15 @@ export const POST = withErrorHandling("saga-suggest:POST", async (request) => {
   const assignedVideoIds = new Set<string>();
   const totalBatches = Math.ceil(videoRows.length / BATCH_SIZE);
 
-  const CONFIDENCE_RANK: Record<string, number> = { high: 3, medium: 2, low: 1 };
+  const confidenceRank: Record<string, number> = { high: 3, medium: 2, low: 1 };
+
+  const batchState: BatchState = {
+    videoIdSet,
+    assignedVideoIds,
+    allSuggestions,
+    existingSagas,
+    confidenceRank,
+  };
 
   log.info({ videoCount: videoRows.length, totalBatches }, "processing batches");
 
@@ -120,90 +249,7 @@ export const POST = withErrorHandling("saga-suggest:POST", async (request) => {
     const batch = videoRows.slice(i, i + BATCH_SIZE);
     log.debug({ batchNum, totalBatches, batchSize: batch.length }, "processing batch");
 
-    const videoList = batch
-      .map((v) => {
-        const transcript = transcriptMap.get(v.id) ?? "(no transcript)";
-        return `- videoId: "${v.id}" | title: "${v.title}" | transcript: ${transcript}`;
-      })
-      .join("\n");
-
-    const prompt = `Existing sagas:\n${sagaList}\n\nUncategorized videos:\n${videoList}`;
-
-    let model: ReturnType<typeof getModel>;
-    try {
-      model = getModel();
-    } catch (modelErr) {
-      log.error({ err: modelErr, batchNum }, "failed to get AI model");
-      throw modelErr;
-    }
-
-    const startMs = Date.now();
-    const { text: aiText } = await generateText({
-      model,
-      system: SUGGEST_PROMPT,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.1,
-      maxOutputTokens: 2000,
-    });
-    const elapsedMs = Date.now() - startMs;
-    log.info({ batchNum, elapsedMs, responseLength: aiText.length }, "AI responded");
-
-    const cleaned = aiText.replaceAll(/```(?:json)?\s*/g, "").replaceAll(/```\s*$/g, "");
-    const jsonMatch = /\{[\s\S]*\}/.exec(cleaned);
-
-    if (!jsonMatch) {
-      log.warn({ batchNum }, "no JSON object found in AI response");
-      continue;
-    }
-
-    try {
-      const parsed = JSON.parse(jsonMatch[0]) as {
-        suggestions?: Array<{
-          videoId: string;
-          sagaName: string;
-          confidence: string;
-        }>;
-      };
-
-      const rawSuggestions = parsed.suggestions ?? [];
-      log.debug({ batchNum, suggestionCount: rawSuggestions.length }, "parsed suggestions");
-
-      for (const s of rawSuggestions) {
-        const saga = existingSagas.find((es) => es.name === s.sagaName);
-        if (!saga) {
-          log.debug({ batchNum, sagaName: s.sagaName }, "skipping — saga not found");
-          continue;
-        }
-        if (!s.videoId || !videoIdSet.has(s.videoId)) {
-          log.debug({ batchNum, videoId: s.videoId }, "skipping — videoId not in request set");
-          continue;
-        }
-
-        const confidence = (["high", "medium", "low"].includes(s.confidence)
-          ? s.confidence
-          : "low") as SagaSuggestion["confidence"];
-
-        if (assignedVideoIds.has(s.videoId)) {
-          const existing = allSuggestions.find((x) => x.videoId === s.videoId);
-          if (existing && (CONFIDENCE_RANK[confidence] ?? 0) > (CONFIDENCE_RANK[existing.confidence] ?? 0)) {
-            existing.sagaId = saga.id;
-            existing.sagaName = saga.name;
-            existing.confidence = confidence;
-          }
-          continue;
-        }
-
-        assignedVideoIds.add(s.videoId);
-        allSuggestions.push({
-          videoId: s.videoId,
-          sagaId: saga.id,
-          sagaName: saga.name,
-          confidence,
-        });
-      }
-    } catch (parseErr) {
-      log.error({ err: parseErr, batchNum, raw: jsonMatch[0].slice(0, 500) }, "JSON parse error");
-    }
+    await processBatch(batch, sagaList, transcriptMap, batchNum, batchState);
   }
 
   log.info({ suggestionCount: allSuggestions.length }, "POST complete");

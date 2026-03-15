@@ -1,8 +1,8 @@
 "use client";
 
-import { formatCompact, getScoreColorClass } from "@/lib/format";
-import { YouTubeIcon } from "@/components/youtube-icon";
 import { SearchChannel } from "@/components/search-channel";
+import { YouTubeIcon } from "@/components/youtube-icon";
+import { formatCompact, getScoreColorClass } from "@/lib/format";
 import { Navbar } from "@data-projects/ui";
 import { BarChart3, Eye, TrendingUp } from "lucide-react";
 import Image from "next/image";
@@ -44,7 +44,14 @@ function CompareContent() {
       .then((res) =>
         res.ok ? res.json() : res.json().then((d) => { throw new Error(d.error); })
       )
-      .then((d) => setData(d.channels))
+      .then((d) => setData(
+        (d.channels as ChannelComparison[]).map((ch) => ({
+          ...ch,
+          totalViews: Number(ch.totalViews),
+          avgScore: Number(ch.avgScore),
+          avgEngagement: Number(ch.avgEngagement),
+        }))
+      ))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps

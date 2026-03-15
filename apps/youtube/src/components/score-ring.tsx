@@ -82,7 +82,7 @@ export function ScoreRing({ score, scoreComponents, weights, size = 48 }: Readon
     <Tooltip>
       <TooltipTrigger asChild>
         <div className="flex flex-col items-center gap-0.5 cursor-help">
-          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`Score ${score.toFixed(0)} - ${label}`}>
+          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-label={`Score ${score.toFixed(0)} - ${label}`}>
             <circle cx={cx} cy={cy} r={r} fill="none" className="stroke-muted/30" strokeWidth="3" />
             {arcs.map((arc) => (
               <path

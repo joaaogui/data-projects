@@ -178,7 +178,7 @@ function GapCard({
     <div className="rounded-2xl border border-dashed border-muted-foreground/30 bg-muted/20 p-4 space-y-2">
       <h3 className="text-xs font-semibold flex items-center gap-1.5">
         <FolderInput className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="tabular-nums">{videos.length}</span> uncategorized
+        <span className="tabular-nums">{videos.length}</span>{" uncategorized "}
         <span className="font-normal text-muted-foreground">({dateRange})</span>
       </h3>
 

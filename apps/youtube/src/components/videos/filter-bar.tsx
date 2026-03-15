@@ -37,7 +37,7 @@ export const ESSENTIAL_COLUMNS: VisibilityState = {
 };
 
 export function loadTableModeFromStorage(): TableMode {
-  if (typeof window === "undefined") return "essential";
+  if (globalThis.window === undefined) return "essential";
   try {
     const stored = localStorage.getItem(TABLE_MODE_KEY);
     if (stored === "full" || stored === "essential") return stored;
@@ -82,7 +82,7 @@ export const TOGGLEABLE_COLUMNS = [
 ];
 
 export function loadWeightsFromStorage(): MetricWeights {
-  if (typeof window === "undefined") return { ...DEFAULT_WEIGHTS };
+  if (globalThis.window === undefined) return { ...DEFAULT_WEIGHTS };
   try {
     const stored = localStorage.getItem(WEIGHTS_STORAGE_KEY);
     if (stored) {
@@ -104,7 +104,7 @@ export function saveWeightsToStorage(weights: MetricWeights): void {
 }
 
 export function loadColumnsFromStorage(): VisibilityState {
-  if (typeof window === "undefined") return { ...DEFAULT_HIDDEN_COLUMNS };
+  if (globalThis.window === undefined) return { ...DEFAULT_HIDDEN_COLUMNS };
   try {
     const stored = localStorage.getItem(COLUMNS_STORAGE_KEY);
     if (stored) return JSON.parse(stored);

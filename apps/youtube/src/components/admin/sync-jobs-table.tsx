@@ -191,8 +191,8 @@ export function SyncJobsTable({
                 })}
                 {jobs.length === 0 && loading && (
                   <>
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <TableRow key={i}>
+                    {["sk-a", "sk-b", "sk-c", "sk-d"].map((id) => (
+                      <TableRow key={id}>
                         <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-16 rounded-md" /></TableCell>
                         <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>

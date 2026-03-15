@@ -231,6 +231,81 @@ function computeDateRange(videoIds: string[], videoMap: Map<string, VideoData>):
   return { first: dates[0] ?? "", last: dates.at(-1) ?? "" };
 }
 
+type NewSegment = { name: string; videoIds: string[]; reasoning?: string; videoEvidence?: Record<string, string> };
+
+function mergeIntoAdjacent(
+  adjacent: Saga,
+  validIds: string[],
+  seg: NewSegment,
+  assignedVideoIds: Set<string>,
+  videoMap: Map<string, VideoData>
+): void {
+  for (const id of validIds) {
+    adjacent.videoIds.push(id);
+    assignedVideoIds.add(id);
+  }
+  adjacent.videoCount = adjacent.videoIds.length;
+  adjacent.dateRange = computeDateRange(adjacent.videoIds, videoMap);
+  if (seg.reasoning) {
+    adjacent.reasoning = adjacent.reasoning
+      ? `${adjacent.reasoning} ${seg.reasoning}`
+      : seg.reasoning;
+  }
+  if (seg.videoEvidence) {
+    adjacent.videoEvidence = { ...adjacent.videoEvidence, ...seg.videoEvidence };
+  }
+}
+
+function createNewSaga(
+  seg: NewSegment,
+  validIds: string[],
+  baseName: string,
+  result: Saga[],
+  videoMap: Map<string, VideoData>,
+  batchIndex: number
+): Saga {
+  const dateRange = computeDateRange(validIds, videoMap);
+  const hasDuplicate = result.some((s) => s.source === "ai-detected" && namesMatch(s.name, baseName));
+  const name = hasDuplicate ? baseName + makeDateSuffix(dateRange.first) : baseName;
+
+  return {
+    id: `ai-${batchIndex}-${name.toLowerCase().replaceAll(/\s+/g, "-")}`,
+    name,
+    source: "ai-detected",
+    videoIds: validIds,
+    videoCount: validIds.length,
+    dateRange,
+    reasoning: seg.reasoning,
+    videoEvidence: seg.videoEvidence,
+  };
+}
+
+function processNewSegment(
+  seg: NewSegment,
+  result: Saga[],
+  assignedVideoIds: Set<string>,
+  videoMap: Map<string, VideoData>,
+  dateMap: Map<string, number>,
+  batchIndex: number
+): void {
+  const validIds = seg.videoIds.filter(
+    (id) => videoMap.has(id) && !assignedVideoIds.has(id)
+  );
+  if (validIds.length === 0) return;
+
+  const baseName = stripDateSuffix(seg.name);
+  const adjacent = findAdjacentSaga(result, baseName, validIds, dateMap);
+
+  if (validIds.length < 2 && !adjacent) return;
+
+  if (adjacent) {
+    mergeIntoAdjacent(adjacent, validIds, seg, assignedVideoIds, videoMap);
+  } else {
+    for (const id of validIds) assignedVideoIds.add(id);
+    result.push(createNewSaga(seg, validIds, baseName, result, videoMap, batchIndex));
+  }
+}
+
 export function mergeSagaSegments(
   existingSagas: Saga[],
   newSegments: Array<{ name: string; videoIds: string[]; reasoning?: string; videoEvidence?: Record<string, string> }>,
@@ -239,7 +314,6 @@ export function mergeSagaSegments(
   excludeVideoIds?: Set<string>
 ): Saga[] {
   const videoMap = new Map(videos.map((v) => [v.videoId, v]));
-
   const dateMap = new Map(videos.map((v) => [v.videoId, new Date(v.publishedAt).getTime()]));
 
   const result = [...existingSagas];
@@ -249,49 +323,7 @@ export function mergeSagaSegments(
   }
 
   for (const seg of newSegments) {
-    const validIds = seg.videoIds.filter(
-      (id) => videoMap.has(id) && !assignedVideoIds.has(id)
-    );
-    if (validIds.length === 0) continue;
-
-    const baseName = stripDateSuffix(seg.name);
-    const adjacent = findAdjacentSaga(result, baseName, validIds, dateMap);
-
-    if (validIds.length < 2 && !adjacent) continue;
-
-    if (adjacent) {
-      for (const id of validIds) {
-        adjacent.videoIds.push(id);
-        assignedVideoIds.add(id);
-      }
-      adjacent.videoCount = adjacent.videoIds.length;
-      adjacent.dateRange = computeDateRange(adjacent.videoIds, videoMap);
-      if (seg.reasoning) {
-        adjacent.reasoning = adjacent.reasoning
-          ? `${adjacent.reasoning} ${seg.reasoning}`
-          : seg.reasoning;
-      }
-      if (seg.videoEvidence) {
-        adjacent.videoEvidence = { ...adjacent.videoEvidence, ...seg.videoEvidence };
-      }
-    } else {
-      for (const id of validIds) assignedVideoIds.add(id);
-
-      const dateRange = computeDateRange(validIds, videoMap);
-      const hasDuplicate = result.some((s) => s.source === "ai-detected" && namesMatch(s.name, baseName));
-      const name = hasDuplicate ? baseName + makeDateSuffix(dateRange.first) : baseName;
-
-      result.push({
-        id: `ai-${batchIndex}-${name.toLowerCase().replaceAll(/\s+/g, "-")}`,
-        name,
-        source: "ai-detected",
-        videoIds: validIds,
-        videoCount: validIds.length,
-        dateRange,
-        reasoning: seg.reasoning,
-        videoEvidence: seg.videoEvidence,
-      });
-    }
+    processNewSegment(seg, result, assignedVideoIds, videoMap, dateMap, batchIndex);
   }
 
   return result.sort((a, b) => a.dateRange.first.localeCompare(b.dateRange.first));

@@ -214,7 +214,7 @@ async function removeVideosFromOtherSagas(
         .filter((d): d is string => !!d)
         .sort((a, b) => a.localeCompare(b));
       const dateRange = dates.length > 0
-        ? { first: dates[0], last: dates.at(-1)! }
+        ? { first: dates[0], last: dates.at(-1) ?? "" }
         : { first: "", last: "" };
       await db
         .update(sagas)

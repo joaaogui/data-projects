@@ -137,12 +137,12 @@ export function WebGLBackground() {
       mouse.current.y = -(e.clientY / window.innerHeight - 0.5);
     };
 
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => window.removeEventListener("pointermove", onMove);
+    globalThis.addEventListener("pointermove", onMove, { passive: true });
+    return () => globalThis.removeEventListener("pointermove", onMove);
   }, []);
 
   useEffect(() => {
-    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mql = globalThis.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mql.matches);
     const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
     mql.addEventListener("change", handler);

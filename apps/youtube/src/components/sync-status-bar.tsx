@@ -56,7 +56,7 @@ function SyncBar({
   const isActive = state.status === "running" || state.status === "pending";
 
   return (
-    <div role="status" aria-busy="true">
+    <output aria-busy="true">
       <div className={`flex items-center gap-3 ${showLogs ? "rounded-t-2xl" : "rounded-2xl"} border ${borderClass} px-4 py-2.5`}>
         <Loader2 className={`h-4 w-4 animate-spin ${spinnerClass} shrink-0`} />
         <div className="flex-1 min-w-0" aria-live="polite">
@@ -69,7 +69,8 @@ function SyncBar({
         </div>
         {progress?.total && progress.total > 0 && (
           <div className="w-24 shrink-0">
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
+            <progress value={Math.round(pct)} max={100} className="sr-only">{Math.round(pct)}%</progress>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
               <div
                 className={`h-full rounded-full ${barClass} transition-all duration-300 animate-progress-stripe`}
                 style={{ width: `${pct}%` }}
@@ -100,7 +101,7 @@ function SyncBar({
         )}
       </div>
       {showLogs && <SyncLogPanel logs={logs} isActive={isActive} />}
-    </div>
+    </output>
   );
 }
 
@@ -188,7 +189,7 @@ export function SyncStatusBar({ videoSync, transcriptSync, videoLogs, transcript
   return (
     <>
       {isSyncing && (
-        <div className="mb-3 flex-shrink-0 space-y-2 animate-fade-down">
+        <div className="mb-3 shrink-0 space-y-2 animate-fade-down">
           {videoSync && (videoSync.status === "running" || videoSync.status === "pending") && (
             <SyncBar
               state={videoSync}
@@ -211,7 +212,7 @@ export function SyncStatusBar({ videoSync, transcriptSync, videoLogs, transcript
       )}
 
       {!isSyncing && (
-        <div className="mb-3 flex-shrink-0 space-y-2">
+        <div className="mb-3 shrink-0 space-y-2">
           {videoSync?.status === "completed" && !dismissedVideo && (
             <div className="transition-opacity duration-500">
               <CompletedLogViewer

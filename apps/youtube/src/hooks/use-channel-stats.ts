@@ -52,6 +52,58 @@ export interface ChannelStats {
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+function computeCadenceLabel(sorted: VideoData[]): string {
+  if (sorted.length < 2) return "N/A";
+  const first = dayjs(sorted[0].publishedAt);
+  const last = dayjs(sorted.at(-1)!.publishedAt);
+  const totalWeeks = last.diff(first, "week") || 1;
+  const perWeek = sorted.length / totalWeeks;
+  if (perWeek >= 1) {
+    return `${perWeek.toFixed(1)}/week`;
+  }
+  const perMonth = perWeek * 4.33;
+  return `${perMonth.toFixed(1)}/month`;
+}
+
+function computeCadenceStats(videos: VideoData[], sorted: VideoData[]): CadenceStats {
+  const dayOfWeekCounts = [0, 0, 0, 0, 0, 0, 0];
+  for (const v of videos) {
+    const dow = new Date(v.publishedAt).getDay();
+    dayOfWeekCounts[dow]++;
+  }
+  const bestDayIdx = dayOfWeekCounts.indexOf(Math.max(...dayOfWeekCounts));
+
+  const gaps: number[] = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const diff = dayjs(sorted[i].publishedAt).diff(dayjs(sorted[i - 1].publishedAt), "day");
+    gaps.push(diff);
+  }
+  const avgDaysBetween = gaps.length > 0 ? gaps.reduce((a, b) => a + b, 0) / gaps.length : 0;
+
+  const firstHalfGaps = gaps.slice(0, Math.floor(gaps.length / 2));
+  const secondHalfGaps = gaps.slice(Math.floor(gaps.length / 2));
+  const firstAvg = firstHalfGaps.length > 0 ? firstHalfGaps.reduce((a, b) => a + b, 0) / firstHalfGaps.length : 0;
+  const secondAvg = secondHalfGaps.length > 0 ? secondHalfGaps.reduce((a, b) => a + b, 0) / secondHalfGaps.length : 0;
+  let cadenceTrend: CadenceStats["trend"] = "steady";
+  if (secondAvg < firstAvg * 0.8) {
+    cadenceTrend = "accelerating";
+  } else if (secondAvg > firstAvg * 1.2) {
+    cadenceTrend = "decelerating";
+  }
+
+  const totalWeeks = sorted.length >= 2 ? Math.max(1, dayjs(sorted.at(-1)!.publishedAt).diff(dayjs(sorted[0].publishedAt), "week")) : 1;
+  const uploadsPerWeek = sorted.length / totalWeeks;
+
+  return {
+    avgDaysBetween,
+    uploadsPerWeek,
+    uploadsPerMonth: uploadsPerWeek * 4.33,
+    dayOfWeekCounts,
+    bestDay: DAY_NAMES[bestDayIdx],
+    trend: cadenceTrend,
+  };
+}
+
 const DURATION_RANGES: Array<{ label: string; range: string; min: number; max: number }> = [
   { label: "<1m", range: "0-60s", min: 0, max: 60 },
   { label: "1-5m", range: "1-5 min", min: 60, max: 300 },
@@ -74,19 +126,7 @@ export function useChannelStats(videos: VideoData[] | null): ChannelStats | null
       (a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime()
     );
 
-    let cadenceLabel = "N/A";
-    if (sorted.length >= 2) {
-      const first = dayjs(sorted[0].publishedAt);
-      const last = dayjs(sorted.at(-1)!.publishedAt);
-      const totalWeeks = last.diff(first, "week") || 1;
-      const perWeek = sorted.length / totalWeeks;
-      if (perWeek >= 1) {
-        cadenceLabel = `${perWeek.toFixed(1)}/week`;
-      } else {
-        const perMonth = perWeek * 4.33;
-        cadenceLabel = `${perMonth.toFixed(1)}/month`;
-      }
-    }
+    const cadenceLabel = computeCadenceLabel(sorted);
 
     const bucketSize = Math.max(1, Math.floor(sorted.length / 12));
     const sparklinePoints: number[] = [];
@@ -138,37 +178,7 @@ export function useChannelStats(videos: VideoData[] | null): ChannelStats | null
       };
     });
 
-    const dayOfWeekCounts = [0, 0, 0, 0, 0, 0, 0];
-    for (const v of videos) {
-      const dow = new Date(v.publishedAt).getDay();
-      dayOfWeekCounts[dow]++;
-    }
-    const bestDayIdx = dayOfWeekCounts.indexOf(Math.max(...dayOfWeekCounts));
-
-    const gaps: number[] = [];
-    for (let i = 1; i < sorted.length; i++) {
-      const diff = dayjs(sorted[i].publishedAt).diff(dayjs(sorted[i - 1].publishedAt), "day");
-      gaps.push(diff);
-    }
-    const avgDaysBetween = gaps.length > 0 ? gaps.reduce((a, b) => a + b, 0) / gaps.length : 0;
-
-    const firstHalfGaps = gaps.slice(0, Math.floor(gaps.length / 2));
-    const secondHalfGaps = gaps.slice(Math.floor(gaps.length / 2));
-    const firstAvg = firstHalfGaps.length > 0 ? firstHalfGaps.reduce((a, b) => a + b, 0) / firstHalfGaps.length : 0;
-    const secondAvg = secondHalfGaps.length > 0 ? secondHalfGaps.reduce((a, b) => a + b, 0) / secondHalfGaps.length : 0;
-    const cadenceTrend: CadenceStats["trend"] = secondAvg < firstAvg * 0.8 ? "accelerating" : secondAvg > firstAvg * 1.2 ? "decelerating" : "steady";
-
-    const totalWeeks = sorted.length >= 2 ? Math.max(1, dayjs(sorted.at(-1)!.publishedAt).diff(dayjs(sorted[0].publishedAt), "week")) : 1;
-    const uploadsPerWeek = sorted.length / totalWeeks;
-
-    const cadence: CadenceStats = {
-      avgDaysBetween,
-      uploadsPerWeek,
-      uploadsPerMonth: uploadsPerWeek * 4.33,
-      dayOfWeekCounts,
-      bestDay: DAY_NAMES[bestDayIdx],
-      trend: cadenceTrend,
-    };
+    const cadence = computeCadenceStats(videos, sorted);
 
     return {
       avgScore,

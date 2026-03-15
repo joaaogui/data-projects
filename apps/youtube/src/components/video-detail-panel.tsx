@@ -70,7 +70,7 @@ export function VideoDetailPanel({
   const [transcript, setTranscript] = useState<{ fullText: string | null; excerpt: string | null; language: string | null } | null>(null);
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDialogElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const isLiked = accountData.likedVideoIds.has(video.videoId);
 
@@ -133,8 +133,16 @@ export function VideoDetailPanel({
   const publishDate = dayjs(video.publishedAt).format("MMM D, YYYY");
   const hasDescription = video.description && video.description.trim().length > 0;
 
+  let animationClass = 'animate-fade-up';
+  if (direction === 'right') animationClass = 'animate-slide-right';
+  else if (direction === 'left') animationClass = 'animate-slide-left';
+
+  let transcriptLabel = 'Show transcript';
+  if (transcriptLoading) transcriptLabel = 'Loading transcript...';
+  else if (transcriptExpanded) transcriptLabel = 'Hide transcript';
+
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 outline-none" role="dialog" aria-modal="true" aria-label={`Video details: ${video.title}`}>
+    <dialog open ref={modalRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 outline-none max-w-none max-h-none" aria-modal="true" aria-label={`Video details: ${video.title}`}>
       <button type="button" className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity duration-300 cursor-default" aria-label="Close" onClick={onClose} />
 
       <div className="relative w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] rounded-t-3xl sm:rounded-3xl border border-border/50 bg-card shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-[0.97] duration-300">
@@ -145,10 +153,10 @@ export function VideoDetailPanel({
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg" disabled={!prevVideo} onClick={() => { setDirection('left'); prevVideo && onSelectVideo(prevVideo.videoId); }} title="Previous video (←)" aria-label="Previous video">
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg" disabled={!prevVideo} onClick={() => { setDirection('left'); if (prevVideo) onSelectVideo(prevVideo.videoId); }} title="Previous video (←)" aria-label="Previous video">
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg" disabled={!nextVideo} onClick={() => { setDirection('right'); nextVideo && onSelectVideo(nextVideo.videoId); }} title="Next video (→)" aria-label="Next video">
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg" disabled={!nextVideo} onClick={() => { setDirection('right'); if (nextVideo) onSelectVideo(nextVideo.videoId); }} title="Next video (→)" aria-label="Next video">
               <ChevronRight className="h-4 w-4" />
             </Button>
             <div className="w-px h-4 bg-border/30 mx-1" />
@@ -158,9 +166,9 @@ export function VideoDetailPanel({
           </div>
         </div>
 
-        <div key={video.videoId} className={`flex-1 overflow-y-auto ${direction === 'right' ? 'animate-slide-right' : direction === 'left' ? 'animate-slide-left' : 'animate-fade-up'}`}>
+        <div key={video.videoId} className={`flex-1 overflow-y-auto ${animationClass}`}>
           <div className="flex flex-col sm:flex-row">
-            <div className="sm:w-[300px] flex-shrink-0">
+            <div className="sm:w-[300px] shrink-0">
               <div className="relative aspect-video w-full">
                 <Image
                   src={video.thumbnail.replace("default", "hqdefault")}
@@ -169,7 +177,7 @@ export function VideoDetailPanel({
                   sizes="(min-width: 640px) 300px, 100vw"
                   className="object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
                 <div className="absolute bottom-2.5 right-2.5 bg-black/80 backdrop-blur-sm text-white text-xs px-2 py-0.5 rounded-md font-medium tabular-nums">
                   {formatDuration(video.duration)}
                 </div>
@@ -207,22 +215,22 @@ export function VideoDetailPanel({
               <div className="flex items-start gap-3 sm:gap-4">
                 <ScoreRing score={video.score} scoreComponents={video.scoreComponents} weights={weights} size={64} />
                 <div className="grid grid-cols-4 gap-1.5 sm:gap-2 flex-1">
-                  <div className="rounded-xl bg-gradient-to-br from-sky-500/5 to-sky-500/10 p-2.5 text-center ring-1 ring-sky-500/10">
+                  <div className="rounded-xl bg-linear-to-br from-sky-500/5 to-sky-500/10 p-2.5 text-center ring-1 ring-sky-500/10">
                     <Eye className="h-3.5 w-3.5 mx-auto mb-0.5 text-sky-500" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.views)}</p>
                     <p className="text-[10px] text-muted-foreground">views</p>
                   </div>
-                  <div className="rounded-xl bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 p-2.5 text-center ring-1 ring-emerald-500/10">
+                  <div className="rounded-xl bg-linear-to-br from-emerald-500/5 to-emerald-500/10 p-2.5 text-center ring-1 ring-emerald-500/10">
                     <ThumbsUp className="h-3.5 w-3.5 mx-auto mb-0.5 text-emerald-500" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.likes)}</p>
                     <p className="text-[10px] text-muted-foreground">likes</p>
                   </div>
-                  <div className="rounded-xl bg-gradient-to-br from-violet-500/5 to-violet-500/10 p-2.5 text-center ring-1 ring-violet-500/10">
+                  <div className="rounded-xl bg-linear-to-br from-violet-500/5 to-violet-500/10 p-2.5 text-center ring-1 ring-violet-500/10">
                     <MessageSquare className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-500" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.comments)}</p>
                     <p className="text-[10px] text-muted-foreground">comments</p>
                   </div>
-                  <div className="rounded-xl bg-gradient-to-br from-amber-500/5 to-amber-500/10 p-2.5 text-center ring-1 ring-amber-500/10">
+                  <div className="rounded-xl bg-linear-to-br from-amber-500/5 to-amber-500/10 p-2.5 text-center ring-1 ring-amber-500/10">
                     <Star className="h-3.5 w-3.5 mx-auto mb-0.5 text-amber-500" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.favorites)}</p>
                     <p className="text-[10px] text-muted-foreground">favorites</p>
@@ -279,13 +287,7 @@ export function VideoDetailPanel({
                 }}
                 className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
               >
-                {transcriptLoading ? (
-                  <>Loading transcript...</>
-                ) : transcriptExpanded ? (
-                  <>Hide transcript</>
-                ) : (
-                  <>Show transcript</>
-                )}
+                {transcriptLabel}
                 {transcript?.language && (
                   <span className="text-[10px] bg-muted rounded px-1 py-0.5 ml-1">{transcript.language}</span>
                 )}
@@ -319,6 +321,6 @@ export function VideoDetailPanel({
           </a>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

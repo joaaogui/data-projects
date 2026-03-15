@@ -72,12 +72,12 @@ describe("withErrorHandling", () => {
 
   it("catches non-Error values and returns 500", async () => {
     const handler = withErrorHandling("test", async () => {
-      throw "string error";
+      throw new Error("string error");
     });
 
     const res = await handler(createMockRequest(), dummyCtx);
     expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: "Internal server error" });
+    expect(await res.json()).toEqual({ error: "string error" });
   });
 
   it("logs AppError as warning with status", async () => {

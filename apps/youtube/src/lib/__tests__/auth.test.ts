@@ -28,7 +28,7 @@ async function loadAuth(allowedEmails: string) {
   vi.resetModules();
   capturedConfig = undefined;
   await import("../auth");
-  return capturedConfig!.callbacks as AuthCallbacks;
+  return capturedConfig!.callbacks as AuthCallbacks; // NOSONAR
 }
 
 describe("auth", () => {
