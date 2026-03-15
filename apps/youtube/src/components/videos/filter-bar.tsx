@@ -1,5 +1,6 @@
 "use client";
 
+import { capture } from "@/lib/analytics";
 import type { VideoData } from "@/types/youtube";
 import {
   Button,
@@ -20,6 +21,37 @@ import { WeightsEditor } from "../weights-editor";
 
 export const WEIGHTS_STORAGE_KEY = "youtube-metric-weights";
 export const COLUMNS_STORAGE_KEY = "youtube-column-visibility";
+export const TABLE_MODE_KEY = "youtube-table-mode";
+
+export type TableMode = "essential" | "full";
+
+export const ESSENTIAL_COLUMNS: VisibilityState = {
+  liked: false,
+  duration: false,
+  days: false,
+  viewsPerDay: false,
+  viewsPerHour: false,
+  viewsPerContentMin: false,
+  likes: false,
+  comments: false,
+};
+
+export function loadTableModeFromStorage(): TableMode {
+  if (typeof window === "undefined") return "essential";
+  try {
+    const stored = localStorage.getItem(TABLE_MODE_KEY);
+    if (stored === "full" || stored === "essential") return stored;
+    const hasExistingPrefs = localStorage.getItem(COLUMNS_STORAGE_KEY);
+    if (hasExistingPrefs) return "full";
+  } catch { /* noop */ }
+  return "essential";
+}
+
+export function saveTableModeToStorage(mode: TableMode): void {
+  try {
+    localStorage.setItem(TABLE_MODE_KEY, mode);
+  } catch { /* noop */ }
+}
 
 export const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
   viewsPerDay: false,
@@ -146,6 +178,8 @@ export function FilterBar({
   processedData,
   onHighlight,
   onExportCsv,
+  tableMode,
+  onTableModeChange,
 }: Readonly<{
   searchInput: string;
   onSearchInputChange: (value: string) => void;
@@ -157,6 +191,8 @@ export function FilterBar({
   processedData: VideoData[];
   onHighlight: (ids: Set<string>) => void;
   onExportCsv: () => void;
+  tableMode: TableMode;
+  onTableModeChange: (mode: TableMode) => void;
 }>) {
   const isDefaultWeights = METRIC_TYPES.every(
     t => weights[t] === DEFAULT_WEIGHTS[t]
@@ -190,28 +226,62 @@ export function FilterBar({
         )}
       </div>
       <div className="flex items-center gap-1 ml-auto">
-        <ColumnVisibilityToggle
-          visibility={columnVisibility}
-          onChange={onColumnVisibilityChange}
-        />
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 px-2" aria-label="Adjust weights">
-              <SlidersHorizontal className="h-3.5 w-3.5 sm:mr-1.5" />
-              <span className="hidden sm:inline">Weights</span>
-              {!isDefaultWeights && (
-                <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary" />
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="p-3">
-            <WeightsEditor weights={weights} onChange={onWeightsChange} />
-          </PopoverContent>
-        </Popover>
+        <div className="hidden sm:flex items-center rounded-lg border border-border/40 p-0.5">
+          <button
+            onClick={() => {
+              onTableModeChange("essential");
+              capture('table_mode_changed', { mode: 'essential' });
+            }}
+            className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${tableMode === "essential"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
+            aria-label="Essential view"
+            aria-pressed={tableMode === "essential"}
+          >
+            Essential
+          </button>
+          <button
+            onClick={() => {
+              onTableModeChange("full");
+              capture('table_mode_changed', { mode: 'full' });
+            }}
+            className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${tableMode === "full"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+              }`}
+            aria-label="Full view"
+            aria-pressed={tableMode === "full"}
+          >
+            Full
+          </button>
+        </div>
+        {tableMode === "full" && (
+          <>
+            <ColumnVisibilityToggle
+              visibility={columnVisibility}
+              onChange={onColumnVisibilityChange}
+            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-2" aria-label="Adjust score weights">
+                  <SlidersHorizontal className="h-3.5 w-3.5 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Weights</span>
+                  {!isDefaultWeights && (
+                    <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="p-3">
+                <WeightsEditor weights={weights} onChange={onWeightsChange} />
+              </PopoverContent>
+            </Popover>
+          </>
+        )}
         <AIDrawer videos={processedData} onHighlight={onHighlight} />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 px-2 active:scale-95 transition-transform" onClick={onExportCsv} aria-label="Export as CSV">
+            <Button variant="ghost" size="sm" className="h-7 px-2 active:scale-95 transition-transform" onClick={() => { onExportCsv(); capture('feature_used', { feature: 'csv_export' }); }} aria-label="Export as CSV">
               <Download className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>

@@ -56,7 +56,7 @@ function SyncBar({
   const isActive = state.status === "running" || state.status === "pending";
 
   return (
-    <div>
+    <div role="status" aria-busy="true">
       <div className={`flex items-center gap-3 ${showLogs ? "rounded-t-2xl" : "rounded-2xl"} border ${borderClass} px-4 py-2.5`}>
         <Loader2 className={`h-4 w-4 animate-spin ${spinnerClass} shrink-0`} />
         <div className="flex-1 min-w-0" aria-live="polite">
@@ -69,7 +69,7 @@ function SyncBar({
         </div>
         {progress?.total && progress.total > 0 && (
           <div className="w-24 shrink-0">
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
               <div
                 className={`h-full rounded-full ${barClass} transition-all duration-300 animate-progress-stripe`}
                 style={{ width: `${pct}%` }}

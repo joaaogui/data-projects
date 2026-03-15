@@ -44,6 +44,7 @@ export interface DataTableProps<TData, TValue> {
   globalFilterFn?: FilterFn<TData>;
   emptyMessage?: string;
   rowClassName?: (row: Row<TData>, index: number) => string;
+  rowStyle?: (row: Row<TData>, index: number) => React.CSSProperties | undefined;
   stickyHeader?: boolean;
   renderExpandedRow?: (row: Row<TData>) => React.ReactNode;
   onRowClick?: (row: Row<TData>) => void;
@@ -88,6 +89,7 @@ export function DataTable<TData, TValue>({
   globalFilterFn,
   emptyMessage = "No results found.",
   rowClassName,
+  rowStyle,
   stickyHeader = true,
   renderExpandedRow,
   onRowClick,
@@ -183,6 +185,7 @@ export function DataTable<TData, TValue>({
                       )}
                       style={{
                         animationDelay: `${index * 20}ms`,
+                        ...rowStyle?.(row, index),
                       }}
                       onClick={getRowClickHandler(row)}
                     >

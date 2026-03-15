@@ -23,11 +23,15 @@ import { METRIC_CONFIGS, METRIC_TYPES, getNormalizedWeight, type MetricWeights }
 import { QuickFilters, getFilterPredicate, type QuickFilterId } from "../quick-filters";
 import { VideoDetailPanel } from "../video-detail-panel";
 import {
+  ESSENTIAL_COLUMNS,
   FilterBar,
   loadColumnsFromStorage,
+  loadTableModeFromStorage,
   loadWeightsFromStorage,
   saveColumnsToStorage,
-  saveWeightsToStorage
+  saveTableModeToStorage,
+  saveWeightsToStorage,
+  type TableMode,
 } from "./filter-bar";
 
 function useIsMobile(breakpoint = 768) {
@@ -228,6 +232,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
   const isMobile = useIsMobile();
   const [weights, setWeights] = useState<MetricWeights>(() => loadWeightsFromStorage());
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => loadColumnsFromStorage());
+  const [tableMode, setTableMode] = useState<TableMode>(() => loadTableModeFromStorage());
   const [isHydrated, setIsHydrated] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -249,6 +254,19 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const firstInteractionFired = useRef(false);
+  const mountTime = useRef(performance.now());
+
+  const fireFirstInteraction = useCallback((action: string) => {
+    if (firstInteractionFired.current) return;
+    firstInteractionFired.current = true;
+    import("@/lib/analytics").then(({ capture: c }) =>
+      c("first_meaningful_interaction", {
+        action,
+        timeFromPageLoadMs: Math.round(performance.now() - mountTime.current),
+      })
+    );
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearchFilter(searchInput), 150);
@@ -262,6 +280,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
   useEffect(() => {
     setWeights(loadWeightsFromStorage());
     setColumnVisibility(loadColumnsFromStorage());
+    setTableMode(loadTableModeFromStorage());
     setIsHydrated(true);
   }, []);
 
@@ -276,6 +295,16 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
       saveColumnsToStorage(columnVisibility);
     }
   }, [columnVisibility, isHydrated]);
+
+  const handleTableModeChange = useCallback((mode: TableMode) => {
+    setTableMode(mode);
+    saveTableModeToStorage(mode);
+  }, []);
+
+  const effectiveColumnVisibility = useMemo(
+    () => tableMode === "essential" ? { ...columnVisibility, ...ESSENTIAL_COLUMNS } : columnVisibility,
+    [tableMode, columnVisibility]
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -442,7 +471,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className={`inline-flex flex-col items-center rounded-md px-2 py-1 cursor-help ${bgClass}`}>
+              <div className={`inline-flex flex-col items-center rounded-md px-2 py-1 cursor-help ${bgClass}`} aria-label={`Score: ${score.toFixed(0)} - ${label.label}`}>
                 <span className="text-sm font-bold tabular-nums">{score.toFixed(0)}</span>
                 <span className="text-[10px] font-medium leading-none">{label.label}</span>
                 {score >= 80 && <div className="absolute inset-0 animate-shimmer rounded-md" />}
@@ -713,10 +742,14 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
           processedData={processedData}
           onHighlight={handleHighlight}
           onExportCsv={handleExportCsv}
+          tableMode={tableMode}
+          onTableModeChange={handleTableModeChange}
         />
-        <div className="animate-fade-up" style={{ animationDelay: '50ms' }}>
-          <QuickFilters videos={data} activeFilters={activeFilters} onToggle={handleFilterToggle} />
-        </div>
+        {(tableMode === "full" || activeFilters.size > 0) && (
+          <div className="animate-fade-up" style={{ animationDelay: '50ms' }}>
+            <QuickFilters videos={data} activeFilters={activeFilters} onToggle={handleFilterToggle} />
+          </div>
+        )}
       </div>
 
       <div className="flex-1 min-h-0">
@@ -726,14 +759,17 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
             searchFilter={searchFilter}
             highlightedVideoIds={highlightedVideoIds}
             selectedVideoId={selectedVideoId}
-            onSelectVideo={setSelectedVideoId}
+            onSelectVideo={(id) => {
+              if (id) fireFirstInteraction('video_click');
+              setSelectedVideoId(id);
+            }}
           />
         ) : (
           <DataTable
             columns={columns}
             data={processedData}
             defaultSorting={[{ id: "score", desc: true }]}
-            columnVisibility={columnVisibility}
+            columnVisibility={effectiveColumnVisibility}
             onColumnVisibilityChange={setColumnVisibility}
             globalFilter={searchFilter}
             onGlobalFilterChange={setSearchFilter}
@@ -744,8 +780,17 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
               itemName: "videos",
             }}
             emptyMessage={searchFilter ? "No videos match your search." : "No videos found."}
+            rowStyle={(row) => {
+              const score = row.original.score;
+              const color = score >= 80
+                ? "hsl(160 50% 50% / 0.3)"
+                : score >= 40
+                  ? "hsl(172 48% 45% / 0.2)"
+                  : "hsl(240 4% 30% / 0.15)";
+              return { "--row-score-color": color } as React.CSSProperties;
+            }}
             rowClassName={(row) => {
-              const classes: string[] = ["border-l-2 hover:border-l-[3px]", "transition-all duration-150", "hover:bg-muted/30"];
+              const classes: string[] = ["border-l-2 hover:border-l-[3px]", "transition-all duration-150", "hover:bg-muted/30", "row-score-glow"];
               const score = row.original.score;
               classes.push(getScoreBorderClass(score));
 
@@ -761,9 +806,11 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
               }
               return classes.join(" ");
             }}
-            onRowClick={(row) => setSelectedVideoId(
-              selectedVideoId === row.original.videoId ? null : row.original.videoId
-            )}
+            onRowClick={(row) => {
+              const id = selectedVideoId === row.original.videoId ? null : row.original.videoId;
+              if (id) fireFirstInteraction('video_click');
+              setSelectedVideoId(id);
+            }}
           />
         )}
       </div>

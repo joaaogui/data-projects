@@ -129,7 +129,7 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
 
   if (collapsed) {
     return (
-      <div className="flex items-center justify-between mb-4 flex-shrink-0 rounded-2xl glass px-3 sm:px-4 py-2.5">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0 rounded-2xl bg-card border border-border/40 px-3 sm:px-4 py-2.5">
         <div className="flex items-center gap-2 sm:gap-4 text-sm min-w-0 overflow-hidden">
           <span className="font-medium shrink-0">{videos.length} videos</span>
           <span className="text-muted-foreground/40 shrink-0">&middot;</span>
@@ -148,7 +148,7 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
 
   return (
     <div className="mb-4 flex-shrink-0 space-y-2">
-      <div className="flex items-center justify-between rounded-2xl glass px-3 sm:px-4 py-2.5 animate-fade-down">
+      <div className="flex items-center justify-between rounded-2xl bg-card border border-border/40 px-3 sm:px-4 py-2.5 animate-fade-down">
         <div className="flex items-center gap-2 sm:gap-4 text-sm min-w-0 overflow-hidden">
           <span className="font-medium shrink-0">{videos.length} videos</span>
           <span className="text-muted-foreground/40 shrink-0">&middot;</span>
@@ -165,9 +165,8 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         <div className="animate-fade-up" style={{ animationDelay: '0ms' }}>
-          <Card className="glass rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300">
+          <Card className="rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border/40">
             <CardContent className="p-3 sm:p-4 relative">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-sky-500/8 to-transparent rounded-bl-full" />
               <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                 <Eye className="h-3.5 w-3.5 text-sky-500" />
                 <span className="text-xs font-medium uppercase tracking-wider">Total Views</span>
@@ -179,9 +178,8 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
         </div>
 
         <div className="animate-fade-up" style={{ animationDelay: '60ms' }}>
-          <Card className="glass rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300">
+          <Card className="rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border/40">
             <CardContent className="p-3 sm:p-4 relative">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-emerald-500/8 to-transparent rounded-bl-full" />
               <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                 <div className="flex items-center gap-1.5">
                   <span className="animate-slide-right inline-flex" style={{ animationDelay: '200ms' }}>
@@ -206,9 +204,8 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
         <div className="animate-fade-up lg:col-span-2" style={{ animationDelay: '120ms' }}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Card className="glass rounded-2xl cursor-help overflow-hidden group hover:glow-primary transition-shadow duration-300 h-full">
+              <Card className="rounded-2xl cursor-help overflow-hidden group hover:glow-primary transition-shadow duration-300 h-full bg-card border-border/40">
                 <CardContent className="p-3 sm:p-4 relative h-full">
-                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-amber-500/8 to-transparent rounded-bl-full" />
                   <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                     <Trophy className="h-3.5 w-3.5 text-amber-500" />
                     <span className="text-xs font-medium uppercase tracking-wider">Top Performer</span>
@@ -241,9 +238,8 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
         </div>
 
         <div className="animate-fade-up" style={{ animationDelay: '180ms' }}>
-          <Card className="glass rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300">
+          <Card className="rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border/40">
             <CardContent className="p-3 sm:p-4 relative">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-violet-500/8 to-transparent rounded-bl-full" />
               <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                 <ThumbsUp className="h-3.5 w-3.5 text-violet-500" />
                 <span className="text-xs font-medium uppercase tracking-wider">Avg Engagement</span>
@@ -258,9 +254,8 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
         </div>
 
         <div className="animate-fade-up col-span-2 sm:col-span-1" style={{ animationDelay: '240ms' }}>
-          <Card className="glass rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300">
+          <Card className="rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border/40">
             <CardContent className="p-3 sm:p-4 relative">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-orange-500/8 to-transparent rounded-bl-full" />
               <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                 <Calendar className="h-3.5 w-3.5 text-orange-500" />
                 <span className="text-xs font-medium uppercase tracking-wider">Upload Cadence</span>

@@ -37,10 +37,9 @@ const METRIC_BAR_COLORS: Record<string, { text: string; bg: string }> = {
   community: { text: "text-violet-600 dark:text-violet-400", bg: "bg-violet-600 dark:bg-violet-400" },
 };
 
-function MetricBar({ label, value, metricType }: Readonly<{ label: string; value: number; metricType: string }>) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setMounted(true), 50); return () => clearTimeout(t); }, []);
+function MetricBar({ label, value, metricType, index = 0 }: Readonly<{ label: string; value: number; metricType: string; index?: number }>) {
   const colors = METRIC_BAR_COLORS[metricType] ?? { text: "text-muted-foreground", bg: "bg-muted-foreground" };
+  const fill = Math.min(value, 100) / 100;
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-xs">
@@ -49,8 +48,8 @@ function MetricBar({ label, value, metricType }: Readonly<{ label: string; value
       </div>
       <div className="h-2 rounded-full bg-muted/60 overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-700 ease-out ${colors.bg}`}
-          style={{ width: mounted ? `${Math.min(value, 100)}%` : '0%', opacity: mounted ? 0.85 : 0 }}
+          className={`h-full w-full rounded-full animate-bar-fill ${colors.bg}`}
+          style={{ '--fill': fill, animationDelay: `${index * 80}ms`, opacity: 0.85 } as React.CSSProperties}
         />
       </div>
     </div>
@@ -128,7 +127,7 @@ export function VideoDetailPanel({
               <ChevronRight className="h-4 w-4" />
             </Button>
             <div className="w-px h-4 bg-border/30 mx-1" />
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-7 w-7 p-0 rounded-lg">
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-7 w-7 p-0 rounded-lg" aria-label="Close">
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -205,13 +204,13 @@ export function VideoDetailPanel({
 
           <div className="px-4 sm:px-5 pb-4 space-y-2.5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Performance Breakdown</p>
-            {METRIC_TYPES.map((type) => {
+            {METRIC_TYPES.map((type, i) => {
               const config = METRIC_CONFIGS[type];
               const componentKey = METRIC_TO_COMPONENT[type];
               const value = video.scoreComponents[componentKey] ?? 0;
               const weight = getNormalizedWeight(weights, type);
               return (
-                <MetricBar key={type} label={`${config.label} (${weight}%)`} value={value} metricType={type} />
+                <MetricBar key={type} label={`${config.label} (${weight}%)`} value={value} metricType={type} index={i} />
               );
             })}
           </div>

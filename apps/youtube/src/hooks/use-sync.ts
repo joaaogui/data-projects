@@ -1,5 +1,6 @@
 "use client";
 
+import { capture } from "@/lib/analytics";
 import type { FetchProgress, SyncLogEntry } from "@/types/youtube";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,6 +13,7 @@ export interface SyncJobState {
   status: "pending" | "running" | "completed" | "failed";
   progress: FetchProgress | null;
   error: string | null;
+  retryAfterSeconds?: number;
 }
 
 const POLL_INTERVAL_MS = 2000;
@@ -67,6 +69,9 @@ export function useSync(channelId: string | null) {
 
         if (data.status === "completed" || data.status === "failed") {
           if (data.status === "completed") {
+            if (type === "videos") {
+              capture('channel_sync_completed', { channelId, videoCount: data.progress?.total });
+            }
             if (type === "videos" || type === "transcripts") {
               queryClient.invalidateQueries({ queryKey: ["channel-videos", channelId] });
               queryClient.invalidateQueries({ queryKey: ["channel-info", channelId] });
@@ -169,6 +174,29 @@ export function useSync(channelId: string | null) {
     videoLogCountRef.current = 0;
     try {
       const res = await fetch(`/api/sync/channel/${channelId}`, { method: "POST" });
+      if (!res.ok) {
+        if (res.status === 429) {
+          const retryAfter = Number.parseInt(res.headers.get("Retry-After") ?? "60", 10);
+          setVideoSync({
+            jobId: "",
+            type: "videos",
+            status: "failed",
+            progress: null,
+            error: "Too many requests. Please wait a moment and try again.",
+            retryAfterSeconds: retryAfter,
+          });
+          return;
+        }
+        const errorData = await res.json().catch(() => ({ error: "Failed to start sync" }));
+        setVideoSync({
+          jobId: "",
+          type: "videos",
+          status: "failed",
+          progress: null,
+          error: errorData.error ?? `Sync failed (${res.status})`,
+        });
+        return;
+      }
       const data = await res.json();
       const state: SyncJobState = {
         jobId: data.jobId,
@@ -178,6 +206,7 @@ export function useSync(channelId: string | null) {
         error: null,
       };
       setVideoSync(state);
+      capture('channel_sync_started', { channelId, source: 'manual' });
       startPolling(data.jobId, "videos");
     } catch (err) {
       setVideoSync({
@@ -197,6 +226,29 @@ export function useSync(channelId: string | null) {
     try {
       const query = options?.retry ? "?retry=true" : "";
       const res = await fetch(`/api/sync/transcripts/${channelId}${query}`, { method: "POST" });
+      if (!res.ok) {
+        if (res.status === 429) {
+          const retryAfter = Number.parseInt(res.headers.get("Retry-After") ?? "60", 10);
+          setTranscriptSync({
+            jobId: "",
+            type: "transcripts",
+            status: "failed",
+            progress: null,
+            error: "Too many requests. Please wait a moment and try again.",
+            retryAfterSeconds: retryAfter,
+          });
+          return;
+        }
+        const errorData = await res.json().catch(() => ({ error: "Failed to start transcript sync" }));
+        setTranscriptSync({
+          jobId: "",
+          type: "transcripts",
+          status: "failed",
+          progress: null,
+          error: errorData.error ?? `Transcript sync failed (${res.status})`,
+        });
+        return;
+      }
       const data = await res.json();
       const state: SyncJobState = {
         jobId: data.jobId,
@@ -228,6 +280,29 @@ export function useSync(channelId: string | null) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: options?.mode ?? "full" }),
       });
+      if (!res.ok) {
+        if (res.status === 429) {
+          const retryAfter = Number.parseInt(res.headers.get("Retry-After") ?? "60", 10);
+          setSagaSync({
+            jobId: "",
+            type: "sagas",
+            status: "failed",
+            progress: null,
+            error: "Too many requests. Please wait a moment and try again.",
+            retryAfterSeconds: retryAfter,
+          });
+          return;
+        }
+        const errorData = await res.json().catch(() => ({ error: "Failed to start saga analysis" }));
+        setSagaSync({
+          jobId: "",
+          type: "sagas",
+          status: "failed",
+          progress: null,
+          error: errorData.error ?? `Saga analysis failed (${res.status})`,
+        });
+        return;
+      }
       const data = await res.json();
       const state: SyncJobState = {
         jobId: data.jobId,

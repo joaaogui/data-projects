@@ -16,7 +16,9 @@ function TabButton({ active, onClick, icon, label, count }: Readonly<TabButtonPr
   return (
     <button
       role="tab"
+      id={`tab-${label.toLowerCase()}`}
       aria-selected={active}
+      aria-controls={`tabpanel-${label.toLowerCase()}`}
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-all duration-200 ${active
           ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"

@@ -1,4 +1,3 @@
-import { dbRowsToVideoData } from "@/lib/video-mapper";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import { validateChannelId, getSafeErrorMessage } from "@/lib/validation";
 import {
@@ -10,9 +9,7 @@ import {
 } from "@data-projects/shared";
 import { db } from "@/db";
 import { videos } from "@/db/schema";
-import { eq } from "drizzle-orm";
-
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+import { eq, sql, count, sum, avg, min, max } from "drizzle-orm";
 
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
@@ -48,14 +45,22 @@ export async function GET(
     }
 
     const channelId = validation.sanitized ?? rawChannelId;
-    const { searchParams } = new URL(request.url);
-    const compact = searchParams.get("fields") === "compact";
 
-    const dbRows = await db.select().from(videos).where(eq(videos.channelId, channelId));
+    const [stats] = await db
+      .select({
+        videoCount: count(),
+        totalViews: sum(videos.views),
+        avgScore: avg(videos.score),
+        avgEngagementRate: sql<number>`avg((${videos.rates}->>'engagementRate')::real)`,
+        firstPublishedAt: min(videos.publishedAt),
+        lastPublishedAt: max(videos.publishedAt),
+      })
+      .from(videos)
+      .where(eq(videos.channelId, channelId));
 
-    if (dbRows.length === 0) {
+    if (stats.videoCount === 0) {
       return Response.json(
-        { videos: [], source: "none", fresh: false, fetchedAt: null },
+        { stats: null },
         {
           headers: mergeHeaders(
             corsHeaders,
@@ -65,33 +70,38 @@ export async function GET(
       );
     }
 
-    const oldestFetchMs = dbRows.reduce(
-      (min, r) => Math.min(min, r.fetchedAt.getTime()),
-      dbRows[0].fetchedAt.getTime()
-    );
-    const oldestFetch = new Date(oldestFetchMs);
-    const isFresh = Date.now() - oldestFetch.getTime() < SIX_HOURS_MS;
-
-    const videoData = dbRowsToVideoData(dbRows);
-    const responseVideos = compact
-      ? videoData.map(({ description, ...rest }) => rest)
-      : videoData;
-
     return Response.json(
-      { videos: responseVideos, source: "database", fresh: isFresh, fetchedAt: oldestFetch.toISOString() },
+      {
+        stats: {
+          videoCount: stats.videoCount,
+          totalViews: Number(stats.totalViews),
+          avgScore: stats.avgScore === null ? null : Number(stats.avgScore),
+          avgEngagementRate:
+            stats.avgEngagementRate === null
+              ? null
+              : Number(stats.avgEngagementRate),
+          dateRange: {
+            first: stats.firstPublishedAt?.toISOString() ?? null,
+            last: stats.lastPublishedAt?.toISOString() ?? null,
+          },
+        },
+      },
       {
         headers: mergeHeaders(
           corsHeaders,
           withRateLimitHeaders(rateLimitResult),
-          { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" }
+          {
+            "Cache-Control":
+              "public, s-maxage=300, stale-while-revalidate=3600",
+          }
         ),
       }
     );
   } catch (error) {
-    console.error("Fetch videos error:", error);
+    console.error("Fetch channel stats error:", error);
     return Response.json(
       {
-        error: getSafeErrorMessage(error, "Failed to fetch channel videos"),
+        error: getSafeErrorMessage(error, "Failed to fetch channel stats"),
       },
       { status: 500, headers: corsHeaders }
     );

@@ -1,9 +1,10 @@
 "use client";
 
-import { ChannelDashboard } from "@/components/channel-dashboard";
-import { ChannelHeader } from "@/components/channel-header";
-import { ChannelTabs } from "@/components/channel-tabs";
+import { ChannelOverview } from "@/components/channel-overview";
+import { CommandPalette } from "@/components/command-palette";
+import { ContextRail, type RailTab } from "@/components/context-rail";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { FirstSyncFlow } from "@/components/first-sync-flow";
 import { saveRecentChannel } from "@/components/recent-channels";
 import { SagasView } from "@/components/sagas";
 import { SearchChannel } from "@/components/search-channel";
@@ -12,14 +13,37 @@ import { TimelineView } from "@/components/timeline-view";
 import { VideosTable } from "@/components/videos";
 import { YouTubeIcon } from "@/components/youtube-icon";
 import { ChannelProvider, useChannel } from "@/hooks/use-channel-context";
+import { useChannelStats } from "@/hooks/use-channel-stats";
 import { Button, Navbar, Skeleton } from "@data-projects/ui";
-import { AlertCircle, ArrowLeft } from "lucide-react";
+import { AlertCircle, ArrowLeft, Calendar, Eye, Minus, ThumbsUp, TrendingDown, TrendingUp } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 function YouTubeLogo() {
   return <YouTubeIcon className="h-8 w-8 sm:h-10 sm:w-10 text-foreground" />;
+}
+
+function KpiPill({ label, value, icon }: Readonly<{ label: string; value: string; icon: React.ReactNode }>) {
+  return (
+    <div
+      className="flex items-center gap-2 rounded-full bg-card border border-border/40 px-3 py-1.5"
+      aria-label={`${label}: ${value}`}
+    >
+      {icon}
+      <div className="flex flex-col">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground leading-none">{label}</span>
+        <span className="text-sm font-bold font-mono tabular-nums leading-tight">{value}</span>
+      </div>
+    </div>
+  );
+}
+
+function TrendIcon({ value }: Readonly<{ value: number }>) {
+  if (value > 2) return <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />;
+  if (value < -2) return <TrendingDown className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />;
+  return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
 }
 
 function ChannelPageContent() {
@@ -42,11 +66,11 @@ function ChannelPageContent() {
     syncTranscripts,
     cancelSync,
     isVideoSyncing,
-    isTranscriptSyncing,
     isSyncing,
     handleRefresh,
-    accountData,
   } = useChannel();
+
+  const stats = useChannelStats(videos);
 
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
@@ -56,11 +80,11 @@ function ChannelPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const activeTab = (searchParams.get("tab") as "videos" | "timeline" | "sagas") || "videos";
+  const activeTab = (searchParams.get("tab") as RailTab) || "overview";
 
-  const setActiveTab = useCallback((tab: "videos" | "timeline" | "sagas") => {
+  const setActiveTab = useCallback((tab: RailTab) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (tab === "videos") {
+    if (tab === "overview") {
       params.delete("tab");
     } else {
       params.set("tab", tab);
@@ -74,7 +98,15 @@ function ChannelPageContent() {
   const handleOpenTimeline = useCallback((videoId: string) => {
     setTimelineVideoId(videoId);
     setActiveTab("timeline");
-  }, []);
+  }, [setActiveTab]);
+
+  const handleNavigateToVideo = useCallback((videoId: string) => {
+    setActiveTab("videos");
+  }, [setActiveTab]);
+
+  const handleNavigateToSagas = useCallback(() => {
+    setActiveTab("sagas");
+  }, [setActiveTab]);
 
   useEffect(() => {
     if (channelInfo) {
@@ -82,21 +114,19 @@ function ChannelPageContent() {
     }
   }, [channelId, channelInfo]);
 
-  useEffect(() => {
-    if (autoSyncTriggered.current) return;
-    if (isLoadingVideos || isFetchingVideos) return;
-    if (source === "none" && !isVideoSyncing) {
-      autoSyncTriggered.current = true;
-      syncVideos();
-    }
-  }, [source, isLoadingVideos, isFetchingVideos, isVideoSyncing, syncVideos]);
+  const isFirstSync = source === "none" && !isVideoSyncing && !autoSyncTriggered.current;
+  const isInitialLoading = !hydrated || isLoadingVideos;
+  const showFirstSyncFlow = isFirstSync || (source === "none" && isVideoSyncing) || (videoSync?.status === "completed" && videos?.length === 0) || (videoSync?.status === "failed" && (!videos || videos.length === 0));
+  const hasVideos = videos && videos.length > 0;
 
-  const isInitialLoading = !hydrated || isLoadingVideos || (source === "none" && isVideoSyncing);
+  const handleSyncReady = useCallback(() => {
+    autoSyncTriggered.current = true;
+  }, []);
 
   if (channelError) {
     return (
       <div className="h-screen flex flex-col overflow-hidden">
-        <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} appName="YouTube Analyzer" search={<SearchChannel compact />} themeIconClassName="text-primary" />
+        <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} search={<SearchChannel compact />} themeIconClassName="text-primary" />
         <main className="flex-1 min-h-0 container mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center min-h-[50vh] text-center animate-scale-in">
             <div className="rounded-full bg-destructive/10 p-4 mb-4"><AlertCircle className="h-8 w-8 text-destructive" /></div>
@@ -111,88 +141,148 @@ function ChannelPageContent() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} appName="YouTube Analyzer" search={<SearchChannel initialValue={hydrated ? channelInfo?.channelTitle : undefined} compact />} themeIconClassName="text-primary" />
-      <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
-        <ErrorBoundary>
-          <ChannelHeader
-            channelId={channelId}
-            channelInfo={channelInfo}
-            isLoadingChannel={isLoadingChannel}
-            videos={videos}
-            isVideoSyncing={isVideoSyncing}
-            isTranscriptSyncing={isTranscriptSyncing}
-            isLoadingVideos={isLoadingVideos}
-            isFetchingVideos={isFetchingVideos}
-            onSyncVideos={syncVideos}
-            onSyncTranscripts={syncTranscripts}
-            onRefresh={handleRefresh}
-            fresh={fresh}
-            fetchedAt={fetchedAt}
-            accountData={accountData}
-          />
-        </ErrorBoundary>
-        <SyncStatusBar videoSync={videoSync} transcriptSync={transcriptSync} videoLogs={videoLogs} transcriptLogs={transcriptLogs} isSyncing={isSyncing} onCancel={cancelSync} />
+      <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} search={<SearchChannel initialValue={hydrated ? channelInfo?.channelTitle : undefined} compact />} themeIconClassName="text-primary" />
 
-        {isInitialLoading && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center py-16 animate-fade-up">
-            <div className="relative"><YouTubeIcon className="h-12 w-12 text-foreground/60 animate-pulse" /></div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">
-                {isVideoSyncing ? "Syncing videos from YouTube..." : "Loading videos..."}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {videoSync?.progress?.phase === "saving"
-                  ? `Saving video ${videoSync.progress.fetched.toLocaleString()} of ${videoSync.progress.total?.toLocaleString()}`
-                  : "This may take a moment for channels with many videos"}
-              </p>
-              {videoSync?.progress?.total && videoSync.progress.phase === "saving" && (
-                <div className="w-48 mx-auto mt-2">
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-primary transition-all duration-300 animate-progress-stripe" style={{ width: `${Math.min(100, (videoSync.progress.fetched / videoSync.progress.total) * 100)}%` }} />
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        <ContextRail
+          channelInfo={channelInfo}
+          channelId={channelId}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          isSyncing={isSyncing}
+          videoSync={videoSync}
+          transcriptSync={transcriptSync}
+          onSyncVideos={syncVideos}
+          onSyncTranscripts={syncTranscripts}
+          videoCount={videos?.length ?? 0}
+        />
+
+        <main className="flex-1 min-h-0 flex flex-col overflow-hidden" role="main" aria-label={channelInfo ? `Channel analysis for ${channelInfo.channelTitle}` : "Channel analysis"}>
+          {/* Condensed header with KPI strip */}
+          {channelInfo && (
+            <div className="flex-shrink-0 border-b border-border/40 px-4 sm:px-6 py-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative h-10 w-10 shrink-0">
+                    <Image
+                      src={channelInfo.thumbnails.default.url}
+                      alt={channelInfo.channelTitle}
+                      fill
+                      sizes="40px"
+                      className="rounded-full object-cover ring-1 ring-border/50"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="text-lg font-bold tracking-tight truncate">{channelInfo.channelTitle}</h1>
+                    {hasVideos && fetchedAt && (
+                      <p className="text-xs text-muted-foreground">
+                        {videos.length} videos analyzed
+                        {fresh === false && (
+                          <button onClick={handleRefresh} className="text-primary hover:underline ml-1.5" disabled={isLoadingVideos || isFetchingVideos}>
+                            Refresh
+                          </button>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-            <div className="mt-6 space-y-2 max-w-4xl mx-auto w-full">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-2xl border border-border/30 p-3" style={{ animationDelay: `${i * 80}ms` }}>
-                  <Skeleton className="w-20 h-11 rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-3.5 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
+
+                {stats && (
+                  <div className="flex flex-wrap items-center gap-2 ml-auto">
+                    <KpiPill
+                      label="Views"
+                      value={stats.totalViewsFormatted}
+                      icon={<Eye className="h-3.5 w-3.5 text-sky-500" />}
+                    />
+                    <KpiPill
+                      label="Avg Score"
+                      value={stats.avgScore.toFixed(1)}
+                      icon={<TrendIcon value={stats.scoreTrend} />}
+                    />
+                    <KpiPill
+                      label="Engagement"
+                      value={`${stats.avgEngagement.toFixed(1)}/1K`}
+                      icon={<ThumbsUp className="h-3.5 w-3.5 text-violet-500" />}
+                    />
+                    <KpiPill
+                      label="Cadence"
+                      value={stats.cadenceLabel}
+                      icon={<Calendar className="h-3.5 w-3.5 text-orange-500" />}
+                    />
                   </div>
-                  <Skeleton className="h-8 w-12 rounded-lg" />
-                  <Skeleton className="h-3 w-16" />
+                )}
+              </div>
+            </div>
+          )}
+
+          {!channelInfo && isLoadingChannel && (
+            <div className="flex-shrink-0 border-b border-border/40 px-4 sm:px-6 py-3">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-3 w-32" />
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {!isInitialLoading && videos?.length === 0 && !isVideoSyncing && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center py-16 animate-scale-in">
-            <div className="rounded-full bg-muted p-4"><AlertCircle className="h-8 w-8 text-muted-foreground" /></div>
-            <p className="text-sm font-medium">No public videos found</p>
-            <p className="text-xs text-muted-foreground">This channel has no publicly available videos to analyze.</p>
-          </div>
-        )}
+          <SyncStatusBar videoSync={videoSync} transcriptSync={transcriptSync} videoLogs={videoLogs} transcriptLogs={transcriptLogs} isSyncing={isSyncing} onCancel={cancelSync} />
 
-        {videos && videos.length > 0 && (
-          <>
-            <ErrorBoundary>
-              <ChannelDashboard videos={videos} />
-            </ErrorBoundary>
-            <ChannelTabs activeTab={activeTab} onTabChange={setActiveTab} counts={{ videos: videos.length }} />
-            <div className="flex-1 min-h-0">
-              <ErrorBoundary>
-                {activeTab === "videos" && <VideosTable data={videos} onOpenTimeline={handleOpenTimeline} />}
-                {activeTab === "timeline" && <TimelineView videos={videos} initialVideoId={timelineVideoId} />}
-                {activeTab === "sagas" && <SagasView channelId={channelId} videos={videos} />}
-              </ErrorBoundary>
-            </div>
-          </>
-        )}
-      </main>
+          {/* Content area */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 pb-20 md:pb-4">
+            {isInitialLoading && !showFirstSyncFlow && (
+              <div className="flex items-center justify-center min-h-[40vh]">
+                <div className="animate-pulse text-muted-foreground">Loading...</div>
+              </div>
+            )}
+
+            {showFirstSyncFlow && (
+              <FirstSyncFlow
+                channelInfo={channelInfo}
+                isLoadingChannel={isLoadingChannel}
+                videoSync={videoSync}
+                isVideoSyncing={isVideoSyncing}
+                onSyncVideos={syncVideos}
+                onCancelSync={cancelSync}
+                onReady={handleSyncReady}
+              />
+            )}
+
+            {!isInitialLoading && !showFirstSyncFlow && hasVideos && (
+              <div id={`tabpanel-${activeTab}`} role="tabpanel" aria-labelledby={`tab-${activeTab}`} className="h-full">
+                <ErrorBoundary>
+                  {activeTab === "overview" && (
+                    <ChannelOverview
+                      videos={videos}
+                      channelId={channelId}
+                      onNavigateToVideo={handleNavigateToVideo}
+                      onNavigateToSagas={handleNavigateToSagas}
+                    />
+                  )}
+                  {activeTab === "videos" && <VideosTable data={videos} onOpenTimeline={handleOpenTimeline} />}
+                  {activeTab === "timeline" && <TimelineView videos={videos} initialVideoId={timelineVideoId} />}
+                  {activeTab === "sagas" && <SagasView channelId={channelId} videos={videos} />}
+                </ErrorBoundary>
+              </div>
+            )}
+
+            {!isInitialLoading && !showFirstSyncFlow && !hasVideos && !isVideoSyncing && (
+              <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4 text-center animate-scale-in">
+                <div className="rounded-full bg-muted p-4"><AlertCircle className="h-8 w-8 text-muted-foreground" /></div>
+                <p className="text-sm font-medium">No public videos found</p>
+                <p className="text-xs text-muted-foreground">This channel has no publicly available videos to analyze.</p>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
+      <CommandPalette
+        onNavigate={setActiveTab}
+        onSyncVideos={syncVideos}
+        onSyncTranscripts={() => syncTranscripts()}
+      />
     </div>
   );
 }
