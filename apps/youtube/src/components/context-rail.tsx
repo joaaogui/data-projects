@@ -8,6 +8,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Compass,
   Database,
   FileText,
   LayoutDashboard,
@@ -19,7 +20,7 @@ import {
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 
-export type RailTab = "overview" | "videos" | "timeline" | "sagas";
+export type RailTab = "overview" | "videos" | "timeline" | "sagas" | "discover";
 
 const STORAGE_KEY = "youtube-rail-collapsed";
 
@@ -28,6 +29,7 @@ const NAV_ITEMS: { id: RailTab; label: string; icon: typeof LayoutDashboard }[] 
   { id: "videos", label: "Videos", icon: TableProperties },
   { id: "timeline", label: "Timeline", icon: Calendar },
   { id: "sagas", label: "Sagas", icon: BookOpen },
+  { id: "discover", label: "Discover", icon: Compass },
 ];
 
 interface ContextRailProps {
@@ -122,11 +124,10 @@ export function ContextRail({
                 aria-selected={isActive}
                 aria-controls={`tabpanel-${id}`}
                 onClick={() => onTabChange(id)}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${
-                  isActive
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${isActive
                     ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                }`}
+                  }`}
                 title={collapsed ? label : undefined}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -238,11 +239,10 @@ export function ContextRail({
                 aria-selected={isActive}
                 aria-controls={`tabpanel-${id}`}
                 onClick={() => onTabChange(id)}
-                className={`flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[11px] font-medium transition-colors ${
-                  isActive
+                className={`flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[11px] font-medium transition-colors ${isActive
                     ? "text-primary"
                     : "text-muted-foreground active:scale-95"
-                }`}
+                  }`}
               >
                 <Icon className={`h-5 w-5 ${isActive ? "text-primary" : ""}`} />
                 {label}

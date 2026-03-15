@@ -4,6 +4,7 @@ import {
   BarChart3,
   BookOpen,
   Calendar,
+  Compass,
   Database,
   Download,
   FileText,
@@ -18,7 +19,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface CommandPaletteProps {
-  onNavigate: (tab: "overview" | "videos" | "timeline" | "sagas") => void;
+  onNavigate: (tab: "overview" | "videos" | "timeline" | "sagas" | "discover") => void;
   onSyncVideos: () => void;
   onSyncTranscripts: () => void;
   onShareReport?: () => void;
@@ -55,6 +56,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
     { id: "nav-videos", label: "Videos", icon: TableProperties, group: "Navigation", action: () => { onNavigate("videos"); close(); } },
     { id: "nav-timeline", label: "Timeline", icon: Calendar, group: "Navigation", action: () => { onNavigate("timeline"); close(); } },
     { id: "nav-sagas", label: "Sagas", icon: BookOpen, group: "Navigation", action: () => { onNavigate("sagas"); close(); } },
+    { id: "nav-discover", label: "Discover", icon: Compass, group: "Navigation", action: () => { onNavigate("discover"); close(); } },
     {
       id: "tool-ai", label: "Ask AI", icon: Sparkles, group: "Tools", shortcut: "⌘J",
       action: () => { onNavigate("videos"); close(); setTimeout(() => document.dispatchEvent(new CustomEvent("open-ai-drawer")), 100); },

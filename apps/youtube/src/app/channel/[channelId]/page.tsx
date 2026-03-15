@@ -3,6 +3,7 @@
 import { ChannelOverview } from "@/components/channel-overview";
 import { CommandPalette } from "@/components/command-palette";
 import { ContextRail, type RailTab } from "@/components/context-rail";
+import { DiscoverView } from "@/components/discover";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { FirstSyncFlow } from "@/components/first-sync-flow";
 import { saveRecentChannel } from "@/components/recent-channels";
@@ -369,6 +370,7 @@ function ChannelPageContent() {
                   {activeTab === "videos" && <VideosTable data={videos} onOpenTimeline={handleOpenTimeline} />}
                   {activeTab === "timeline" && <TimelineView videos={videos} initialVideoId={timelineVideoId} />}
                   {activeTab === "sagas" && <SagasView channelId={channelId} videos={videos} />}
+                  {activeTab === "discover" && <DiscoverView channelId={channelId} videos={videos} />}
                 </ErrorBoundary>
               </div>
             )}
