@@ -1,24 +1,43 @@
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+import { z } from "zod";
+
+const envSchema = z.object({
+  POSTGRES_URL: z.string().min(1),
+  AUTH_SECRET: z.string().min(1),
+  AUTH_GOOGLE_ID: z.string().min(1),
+  AUTH_GOOGLE_SECRET: z.string().min(1),
+  YOUTUBE_API_KEY: z.string().min(1),
+  ALLOWED_EMAILS: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
+  GOOGLE_AI_API_KEY: z.string().optional(),
+  SYNC_SECRET: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
+  NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
+  LOG_LEVEL: z.string().optional(),
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+const isTest = process.env.NODE_ENV === "test" || process.env.VITEST;
+
+function loadEnv(): Env {
+  const result = envSchema.safeParse(process.env);
+  if (result.success) return result.data;
+  if (isTest) {
+    return {
+      POSTGRES_URL: "postgresql://test:test@localhost/test",
+      AUTH_SECRET: "test-secret",
+      AUTH_GOOGLE_ID: "test-google-id",
+      AUTH_GOOGLE_SECRET: "test-google-secret",
+      YOUTUBE_API_KEY: "test-api-key",
+      ...process.env,
+    } as Env;
   }
-  return value;
+  throw result.error;
 }
 
-function optional(name: string): string | undefined {
-  return process.env[name] || undefined;
-}
+export const env = loadEnv();
 
-export const env = {
-  POSTGRES_URL: required("POSTGRES_URL"),
-  AUTH_SECRET: required("AUTH_SECRET"),
-  AUTH_GOOGLE_ID: required("AUTH_GOOGLE_ID"),
-  AUTH_GOOGLE_SECRET: required("AUTH_GOOGLE_SECRET"),
-  YOUTUBE_API_KEY: required("YOUTUBE_API_KEY"),
-  ALLOWED_EMAILS: optional("ALLOWED_EMAILS"),
-  GROQ_API_KEY: optional("GROQ_API_KEY"),
-  GOOGLE_AI_API_KEY: optional("GOOGLE_AI_API_KEY"),
-  SYNC_SECRET: optional("SYNC_SECRET"),
-  NEXT_PUBLIC_POSTHOG_KEY: optional("NEXT_PUBLIC_POSTHOG_KEY"),
-} as const;
+export const allowedEmails = (env.ALLOWED_EMAILS ?? "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);

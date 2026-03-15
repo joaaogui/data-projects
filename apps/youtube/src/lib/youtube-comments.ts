@@ -1,3 +1,5 @@
+import { env } from "./env";
+
 const API_URL = "https://www.googleapis.com/youtube/v3";
 
 interface YouTubeComment {
@@ -12,8 +14,7 @@ export async function fetchTopComments(
   videoId: string,
   maxResults = 20
 ): Promise<YouTubeComment[]> {
-  const apiKey = process.env.YOUTUBE_API_KEY;
-  if (!apiKey) throw new Error("YouTube API key not configured");
+  const apiKey = env.YOUTUBE_API_KEY;
 
   const url = `${API_URL}/commentThreads?part=snippet&videoId=${videoId}&maxResults=${maxResults}&order=relevance&textFormat=plainText&key=${apiKey}`;
 

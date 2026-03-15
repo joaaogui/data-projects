@@ -1,10 +1,11 @@
 import { db } from "@/db";
 import { channels, sharedReports, videos } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { withErrorHandling } from "@/lib/route-handler";
 import { eq, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandling("share:POST", async (request) => {
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -76,4 +77,4 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ reportId: id, expiresAt: expiresAt.toISOString() });
-}
+});

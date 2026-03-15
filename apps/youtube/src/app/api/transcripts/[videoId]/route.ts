@@ -1,13 +1,11 @@
 import { db } from "@/db";
 import { transcripts } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { withErrorHandling } from "@/lib/route-handler";
 import { eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ videoId: string }> }
-) {
+export const GET = withErrorHandling("transcripts:GET", async (_request, { params }) => {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -39,4 +37,4 @@ export async function GET(
       language: row.language,
     },
   });
-}
+});

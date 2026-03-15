@@ -233,3 +233,37 @@ export const savedChannels = pgTable(
     index("saved_channels_user_channel_idx").on(table.userId, table.channelId),
   ]
 );
+
+export const sharedComparisons = pgTable("shared_comparisons", {
+  id: text("id").primaryKey(),
+  channelIds: jsonb("channel_ids").$type<string[]>().notNull(),
+  channelTitles: jsonb("channel_titles").$type<string[]>().notNull(),
+  snapshotData: jsonb("snapshot_data").$type<{
+    channels: Array<{
+      channelId: string;
+      title: string;
+      videoCount: number;
+      avgScore: number;
+      avgEngagement: number;
+      totalViews: number;
+      cadencePerWeek: number;
+    }>;
+  }>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+});
+
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  name: text("name"),
+  image: text("image"),
+  plan: text("plan").$type<"free" | "pro" | "enterprise">().notNull().default("free"),
+  syncQuotaDaily: integer("sync_quota_daily").notNull().default(10),
+  syncUsageToday: integer("sync_usage_today").notNull().default(0),
+  syncUsageResetAt: timestamp("sync_usage_reset_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  lastActiveAt: timestamp("last_active_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("users_email_idx").on(table.email),
+]);

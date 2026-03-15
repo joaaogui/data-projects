@@ -80,7 +80,10 @@ export async function syncChannelVideos(channelId: string, jobId: string): Promi
 
     log.info(`Save phase: ${allVideos.length} videos in ${((Date.now() - saveStart) / 1000).toFixed(1)}s`);
 
-    captureChannelSnapshot(channelId).catch(() => {});
+    captureChannelSnapshot(channelId).catch((err) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn(`Failed to capture channel snapshot: ${msg}`);
+    });
 
     return { fetched: allVideos.length, total: allVideos.length };
   });

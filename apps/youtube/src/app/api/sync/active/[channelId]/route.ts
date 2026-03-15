@@ -1,23 +1,24 @@
 import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { createTaggedLogger } from "@/lib/logger";
+import { withErrorHandling } from "@/lib/route-handler";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ channelId: string }> }
-) {
+const log = createTaggedLogger("sync-active");
+
+export const GET = withErrorHandling("sync-active", async (_req, ctx) => {
   const start = Date.now();
-  console.log("[Sync Active] request received");
+  log.info("Request received");
   const session = await auth();
   if (!session) {
-    console.log("[Sync Active] auth failed", { elapsedMs: Date.now() - start });
+    log.info({ elapsedMs: Date.now() - start }, "Auth failed");
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { channelId } = await params;
-  console.log("[Sync Active] params", { channelId });
+  const { channelId } = await ctx.params;
+  log.info({ channelId }, "Fetching active jobs");
 
   const activeJobs = await db
     .select({
@@ -37,10 +38,10 @@ export async function GET(
     )
     .orderBy(desc(syncJobs.createdAt));
 
-  console.log("[Sync Active] db query complete", {
+  log.info({
     channelId,
     count: activeJobs.length,
     elapsedMs: Date.now() - start,
-  });
+  }, "Active jobs fetched");
   return NextResponse.json(activeJobs);
-}
+});

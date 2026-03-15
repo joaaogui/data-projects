@@ -1,10 +1,11 @@
 import { db } from "@/db";
 import { channels, videos } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { withErrorHandling } from "@/lib/route-handler";
 import { inArray, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
+export const GET = withErrorHandling("compare:GET", async (request) => {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -60,4 +61,4 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json({ channels: results });
-}
+});

@@ -1,0 +1,43 @@
+name: Monorepo CI
+
+on:
+  push:
+    branches: [main]
+    paths: ['packages/**']
+  pull_request:
+    branches: [main]
+    paths: ['packages/**']
+
+jobs:
+  quality:
+    name: Verify all apps
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [youtube, imdb-best-season, spotify-popularity]
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build

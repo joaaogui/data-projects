@@ -1,9 +1,12 @@
 import { db } from "@/db";
 import { transcripts } from "@/db/schema";
 import { getModel } from "@/lib/ai-providers";
+import { createTaggedLogger } from "@/lib/logger";
 import { fetchTranscriptBatch } from "@/lib/transcript";
 import { generateText } from "ai";
 import { inArray } from "drizzle-orm";
+
+const log = createTaggedLogger("saga-ai");
 
 export const MAX_VIDEOS_PER_BATCH = 50;
 
@@ -151,7 +154,7 @@ export function parseAiResponse(
   const cleaned = text.replaceAll(/```(?:json)?\s*/g, "").replaceAll(/```\s*$/g, "");
   const jsonMatch = /\{[\s\S]*\}/.exec(cleaned);
   if (!jsonMatch) {
-    console.error("[Saga Analyze] No JSON found:", cleaned.slice(0, 300));
+    log.error({ preview: cleaned.slice(0, 300) }, "No JSON found in AI response");
     return { segments: [], tailContext: "" };
   }
 
@@ -164,7 +167,7 @@ export function parseAiResponse(
   try {
     parsed = JSON.parse(jsonMatch[0]);
   } catch {
-    console.error("[Saga Analyze] JSON parse error:", jsonMatch[0].slice(0, 300));
+    log.error({ preview: jsonMatch[0].slice(0, 300) }, "JSON parse error in AI response");
     return { segments: [], tailContext: "" };
   }
 
@@ -244,7 +247,7 @@ export async function loadTranscriptsForVideos(
         .insert(transcripts)
         .values(newRows)
         .onConflictDoNothing()
-        .catch((err) => console.warn("[Saga Analyze] Failed to cache transcripts:", err));
+        .catch((err) => log.warn({ err }, "Failed to cache transcripts"));
     }
   }
 

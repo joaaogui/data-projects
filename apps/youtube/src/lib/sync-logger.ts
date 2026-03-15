@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
 import type { SyncLogEntry } from "@/types/youtube";
 import { eq, sql } from "drizzle-orm";
+import { createTaggedLogger } from "./logger";
 
 export interface JobLogger {
   info(msg: string): void;
@@ -11,7 +12,7 @@ export interface JobLogger {
 }
 
 export function createJobLogger(jobId: string, prefix: string): JobLogger {
-  const tag = `[${prefix}][${jobId.slice(0, 8)}]`;
+  const log = createTaggedLogger(`job:${prefix}`).child({ jobId: jobId.slice(0, 8) });
   const buffer: SyncLogEntry[] = [];
   let flushPromise: Promise<void> | null = null;
 
@@ -19,9 +20,9 @@ export function createJobLogger(jobId: string, prefix: string): JobLogger {
     const entry: SyncLogEntry = { ts: Date.now(), level, msg };
     buffer.push(entry);
 
-    if (level === "error") console.error(tag, msg);
-    else if (level === "warn") console.warn(tag, msg);
-    else console.log(tag, msg);
+    if (level === "error") log.error(msg);
+    else if (level === "warn") log.warn(msg);
+    else log.info(msg);
   }
 
   async function doFlush() {

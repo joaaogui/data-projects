@@ -1,8 +1,11 @@
 import { db } from "@/db";
 import { transcripts, videos } from "@/db/schema";
-import { getModel } from "./ai-providers";
-import { eq } from "drizzle-orm";
 import { generateText } from "ai";
+import { eq } from "drizzle-orm";
+import { getModel } from "./ai-providers";
+import { createTaggedLogger } from "./logger";
+
+const log = createTaggedLogger("topic-extraction");
 
 export async function extractTopicsForVideo(
   title: string,
@@ -71,8 +74,8 @@ export async function extractTopicsForChannel(
                 .where(eq(videos.id, row.videoId));
             }
           }
-        } catch {
-          // skip on error
+        } catch (err) {
+          log.warn({ err, videoId: row.videoId }, "Failed to extract topics for video");
         }
         done++;
         onProgress?.(done, total);

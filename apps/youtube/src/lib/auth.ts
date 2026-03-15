@@ -1,5 +1,9 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { allowedEmails, env } from "./env";
+import { createTaggedLogger } from "./logger";
+
+const log = createTaggedLogger("auth");
 
 interface OAuthToken {
   access_token?: string;
@@ -14,11 +18,6 @@ declare module "next-auth" {
     accessToken?: string;
   }
 }
-
-const allowedEmails = (process.env.ALLOWED_EMAILS ?? "")
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -64,8 +63,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({
-            client_id: process.env.AUTH_GOOGLE_ID!,
-            client_secret: process.env.AUTH_GOOGLE_SECRET!,
+            client_id: env.AUTH_GOOGLE_ID,
+            client_secret: env.AUTH_GOOGLE_SECRET,
             grant_type: "refresh_token",
             refresh_token: refreshToken,
           }),
@@ -78,7 +77,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         t.expires_at = Math.floor(Date.now() / 1000) + data.expires_in;
         if (data.refresh_token) t.refresh_token = data.refresh_token;
       } catch (err) {
-        console.error("[auth] token refresh failed:", err);
+        log.error({ err }, "Token refresh failed");
       }
 
       return t;

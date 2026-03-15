@@ -29,6 +29,27 @@
       "when": 1773602915831,
       "tag": "0003_classy_dark_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773808500000,
+      "tag": "0004_database-optimizations",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1773894900000,
+      "tag": "0005_add-users-table",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773981300000,
+      "tag": "0006_add-shared-comparisons",
+      "breakpoints": true
     }
   ]
 }

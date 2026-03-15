@@ -1,17 +1,20 @@
+import {
+  TRANSCRIPT_BASE_DELAY_MS,
+  TRANSCRIPT_COOLDOWN_JITTER_MS,
+  TRANSCRIPT_LANGUAGE_PRIORITY,
+  TRANSCRIPT_MAX_RETRIES,
+  YT_DLP_TIMEOUT_MS,
+} from "@/lib/constants";
 import { execFile } from "node:child_process";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { YouTubeTranscriptApi } from "youtube-transcript-api-js";
-import {
-  TRANSCRIPT_LANGUAGE_PRIORITY,
-  TRANSCRIPT_MAX_RETRIES,
-  TRANSCRIPT_BASE_DELAY_MS,
-  TRANSCRIPT_COOLDOWN_JITTER_MS,
-  YT_DLP_TIMEOUT_MS,
-} from "@/lib/constants";
+import { createTaggedLogger } from "./logger";
 import { runWorkerPool, sleep, WorkerPoolError } from "./utils";
+
+const log = createTaggedLogger("transcript");
 
 const execFileAsync = promisify(execFile);
 const api = new YouTubeTranscriptApi();
@@ -83,7 +86,7 @@ const YT_DLP_RETRY_DELAY_MS = 5_000;
 const ytDlpAvailable: Promise<boolean> = execFileAsync("which", ["yt-dlp"])
   .then(() => true)
   .catch(() => {
-    console.warn("[Transcript] yt-dlp binary not found — subtitle fallback disabled");
+    log.warn("yt-dlp binary not found — subtitle fallback disabled");
     return false;
   });
 
@@ -135,7 +138,7 @@ async function fetchWithYtDlp(
         const msg = err instanceof Error ? err.message : String(err);
         const isRetryable = msg.includes("429") || msg.includes("Too Many");
         if (!isRetryable || attempt >= YT_DLP_MAX_RETRIES - 1) throw err;
-        console.warn(`[yt-dlp] ${videoId}: 429 rate limited, retry ${attempt + 1}/${YT_DLP_MAX_RETRIES} in ${YT_DLP_RETRY_DELAY_MS / 1000}s`);
+        log.warn({ videoId, attempt: attempt + 1, maxRetries: YT_DLP_MAX_RETRIES }, "yt-dlp 429 rate limited, retrying");
         await sleep(YT_DLP_RETRY_DELAY_MS * (attempt + 1));
       }
     }
@@ -150,10 +153,12 @@ async function fetchWithYtDlp(
 
     return parseVttFile(preferred ?? vttFiles[0], tmpDir, excerptMaxChars);
   } catch (err) {
-    console.warn("[Transcript] yt-dlp fallback failed for", videoId, err);
+    log.warn({ err, videoId }, "yt-dlp fallback failed");
     return null;
   } finally {
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => { });
+    await rm(tmpDir, { recursive: true, force: true }).catch((err) => {
+      log.warn({ err, tmpDir }, "Failed to clean up temp directory");
+    });
   }
 }
 
@@ -169,7 +174,7 @@ async function handleAgeRestricted(
   videoId: string,
   excerptMaxChars: number,
 ): Promise<TranscriptFetchOutcome> {
-  console.info(`[Transcript] ${videoId}: age-restricted, falling back to yt-dlp`);
+  log.info({ videoId }, "Age-restricted, falling back to yt-dlp");
   const result = await fetchWithYtDlp(videoId, excerptMaxChars);
   if (result) return { status: "ok", data: result };
   return { status: "error", reason: "age-restricted (yt-dlp fallback failed)" };
@@ -213,7 +218,7 @@ export async function fetchFullTranscriptWithStatus(
 
       if (kind === "bot" && attempt < TRANSCRIPT_MAX_RETRIES) {
         triggerCooldown(TRANSCRIPT_BASE_DELAY_MS * 2 ** attempt);
-        console.warn(`[Transcript] ${videoId}: bot detection (attempt ${attempt + 1}/${TRANSCRIPT_MAX_RETRIES + 1}), cooldown ${TRANSCRIPT_BASE_DELAY_MS * 2 ** attempt}ms`);
+        log.warn({ videoId, attempt: attempt + 1, cooldownMs: TRANSCRIPT_BASE_DELAY_MS * 2 ** attempt }, "Bot detection, applying cooldown");
         continue;
       }
 
@@ -248,7 +253,7 @@ export async function fetchTranscriptBatch(
     }, { concurrency: TRANSCRIPT_CONCURRENCY, gapMs: TRANSCRIPT_GAP_MS, staggerMs: 500 });
   } catch (err) {
     if (err instanceof WorkerPoolError) {
-      console.warn(`[fetchTranscriptBatch] ${err.errors.length} transcripts failed`);
+      log.warn({ failedCount: err.errors.length }, "Some transcripts failed in batch");
     } else {
       throw err;
     }

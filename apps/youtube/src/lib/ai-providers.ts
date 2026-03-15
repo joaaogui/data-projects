@@ -1,17 +1,18 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import type { LanguageModel } from "ai";
+import { env } from "./env";
 
 export function getModel(): LanguageModel {
-  if (process.env.GOOGLE_AI_API_KEY) {
+  if (env.GOOGLE_AI_API_KEY) {
     const google = createGoogleGenerativeAI({
-      apiKey: process.env.GOOGLE_AI_API_KEY,
+      apiKey: env.GOOGLE_AI_API_KEY,
     });
     return google("gemini-2.0-flash");
   }
 
-  if (process.env.GROQ_API_KEY) {
-    const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
+  if (env.GROQ_API_KEY) {
+    const groq = createGroq({ apiKey: env.GROQ_API_KEY });
     return groq("llama-3.1-8b-instant");
   }
 

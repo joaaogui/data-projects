@@ -1,12 +1,10 @@
 import { auth } from "@/lib/auth";
 import { getChannelGrowth } from "@/lib/channel-snapshots";
+import { withErrorHandling } from "@/lib/route-handler";
 import { validateChannelId } from "@/lib/validation";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ channelId: string }> }
-) {
+export const GET = withErrorHandling("growth:GET", async (_request, { params }) => {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -19,4 +17,4 @@ export async function GET(
   const snapshots = await getChannelGrowth(channelId);
 
   return NextResponse.json({ snapshots });
-}
+});

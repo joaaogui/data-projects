@@ -3,104 +3,49 @@ import { channels } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { Metadata } from "next";
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://youtube.joaog.space";
-
-interface Props {
+export async function generateMetadata({
+  params,
+}: {
   params: Promise<{ channelId: string }>;
-  children: React.ReactNode;
-}
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+}): Promise<Metadata> {
   const { channelId } = await params;
-  const result = await db
+  const [channel] = await db
     .select()
     .from(channels)
     .where(eq(channels.id, channelId))
     .limit(1);
-  const channel = result[0];
 
   if (!channel) {
-    return {
-      title: "Channel Not Found",
-      robots: { index: false, follow: false },
-    };
+    return { title: "Channel Not Found" };
   }
 
-  const title = channel.title;
-  const description = `Analyze ${title}'s YouTube video performance — engagement rates, view trends, content scoring, and AI-powered insights.`;
-  const canonicalUrl = `${SITE_URL}/channel/${channelId}`;
+  const description = `Analytics and insights for ${channel.title}'s YouTube channel. ${channel.videoCount ?? 0} videos analyzed.`;
+  const fullTitle = `${channel.title} | YouTube Analyzer`;
 
   return {
-    title,
+    title: channel.title,
     description,
-    alternates: { canonical: canonicalUrl },
     openGraph: {
-      title: `${title} – YouTube Channel Analysis`,
+      title: fullTitle,
       description,
-      url: canonicalUrl,
       type: "website",
-      ...(channel.thumbnailUrl && {
-        images: [{ url: channel.thumbnailUrl, alt: title }],
-      }),
+      url: `https://youtube.joaog.space/channel/${channelId}`,
+      images: channel.thumbnailUrl
+        ? [{ url: channel.thumbnailUrl, width: 800, height: 800 }]
+        : [],
     },
     twitter: {
-      card: "summary_large_image",
-      title: `${title} – YouTube Analyzer`,
+      card: "summary",
+      title: fullTitle,
       description,
     },
   };
 }
 
-function ChannelJsonLd({
-  channelId,
-  title,
-}: Readonly<{
-  channelId: string;
-  title: string;
-}>) {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "YouTube Analyzer",
-        item: SITE_URL,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: title,
-        item: `${SITE_URL}/channel/${channelId}`,
-      },
-    ],
-  };
-
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
-  );
-}
-
-export default async function ChannelLayout({ params, children }: Readonly<Props>) {
-  const { channelId } = await params;
-  const result = await db
-    .select()
-    .from(channels)
-    .where(eq(channels.id, channelId))
-    .limit(1);
-  const channel = result[0];
-
-  return (
-    <>
-      {channel && (
-        <ChannelJsonLd channelId={channelId} title={channel.title} />
-      )}
-      {children}
-    </>
-  );
+export default function ChannelLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return children;
 }

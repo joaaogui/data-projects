@@ -1,10 +1,11 @@
 import { db } from "@/db";
 import { channels, savedChannels } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { withErrorHandling } from "@/lib/route-handler";
 import { and, desc, eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET() {
+export const GET = withErrorHandling("saved-channels:GET", async () => {
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -26,9 +27,9 @@ export async function GET() {
     .limit(50);
 
   return NextResponse.json({ channels: rows });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandling("saved-channels:POST", async (request) => {
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -68,9 +69,9 @@ export async function POST(request: NextRequest) {
     });
 
   return NextResponse.json({ saved: true });
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withErrorHandling("saved-channels:DELETE", async (request) => {
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -91,4 +92,4 @@ export async function DELETE(request: NextRequest) {
     );
 
   return NextResponse.json({ deleted: true });
-}
+});

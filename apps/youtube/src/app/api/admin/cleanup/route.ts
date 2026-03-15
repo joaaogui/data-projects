@@ -1,10 +1,13 @@
 import { db } from "@/db";
 import { channels, sagas, suggestionCache, syncJobs, transcripts, videos } from "@/db/schema";
 import { requireAdmin } from "@/lib/admin-auth";
-import { handleRouteError } from "@/lib/errors";
+import { createTaggedLogger } from "@/lib/logger";
+import { withErrorHandling } from "@/lib/route-handler";
 import { cleanupSchema } from "@/lib/schemas";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+
+const log = createTaggedLogger("admin-cleanup");
 
 function rowCount(result: { rowCount: number | null }): number {
   return result.rowCount ?? 0;
@@ -53,38 +56,32 @@ const ACTIONS: Record<string, CleanupFn | { fn: CleanupFn; requiresChannel: bool
   "delete-null-transcripts": async () => rowCount(await db.delete(transcripts).where(sql`${transcripts.excerpt} IS NULL AND ${transcripts.fullText} IS NULL`)),
 };
 
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandling("admin-cleanup", async (req, _ctx) => {
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
 
-  try {
-    const parsed = cleanupSchema.safeParse(await request.json());
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Invalid request" },
-        { status: 400 }
-      );
-    }
-    const { action, channelId } = parsed.data;
-    console.log("[Admin Cleanup] Request", { action, channelId });
-
-    const handler = ACTIONS[action];
-    if (!handler) {
-      return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
-    }
-
-    const { fn, requiresChannel } = typeof handler === "function" ? { fn: handler, requiresChannel: false } : handler;
-
-    if (requiresChannel && !channelId) {
-      return NextResponse.json({ error: `channelId required for ${action}` }, { status: 400 });
-    }
-
-    const deleted = await fn(channelId);
-    console.log("[Admin Cleanup] Result", { action, channelId, deleted });
-    return NextResponse.json({ action, channelId, deleted });
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[Admin Cleanup] Error:", err.message, err.stack);
-    return handleRouteError(error);
+  const parsed = cleanupSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      { status: 400 }
+    );
   }
-}
+  const { action, channelId } = parsed.data;
+  log.info({ action, channelId }, "Cleanup request");
+
+  const handler = ACTIONS[action];
+  if (!handler) {
+    return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+  }
+
+  const { fn, requiresChannel } = typeof handler === "function" ? { fn: handler, requiresChannel: false } : handler;
+
+  if (requiresChannel && !channelId) {
+    return NextResponse.json({ error: `channelId required for ${action}` }, { status: 400 });
+  }
+
+  const deleted = await fn(channelId);
+  log.info({ action, channelId, deleted }, "Cleanup complete");
+  return NextResponse.json({ action, channelId, deleted });
+});

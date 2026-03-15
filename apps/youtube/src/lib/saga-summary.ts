@@ -1,8 +1,11 @@
 import { db } from "@/db";
 import { sagas, transcripts, videos } from "@/db/schema";
-import { getModel } from "./ai-providers";
-import { eq, inArray } from "drizzle-orm";
 import { generateText } from "ai";
+import { eq, inArray } from "drizzle-orm";
+import { getModel } from "./ai-providers";
+import { createTaggedLogger } from "./logger";
+
+const log = createTaggedLogger("saga-summary");
 
 export async function generateSagaSummary(
   sagaName: string,
@@ -66,8 +69,8 @@ export async function generateAndSaveSagaSummaries(channelId: string): Promise<n
         .set({ summary })
         .where(eq(sagas.id, saga.id));
       count++;
-    } catch {
-      // continue on failure
+    } catch (err) {
+      log.warn({ err, sagaId: saga.id, sagaName: saga.name }, "Failed to generate saga summary");
     }
   }
 

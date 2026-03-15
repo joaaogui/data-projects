@@ -1,23 +1,24 @@
 import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { createTaggedLogger } from "@/lib/logger";
+import { withErrorHandling } from "@/lib/route-handler";
 import { and, eq, inArray } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ jobId: string }> }
-) {
+const log = createTaggedLogger("sync-cancel");
+
+export const POST = withErrorHandling("sync-cancel", async (_req, ctx) => {
   const start = Date.now();
-  console.log("[Sync Cancel] request received");
+  log.info("Request received");
   const session = await auth();
   if (!session) {
-    console.log("[Sync Cancel] auth failed", { elapsedMs: Date.now() - start });
+    log.info({ elapsedMs: Date.now() - start }, "Auth failed");
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { jobId } = await params;
-  console.log("[Sync Cancel] params", { jobId });
+  const { jobId } = await ctx.params;
+  log.info({ jobId }, "Processing cancel request");
 
   if (!jobId) {
     return NextResponse.json({ error: "Missing job ID" }, { status: 400 });
@@ -38,12 +39,12 @@ export async function POST(
     );
 
   const cancelled = (result.rowCount ?? 0) > 0;
-  console.log("[Sync Cancel] result", {
+  log.info({
     jobId,
     cancelled,
     rowCount: result.rowCount ?? 0,
     elapsedMs: Date.now() - start,
-  });
+  }, "Cancel result");
 
   return NextResponse.json({ jobId, cancelled });
-}
+});

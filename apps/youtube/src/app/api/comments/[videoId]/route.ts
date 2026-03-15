@@ -1,14 +1,12 @@
 import { db } from "@/db";
 import { comments } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { withErrorHandling } from "@/lib/route-handler";
 import { fetchTopComments } from "@/lib/youtube-comments";
 import { eq, desc } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ videoId: string }> }
-) {
+export const GET = withErrorHandling("comments:GET", async (_request, { params }) => {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -46,4 +44,4 @@ export async function GET(
   }
 
   return NextResponse.json({ comments: fetched, source: "youtube" });
-}
+});

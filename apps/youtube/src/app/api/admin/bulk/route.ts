@@ -1,13 +1,16 @@
 import { db } from "@/db";
 import { channels, sagas, syncJobs, transcripts, videos } from "@/db/schema";
 import { requireAdmin } from "@/lib/admin-auth";
-import { handleRouteError } from "@/lib/errors";
+import { createTaggedLogger } from "@/lib/logger";
+import { withErrorHandling } from "@/lib/route-handler";
 import { bulkRequestSchema } from "@/lib/schemas";
 import { syncChannelTranscripts } from "@/lib/sync-transcripts";
 import { syncChannelVideos } from "@/lib/sync-videos";
 import type { CleanupAction } from "@/types/admin";
 import { and, eq, inArray } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+
+const log = createTaggedLogger("admin-bulk");
 
 async function startBulkSync(channelIds: string[], type: "videos" | "transcripts") {
   let started = 0;
@@ -28,13 +31,11 @@ async function startBulkSync(channelIds: string[], type: "videos" | "transcripts
 
     if (type === "videos") {
       syncChannelVideos(channelId, jobId).catch((err) => {
-        const e = err instanceof Error ? err : new Error(String(err));
-        console.error("[Admin Bulk] Video sync failed:", { channelId, message: e.message, stack: e.stack });
+        log.error({ err, channelId }, "Video sync failed");
       });
     } else if (type === "transcripts") {
       syncChannelTranscripts(channelId, jobId).catch((err) => {
-        const e = err instanceof Error ? err : new Error(String(err));
-        console.error("[Admin Bulk] Transcript sync failed:", { channelId, message: e.message, stack: e.stack });
+        log.error({ err, channelId }, "Transcript sync failed");
       });
     }
     started++;
@@ -75,38 +76,32 @@ async function deleteForChannel(action: CleanupAction, channelId: string): Promi
   });
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandling("admin-bulk", async (req, _ctx) => {
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
 
-  try {
-    const parsed = bulkRequestSchema.safeParse(await request.json());
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message ?? "Invalid request" },
-        { status: 400 }
-      );
-    }
-    const { action, channelIds } = parsed.data;
-    console.log("[Admin Bulk] Request", { action, channelCount: channelIds.length });
-
-    if (action === "sync-videos" || action === "sync-transcripts") {
-      const type = action === "sync-videos" ? "videos" : "transcripts";
-      const started = await startBulkSync(channelIds, type);
-      console.log("[Admin Bulk] Result", { action, started, total: channelIds.length });
-      return NextResponse.json({ action, started, total: channelIds.length });
-    }
-
-    let totalDeleted = 0;
-    for (const channelId of channelIds) {
-      totalDeleted += await deleteForChannel(action as CleanupAction, channelId);
-    }
-
-    console.log("[Admin Bulk] Result", { action, deleted: totalDeleted, total: channelIds.length });
-    return NextResponse.json({ action, deleted: totalDeleted, total: channelIds.length });
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[Admin Bulk] Error:", err.message, err.stack);
-    return handleRouteError(error);
+  const parsed = bulkRequestSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      { status: 400 }
+    );
   }
-}
+  const { action, channelIds } = parsed.data;
+  log.info({ action, channelCount: channelIds.length }, "Bulk request");
+
+  if (action === "sync-videos" || action === "sync-transcripts") {
+    const type = action === "sync-videos" ? "videos" : "transcripts";
+    const started = await startBulkSync(channelIds, type);
+    log.info({ action, started, total: channelIds.length }, "Bulk sync started");
+    return NextResponse.json({ action, started, total: channelIds.length });
+  }
+
+  let totalDeleted = 0;
+  for (const channelId of channelIds) {
+    totalDeleted += await deleteForChannel(action as CleanupAction, channelId);
+  }
+
+  log.info({ action, deleted: totalDeleted, total: channelIds.length }, "Bulk delete complete");
+  return NextResponse.json({ action, deleted: totalDeleted, total: channelIds.length });
+});

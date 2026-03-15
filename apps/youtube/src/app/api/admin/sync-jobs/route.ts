@@ -1,38 +1,36 @@
-import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { syncJobs, channels } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
 import { requireAdmin } from "@/lib/admin-auth";
+import { createTaggedLogger } from "@/lib/logger";
+import { withErrorHandling } from "@/lib/route-handler";
+import { eq, desc } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
-export async function GET() {
+const log = createTaggedLogger("admin-sync-jobs");
+
+export const GET = withErrorHandling("admin-sync-jobs", async (_req, _ctx) => {
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
 
-  console.log("[Admin SyncJobs] Request");
+  log.info("Fetching sync jobs");
 
-  try {
-    const jobs = await db
-      .select({
-        id: syncJobs.id,
-        channelId: syncJobs.channelId,
-        channelTitle: channels.title,
-        type: syncJobs.type,
-        status: syncJobs.status,
-        progress: syncJobs.progress,
-        error: syncJobs.error,
-        createdAt: syncJobs.createdAt,
-        updatedAt: syncJobs.updatedAt,
-      })
-      .from(syncJobs)
-      .leftJoin(channels, eq(syncJobs.channelId, channels.id))
-      .orderBy(desc(syncJobs.createdAt))
-      .limit(50);
+  const jobs = await db
+    .select({
+      id: syncJobs.id,
+      channelId: syncJobs.channelId,
+      channelTitle: channels.title,
+      type: syncJobs.type,
+      status: syncJobs.status,
+      progress: syncJobs.progress,
+      error: syncJobs.error,
+      createdAt: syncJobs.createdAt,
+      updatedAt: syncJobs.updatedAt,
+    })
+    .from(syncJobs)
+    .leftJoin(channels, eq(syncJobs.channelId, channels.id))
+    .orderBy(desc(syncJobs.createdAt))
+    .limit(50);
 
-    console.log("[Admin SyncJobs] Result", { jobCount: jobs.length });
-    return NextResponse.json({ jobs });
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    console.error("[Admin SyncJobs] Error:", err.message, err.stack);
-    return NextResponse.json({ error: "Failed to fetch sync jobs" }, { status: 500 });
-  }
-}
+  log.info({ jobCount: jobs.length }, "Fetched sync jobs");
+  return NextResponse.json({ jobs });
+});

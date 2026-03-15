@@ -1,11 +1,12 @@
 import { db } from "@/db";
 import { channels, sagaCorrections } from "@/db/schema";
 import { requireAdmin } from "@/lib/admin-auth";
+import { withErrorHandling } from "@/lib/route-handler";
 import { validateChannelId } from "@/lib/validation";
 import { desc, eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
+export const GET = withErrorHandling("admin-saga-corrections:GET", async (request) => {
   const forbidden = await requireAdmin();
   if (forbidden) return forbidden;
 
@@ -42,4 +43,4 @@ export async function GET(request: NextRequest) {
     .limit(limit);
 
   return NextResponse.json({ corrections: rows });
-}
+});

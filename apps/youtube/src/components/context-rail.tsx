@@ -1,5 +1,6 @@
 "use client";
 
+import type { SyncJobState } from "@/hooks/use-sync";
 import { CHANNEL_PREFIX } from "@/services/channel-client";
 import { Button, Popover, PopoverContent, PopoverTrigger } from "@data-projects/ui";
 import {
@@ -35,8 +36,8 @@ interface ContextRailProps {
   activeTab: RailTab;
   onTabChange: (tab: RailTab) => void;
   isSyncing: boolean;
-  videoSync: any;
-  transcriptSync: any;
+  videoSync: SyncJobState | null;
+  transcriptSync: SyncJobState | null;
   onSyncVideos: () => void;
   onSyncTranscripts: (options?: { retry?: boolean }) => void;
   videoCount: number;

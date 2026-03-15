@@ -1,14 +1,12 @@
 import { db } from "@/db";
 import { channels, videos } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { withErrorHandling } from "@/lib/route-handler";
 import { validateChannelId } from "@/lib/validation";
 import { eq } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ channelId: string }> }
-) {
+export const GET = withErrorHandling("report:GET", async (_request, { params }) => {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -165,4 +163,4 @@ export async function GET(
       "Content-Type": "text/html; charset=utf-8",
     },
   });
-}
+});

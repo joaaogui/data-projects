@@ -1,5 +1,6 @@
 import type { ChannelInfo, FetchProgress, PlaylistInfo, PlaylistItem, VideoData, VideoDetails } from "@/types/youtube";
 import dayjs from "dayjs";
+import { env } from "./env";
 import { parseISO8601Duration, scoreVideoBatch, type VideoMetrics } from "./scoring";
 
 export type { ChannelInfo } from "@/types/youtube";
@@ -7,16 +8,12 @@ export type { ChannelInfo } from "@/types/youtube";
 export type FetchProgressCallback = (progress: FetchProgress) => void;
 
 const API_URL = "https://www.googleapis.com/youtube/v3";
-const API_KEY = process.env.YOUTUBE_API_KEY;
 const VIDEO_PREFIX = "https://www.youtube.com/watch?v=";
 
 const BATCH_SIZE = 50;
 
 function getApiKey(): string {
-  if (!API_KEY) {
-    throw new Error("YouTube API key not configured");
-  }
-  return API_KEY;
+  return env.YOUTUBE_API_KEY;
 }
 
 function redactKey(url: string): string {

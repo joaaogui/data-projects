@@ -2,9 +2,13 @@ import { db } from "@/db";
 import { channels, syncJobs, transcripts, videos } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { STALE_JOB_THRESHOLD_MS, SYNC_RATE_LIMIT } from "@/lib/constants";
+import { createTaggedLogger } from "@/lib/logger";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { validateChannelId } from "@/lib/validation";
 import { and, eq, inArray, isNull, lt } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+
+const slog = createTaggedLogger("sync");
 
 type SyncJobType = "videos" | "transcripts" | "sagas";
 
@@ -77,23 +81,24 @@ export async function startSyncJob(opts: {
 }): Promise<NextResponse> {
   const start = Date.now();
   const { channelId, type, request } = opts;
-  console.log("[Sync] request received", { channelId, type });
+  slog.info({ channelId, type }, "Sync request received");
 
   const session = await auth();
   if (!session) {
-    console.log("[Sync] auth failed", { channelId, type, elapsedMs: Date.now() - start });
+    slog.info({ channelId, type, elapsedMs: Date.now() - start }, "Auth failed");
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  if (!channelId || channelId.length < 10) {
-    console.log("[Sync] invalid channel ID", { channelId, type });
-    return NextResponse.json({ error: "Invalid channel ID" }, { status: 400 });
+  const validation = validateChannelId(channelId);
+  if (!validation.valid) {
+    slog.info({ channelId, type, reason: validation.error }, "Invalid channel ID");
+    return NextResponse.json({ error: validation.error }, { status: 400 });
   }
 
   const clientIp = getClientIp(request);
   const rateLimitResult = checkRateLimit(`sync-${type}:${clientIp}`, SYNC_RATE_LIMIT);
   if (!rateLimitResult.success) {
-    console.log("[Sync] rate limited", { channelId, type, clientIp, elapsedMs: Date.now() - start });
+    slog.info({ channelId, type, clientIp, elapsedMs: Date.now() - start }, "Rate limited");
     return NextResponse.json(
       { error: "Too many sync requests. Please wait." },
       { status: 429 }
@@ -103,7 +108,7 @@ export async function startSyncJob(opts: {
   if (opts.requireChannel) {
     const exists = await channelExists(channelId);
     if (!exists) {
-      console.log("[Sync] channel not found", { channelId, type, elapsedMs: Date.now() - start });
+      slog.info({ channelId, type, elapsedMs: Date.now() - start }, "Channel not found");
       return NextResponse.json(
         { error: "Channel not found. Sync videos first." },
         { status: 404 }
@@ -114,16 +119,16 @@ export async function startSyncJob(opts: {
   if (opts.beforeStart) {
     const beforeStart = Date.now();
     await opts.beforeStart(channelId);
-    console.log("[Sync] beforeStart complete", { channelId, type, elapsedMs: Date.now() - beforeStart });
+    slog.info({ channelId, type, elapsedMs: Date.now() - beforeStart }, "beforeStart complete");
   }
 
   const cleanupStart = Date.now();
   await cleanupStaleJobs(channelId, type);
-  console.log("[Sync] stale job cleanup complete", { channelId, type, elapsedMs: Date.now() - cleanupStart });
+  slog.info({ channelId, type, elapsedMs: Date.now() - cleanupStart }, "Stale job cleanup complete");
 
   const existing = await findExistingJob(channelId, type);
   if (existing) {
-    console.log("[Sync] existing job found", { channelId, type, jobId: existing.id, status: existing.status, elapsedMs: Date.now() - start });
+    slog.info({ channelId, type, jobId: existing.id, status: existing.status, elapsedMs: Date.now() - start }, "Existing job found");
     return NextResponse.json({
       jobId: existing.id,
       status: existing.status,
@@ -139,10 +144,10 @@ export async function startSyncJob(opts: {
     status: "pending",
     progress: { phase: "queued", fetched: 0 },
   });
-  console.log("[Sync] job created", { channelId, type, jobId, elapsedMs: Date.now() - start });
+  slog.info({ channelId, type, jobId, elapsedMs: Date.now() - start }, "Job created");
 
   opts.run(channelId, jobId).catch((err) => {
-    console.error(`[Sync] ${type} sync failed for ${channelId}:`, err instanceof Error ? err.stack : err);
+    slog.error({ err, channelId, type, jobId }, "Sync job failed");
   });
 
   return NextResponse.json({ jobId, status: "running" });
