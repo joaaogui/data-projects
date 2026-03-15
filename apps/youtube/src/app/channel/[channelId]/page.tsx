@@ -227,7 +227,7 @@ function ChannelPageContent() {
                 </div>
 
                 {stats && (
-                  <div className="flex flex-wrap items-center gap-2 ml-auto">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 ml-auto">
                     <KpiPill
                       label="Views"
                       value={stats.totalViewsFormatted}
@@ -238,16 +238,18 @@ function ChannelPageContent() {
                       value={stats.avgScore.toFixed(1)}
                       icon={<TrendIcon value={stats.scoreTrend} />}
                     />
-                    <KpiPill
-                      label="Engagement"
-                      value={`${stats.avgEngagement.toFixed(1)}/1K`}
-                      icon={<ThumbsUp className="h-3.5 w-3.5 text-violet-500" />}
-                    />
-                    <KpiPill
-                      label="Cadence"
-                      value={stats.cadenceLabel}
-                      icon={<Calendar className="h-3.5 w-3.5 text-orange-500" />}
-                    />
+                    <div className="hidden sm:contents">
+                      <KpiPill
+                        label="Engagement"
+                        value={`${stats.avgEngagement.toFixed(1)}/1K`}
+                        icon={<ThumbsUp className="h-3.5 w-3.5 text-violet-500" />}
+                      />
+                      <KpiPill
+                        label="Cadence"
+                        value={stats.cadenceLabel}
+                        icon={<Calendar className="h-3.5 w-3.5 text-orange-500" />}
+                      />
+                    </div>
                     <div className="hidden sm:flex items-center gap-1 ml-1 border-l border-border/30 pl-2">
                       <Tooltip>
                         <TooltipTrigger asChild>

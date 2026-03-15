@@ -3,6 +3,8 @@ import { channels } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import type { MetadataRoute } from "next";
 
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://youtube.joaog.space";
 

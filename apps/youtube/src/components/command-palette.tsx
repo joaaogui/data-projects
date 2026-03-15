@@ -172,7 +172,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
             open
             aria-modal="true"
             aria-label="Command palette"
-            className="relative mx-auto mt-[20vh] w-full max-w-lg rounded-2xl border border-border/40 bg-card shadow-2xl p-0"
+            className="relative mx-4 sm:mx-auto mt-[15vh] sm:mt-[20vh] w-auto sm:w-full max-w-lg rounded-2xl border border-border/40 bg-card shadow-2xl p-0"
           >
             {showShortcuts ? (
               <>
