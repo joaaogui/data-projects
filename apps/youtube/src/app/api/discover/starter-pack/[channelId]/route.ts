@@ -128,7 +128,7 @@ export const POST = withErrorHandling("discover-starter-pack", async (request, {
     maxOutputTokens: 1500,
   });
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  const jsonMatch = /\{[\s\S]*\}/.exec(text);
   if (!jsonMatch) {
     log.error({ channelId }, "Failed to parse AI response for starter pack");
     return Response.json({ error: "Failed to generate starter pack" }, { status: 500, headers: corsHeaders });

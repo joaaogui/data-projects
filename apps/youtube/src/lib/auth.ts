@@ -42,13 +42,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const email = profile?.email?.toLowerCase();
       return !!email && allowedEmails.includes(email);
     },
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }) {
       const t = token as OAuthToken;
 
       if (account) {
         t.access_token = account.access_token;
         t.refresh_token = account.refresh_token;
         t.expires_at = account.expires_at;
+
+        if (profile?.email) {
+          try {
+            const { getOrCreateUser } = await import("./user-service");
+            await getOrCreateUser({
+              email: profile.email,
+              name: (profile.name as string) ?? null,
+              image: (profile.picture as string) ?? null,
+            });
+          } catch (err) {
+            log.error({ err }, "Failed to upsert user record");
+          }
+        }
+
         return t;
       }
 

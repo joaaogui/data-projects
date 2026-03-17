@@ -44,7 +44,12 @@ export function useAccountData(
 
   const query = useQuery<AccountChannelData>({
     queryKey: ["account-data", channelId, videoCount],
-    queryFn: () => fetchAccountData(channelId!, stableVideoIds.current!),
+    queryFn: () => {
+      const cid = channelId;
+      const vids = stableVideoIds.current;
+      if (!cid || !vids) throw new Error("Precondition failed");
+      return fetchAccountData(cid, vids);
+    },
     enabled: !!channelId && !!stableVideoIds.current && videoCount > 0,
     staleTime: 5 * 60_000,
     retry: 1,

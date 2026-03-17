@@ -11,6 +11,7 @@ import { SagasView } from "@/components/sagas";
 import { SearchChannel } from "@/components/search-channel";
 import { SyncStatusBar } from "@/components/sync-status-bar";
 import { TimelineView } from "@/components/timeline-view";
+import { TrackChannelButton } from "@/components/track-channel-button";
 import { TranscriptSearchOverlay } from "@/components/transcript-search-overlay";
 import { VideosTable } from "@/components/videos";
 import { YouTubeIcon } from "@/components/youtube-icon";
@@ -159,7 +160,7 @@ function ChannelPageContent() {
   }, [setActiveTab]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (globalThis.window === undefined) return;
     if (!localStorage.getItem("youtube-feature-tips-seen")) {
       setShowFeatureTips(true);
     }
@@ -268,6 +269,7 @@ function ChannelPageContent() {
                       />
                     </div>
                     <div className="hidden sm:flex items-center gap-1 ml-1 border-l border-border/30 pl-2">
+                      <TrackChannelButton channelId={channelId} />
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -278,13 +280,9 @@ function ChannelPageContent() {
                             disabled={shareState === "loading"}
                             aria-label="Share channel report"
                           >
-                            {shareState === "loading" ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : shareState === "done" ? (
-                              <Check className="h-3.5 w-3.5 text-emerald-500" />
-                            ) : (
-                              <Share2 className="h-3.5 w-3.5" />
-                            )}
+                            {shareState === "loading" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                            {shareState === "done" && <Check className="h-3.5 w-3.5 text-emerald-500" />}
+                            {shareState === "idle" && <Share2 className="h-3.5 w-3.5" />}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>

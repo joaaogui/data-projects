@@ -134,7 +134,8 @@ export const POST = withErrorHandling("discover-rabbit-hole", async (request, { 
   const contextLines = sampled.map((r) => {
     const excerpt = excerptMap.get(r.id);
     const desc = r.description?.slice(0, 300) ?? "";
-    return `## "${r.title}" [${r.id}]\nDescription: ${desc}${excerpt ? `\nTranscript excerpt: ${excerpt.slice(0, 200)}` : ""}`;
+    const excerptPart = excerpt ? `\nTranscript excerpt: ${excerpt.slice(0, 200)}` : "";
+    return `## "${r.title}" [${r.id}]\nDescription: ${desc}${excerptPart}`;
   });
 
   const prompt = `Extracted @mentions and channel URLs: ${mentionSummary || "none found"}\n\n${contextLines.join("\n\n---\n\n")}`;
@@ -149,7 +150,7 @@ export const POST = withErrorHandling("discover-rabbit-hole", async (request, { 
     maxOutputTokens: 1500,
   });
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  const jsonMatch = /\{[\s\S]*\}/.exec(text);
   if (!jsonMatch) {
     log.error({ channelId }, "Failed to parse AI response for rabbit hole");
     return Response.json({ error: "Failed to find connections" }, { status: 500, headers: corsHeaders });

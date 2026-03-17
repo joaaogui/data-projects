@@ -1,26 +1,21 @@
 "use client";
 
 import { useChannel } from "@/hooks/use-channel-context";
-import { formatCompact, formatNumber, getAgeLabel, getEfficiencyColor, getEngagementColor, getScoreBorderClass, getScoreColorClass } from "@/lib/format";
-import { formatDuration, getScoreLabel, recalculateWithWeights } from "@/lib/scoring";
-import type { ScoreComponents, VideoData } from "@/types/youtube";
+import { formatCompact, getAgeLabel, getScoreBorderClass, getScoreColorClass } from "@/lib/format";
+import { recalculateWithWeights } from "@/lib/scoring";
+import type { VideoData } from "@/types/youtube";
 import {
   Button,
   DataTable,
-  Skeleton,
-  SortButton,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
   type ColumnDef,
   type FilterFn,
   type VisibilityState,
 } from "@data-projects/ui";
-import { FolderOpen, Heart, X } from "lucide-react";
+import { X } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { METRIC_CONFIGS, METRIC_TYPES, getNormalizedWeight, type MetricWeights } from "../metric-icon";
+import type { MetricWeights } from "../metric-icon";
 import { QuickFilters, getFilterPredicate, type QuickFilterId } from "../quick-filters";
 import { VideoDetailPanel } from "../video-detail-panel";
 import {
@@ -34,6 +29,34 @@ import {
   saveWeightsToStorage,
   type TableMode,
 } from "./filter-bar";
+import {
+  AgeCell,
+  AgeHeader,
+  CommentsCell,
+  CommentsHeader,
+  DurationCell,
+  DurationHeader,
+  EngPerMinCell,
+  EngPerMinHeader,
+  EngagementCell,
+  EngagementHeader,
+  LikedCell,
+  LikedHeader,
+  LikesCell,
+  LikesHeader,
+  ScoreCell,
+  ScoreHeader,
+  TitleCell,
+  ViewsCell,
+  ViewsHeader,
+  ViewsPerDayCell,
+  ViewsPerDayHeader,
+  ViewsPerDurCell,
+  ViewsPerDurHeader,
+  ViewsPerHourCell,
+  ViewsPerHourHeader,
+  WeightsProvider,
+} from "./video-column-cells";
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(false);
@@ -210,14 +233,6 @@ function MobileVideoList({
     </div>
   );
 }
-
-const METRIC_TO_COMPONENT: Record<string, keyof ScoreComponents> = {
-  views: "reachScore",
-  engagement: "engagementScore",
-  momentum: "momentumScore",
-  efficiency: "efficiencyScore",
-  community: "communityScore",
-};
 
 interface VideosTableProps {
   data: VideoData[];
@@ -436,354 +451,24 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
         const inPlaylist = accountData.playlistMap.has(row.videoId) ? 1 : 0;
         return liked + inPlaylist;
       },
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          <Heart className="h-3.5 w-3.5" />
-        </SortButton>
-      ),
+      header: LikedHeader,
       enableHiding: false,
       size: 40,
-      cell: ({ row }) => {
-        if (accountData.isLoading) return <Skeleton className="h-3.5 w-3.5 rounded-full" />;
-        const isLiked = accountData.likedVideoIds.has(row.original.videoId);
-        const playlists = accountData.playlistMap.get(row.original.videoId);
-        return (
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Heart className={`h-3.5 w-3.5 ${isLiked ? "fill-red-500 text-red-500" : "text-muted-foreground/20"}`} />
-              </TooltipTrigger>
-              <TooltipContent>{isLiked ? "You liked this video" : "Not liked"}</TooltipContent>
-            </Tooltip>
-            {playlists && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <FolderOpen className="h-3.5 w-3.5 text-blue-500" />
-                </TooltipTrigger>
-                <TooltipContent>In your playlists: {playlists.join(", ")}</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        );
-      },
+      cell: LikedCell,
     } satisfies ColumnDef<VideoData>,
-    {
-      accessorKey: "title",
-      header: "Title",
-      enableHiding: false,
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3 min-w-[280px] group/title cursor-pointer hover:shadow-md">
-          <div className="relative w-20 aspect-video shrink-0">
-            <Image
-              src={row.original.thumbnail}
-              alt={row.original.title}
-              fill
-              sizes="80px"
-              className="rounded object-cover transition-transform duration-200 group-hover/title:scale-110"
-            />
-          </div>
-          <span className="line-clamp-2 group-hover/title:text-primary transition-colors cursor-pointer">
-            {row.original.title}
-          </span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "score",
-      enableHiding: false,
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Score
-        </SortButton>
-      ),
-      cell: ({ row }) => {
-        const score = row.original.score;
-        const label = getScoreLabel(score);
-        const bgClass = getScoreColorClass(score) + (score >= 80 ? " relative overflow-hidden" : "");
-        return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className={`inline-flex flex-col items-center rounded-md px-2 py-1 cursor-help ${bgClass}`} aria-label={`Score: ${score.toFixed(0)} - ${label.label}`}>
-                <span className="text-sm font-bold tabular-nums">{score.toFixed(0)}</span>
-                <span className="text-[10px] font-medium leading-none">{label.label}</span>
-                {score >= 80 && <div className="absolute inset-0 animate-shimmer rounded-md" />}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="left" className="min-w-[160px]">
-              <p className="font-semibold mb-2">Score Breakdown</p>
-              <div className="space-y-1.5">
-                {METRIC_TYPES.map((type) => {
-                  const config = METRIC_CONFIGS[type];
-                  const componentKey = METRIC_TO_COMPONENT[type];
-                  const value = row.original.scoreComponents[componentKey] ?? 0;
-                  const weight = getNormalizedWeight(weights, type);
-                  return (
-                    <div key={type} className="flex items-center justify-between gap-3 text-xs">
-                      <span className="text-muted-foreground">{config.label} ({weight}%)</span>
-                      <span className="font-medium tabular-nums">{value.toFixed(0)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        );
-      },
-    },
-    {
-      accessorKey: "duration",
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Duration
-        </SortButton>
-      ),
-      cell: ({ row }) => (
-        <span className="tabular-nums font-medium">{formatDuration(row.original.duration)}</span>
-      ),
-    },
-    {
-      accessorKey: "days",
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Age
-        </SortButton>
-      ),
-      cell: ({ row }) => {
-        const label = getAgeLabel(row.original.days);
-        return <span className="tabular-nums text-muted-foreground">{label}</span>;
-      },
-    },
-    {
-      accessorKey: "views",
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Views
-        </SortButton>
-      ),
-      cell: ({ row }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="tabular-nums font-medium cursor-help">{formatCompact(row.original.views)}</span>
-          </TooltipTrigger>
-          <TooltipContent>{row.original.views.toLocaleString("en-US")} views</TooltipContent>
-        </Tooltip>
-      ),
-    },
-    {
-      id: "engagement",
-      accessorFn: (row) => row.rates.engagementRate,
-      header: ({ column }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <SortButton
-                sorted={column.getIsSorted()}
-                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              >
-                Engagement
-              </SortButton>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Weighted engagements per 1K views</p>
-            <p className="text-muted-foreground text-xs mt-1">Comments weighted 5x more than likes</p>
-          </TooltipContent>
-        </Tooltip>
-      ),
-      cell: ({ row }) => {
-        const rate = row.original.rates?.engagementRate ?? 0;
-        const color = getEngagementColor(rate);
-        return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex flex-col cursor-help">
-                <span className={`tabular-nums font-medium ${color}`}>
-                  {rate.toFixed(1)}<span className="text-xs opacity-70 font-normal">/1K</span>
-                </span>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {formatCompact(row.original.likes)} likes &middot; {formatCompact(row.original.comments)} comments
-                </span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Weighted engagements per 1K views</p>
-              <p className="text-muted-foreground text-xs mt-1">(likes + comments &times; 5) / views &times; 1000</p>
-              <div className="text-muted-foreground text-xs mt-2 space-y-0.5">
-                <p>Like rate: {row.original.rates?.likeRate?.toFixed(1) ?? "-"}/1K views</p>
-                <p>Comment rate: {row.original.rates?.commentRate?.toFixed(2) ?? "-"}/1K views</p>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        );
-      },
-    },
-    {
-      id: "viewsPerDay",
-      accessorFn: (row) => row.rates?.viewsPerDay ?? 0,
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Views/Day
-        </SortButton>
-      ),
-      cell: ({ row }) => (
-        <span className="tabular-nums">{formatNumber(row.original.rates?.viewsPerDay ?? 0)}</span>
-      ),
-    },
-    {
-      id: "viewsPerHour",
-      accessorFn: (row) => row.rates?.viewsPerHour ?? 0,
-      header: ({ column }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <SortButton
-                sorted={column.getIsSorted()}
-                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              >
-                Views/Hour
-              </SortButton>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Average views per hour since upload</p>
-          </TooltipContent>
-        </Tooltip>
-      ),
-      cell: ({ row }) => {
-        const vph = row.original.rates?.viewsPerHour ?? 0;
-        return (
-          <span className="tabular-nums">
-            {formatNumber(Math.round(vph))}
-          </span>
-        );
-      },
-    },
-    {
-      id: "viewsPerContentMin",
-      accessorFn: (row) => row.rates?.viewsPerContentMin ?? 0,
-      header: ({ column }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <SortButton
-                sorted={column.getIsSorted()}
-                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              >
-                Views/Dur
-              </SortButton>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Views per minute of video duration</p>
-          </TooltipContent>
-        </Tooltip>
-      ),
-      cell: ({ row }) => {
-        const vpcm = row.original.rates?.viewsPerContentMin ?? 0;
-        const color = getEfficiencyColor(vpcm);
-        return (
-          <span className={`tabular-nums font-medium ${color}`}>
-            {formatNumber(vpcm)}
-          </span>
-        );
-      },
-    },
-    {
-      accessorKey: "likes",
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Likes
-        </SortButton>
-      ),
-      cell: ({ row }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex flex-col cursor-help">
-              <span className="tabular-nums">{formatCompact(row.original.likes)}</span>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {row.original.rates?.likeRate?.toFixed(1) ?? '-'}<span className="opacity-70">/1K</span>
-              </span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>{row.original.likes.toLocaleString("en-US")} likes</TooltipContent>
-        </Tooltip>
-      ),
-    },
-    {
-      accessorKey: "comments",
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Comments
-        </SortButton>
-      ),
-      cell: ({ row }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex flex-col cursor-help">
-              <span className="tabular-nums">{formatCompact(row.original.comments)}</span>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {row.original.rates?.commentRate?.toFixed(2) ?? '-'}<span className="opacity-70">/1K</span>
-              </span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>{row.original.comments.toLocaleString("en-US")} comments</TooltipContent>
-        </Tooltip>
-      ),
-    },
-    {
-      id: "engPerMin",
-      accessorFn: (row) => row.rates?.engagementPerMinute ?? 0,
-      header: ({ column }) => (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <SortButton
-                sorted={column.getIsSorted()}
-                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-              >
-                Eng/Min
-              </SortButton>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Engagements per minute of video duration</p>
-          </TooltipContent>
-        </Tooltip>
-      ),
-      cell: ({ row }) => {
-        const epm = row.original.rates?.engagementPerMinute ?? 0;
-        return (
-          <span className="tabular-nums font-medium">
-            {epm.toFixed(1)}
-          </span>
-        );
-      },
-    },
-  ], [weights, accountData]);
+    { accessorKey: "title", header: "Title", enableHiding: false, cell: TitleCell },
+    { accessorKey: "score", enableHiding: false, header: ScoreHeader, cell: ScoreCell },
+    { accessorKey: "duration", header: DurationHeader, cell: DurationCell },
+    { accessorKey: "days", header: AgeHeader, cell: AgeCell },
+    { accessorKey: "views", header: ViewsHeader, cell: ViewsCell },
+    { id: "engagement", accessorFn: (row) => row.rates.engagementRate, header: EngagementHeader, cell: EngagementCell },
+    { id: "viewsPerDay", accessorFn: (row) => row.rates?.viewsPerDay ?? 0, header: ViewsPerDayHeader, cell: ViewsPerDayCell },
+    { id: "viewsPerHour", accessorFn: (row) => row.rates?.viewsPerHour ?? 0, header: ViewsPerHourHeader, cell: ViewsPerHourCell },
+    { id: "viewsPerContentMin", accessorFn: (row) => row.rates?.viewsPerContentMin ?? 0, header: ViewsPerDurHeader, cell: ViewsPerDurCell },
+    { accessorKey: "likes", header: LikesHeader, cell: LikesCell },
+    { accessorKey: "comments", header: CommentsHeader, cell: CommentsCell },
+    { id: "engPerMin", accessorFn: (row) => row.rates?.engagementPerMinute ?? 0, header: EngPerMinHeader, cell: EngPerMinCell },
+  ], [accountData]);
 
   return (
     <div className="flex flex-col h-full gap-3 sm:gap-4">
@@ -817,66 +502,68 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
         </div>
       </div>
 
-      <div className="flex-1 min-h-0">
-        {isMobile ? (
-          <MobileVideoList
-            data={processedData}
-            searchFilter={searchFilter}
-            highlightedVideoIds={highlightedVideoIds}
-            selectedVideoId={selectedVideoId}
-            onSelectVideo={(id) => {
-              if (id) fireFirstInteraction('video_click');
-              setSelectedVideoId(id);
-            }}
-          />
-        ) : (
-          <DataTable
-            columns={columns}
-            data={processedData}
-            defaultSorting={[{ id: "score", desc: true }]}
-            columnVisibility={effectiveColumnVisibility}
-            onColumnVisibilityChange={setColumnVisibility}
-            globalFilter={searchFilter}
-            onGlobalFilterChange={setSearchFilter}
-            globalFilterFn={globalFilterFn}
-            pagination={{
-              pageSize: 25,
-              showInfo: true,
-              itemName: "videos",
-            }}
-            emptyMessage={searchFilter ? "No videos match your search." : "No videos found."}
-            rowStyle={(row) => {
-              const score = row.original.score;
-              let color = "hsl(240 4% 30% / 0.15)";
-              if (score >= 80) color = "hsl(160 50% 50% / 0.3)";
-              else if (score >= 40) color = "hsl(172 48% 45% / 0.2)";
-              return { "--row-score-color": color } as React.CSSProperties;
-            }}
-            rowClassName={(row) => {
-              const classes: string[] = ["border-l-2 hover:border-l-[3px]", "transition-all duration-150", "hover:bg-muted/30", "row-score-glow"];
-              const score = row.original.score;
-              classes.push(getScoreBorderClass(score));
+      <WeightsProvider value={weights}>
+        <div className="flex-1 min-h-0">
+          {isMobile ? (
+            <MobileVideoList
+              data={processedData}
+              searchFilter={searchFilter}
+              highlightedVideoIds={highlightedVideoIds}
+              selectedVideoId={selectedVideoId}
+              onSelectVideo={(id) => {
+                if (id) fireFirstInteraction('video_click');
+                setSelectedVideoId(id);
+              }}
+            />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={processedData}
+              defaultSorting={[{ id: "score", desc: true }]}
+              columnVisibility={effectiveColumnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
+              globalFilter={searchFilter}
+              onGlobalFilterChange={setSearchFilter}
+              globalFilterFn={globalFilterFn}
+              pagination={{
+                pageSize: 25,
+                showInfo: true,
+                itemName: "videos",
+              }}
+              emptyMessage={searchFilter ? "No videos match your search." : "No videos found."}
+              rowStyle={(row) => {
+                const score = row.original.score;
+                let color = "hsl(240 4% 30% / 0.15)";
+                if (score >= 80) color = "hsl(160 50% 50% / 0.3)";
+                else if (score >= 40) color = "hsl(172 48% 45% / 0.2)";
+                return { "--row-score-color": color } as React.CSSProperties;
+              }}
+              rowClassName={(row) => {
+                const classes: string[] = ["border-l-2 hover:border-l-[3px]", "transition-all duration-150", "hover:bg-muted/30", "row-score-glow"];
+                const score = row.original.score;
+                classes.push(getScoreBorderClass(score));
 
-              if (selectedVideoId === row.original.videoId) {
-                classes.push("bg-primary/8 border-l-primary! border-l-[3px] shadow-sm");
-              }
-              if (highlightedVideoIds.size > 0 && visibleHighlightCount > 0) {
-                classes.push(
-                  highlightedVideoIds.has(row.original.videoId)
-                    ? "ring-1 ring-primary/30 bg-primary/5 shadow-sm shadow-primary/10"
-                    : "opacity-40 transition-opacity duration-300"
-                );
-              }
-              return classes.join(" ");
-            }}
-            onRowClick={(row) => {
-              const id = selectedVideoId === row.original.videoId ? null : row.original.videoId;
-              if (id) fireFirstInteraction('video_click');
-              setSelectedVideoId(id);
-            }}
-          />
-        )}
-      </div>
+                if (selectedVideoId === row.original.videoId) {
+                  classes.push("bg-primary/8 border-l-primary! border-l-[3px] shadow-sm");
+                }
+                if (highlightedVideoIds.size > 0 && visibleHighlightCount > 0) {
+                  classes.push(
+                    highlightedVideoIds.has(row.original.videoId)
+                      ? "ring-1 ring-primary/30 bg-primary/5 shadow-sm shadow-primary/10"
+                      : "opacity-40 transition-opacity duration-300"
+                  );
+                }
+                return classes.join(" ");
+              }}
+              onRowClick={(row) => {
+                const id = selectedVideoId === row.original.videoId ? null : row.original.videoId;
+                if (id) fireFirstInteraction('video_click');
+                setSelectedVideoId(id);
+              }}
+            />
+          )}
+        </div>
+      </WeightsProvider>
       {selectedVideo && createPortal(
         <VideoDetailPanel
           video={selectedVideo}

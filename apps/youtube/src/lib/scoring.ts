@@ -250,8 +250,12 @@ export function scoreVideoBatch(allMetrics: VideoMetrics[]): ScoringResult[] {
   const bucketMap = new Map<DurationBucket, number[]>();
   allMetrics.forEach((m, i) => {
     const b = getDurationBucket(m.duration);
-    if (!bucketMap.has(b)) bucketMap.set(b, []);
-    bucketMap.get(b)!.push(i);
+    let arr = bucketMap.get(b);
+    if (!arr) {
+      arr = [];
+      bucketMap.set(b, arr);
+    }
+    arr.push(i);
   });
 
   const sortedByMetric = (indices: number[], extract: (i: number) => number) =>

@@ -50,11 +50,12 @@ function TimestampTooltip({
   videoId,
   seconds,
   children,
-}: Readonly<{ videoId: string; seconds: number; children: React.ReactNode }>) {
+  onClick,
+}: Readonly<{ videoId: string; seconds: number; children: React.ReactNode; onClick?: () => void }>) {
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const anchorRef = useRef<HTMLSpanElement>(null);
+  const anchorRef = useRef<HTMLButtonElement>(null);
 
   const show = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -72,16 +73,31 @@ function TimestampTooltip({
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      show();
+    }
+  };
+
   return (
-    <span
+    <button
+      type="button"
       ref={anchorRef}
-      className="inline"
+      tabIndex={0}
+      className={`inline border-0 bg-transparent p-0 font-inherit ${onClick ? "cursor-pointer" : "cursor-default"}`}
       onMouseEnter={show}
       onMouseLeave={hide}
+      onKeyDown={handleKeyDown}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
     >
       {children}
       {visible && coords && createPortal(
-        <span
+        <div
+          role="tooltip"
           className="fixed z-100 animate-fade-up pointer-events-auto"
           style={{
             top: coords.top,
@@ -111,10 +127,10 @@ function TimestampTooltip({
             <ExternalLink className="h-2.5 w-2.5 opacity-60" />
           </a>
           <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-border/50" />
-        </span>,
+        </div>,
         document.body
       )}
-    </span>
+    </button>
   );
 }
 
@@ -155,26 +171,39 @@ function HighlightedSnippet({
           const isFirst = !firstMatchRendered;
           firstMatchRendered = true;
 
-          const highlight = (
-            <mark
-              key={i}
-              className="bg-primary/20 text-primary font-medium rounded-sm px-0.5 animate-highlight-pulse cursor-pointer hover:bg-primary/30 transition-colors"
-              onClick={handleClick}
-            >
-              {part}
-            </mark>
-          );
+          const highlightClassName =
+            "inline bg-primary/20 text-primary font-medium rounded-sm px-0.5 animate-highlight-pulse cursor-pointer hover:bg-primary/30 transition-colors";
 
           if (isFirst && estimatedSeconds !== null) {
             return (
-              <TimestampTooltip key={i} videoId={videoId} seconds={estimatedSeconds}>
-                {highlight}
+              <TimestampTooltip
+                key={`${i}-${part}`}
+                videoId={videoId}
+                seconds={estimatedSeconds}
+                onClick={onClickHighlight}
+              >
+                <span className={highlightClassName}>{part}</span>
               </TimestampTooltip>
             );
           }
-          return highlight;
+          return (
+            <button
+              type="button"
+              key={`${i}-${part}`}
+              className={`inline ${highlightClassName} border-0 font-inherit`}
+              onClick={handleClick}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onClickHighlight?.();
+                }
+              }}
+            >
+              {part}
+            </button>
+          );
         }
-        return <span key={i}>{part}</span>;
+        return <span key={`${i}-${part}`}>{part}</span>;
       })}
     </span>
   );
@@ -308,7 +337,7 @@ function FullTextHighlight({ text, pattern }: Readonly<{ text: string; pattern: 
           firstMatchDone = true;
           return (
             <mark
-              key={i}
+              key={`${i}-${part}`}
               ref={isFirst ? firstMatchRef : undefined}
               className="bg-primary/25 text-primary font-medium rounded-sm px-0.5"
             >
@@ -316,7 +345,7 @@ function FullTextHighlight({ text, pattern }: Readonly<{ text: string; pattern: 
             </mark>
           );
         }
-        return <span key={i}>{part}</span>;
+        return <span key={`${i}-${part}`}>{part}</span>;
       })}
     </span>
   );
@@ -535,13 +564,12 @@ export function TranscriptSearchOverlay({
     [results, activeIndex, handleSelect, onClose, viewingVideo],
   );
 
-  if (!open) return null;
+  if (open) {
+    const showResults = hasSearched && results.length > 0 && !isGenerating;
+    const showEmpty = hasSearched && results.length === 0 && !isBusy && query.trim().length >= 2;
+    const showInitial = !hasSearched && !isBusy && query.trim().length < 2;
 
-  const showResults = hasSearched && results.length > 0 && !isGenerating;
-  const showEmpty = hasSearched && results.length === 0 && !isBusy && query.trim().length >= 2;
-  const showInitial = !hasSearched && !isBusy && query.trim().length < 2;
-
-  return (
+    return (
     <div className="fixed inset-0 z-50">
       <button
         type="button"
@@ -635,7 +663,7 @@ export function TranscriptSearchOverlay({
                   <div className="px-3 py-2 flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">{results.length}</span>
-                      {" "}video{results.length !== 1 ? "s" : ""} matched
+                      {" "}video{results.length === 1 ? "" : "s"} matched
                     </p>
                     <p className="text-[10px] text-muted-foreground/60">
                       <kbd className="font-mono">↑↓</kbd> navigate &middot; <kbd className="font-mono">↵</kbd> open
@@ -721,5 +749,7 @@ export function TranscriptSearchOverlay({
         )}
       </dialog>
     </div>
-  );
+    );
+  }
+  return null;
 }

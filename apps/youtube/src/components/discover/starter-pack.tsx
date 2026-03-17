@@ -76,7 +76,7 @@ export function StarterPack({
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {data.picks.map((pick, i) => {
+            {data.picks.map((pick, _) => {
               const video = videoMap.get(pick.videoId);
               if (!video) return null;
 

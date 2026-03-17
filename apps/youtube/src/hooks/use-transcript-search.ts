@@ -73,7 +73,7 @@ export function useTranscriptSearch(channelId: string | null) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
       if (q.trim().length >= 2 && channelId) {
-        const escaped = q.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const escaped = q.trim().replaceAll(String.raw`[.*+?^\${}()|[\]\\]`, "\\$&");
         setHighlightPattern(escaped);
         debounceRef.current = setTimeout(() => {
           mutationRef.current.mutate({ q, regex: false });

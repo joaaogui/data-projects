@@ -11,7 +11,7 @@ import { count, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 function buildSystemPrompt(language: string) {
-  return `You convert natural language descriptions into PostgreSQL case-insensitive regular expressions (used with the ~* operator).
+  return String.raw`You convert natural language descriptions into PostgreSQL case-insensitive regular expressions (used with the ~* operator).
 
 The transcripts you are searching are in **${language}**. The user may write their query in ANY language — you MUST translate their intent and generate the regex using terms in **${language}**.
 
@@ -33,7 +33,7 @@ Rules:
 Examples (for Portuguese transcripts):
 - User: "communism" -> (comunis[mt][ao]s?|comunismo|socialismo|socialista|marxis[mt][ao]s?|leninis[mt][ao]s?|bolchevi[sc][mt][ao]s?|sovi[eé]tic[ao]s?|uni[aã]o sovi[eé]tica|urss)
 - User: "videos about cooking" -> (cozinhar|cozinhando|cozinhou|cozinha|culin[aá]ri[ao]|receita|receitas|preparar|preparando|ingredientes|tempero|temperos)
-- User: "artificial intelligence" -> (intelig[eê]ncia artificial|\\bIA\\b|machine learning|aprendizado de m[aá]quina|redes? neurais?|deep learning|\\bGPT\\b|\\bLLM\\b)`;
+- User: "artificial intelligence" -> (intelig[eê]ncia artificial|\bIA\b|machine learning|aprendizado de m[aá]quina|redes? neurais?|deep learning|\bGPT\b|\bLLM\b)`;
 }
 
 async function detectChannelLanguage(channelId: string): Promise<string> {

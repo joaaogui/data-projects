@@ -104,7 +104,7 @@ export const POST = withErrorHandling("discover-dna", async (request, { params }
     maxOutputTokens: 2000,
   });
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  const jsonMatch = /\{[\s\S]*\}/.exec(text);
   if (!jsonMatch) {
     log.error({ channelId }, "Failed to parse AI response for DNA");
     return Response.json({ error: "Failed to generate profile" }, { status: 500, headers: corsHeaders });

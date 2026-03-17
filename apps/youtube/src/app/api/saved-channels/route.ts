@@ -1,8 +1,9 @@
 import { db } from "@/db";
-import { channels, savedChannels } from "@/db/schema";
+import { channels, savedChannels, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getPlanLimits, type PlanTier } from "@/lib/plan-limits";
 import { withErrorHandling } from "@/lib/route-handler";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export const GET = withErrorHandling("saved-channels:GET", async () => {
@@ -48,6 +49,53 @@ export const POST = withErrorHandling("saved-channels:POST", async (request) => 
 
   const userId = session.user.email;
   const id = `${userId}-${channelId}`;
+
+  const [channelRow] = await db
+    .select({ id: channels.id })
+    .from(channels)
+    .where(eq(channels.id, channelId))
+    .limit(1);
+
+  if (!channelRow) {
+    await db
+      .insert(channels)
+      .values({ id: channelId, title: channelId, fetchedAt: new Date() })
+      .onConflictDoNothing();
+  }
+
+  const [existing] = await db
+    .select({ id: savedChannels.id })
+    .from(savedChannels)
+    .where(eq(savedChannels.id, id))
+    .limit(1);
+
+  if (!existing) {
+    const [user] = await db
+      .select({ plan: users.plan })
+      .from(users)
+      .where(eq(users.email, userId))
+      .limit(1);
+
+    const plan = (user?.plan ?? "free") as PlanTier;
+    const limits = getPlanLimits(plan);
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(savedChannels)
+      .where(eq(savedChannels.userId, userId));
+
+    if (count >= limits.maxTrackedChannels) {
+      return NextResponse.json(
+        {
+          error: `Tracked channel limit reached (${count}/${limits.maxTrackedChannels}). Upgrade your plan to track more.`,
+          limit: limits.maxTrackedChannels,
+          current: count,
+          plan,
+        },
+        { status: 403 }
+      );
+    }
+  }
 
   await db
     .insert(savedChannels)

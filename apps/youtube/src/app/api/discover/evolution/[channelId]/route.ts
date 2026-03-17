@@ -59,7 +59,7 @@ function groupIntoEras(
   for (let i = 0; i < sorted.length; i += eraSize) {
     const slice = sorted.slice(i, i + eraSize);
     const start = slice[0].publishedAt.toISOString().slice(0, 7);
-    const end = slice.at(-1)!.publishedAt.toISOString().slice(0, 7);
+    const end = (slice.at(-1) ?? slice[0]).publishedAt.toISOString().slice(0, 7);
     const lines = slice.map(
       (v) =>
         `- "${v.title}" (${v.publishedAt.toISOString().slice(0, 10)}, ${v.views.toLocaleString()} views, ${Math.round(v.duration / 60)}min) [${(v.topics ?? []).join(", ")}]`,
@@ -118,7 +118,7 @@ export const POST = withErrorHandling("discover-evolution", async (request, { pa
     maxOutputTokens: 2000,
   });
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  const jsonMatch = /\{[\s\S]*\}/.exec(text);
   if (!jsonMatch) {
     log.error({ channelId }, "Failed to parse AI response for evolution");
     return Response.json({ error: "Failed to generate analysis" }, { status: 500, headers: corsHeaders });
