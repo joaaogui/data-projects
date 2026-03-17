@@ -11,6 +11,7 @@ import { SagasView } from "@/components/sagas";
 import { SearchChannel } from "@/components/search-channel";
 import { SyncStatusBar } from "@/components/sync-status-bar";
 import { TimelineView } from "@/components/timeline-view";
+import { TranscriptSearchOverlay } from "@/components/transcript-search-overlay";
 import { VideosTable } from "@/components/videos";
 import { YouTubeIcon } from "@/components/youtube-icon";
 import { ChannelProvider, useChannel } from "@/hooks/use-channel-context";
@@ -140,6 +141,22 @@ function ChannelPageContent() {
   }, [channelId, channelInfo]);
 
   const [showFeatureTips, setShowFeatureTips] = useState(false);
+  const [transcriptSearchOpen, setTranscriptSearchOpen] = useState(false);
+
+  useEffect(() => {
+    function handleOpenTranscriptSearch() {
+      setTranscriptSearchOpen(true);
+    }
+    document.addEventListener("open-transcript-search", handleOpenTranscriptSearch);
+    return () => document.removeEventListener("open-transcript-search", handleOpenTranscriptSearch);
+  }, []);
+
+  const handleTranscriptVideoSelect = useCallback((videoId: string) => {
+    setActiveTab("videos");
+    setTimeout(() => {
+      document.dispatchEvent(new CustomEvent("select-video", { detail: videoId }));
+    }, 100);
+  }, [setActiveTab]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -394,6 +411,13 @@ function ChannelPageContent() {
         onSyncTranscripts={() => syncTranscripts()}
         onShareReport={handleShareReport}
         channelId={channelId}
+      />
+
+      <TranscriptSearchOverlay
+        channelId={channelId}
+        open={transcriptSearchOpen}
+        onClose={() => setTranscriptSearchOpen(false)}
+        onSelectVideo={handleTranscriptVideoSelect}
       />
     </div>
   );

@@ -19,6 +19,7 @@ import {
 import { FolderOpen, Heart, X } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { METRIC_CONFIGS, METRIC_TYPES, getNormalizedWeight, type MetricWeights } from "../metric-icon";
 import { QuickFilters, getFilterPredicate, type QuickFilterId } from "../quick-filters";
 import { VideoDetailPanel } from "../video-detail-panel";
@@ -403,11 +404,17 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
   useEffect(() => {
     const onExport = () => exportCsvRef.current();
     const onFocusSearch = () => searchInputRef.current?.focus();
+    const onSelectVideo = (e: Event) => {
+      const videoId = (e as CustomEvent<string>).detail;
+      if (videoId) setSelectedVideoId(videoId);
+    };
     document.addEventListener("export-csv", onExport);
     document.addEventListener("focus-search", onFocusSearch);
+    document.addEventListener("select-video", onSelectVideo);
     return () => {
       document.removeEventListener("export-csv", onExport);
       document.removeEventListener("focus-search", onFocusSearch);
+      document.removeEventListener("select-video", onSelectVideo);
     };
   }, []);
 
@@ -870,7 +877,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
           />
         )}
       </div>
-      {selectedVideo && (
+      {selectedVideo && createPortal(
         <VideoDetailPanel
           video={selectedVideo}
           allVideos={processedData}
@@ -878,7 +885,8 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
           onClose={() => setSelectedVideoId(null)}
           onSelectVideo={setSelectedVideoId}
           onOpenTimeline={onOpenTimeline}
-        />
+        />,
+        document.body
       )}
     </div>
   );

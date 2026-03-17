@@ -142,7 +142,7 @@ export function VideoDetailPanel({
   else if (transcriptExpanded) transcriptLabel = 'Hide transcript';
 
   return (
-    <dialog open ref={modalRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 outline-none max-w-none max-h-none" aria-modal="true" aria-label={`Video details: ${video.title}`}>
+    <dialog open ref={modalRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 outline-none m-0 w-full h-full max-w-none max-h-none border-none bg-transparent" aria-modal="true" aria-label={`Video details: ${video.title}`}>
       <button type="button" className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity duration-300 cursor-default" aria-label="Close" onClick={onClose} />
 
       <div className="relative w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] rounded-t-3xl sm:rounded-3xl border border-border/50 bg-card shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-[0.97] duration-300">

@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Compass,
   Database,
+  FileSearch,
   FileText,
   LayoutDashboard,
   Loader2,
@@ -125,8 +126,8 @@ export function ContextRail({
                 aria-controls={`tabpanel-${id}`}
                 onClick={() => onTabChange(id)}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${isActive
-                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                   }`}
                 title={collapsed ? label : undefined}
               >
@@ -135,6 +136,18 @@ export function ContextRail({
               </button>
             );
           })}
+        </div>
+
+        {/* Transcript search */}
+        <div className="px-2 py-1">
+          <button
+            onClick={() => document.dispatchEvent(new CustomEvent("open-transcript-search"))}
+            className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all duration-150"
+            title={collapsed ? "Search Transcripts" : undefined}
+          >
+            <FileSearch className="h-4 w-4 shrink-0" />
+            {!collapsed && "Search Transcripts"}
+          </button>
         </div>
 
         {/* Sync indicator */}
@@ -240,8 +253,8 @@ export function ContextRail({
                 aria-controls={`tabpanel-${id}`}
                 onClick={() => onTabChange(id)}
                 className={`flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-[11px] font-medium transition-colors ${isActive
-                    ? "text-primary"
-                    : "text-muted-foreground active:scale-95"
+                  ? "text-primary"
+                  : "text-muted-foreground active:scale-95"
                   }`}
               >
                 <Icon className={`h-5 w-5 ${isActive ? "text-primary" : ""}`} />

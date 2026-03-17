@@ -7,6 +7,7 @@ import {
   Compass,
   Database,
   Download,
+  FileSearch,
   FileText,
   Keyboard,
   LayoutDashboard,
@@ -66,6 +67,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
       action: () => { onNavigate("videos"); close(); setTimeout(() => document.dispatchEvent(new CustomEvent("export-csv")), 100); },
     },
     { id: "tool-search", label: "Search Videos", icon: Search, group: "Tools", shortcut: "/", action: () => { onNavigate("videos"); close(); setTimeout(() => document.dispatchEvent(new CustomEvent("focus-search")), 100); } },
+    { id: "tool-transcript-search", label: "Search Transcripts", icon: FileSearch, group: "Tools", shortcut: "⌘⇧F", action: () => { close(); setTimeout(() => document.dispatchEvent(new CustomEvent("open-transcript-search")), 100); } },
     ...(onShareReport ? [{ id: "tool-share", label: "Share Report", icon: Share2, group: "Tools", action: () => { onShareReport(); close(); } }] : []),
     ...(channelId ? [{ id: "tool-compare", label: "Compare Channels", icon: BarChart3, group: "Tools", action: () => { globalThis.open(`/compare?channels=${channelId}`, "_self"); close(); } }] : []),
     { id: "tool-shortcuts", label: "Keyboard Shortcuts", icon: Keyboard, group: "Tools", action: () => { setShowShortcuts(true); } },
@@ -97,6 +99,10 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
         e.preventDefault();
         onNavigate("videos");
         setTimeout(() => document.dispatchEvent(new CustomEvent("open-ai-drawer")), 100);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "f") {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent("open-transcript-search"));
       }
     }
     globalThis.addEventListener("keydown", handleKeyDown);
@@ -148,6 +154,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
   const SHORTCUTS = [
     { keys: "⌘ K", description: "Open command palette" },
     { keys: "⌘ J", description: "Open AI assistant" },
+    { keys: "⌘ ⇧ F", description: "Search transcripts" },
     { keys: "/", description: "Focus video search" },
     { keys: "← →", description: "Navigate videos in detail view" },
     { keys: "Esc", description: "Close panel / clear search" },
