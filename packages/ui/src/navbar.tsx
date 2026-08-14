@@ -9,6 +9,13 @@ interface NavbarProps {
   search?: React.ReactNode;
   homeLink?: React.ReactNode;
   themeIconClassName?: string;
+  /** Trailing slot, for apps that overlay their own control in the corner. */
+  actions?: React.ReactNode;
+  /**
+   * Span the full width with flush padding instead of a centred container, so
+   * the navbar lines up with full-bleed page content underneath it.
+   */
+  fullWidth?: boolean;
 }
 
 export function Navbar({
@@ -17,6 +24,8 @@ export function Navbar({
   search,
   homeLink,
   themeIconClassName,
+  actions,
+  fullWidth = false,
 }: Readonly<NavbarProps>) {
   const brandContent = (
     <>
@@ -31,7 +40,7 @@ export function Navbar({
 
   return (
     <header className="flex-shrink-0 sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className="container mx-auto px-4 py-3">
+      <div className={fullWidth ? "px-4 sm:px-6 py-3" : "container mx-auto px-4 py-3"}>
         <div className="flex items-center gap-3 sm:gap-4">
           {homeLink ? (
             React.cloneElement(homeLink as React.ReactElement<{ className?: string; children?: React.ReactNode }>, {
@@ -47,6 +56,7 @@ export function Navbar({
             <div className="flex-1 max-w-md ml-auto">{search}</div>
           )}
           <ThemeToggle iconClassName={themeIconClassName} />
+          {actions}
         </div>
       </div>
     </header>

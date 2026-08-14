@@ -1,5 +1,6 @@
 "use client";
 
+import { AccountSpacer } from "@/components/account-spacer";
 import { SearchChannel } from "@/components/search-channel";
 import { YouTubeIcon } from "@/components/youtube-icon";
 import { useChannelSearch } from "@/hooks/use-channel-search";
@@ -38,7 +39,8 @@ export default function SearchChannelPage() {
           logo={<YouTubeLogo />}
           appName="YouTube Analyzer"
           search={<SearchChannel initialValue={query} compact />}
-          themeIconClassName="text-primary"
+          themeIconClassName="text-muted-foreground"
+          actions={<AccountSpacer />}
         />
         <main className="flex-1 min-h-0 container mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
@@ -68,7 +70,8 @@ export default function SearchChannelPage() {
         logo={<YouTubeLogo />}
         appName="YouTube Analyzer"
         search={<SearchChannel initialValue={query} compact />}
-        themeIconClassName="text-primary"
+        themeIconClassName="text-muted-foreground"
+        actions={<AccountSpacer />}
       />
 
       <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">

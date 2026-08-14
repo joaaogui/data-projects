@@ -71,11 +71,11 @@ export function ScoreRing({ score, scoreComponents, weights, size = 48 }: Readon
   }
 
   const strokeColorMap: Record<string, string> = {
-    views: "stroke-emerald-600 dark:stroke-emerald-400",
-    engagement: "stroke-sky-600 dark:stroke-sky-400",
-    momentum: "stroke-amber-600 dark:stroke-amber-400",
-    efficiency: "stroke-orange-600 dark:stroke-orange-400",
-    community: "stroke-violet-600 dark:stroke-violet-400",
+    views: "stroke-foreground/40",
+    engagement: "stroke-foreground/40",
+    momentum: "stroke-foreground/40",
+    efficiency: "stroke-foreground/40",
+    community: "stroke-foreground/40",
   };
 
   return (

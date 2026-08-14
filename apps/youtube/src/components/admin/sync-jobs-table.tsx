@@ -129,8 +129,8 @@ export function SyncJobsTable({
                         <TableCell>
                           <span
                             className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${job.type === "videos"
-                                ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 ring-purple-500/20"
-                                : "bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-blue-500/20"
+                                ? "bg-muted text-muted-foreground ring-border"
+                                : "bg-muted text-muted-foreground ring-border"
                               }`}
                           >
                             {job.type}

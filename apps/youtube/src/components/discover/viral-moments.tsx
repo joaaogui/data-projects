@@ -72,11 +72,7 @@ export function ViralMoments({ videos }: Readonly<{ videos: VideoData[] }>) {
 
   if (viralVideos.length === 0) {
     return (
-      <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Zap className="h-4 w-4 text-amber-500" />
-          <h3 className="text-sm font-semibold">Viral Moments</h3>
-        </div>
+      <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
         <p className="text-xs text-muted-foreground text-center py-6">
           No breakout videos detected for this channel.
         </p>
@@ -85,11 +81,7 @@ export function ViralMoments({ videos }: Readonly<{ videos: VideoData[] }>) {
   }
 
   return (
-    <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
-      <div className="flex items-center gap-2 mb-1">
-        <Zap className="h-4 w-4 text-amber-500" />
-        <h3 className="text-sm font-semibold">Viral Moments</h3>
-      </div>
+    <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
       <p className="text-xs text-muted-foreground mb-4">
         Videos that massively outperformed the channel&apos;s baseline.
       </p>
@@ -113,7 +105,7 @@ export function ViralMoments({ videos }: Readonly<{ videos: VideoData[] }>) {
                   sizes="192px"
                   className="object-cover transition-transform group-hover:scale-105"
                 />
-                <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5">
+                <div className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
                   <Zap className="h-3 w-3 text-white" />
                   <span className="text-[10px] font-bold text-white">
                     {video.breakoutFactor.toFixed(0)}x
@@ -128,7 +120,7 @@ export function ViralMoments({ videos }: Readonly<{ videos: VideoData[] }>) {
                   {formatCompact(video.views)} views
                 </p>
                 {context && (
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
                     {context}
                   </p>
                 )}

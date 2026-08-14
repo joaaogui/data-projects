@@ -1,20 +1,33 @@
+import { SignedInProvider } from "@/components/session-context";
 import { UserMenu } from "@/components/user-menu";
+import { auth } from "@/lib/auth";
 import { Providers } from "@data-projects/ui";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import Script from "next/script";
 import "./globals.css";
 
-const geistSans = Geist({
-  subsets: ["latin"],
+// Self-hosted rather than next/font/google: the Google Fonts CDN is not
+// reachable from every network we build on, and a font download should not be
+// able to fail a build.
+const geistSans = localFont({
+  src: [
+    { path: "./fonts/Geist-latin.woff2", weight: "100 900", style: "normal" },
+    { path: "./fonts/Geist-latin-ext.woff2", weight: "100 900", style: "normal" },
+  ],
   variable: "--font-geist-sans",
   display: "swap",
+  fallback: ["system-ui", "sans-serif"],
 });
 
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
+const geistMono = localFont({
+  src: [
+    { path: "./fonts/GeistMono-latin.woff2", weight: "100 900", style: "normal" },
+    { path: "./fonts/GeistMono-latin-ext.woff2", weight: "100 900", style: "normal" },
+  ],
   variable: "--font-geist-mono",
   display: "swap",
+  fallback: ["ui-monospace", "monospace"],
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://youtube.joaog.space";
@@ -79,11 +92,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased gradient-bg min-h-screen`}>
@@ -100,10 +115,12 @@ export default function RootLayout({
           `}
         </Script>
         <Providers posthogApiKey={process.env.NEXT_PUBLIC_POSTHOG_KEY}>
-          <div className="fixed right-14 sm:right-4 top-2 sm:top-3 z-[60] flex items-center gap-2">
-            <UserMenu />
-          </div>
-          {children}
+          <SignedInProvider isSignedIn={!!session?.user}>
+            <div className="fixed right-14 sm:right-4 top-2 sm:top-3 z-[60] flex items-center gap-2">
+              <UserMenu />
+            </div>
+            {children}
+          </SignedInProvider>
         </Providers>
       </body>
     </html>

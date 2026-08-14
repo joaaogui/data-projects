@@ -51,7 +51,7 @@ export function ChannelHeader({
 
   if (isLoadingChannel || !mounted) {
     return (
-      <Card className="mb-4 flex-shrink-0 rounded-2xl animate-fade-down overflow-hidden">
+      <Card className="mb-4 flex-shrink-0 rounded-lg animate-fade-down overflow-hidden">
         <CardContent className="p-4 sm:p-5">
           <div className="flex items-center gap-4">
             <Skeleton className="h-14 w-14 sm:h-16 sm:w-16 rounded-full" />
@@ -68,8 +68,7 @@ export function ChannelHeader({
   if (!channelInfo) return null;
 
   return (
-    <Card className="mb-4 overflow-hidden flex-shrink-0 rounded-2xl border-border/50 animate-fade-down relative">
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.03] via-transparent to-primary/[0.02]" />
+    <Card className="mb-4 overflow-hidden flex-shrink-0 rounded-lg border-border animate-fade-down relative">
       <CardContent className="p-4 sm:p-5 relative">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
@@ -172,8 +171,8 @@ export function ChannelHeader({
                   aria-label="Sync videos from YouTube"
                   className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm hover:bg-muted transition-colors text-left disabled:opacity-50"
                 >
-                  <div className="rounded-lg bg-sky-500/10 p-1.5">
-                    <Database className="h-3.5 w-3.5 text-sky-500" />
+                  <div className="rounded-lg bg-muted p-1.5">
+                    <Database className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                   <div>
                     <p className="font-medium text-sm">Sync Videos</p>
@@ -186,8 +185,8 @@ export function ChannelHeader({
                   aria-label="Sync video transcripts"
                   className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm hover:bg-muted transition-colors text-left disabled:opacity-50"
                 >
-                  <div className="rounded-lg bg-emerald-500/10 p-1.5">
-                    <FileText className="h-3.5 w-3.5 text-emerald-500" />
+                  <div className="rounded-lg bg-muted p-1.5">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                   <div>
                     <p className="font-medium text-sm">Sync Transcripts</p>
@@ -201,8 +200,8 @@ export function ChannelHeader({
                   aria-label="Retry failed transcript downloads"
                   className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm hover:bg-muted transition-colors text-left disabled:opacity-50"
                 >
-                  <div className="rounded-lg bg-amber-500/10 p-1.5">
-                    <RotateCcw className="h-3.5 w-3.5 text-amber-500" />
+                  <div className="rounded-lg bg-muted p-1.5">
+                    <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                   <div>
                     <p className="font-medium text-sm">Retry Failed</p>

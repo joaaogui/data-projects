@@ -1,6 +1,5 @@
 import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { createTaggedLogger } from "@/lib/logger";
 import { withErrorHandling } from "@/lib/route-handler";
 import { eq } from "drizzle-orm";
@@ -8,12 +7,9 @@ import { NextResponse } from "next/server";
 
 const log = createTaggedLogger("sync-status");
 
+// Open: anyone can start a sync, so anyone must be able to watch it finish.
+// Reads are keyed by an unguessable job UUID and expose only progress.
 export const GET = withErrorHandling("sync-status", async (req, ctx) => {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
   const { jobId } = await ctx.params;
 
   if (!jobId) {

@@ -115,7 +115,7 @@ function TimestampTooltip({
             onClick={(e) => e.stopPropagation()}
             className="
               flex items-center gap-1.5 whitespace-nowrap
-              rounded-lg border border-border/50 bg-popover px-2.5 py-1.5
+              rounded-lg border border-border bg-popover px-2.5 py-1.5
               text-[11px] font-medium text-popover-foreground
               shadow-lg shadow-black/10
               hover:bg-primary hover:text-primary-foreground hover:border-primary
@@ -402,7 +402,7 @@ function TranscriptReader({
   return (
     <div className="animate-slide-right">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-border/40 px-5 py-3">
+      <div className="flex items-center gap-3 border-b border-border px-5 py-3">
         <button
           onClick={onBack}
           className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
@@ -583,7 +583,7 @@ export function TranscriptSearchOverlay({
         open
         aria-modal="true"
         aria-label="Search transcripts"
-        className="relative mx-4 sm:mx-auto mt-[10vh] sm:mt-[15vh] w-auto sm:w-full max-w-2xl rounded-2xl border border-border/40 bg-card shadow-2xl p-0 animate-spotlight-in glass-strong"
+        className="relative mx-4 sm:mx-auto mt-[10vh] sm:mt-[15vh] w-auto sm:w-full max-w-2xl rounded-lg border border-border bg-card shadow-2xl p-0 animate-spotlight-in glass-strong"
       >
         {viewingVideo ? (
           <TranscriptReader
@@ -594,7 +594,7 @@ export function TranscriptSearchOverlay({
         ) : (
           <>
             {/* Search header */}
-            <div className="flex items-center gap-3 border-b border-border/40 px-5 py-4">
+            <div className="flex items-center gap-3 border-b border-border px-5 py-4">
               <FileSearch className="h-5 w-5 shrink-0 text-primary" />
               <input
                 ref={inputRef}
@@ -628,22 +628,22 @@ export function TranscriptSearchOverlay({
                   <Sparkles className="h-4 w-4" />
                 )}
               </button>
-              <kbd className="hidden sm:inline-flex shrink-0 rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              <kbd className="hidden sm:inline-flex shrink-0 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                 ESC
               </kbd>
             </div>
             {isGenerating && (
-              <div className="px-5 py-1.5 border-b border-border/40">
+              <div className="px-5 py-1.5 border-b border-border">
                 <p className="text-[11px] text-muted-foreground/60 animate-pulse">Understanding your query...</p>
               </div>
             )}
             {aiError && !isGenerating && (
-              <div className="px-5 py-2 border-b border-border/40 bg-destructive/5">
+              <div className="px-5 py-2 border-b border-border bg-destructive/5">
                 <p className="text-xs text-destructive">{aiError}</p>
               </div>
             )}
             {error && !isGenerating && (
-              <div className="px-5 py-2 border-b border-border/40 bg-destructive/5">
+              <div className="px-5 py-2 border-b border-border bg-destructive/5">
                 <p className="text-xs text-destructive">{error}</p>
               </div>
             )}
@@ -733,7 +733,7 @@ export function TranscriptSearchOverlay({
 
             {/* Footer */}
             {showResults && !isSearching && !isGenerating && (
-              <div className="border-t border-border/40 px-5 py-2.5">
+              <div className="border-t border-border px-5 py-2.5">
                 {generatedRegex ? (
                   <p className="text-[10px] text-muted-foreground/50 text-center truncate" title={generatedRegex}>
                     Matched with: <code className="font-mono text-muted-foreground/70">{generatedRegex}</code>

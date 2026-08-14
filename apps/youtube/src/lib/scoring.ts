@@ -374,19 +374,19 @@ interface ScoreLabel {
 }
 
 const FIXED_LABELS: { min: number; label: ScoreLabel }[] = [
-  { min: 70, label: { label: "Excellent", color: "text-emerald-600 dark:text-emerald-400", description: "Exceptional performance across all dimensions" } },
-  { min: 55, label: { label: "Very Good", color: "text-teal-600 dark:text-teal-400", description: "Above average - strong audience engagement" } },
-  { min: 40, label: { label: "Good", color: "text-amber-600 dark:text-amber-400", description: "Solid performance within expectations" } },
-  { min: 25, label: { label: "Fair", color: "text-orange-600 dark:text-orange-400", description: "Below average - room for improvement" } },
-  { min: 0, label: { label: "Low", color: "text-red-600 dark:text-red-400", description: "Needs attention - low engagement" } },
+  { min: 70, label: { label: "Excellent", color: "text-data", description: "Exceptional performance across all dimensions" } },
+  { min: 55, label: { label: "Very Good", color: "text-foreground", description: "Above average - strong audience engagement" } },
+  { min: 40, label: { label: "Good", color: "text-muted-foreground", description: "Solid performance within expectations" } },
+  { min: 25, label: { label: "Fair", color: "text-muted-foreground/80", description: "Below average - room for improvement" } },
+  { min: 0, label: { label: "Low", color: "text-muted-foreground/60", description: "Needs attention - low engagement" } },
 ];
 
 const ADAPTIVE_TIERS: { qMin: number; label: ScoreLabel }[] = [
-  { qMin: 0.9, label: { label: "Excellent", color: "text-emerald-600 dark:text-emerald-400", description: "Top 10% of this channel" } },
-  { qMin: 0.75, label: { label: "Very Good", color: "text-teal-600 dark:text-teal-400", description: "Top 25% of this channel" } },
-  { qMin: 0.5, label: { label: "Good", color: "text-amber-600 dark:text-amber-400", description: "Above median for this channel" } },
-  { qMin: 0.25, label: { label: "Fair", color: "text-orange-600 dark:text-orange-400", description: "Below median for this channel" } },
-  { qMin: 0, label: { label: "Low", color: "text-red-600 dark:text-red-400", description: "Bottom 25% of this channel" } },
+  { qMin: 0.9, label: { label: "Excellent", color: "text-data", description: "Top 10% of this channel" } },
+  { qMin: 0.75, label: { label: "Very Good", color: "text-foreground", description: "Top 25% of this channel" } },
+  { qMin: 0.5, label: { label: "Good", color: "text-muted-foreground", description: "Above median for this channel" } },
+  { qMin: 0.25, label: { label: "Fair", color: "text-muted-foreground/80", description: "Below median for this channel" } },
+  { qMin: 0, label: { label: "Low", color: "text-muted-foreground/60", description: "Bottom 25% of this channel" } },
 ];
 
 export function getScoreLabel(score: number, allScores?: number[]): ScoreLabel {

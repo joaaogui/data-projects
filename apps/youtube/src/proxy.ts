@@ -1,31 +1,26 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_ASSET_PREFIXES = [
-  "/api/auth",
-  "/api/health",
-  "/signin",
-  "/_next/",
-  "/favicon.ico",
-  "/favicon.svg",
-  "/og-image",
-  "/img/",
-];
+// Signing in is optional. Searching a channel and reading its dashboard are the
+// primary flow and work anonymously; signing in adds syncing, saved channels,
+// AI features and admin.
+//
+// Everything that mutates state or exposes per-user data enforces auth inside
+// its own route handler (`auth()` / `requireAdmin()`), which is the real
+// boundary -- the cookie check below only proves a cookie exists, not that it is
+// valid. This list therefore covers just the pages that have no server-side
+// check of their own.
+const PROTECTED_PAGE_PREFIXES = ["/admin"];
 
-const PUBLIC_PAGE_PREFIXES = ["/channel/"];
-
-const PUBLIC_EXACT = new Set(["/sitemap.xml", "/robots.txt"]);
-
-function isPublicPath(pathname: string): boolean {
-  if (PUBLIC_EXACT.has(pathname)) return true;
-  if (PUBLIC_ASSET_PREFIXES.some((p) => pathname.startsWith(p))) return true;
-  if (PUBLIC_PAGE_PREFIXES.some((p) => pathname.startsWith(p))) return true;
-  return false;
+function isProtectedPage(pathname: string): boolean {
+  return PROTECTED_PAGE_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
 }
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (isPublicPath(pathname)) {
+  if (!isProtectedPage(pathname)) {
     return NextResponse.next();
   }
 
@@ -34,9 +29,6 @@ export function proxy(req: NextRequest) {
     req.cookies.has("__Secure-authjs.session-token");
 
   if (!hasSession) {
-    if (pathname.startsWith("/api/")) {
-      return new NextResponse(null, { status: 401 });
-    }
     const signInUrl = new URL("/signin", req.nextUrl.origin);
     signInUrl.searchParams.set("callbackUrl", req.nextUrl.href);
     return NextResponse.redirect(signInUrl);

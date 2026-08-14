@@ -58,7 +58,7 @@ function findLongestHiatus(sorted: VideoData[]): TriviaFact | null {
     label: "Longest hiatus",
     value: `${days} days`,
     detail: `${new Date(gapStart).toLocaleDateString("en-US", { month: "short", year: "numeric" })} to ${new Date(gapEnd).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`,
-    color: "text-orange-500",
+    color: "text-muted-foreground",
   };
 }
 
@@ -75,7 +75,7 @@ function findMostProlificMonth(videos: VideoData[]): TriviaFact | null {
     label: "Most prolific month",
     value: `${topMonth[1]} uploads`,
     detail: topMonth[0],
-    color: "text-amber-500",
+    color: "text-muted-foreground",
   };
 }
 
@@ -93,7 +93,7 @@ function computeTrivia(videos: VideoData[]): TriviaFact[] {
     label: "Longest video",
     value: formatDurationHuman(byDuration[0].duration),
     detail: truncateTitle(byDuration[0].title),
-    color: "text-sky-500",
+    color: "text-muted-foreground",
   });
 
   const shortest = byDuration.at(-1)!;
@@ -103,7 +103,7 @@ function computeTrivia(videos: VideoData[]): TriviaFact[] {
       label: "Shortest video",
       value: formatDurationHuman(shortest.duration),
       detail: truncateTitle(shortest.title),
-      color: "text-indigo-500",
+      color: "text-muted-foreground",
     });
   }
 
@@ -113,7 +113,7 @@ function computeTrivia(videos: VideoData[]): TriviaFact[] {
     label: "Most discussed",
     value: `${formatCompact(mostCommented.comments)} comments`,
     detail: truncateTitle(mostCommented.title),
-    color: "text-emerald-500",
+    color: "text-muted-foreground",
   });
 
   const bestLikeRatio = [...videos]
@@ -126,7 +126,7 @@ function computeTrivia(videos: VideoData[]): TriviaFact[] {
       label: "Most loved",
       value: `${ratio}% like rate`,
       detail: truncateTitle(bestLikeRatio.title),
-      color: "text-rose-500",
+      color: "text-destructive",
     });
   }
 
@@ -143,7 +143,7 @@ function computeTrivia(videos: VideoData[]): TriviaFact[] {
     label: "Total runtime",
     value: totalHours >= 24 ? `${(totalHours / 24).toFixed(1)} days` : `${totalHours}h`,
     detail: "If you watched everything back-to-back",
-    color: "text-teal-500",
+    color: "text-muted-foreground",
   });
 
   const avgTitleLen = Math.round(videos.reduce((s, v) => s + v.title.length, 0) / videos.length);
@@ -153,7 +153,7 @@ function computeTrivia(videos: VideoData[]): TriviaFact[] {
     label: "Avg title length",
     value: `${avgTitleLen} chars`,
     detail: `Longest: "${truncateTitle(longestTitle.title, 40)}"`,
-    color: "text-purple-500",
+    color: "text-muted-foreground",
   });
 
   const dayCounts = [0, 0, 0, 0, 0, 0, 0];
@@ -167,7 +167,7 @@ function computeTrivia(videos: VideoData[]): TriviaFact[] {
     label: "Favorite upload day",
     value: dayNames[bestDayIdx],
     detail: `${dayCounts[bestDayIdx]} videos published on ${dayNames[bestDayIdx]}s`,
-    color: "text-cyan-500",
+    color: "text-muted-foreground",
   });
 
   return facts;
@@ -181,14 +181,12 @@ export function ChannelTrivia({ videos }: Readonly<{ videos: VideoData[] }>) {
   }
 
   return (
-    <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
-      <h3 className="text-sm font-semibold mb-4">Channel Trivia</h3>
-
+    <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {facts.map((fact) => (
           <div
             key={fact.label}
-            className="flex items-start gap-3 rounded-xl border border-border/30 p-3"
+            className="flex items-start gap-3 rounded-xl border border-border p-3"
           >
             <div className={`shrink-0 mt-0.5 ${fact.color}`}>{fact.icon}</div>
             <div className="min-w-0">

@@ -97,7 +97,7 @@ function ProgressBar({ progress, logs }: Readonly<{ progress: AnalysisProgress; 
 
   return (
     <div className="shrink-0">
-      <div className={`${showLogs ? "rounded-t-2xl" : "rounded-2xl"} border border-border/50 bg-card p-3 space-y-2`}>
+      <div className={`${showLogs ? "rounded-t-2xl" : "rounded-lg"} border border-border bg-card p-3 space-y-2`}>
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">
             Analyzing stories... Batch {progress.currentBatch} of {progress.totalBatches}
@@ -175,7 +175,7 @@ function GapCard({
   }), [leftSaga, rightSaga]);
 
   return (
-    <div className="rounded-2xl border border-dashed border-muted-foreground/30 bg-muted/20 p-4 space-y-2">
+    <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 p-4 space-y-2">
       <h3 className="text-xs font-semibold flex items-center gap-1.5">
         <FolderInput className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="tabular-nums">{videos.length}</span>{" uncategorized "}
@@ -189,7 +189,7 @@ function GapCard({
               <button
                 disabled={isSubmitting}
                 onClick={() => handleAssign(leftSaga.id, video.videoId, ctx)}
-                className="shrink-0 h-6 w-6 rounded-md border border-border/50 bg-card hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors flex items-center justify-center disabled:opacity-50"
+                className="shrink-0 h-6 w-6 rounded-md border border-border bg-card hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors flex items-center justify-center disabled:opacity-50"
                 title={`Add to "${leftSaga.name}"`}
                 aria-label={`Add to ${leftSaga.name}`}
               >
@@ -220,7 +220,7 @@ function GapCard({
               <button
                 disabled={isSubmitting}
                 onClick={() => handleAssign(rightSaga.id, video.videoId, ctx)}
-                className="shrink-0 h-6 w-6 rounded-md border border-border/50 bg-card hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors flex items-center justify-center disabled:opacity-50"
+                className="shrink-0 h-6 w-6 rounded-md border border-border bg-card hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors flex items-center justify-center disabled:opacity-50"
                 title={`Add to "${rightSaga.name}"`}
                 aria-label={`Add to ${rightSaga.name}`}
               >

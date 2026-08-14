@@ -2,33 +2,30 @@
 
 import { useDiscoverRabbitHole } from "@/hooks/use-discover";
 import { Button } from "@data-projects/ui";
-import { AlertCircle, ExternalLink, Loader2, Network, Sparkles } from "lucide-react";
+import { AlertCircle, ExternalLink, Loader2, Sparkles } from "lucide-react";
 
-const FREQUENCY_COLORS = [
-  "border-l-emerald-500/60",
-  "border-l-sky-500/60",
-  "border-l-violet-500/60",
-  "border-l-amber-500/60",
-  "border-l-rose-500/60",
+// Mentions arrive most-frequent first, so the edge fades down the list rather
+// than cycling through arbitrary hues.
+const FREQUENCY_EDGES = [
+  "border-l-data",
+  "border-l-foreground/50",
+  "border-l-foreground/35",
+  "border-l-foreground/25",
+  "border-l-foreground/15",
 ];
 
 export function RabbitHole({ channelId }: Readonly<{ channelId: string }>) {
   const { data, generate, isLoading, error } = useDiscoverRabbitHole(channelId);
 
   return (
-    <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
-      <div className="flex items-center gap-2 mb-1">
-        <Network className="h-4 w-4 text-rose-500" />
-        <h3 className="text-sm font-semibold">Rabbit Hole</h3>
-      </div>
+    <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
       <p className="text-xs text-muted-foreground mb-4">
         Other creators mentioned, referenced, or collaborated with.
       </p>
 
       {!data && !isLoading && !error && (
-        <div className="flex flex-col items-center gap-3 py-8">
-          <Network className="h-6 w-6 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground text-center max-w-xs">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
             AI will scan descriptions and transcripts to find creator connections
           </p>
           <Button size="sm" onClick={() => generate()} className="gap-1.5">
@@ -66,7 +63,7 @@ export function RabbitHole({ channelId }: Readonly<{ channelId: string }>) {
           {data.mentions.map((mention, i) => (
             <div
               key={mention.name}
-              className={`rounded-xl border border-border/30 border-l-2 p-3 ${FREQUENCY_COLORS[i % FREQUENCY_COLORS.length]}`}
+              className={`rounded-md border border-border border-l-2 p-3 ${FREQUENCY_EDGES[Math.min(i, FREQUENCY_EDGES.length - 1)]}`}
             >
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2 min-w-0">

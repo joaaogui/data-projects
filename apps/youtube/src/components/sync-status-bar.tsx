@@ -50,14 +50,14 @@ function SyncBar({
     ? Math.min(100, (progress.fetched / progress.total) * 100)
     : 0;
 
-  const borderClass = variant === "video" ? "border-primary/20 bg-primary/5" : "border-blue-500/20 bg-blue-500/5";
-  const spinnerClass = variant === "video" ? "text-primary" : "text-blue-500";
-  const barClass = variant === "video" ? "bg-primary" : "bg-blue-500";
+  const borderClass = variant === "video" ? "border-primary/20 bg-primary/5" : "border-border bg-muted";
+  const spinnerClass = variant === "video" ? "text-primary" : "text-muted-foreground";
+  const barClass = variant === "video" ? "bg-primary" : "bg-foreground/40";
   const isActive = state.status === "running" || state.status === "pending";
 
   return (
     <output aria-busy="true">
-      <div className={`flex items-center gap-3 ${showLogs ? "rounded-t-2xl" : "rounded-2xl"} border ${borderClass} px-4 py-2.5`}>
+      <div className={`flex items-center gap-3 ${showLogs ? "rounded-t-2xl" : "rounded-lg"} border ${borderClass} px-4 py-2.5`}>
         <Loader2 className={`h-4 w-4 animate-spin ${spinnerClass} shrink-0`} />
         <div className="flex-1 min-w-0" aria-live="polite">
           <p className="text-sm font-medium">{label}</p>
@@ -112,8 +112,8 @@ function CompletedLogViewer({ logs, label }: Readonly<{ logs: SyncLogEntry[]; la
 
   return (
     <div>
-      <div className={`flex items-center gap-2 ${showLogs ? "rounded-t-2xl" : "rounded-2xl"} border border-emerald-500/20 bg-emerald-500/5 px-4 py-2 text-sm`}>
-        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+      <div className={`flex items-center gap-2 ${showLogs ? "rounded-t-2xl" : "rounded-lg"} border border-border bg-muted px-4 py-2 text-sm`}>
+        <CheckCircle2 className="h-4 w-4 text-muted-foreground shrink-0" />
         <span className="flex-1">{label}</span>
         <Button
           variant="ghost"
@@ -136,7 +136,7 @@ function FailedLogViewer({ logs, label }: Readonly<{ logs: SyncLogEntry[]; label
 
   return (
     <div>
-      <div className={`flex items-center gap-2 ${showLogs ? "rounded-t-2xl" : "rounded-2xl"} border border-destructive/20 bg-destructive/5 px-4 py-2 text-sm`}>
+      <div className={`flex items-center gap-2 ${showLogs ? "rounded-t-2xl" : "rounded-lg"} border border-destructive/20 bg-destructive/5 px-4 py-2 text-sm`}>
         <XCircle className="h-4 w-4 text-destructive shrink-0" />
         <span className="text-destructive text-sm flex-1">{label}</span>
         {logs.length > 0 && (

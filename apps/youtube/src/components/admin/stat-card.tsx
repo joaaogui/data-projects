@@ -5,8 +5,8 @@ import { healthColor } from "@/components/admin/shared";
 
 const STAT_STYLES = {
   default: { bg: "bg-primary/10", icon: "text-primary", value: "" },
-  warning: { bg: "bg-amber-500/10", icon: "text-amber-500", value: "text-amber-500" },
-  success: { bg: "bg-emerald-500/10", icon: "text-emerald-500", value: "text-emerald-500" },
+  warning: { bg: "bg-muted", icon: "text-muted-foreground", value: "text-muted-foreground" },
+  success: { bg: "bg-muted", icon: "text-muted-foreground", value: "text-muted-foreground" },
 } as const;
 
 export function StatCard({

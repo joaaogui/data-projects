@@ -19,8 +19,8 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const CONFIDENCE_CLASSES: Record<string, string> = {
-  high: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  medium: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  high: "bg-muted text-muted-foreground",
+  medium: "bg-muted text-muted-foreground",
   low: "bg-muted text-muted-foreground",
 };
 
@@ -79,7 +79,7 @@ function UncategorizedVideoRow({
             </span>
             <button
               onClick={onAcceptSuggestion}
-              className="h-5 w-5 rounded-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 flex items-center justify-center transition-colors"
+              className="h-5 w-5 rounded-full bg-muted text-muted-foreground hover:bg-muted flex items-center justify-center transition-colors"
               title="Accept suggestion"
               aria-label="Accept suggestion"
             >
@@ -201,7 +201,7 @@ export function UncategorizedSection({
   const suggestionMap = new Map(suggestions.map((s) => [s.videoId, s]));
 
   return (
-    <div className="rounded-2xl border border-dashed border-muted-foreground/30 bg-muted/20 p-4 space-y-3">
+    <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <FolderInput className="h-4 w-4 text-muted-foreground" />
@@ -233,7 +233,7 @@ export function UncategorizedSection({
       </div>
 
       {selectedIds.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-card border border-border/50 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-card border border-border px-3 py-2">
           <span className="text-xs text-muted-foreground">
             <span className="font-medium text-foreground tabular-nums">{selectedIds.size}</span> selected
           </span>

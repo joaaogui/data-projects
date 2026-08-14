@@ -199,14 +199,14 @@ export function LikedCell({ row }: Readonly<{ row: RowCtx }>) {
     <div className="flex items-center gap-1">
       <Tooltip>
         <TooltipTrigger asChild>
-          <Heart className={`h-3.5 w-3.5 ${isLiked ? "fill-red-500 text-red-500" : "text-muted-foreground/20"}`} />
+          <Heart className={`h-3.5 w-3.5 ${isLiked ? "fill-destructive text-destructive" : "text-muted-foreground/20"}`} />
         </TooltipTrigger>
         <TooltipContent>{isLiked ? "You liked this video" : "Not liked"}</TooltipContent>
       </Tooltip>
       {playlists && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <FolderOpen className="h-3.5 w-3.5 text-blue-500" />
+            <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
           </TooltipTrigger>
           <TooltipContent>In your playlists: {playlists.join(", ")}</TooltipContent>
         </Tooltip>

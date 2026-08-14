@@ -127,7 +127,7 @@ export function SagaDetailView({
         </div>
 
         {saga.reasoning && (
-          <div className="flex items-start gap-2 rounded-lg bg-muted/40 border border-border/30 px-3 py-2 text-xs text-muted-foreground">
+          <div className="flex items-start gap-2 rounded-lg bg-muted/40 border border-border px-3 py-2 text-xs text-muted-foreground">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary/60" />
             <div>
               <span className="font-medium text-foreground/70">AI reasoning: </span>

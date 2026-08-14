@@ -40,11 +40,11 @@ function Sparkline({ points, className = "" }: Readonly<{ points: number[]; clas
   let strokeColor = "stroke-muted-foreground";
   let fillColor = "fill-muted-foreground/5";
   if (trend > 2) {
-    strokeColor = "stroke-emerald-600 dark:stroke-emerald-400";
-    fillColor = "fill-emerald-500/10";
+    strokeColor = "stroke-foreground/40";
+    fillColor = "fill-foreground/40";
   } else if (trend < -2) {
-    strokeColor = "stroke-red-500 dark:stroke-red-400";
-    fillColor = "fill-red-500/10";
+    strokeColor = "stroke-destructive";
+    fillColor = "fill-destructive/10";
   }
 
   return (
@@ -56,8 +56,8 @@ function Sparkline({ points, className = "" }: Readonly<{ points: number[]; clas
 }
 
 function TrendIcon({ value }: Readonly<{ value: number }>) {
-  if (value > 2) return <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />;
-  if (value < -2) return <TrendingDown className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />;
+  if (value > 2) return <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />;
+  if (value < -2) return <TrendingDown className="h-3.5 w-3.5 text-destructive" />;
   return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
 }
 
@@ -129,7 +129,7 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
 
   if (collapsed) {
     return (
-      <div className="flex items-center justify-between mb-4 shrink-0 rounded-2xl bg-card border border-border/40 px-3 sm:px-4 py-2.5">
+      <div className="flex items-center justify-between mb-4 shrink-0 rounded-lg bg-card border border-border px-3 sm:px-4 py-2.5">
         <div className="flex items-center gap-2 sm:gap-4 text-sm min-w-0 overflow-hidden">
           <span className="font-medium shrink-0">{videos.length} videos</span>
           <span className="text-muted-foreground/40 shrink-0">&middot;</span>
@@ -148,7 +148,7 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
 
   return (
     <div className="mb-4 shrink-0 space-y-2">
-      <div className="flex items-center justify-between rounded-2xl bg-card border border-border/40 px-3 sm:px-4 py-2.5 animate-fade-down">
+      <div className="flex items-center justify-between rounded-lg bg-card border border-border px-3 sm:px-4 py-2.5 animate-fade-down">
         <div className="flex items-center gap-2 sm:gap-4 text-sm min-w-0 overflow-hidden">
           <span className="font-medium shrink-0">{videos.length} videos</span>
           <span className="text-muted-foreground/40 shrink-0">&middot;</span>
@@ -165,10 +165,10 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         <div className="animate-fade-up" style={{ animationDelay: '0ms' }}>
-          <Card className="rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border/40">
+          <Card className="rounded-lg overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border">
             <CardContent className="p-3 sm:p-4 relative">
               <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
-                <Eye className="h-3.5 w-3.5 text-sky-500" />
+                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-xs font-medium uppercase tracking-wider">Total Views</span>
               </div>
               <p className="text-xl sm:text-2xl font-bold tabular-nums animate-count-up" style={{ animationDelay: '150ms' }}>{formatCompact(stats.totalViews)}</p>
@@ -178,7 +178,7 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
         </div>
 
         <div className="animate-fade-up" style={{ animationDelay: '60ms' }}>
-          <Card className="rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border/40">
+          <Card className="rounded-lg overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border">
             <CardContent className="p-3 sm:p-4 relative">
               <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
                 <div className="flex items-center gap-1.5">
@@ -204,10 +204,10 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
         <div className="animate-fade-up lg:col-span-2" style={{ animationDelay: '120ms' }}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Card className="rounded-2xl cursor-help overflow-hidden group hover:glow-primary transition-shadow duration-300 h-full bg-card border-border/40">
+              <Card className="rounded-lg cursor-help overflow-hidden group hover:glow-primary transition-shadow duration-300 h-full bg-card border-border">
                 <CardContent className="p-3 sm:p-4 relative h-full">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
-                    <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                    <Trophy className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-xs font-medium uppercase tracking-wider">Top Performer</span>
                   </div>
                   <div className="flex items-center gap-2.5 mt-1.5">
@@ -219,7 +219,7 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
                         sizes="56px"
                         className="rounded-lg object-cover ring-1 ring-border/30"
                       />
-                      <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 flex items-center justify-center">
+                      <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-foreground/40 flex items-center justify-center">
                         <Trophy className="h-2.5 w-2.5 text-white" />
                       </div>
                     </div>
@@ -238,10 +238,10 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
         </div>
 
         <div className="animate-fade-up" style={{ animationDelay: '180ms' }}>
-          <Card className="rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border/40">
+          <Card className="rounded-lg overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border">
             <CardContent className="p-3 sm:p-4 relative">
               <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
-                <ThumbsUp className="h-3.5 w-3.5 text-violet-500" />
+                <ThumbsUp className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-xs font-medium uppercase tracking-wider">Avg Engagement</span>
               </div>
               <p className="text-xl sm:text-2xl font-bold tabular-nums animate-count-up" style={{ animationDelay: '150ms' }}>
@@ -254,10 +254,10 @@ export function ChannelDashboard({ videos }: Readonly<ChannelDashboardProps>) {
         </div>
 
         <div className="animate-fade-up col-span-2 sm:col-span-1" style={{ animationDelay: '240ms' }}>
-          <Card className="rounded-2xl overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border/40">
+          <Card className="rounded-lg overflow-hidden group hover:glow-primary transition-shadow duration-300 bg-card border-border">
             <CardContent className="p-3 sm:p-4 relative">
               <div className="flex items-center gap-2 text-muted-foreground mb-1.5">
-                <Calendar className="h-3.5 w-3.5 text-orange-500" />
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-xs font-medium uppercase tracking-wider">Upload Cadence</span>
               </div>
               <p className="text-xl sm:text-2xl font-bold tabular-nums animate-count-up" style={{ animationDelay: '150ms' }}>{stats.cadenceLabel}</p>

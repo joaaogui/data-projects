@@ -1,5 +1,6 @@
 "use client";
 
+import { AccountSpacer } from "@/components/account-spacer";
 import { SearchChannel } from "@/components/search-channel";
 import { YouTubeIcon } from "@/components/youtube-icon";
 import { formatCompact, getScoreColorClass } from "@/lib/format";
@@ -87,7 +88,7 @@ function CompareContent() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border/50">
+            <tr className="border-b border-border">
               <th className="text-left py-3 px-2 text-muted-foreground font-medium">Channel</th>
               <th className="text-right py-3 px-2 text-muted-foreground font-medium">Videos</th>
               <th className="text-right py-3 px-2 text-muted-foreground font-medium">Total Views</th>
@@ -100,7 +101,7 @@ function CompareContent() {
             {data.map((ch) => (
               <tr
                 key={ch.channelId}
-                className="border-b border-border/20 hover:bg-muted/30 transition-colors"
+                className="border-b border-border hover:bg-muted/30 transition-colors"
               >
                 <td className="py-3 px-2">
                   <Link
@@ -145,7 +146,7 @@ function CompareContent() {
       </div>
 
       {/* Views Bar Chart */}
-      <div className="bg-card border border-border/40 rounded-2xl p-5">
+      <div className="bg-card border border-border rounded-lg p-5">
         <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
           <Eye className="h-4 w-4 text-muted-foreground" />
           Total Views
@@ -169,7 +170,7 @@ function CompareContent() {
       </div>
 
       {/* Score Comparison */}
-      <div className="bg-card border border-border/40 rounded-2xl p-5">
+      <div className="bg-card border border-border rounded-lg p-5">
         <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
           Average Score
@@ -208,7 +209,8 @@ export default function ComparePage() {
         logo={<YouTubeIcon className="h-8 w-8 sm:h-10 sm:w-10 text-foreground" />}
         appName="YouTube Analyzer"
         search={<SearchChannel compact />}
-        themeIconClassName="text-primary"
+        themeIconClassName="text-muted-foreground"
+        actions={<AccountSpacer />}
       />
       <main className="max-w-5xl mx-auto px-4 py-8">
         <Suspense

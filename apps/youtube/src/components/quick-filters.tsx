@@ -28,12 +28,12 @@ const FILTER_DEFS: QuickFilterDef[] = [
 
 const FILTER_STYLES: Record<QuickFilterId, { icon: typeof Flame; active: string; inactive: string }> = {
   all: { icon: Layers, active: "bg-primary text-primary-foreground shadow-sm shadow-primary/20", inactive: "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground" },
-  excellent: { icon: Flame, active: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30", inactive: "bg-muted/60 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300" },
-  recent: { icon: Clock, active: "bg-sky-500/15 text-sky-700 dark:text-sky-300 ring-1 ring-sky-500/30", inactive: "bg-muted/60 text-muted-foreground hover:bg-sky-500/10 hover:text-sky-700 dark:hover:text-sky-300" },
-  short: { icon: Zap, active: "bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30", inactive: "bg-muted/60 text-muted-foreground hover:bg-amber-500/10 hover:text-amber-700 dark:hover:text-amber-300" },
-  long: { icon: Timer, active: "bg-orange-500/15 text-orange-700 dark:text-orange-300 ring-1 ring-orange-500/30", inactive: "bg-muted/60 text-muted-foreground hover:bg-orange-500/10 hover:text-orange-700 dark:hover:text-orange-300" },
-  viral: { icon: Rocket, active: "bg-violet-500/15 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30", inactive: "bg-muted/60 text-muted-foreground hover:bg-violet-500/10 hover:text-violet-700 dark:hover:text-violet-300" },
-  "hidden-gems": { icon: Gem, active: "bg-pink-500/15 text-pink-700 dark:text-pink-300 ring-1 ring-pink-500/30", inactive: "bg-muted/60 text-muted-foreground hover:bg-pink-500/10 hover:text-pink-700 dark:hover:text-pink-300" },
+  excellent: { icon: Flame, active: "bg-muted text-muted-foreground ring-1 ring-border", inactive: "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-muted-foreground dark:hover:text-muted-foreground" },
+  recent: { icon: Clock, active: "bg-muted text-muted-foreground ring-1 ring-border", inactive: "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-muted-foreground dark:hover:text-muted-foreground" },
+  short: { icon: Zap, active: "bg-muted text-muted-foreground ring-1 ring-border", inactive: "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-muted-foreground dark:hover:text-muted-foreground" },
+  long: { icon: Timer, active: "bg-muted text-muted-foreground ring-1 ring-border", inactive: "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-muted-foreground dark:hover:text-muted-foreground" },
+  viral: { icon: Rocket, active: "bg-muted text-muted-foreground ring-1 ring-border", inactive: "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-muted-foreground dark:hover:text-muted-foreground" },
+  "hidden-gems": { icon: Gem, active: "bg-muted text-muted-foreground ring-1 ring-border", inactive: "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-muted-foreground dark:hover:text-muted-foreground" },
 };
 
 function buildFilterDefs(videos: VideoData[]): QuickFilterDef[] {

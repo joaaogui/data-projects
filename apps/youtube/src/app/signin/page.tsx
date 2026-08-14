@@ -1,8 +1,8 @@
-import { LazyWebGLBackground as WebGLBackground } from "@/components/webgl-background-lazy";
 import { YouTubeIcon } from "@/components/youtube-icon";
 import { signIn } from "@/lib/auth";
 import { ThemeToggle } from "@data-projects/ui";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Sign In",
@@ -30,22 +30,17 @@ export default async function SignInPage({
 
   return (
     <div className="fixed inset-0 flex items-center justify-center">
-      <WebGLBackground />
       <div className="fixed right-4 top-4 z-[60]">
         <ThemeToggle iconClassName="text-primary" />
       </div>
 
-      <div className="relative z-10 w-full max-w-sm mx-4 animate-scale-in">
-        <div className="rounded-3xl border border-border/40 bg-card/80 backdrop-blur-2xl shadow-2xl p-8 space-y-8">
-          <div className="space-y-3 text-center">
-            <div className="flex justify-center animate-scale-in">
-              <div className="rounded-2xl bg-foreground/5 p-3">
-                <YouTubeIcon className="h-10 w-10 text-foreground" />
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight animate-fade-up" style={{ animationDelay: "80ms" }}>YouTube Analyzer</h1>
-            <p className="text-sm text-muted-foreground animate-fade-up" style={{ animationDelay: "160ms" }}>
-              Sign in to analyze channels, track engagement, and uncover video insights
+      <div className="relative z-10 mx-4 w-full max-w-sm animate-fade-up">
+        <div className="space-y-8">
+          <div className="space-y-3">
+            <YouTubeIcon className="h-8 w-8 text-foreground" />
+            <h1 className="text-2xl font-medium tracking-tight">Sign in</h1>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Analyze new channels, track them, and ask AI about their catalog.
             </p>
           </div>
 
@@ -54,20 +49,21 @@ export default async function SignInPage({
               "use server";
               await signIn("google", { redirectTo });
             }}
-            className="animate-fade-up"
-            style={{ animationDelay: "240ms" }}
           >
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-3 rounded-xl border border-border/60 bg-background/80 px-4 py-3 text-sm font-medium transition-all hover:bg-muted/80 hover:border-border hover:shadow-lg active:scale-[0.97]"
+              className="flex w-full items-center justify-center gap-2.5 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              <GoogleIcon className="h-5 w-5" />
+              <GoogleIcon className="h-4 w-4" />
               Continue with Google
             </button>
           </form>
 
-          <p className="text-center text-[11px] text-muted-foreground/60 animate-fade-up" style={{ animationDelay: "320ms" }}>
-            Sign in with your Google account to get started
+          <p className="border-t border-border pt-6 text-sm text-muted-foreground">
+            <Link href="/" className="text-foreground underline underline-offset-4 hover:no-underline">
+              Continue without an account
+            </Link>{" "}
+            to search and read any analyzed channel.
           </p>
         </div>
       </div>

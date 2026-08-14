@@ -45,7 +45,7 @@ export interface ChannelTabsProps {
 export function ChannelTabs({ activeTab, onTabChange, counts }: Readonly<ChannelTabsProps>) {
   return (
     <div className="animate-fade-up" style={{ animationDelay: '100ms' }}>
-      <div role="tablist" aria-label="Channel views" className="relative flex items-center gap-1 mb-3 flex-shrink-0 rounded-2xl bg-muted/30 p-1.5">
+      <div role="tablist" aria-label="Channel views" className="relative flex items-center gap-1 mb-3 flex-shrink-0 rounded-lg bg-muted/30 p-1.5">
         <TabButton
           active={activeTab === "videos"}
           onClick={() => onTabChange("videos")}

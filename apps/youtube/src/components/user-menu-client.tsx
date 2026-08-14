@@ -38,11 +38,11 @@ export function UserMenuClient({ name, email, image, signOutAction }: Readonly<U
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-56 p-0">
-        <div className="p-3 border-b border-border/50">
+        <div className="p-3 border-b border-border">
           {name && <p className="text-sm font-medium truncate">{name}</p>}
           {email && <p className="text-xs text-muted-foreground truncate">{email}</p>}
         </div>
-        <div className="p-1 border-b border-border/50">
+        <div className="p-1 border-b border-border">
           <a
             href="/admin"
             className="w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"

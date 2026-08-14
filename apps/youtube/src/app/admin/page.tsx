@@ -272,7 +272,7 @@ export default function AdminPage() {
                 <span className="ml-0.5 text-xs text-muted-foreground">({stats.global.channels})</span>
               )}
               {id === "sync-jobs" && runningJobCount > 0 && (
-                <span className="ml-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-500/10 px-1.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+                <span className="ml-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
                   {runningJobCount}
                 </span>
               )}

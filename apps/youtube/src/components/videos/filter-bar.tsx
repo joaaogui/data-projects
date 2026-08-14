@@ -226,7 +226,7 @@ export function FilterBar({
         )}
       </div>
       <div className="flex items-center gap-1 ml-auto">
-        <div className="hidden sm:flex items-center rounded-lg border border-border/40 p-0.5">
+        <div className="hidden sm:flex items-center rounded-lg border border-border p-0.5">
           <button
             onClick={() => {
               onTableModeChange("essential");

@@ -58,11 +58,7 @@ export function HiddenGems({ videos }: Readonly<{ videos: VideoData[] }>) {
 
   if (gems.length === 0) {
     return (
-      <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Gem className="h-4 w-4 text-violet-500" />
-          <h3 className="text-sm font-semibold">Hidden Gems</h3>
-        </div>
+      <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
         <p className="text-xs text-muted-foreground text-center py-6">
           Not enough data to surface hidden gems yet.
         </p>
@@ -71,11 +67,7 @@ export function HiddenGems({ videos }: Readonly<{ videos: VideoData[] }>) {
   }
 
   return (
-    <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
-      <div className="flex items-center gap-2 mb-1">
-        <Gem className="h-4 w-4 text-violet-500" />
-        <h3 className="text-sm font-semibold">Hidden Gems</h3>
-      </div>
+    <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
       <p className="text-xs text-muted-foreground mb-4">
         High engagement, low views &mdash; the stuff most people missed.
       </p>
@@ -97,7 +89,7 @@ export function HiddenGems({ videos }: Readonly<{ videos: VideoData[] }>) {
                 sizes="80px"
                 className="object-cover"
               />
-              <div className="absolute top-1 right-1 flex items-center gap-0.5 rounded-full bg-violet-500/90 px-1.5 py-0.5">
+              <div className="absolute top-1 right-1 flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5">
                 <Gem className="h-2.5 w-2.5 text-white" />
                 <span className="text-[9px] font-bold text-white">
                   {video.gemScore.toFixed(1)}x
@@ -112,7 +104,7 @@ export function HiddenGems({ videos }: Readonly<{ videos: VideoData[] }>) {
                 <span className="text-[11px] text-muted-foreground">
                   {formatCompact(video.views)} views
                 </span>
-                <span className="text-[11px] text-violet-600 dark:text-violet-400 font-medium">
+                <span className="text-[11px] text-muted-foreground font-medium">
                   {(video.rates?.engagementRate ?? 0).toFixed(1)} eng/1K
                 </span>
                 <span

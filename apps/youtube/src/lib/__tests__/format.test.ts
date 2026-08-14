@@ -88,86 +88,77 @@ describe("getAgeLabel", () => {
 });
 
 describe("getScoreColorClass", () => {
-  it("returns emerald class for score >= 70", () => {
-    expect(getScoreColorClass(70)).toContain("emerald");
-    expect(getScoreColorClass(100)).toContain("emerald");
+  it("returns the accent for score >= 70", () => {
+    expect(getScoreColorClass(70)).toBe("bg-data/10 text-data");
+    expect(getScoreColorClass(100)).toBe("bg-data/10 text-data");
   });
 
-  it("returns teal class for score >= 55 and < 70", () => {
-    expect(getScoreColorClass(55)).toContain("teal");
-    expect(getScoreColorClass(69)).toContain("teal");
+  it("returns full-weight foreground for score >= 55 and < 70", () => {
+    expect(getScoreColorClass(55)).toBe("bg-foreground/[0.08] text-foreground");
+    expect(getScoreColorClass(69)).toBe("bg-foreground/[0.08] text-foreground");
   });
 
-  it("returns amber class for score >= 40 and < 55", () => {
-    expect(getScoreColorClass(40)).toContain("amber");
-    expect(getScoreColorClass(54)).toContain("amber");
+  it("returns muted for score >= 40 and < 55", () => {
+    expect(getScoreColorClass(40)).toBe("bg-muted text-muted-foreground");
+    expect(getScoreColorClass(54)).toBe("bg-muted text-muted-foreground");
   });
 
-  it("returns orange class for score >= 25 and < 40", () => {
-    expect(getScoreColorClass(25)).toContain("orange");
-    expect(getScoreColorClass(39)).toContain("orange");
+  it("fades further for score >= 25 and < 40", () => {
+    expect(getScoreColorClass(25)).toBe("bg-muted/60 text-muted-foreground/80");
+    expect(getScoreColorClass(39)).toBe("bg-muted/60 text-muted-foreground/80");
   });
 
-  it("returns red class for score < 25", () => {
-    expect(getScoreColorClass(24)).toContain("red");
-    expect(getScoreColorClass(0)).toContain("red");
+  it("is faintest for score < 25", () => {
+    expect(getScoreColorClass(24)).toBe("bg-muted/40 text-muted-foreground/60");
+    expect(getScoreColorClass(0)).toBe("bg-muted/40 text-muted-foreground/60");
   });
 });
 
 describe("getScoreBorderClass", () => {
-  it("returns emerald border for score >= 70", () => {
-    expect(getScoreBorderClass(70)).toContain("emerald");
+  it("returns the accent border for score >= 70", () => {
+    expect(getScoreBorderClass(70)).toBe("border-l-data/70");
   });
 
-  it("returns teal border for score >= 55 and < 70", () => {
-    expect(getScoreBorderClass(55)).toContain("teal");
-  });
-
-  it("returns amber border for score >= 40 and < 55", () => {
-    expect(getScoreBorderClass(40)).toContain("amber");
-  });
-
-  it("returns orange border for score >= 25 and < 40", () => {
-    expect(getScoreBorderClass(25)).toContain("orange");
-  });
-
-  it("returns red border for score < 25", () => {
-    expect(getScoreBorderClass(0)).toContain("red");
+  it("fades through the greyscale ramp as the score drops", () => {
+    expect(getScoreBorderClass(55)).toBe("border-l-foreground/40");
+    expect(getScoreBorderClass(40)).toBe("border-l-foreground/25");
+    expect(getScoreBorderClass(25)).toBe("border-l-foreground/15");
+    expect(getScoreBorderClass(0)).toBe("border-l-foreground/[0.08]");
   });
 });
 
 describe("getEngagementColor", () => {
-  it("returns emerald for rate >= 60", () => {
-    expect(getEngagementColor(60)).toContain("emerald");
+  it("returns the accent for rate >= 60", () => {
+    expect(getEngagementColor(60)).toBe("text-data");
   });
 
-  it("returns teal for rate >= 40 and < 60", () => {
-    expect(getEngagementColor(40)).toContain("teal");
+  it("returns foreground for rate >= 40 and < 60", () => {
+    expect(getEngagementColor(40)).toBe("text-foreground");
   });
 
-  it("returns amber for rate >= 20 and < 40", () => {
-    expect(getEngagementColor(20)).toContain("amber");
+  it("returns muted for rate >= 20 and < 40", () => {
+    expect(getEngagementColor(20)).toBe("text-muted-foreground");
   });
 
-  it("returns muted for rate < 20", () => {
-    expect(getEngagementColor(19)).toContain("muted");
+  it("returns faded muted for rate < 20", () => {
+    expect(getEngagementColor(19)).toBe("text-muted-foreground/70");
   });
 });
 
 describe("getEfficiencyColor", () => {
-  it("returns emerald for rate >= 100000", () => {
-    expect(getEfficiencyColor(100000)).toContain("emerald");
+  it("returns the accent for rate >= 100000", () => {
+    expect(getEfficiencyColor(100000)).toBe("text-data");
   });
 
-  it("returns teal for rate >= 50000 and < 100000", () => {
-    expect(getEfficiencyColor(50000)).toContain("teal");
+  it("returns foreground for rate >= 50000 and < 100000", () => {
+    expect(getEfficiencyColor(50000)).toBe("text-foreground");
   });
 
-  it("returns amber for rate >= 10000 and < 50000", () => {
-    expect(getEfficiencyColor(10000)).toContain("amber");
+  it("returns muted for rate >= 10000 and < 50000", () => {
+    expect(getEfficiencyColor(10000)).toBe("text-muted-foreground");
   });
 
-  it("returns muted for rate < 10000", () => {
-    expect(getEfficiencyColor(9999)).toContain("muted");
+  it("returns faded muted for rate < 10000", () => {
+    expect(getEfficiencyColor(9999)).toBe("text-muted-foreground/70");
   });
 });

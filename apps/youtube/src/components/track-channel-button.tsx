@@ -1,11 +1,13 @@
 "use client";
 
+import { useIsSignedIn } from "@/components/session-context";
 import { useIsChannelTracked, useTrackChannel } from "@/hooks/use-saved-channels";
 import { Button, Tooltip, TooltipContent, TooltipTrigger } from "@data-projects/ui";
 import { AlertCircle, Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 export function TrackChannelButton({ channelId }: Readonly<{ channelId: string }>) {
+  const isSignedIn = useIsSignedIn();
   const isTracked = useIsChannelTracked(channelId);
   const { track, untrack } = useTrackChannel();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -32,6 +34,8 @@ export function TrackChannelButton({ channelId }: Readonly<{ channelId: string }
       });
     }
   }, [isPending, isTracked, channelId, track, untrack]);
+
+  if (!isSignedIn) return null;
 
   function renderIcon() {
     if (isPending) return <Loader2 className="h-3.5 w-3.5 animate-spin" />;

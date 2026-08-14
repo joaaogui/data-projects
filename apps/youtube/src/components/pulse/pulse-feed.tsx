@@ -39,11 +39,11 @@ function NewVideosCard({ item }: Readonly<{ item: NewVideosFeedItem }>) {
   return (
     <Link
       href={`/channel/${item.channelId}`}
-      className="group block rounded-xl border border-border/40 bg-card/60 p-4 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200"
+      className="group block rounded-xl border border-border bg-card/60 p-4 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200"
     >
       <div className="flex items-start gap-3">
-        <div className="rounded-lg bg-sky-500/10 p-2 shrink-0">
-          <Video className="h-4 w-4 text-sky-500" />
+        <div className="rounded-lg bg-muted p-2 shrink-0">
+          <Video className="h-4 w-4 text-muted-foreground" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -84,14 +84,14 @@ function ScoreAlertCard({ item }: Readonly<{ item: ScoreAlertFeedItem }>) {
   return (
     <Link
       href={`/channel/${item.channelId}`}
-      className="group block rounded-xl border border-border/40 bg-card/60 p-4 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200"
+      className="group block rounded-xl border border-border bg-card/60 p-4 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200"
     >
       <div className="flex items-start gap-3">
-        <div className={`rounded-lg p-2 shrink-0 ${isUp ? "bg-emerald-500/10" : "bg-amber-500/10"}`}>
+        <div className={`rounded-lg p-2 shrink-0 ${isUp ? "bg-muted" : "bg-muted"}`}>
           {isUp ? (
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           ) : (
-            <TrendingDown className="h-4 w-4 text-amber-500" />
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -103,7 +103,7 @@ function ScoreAlertCard({ item }: Readonly<{ item: ScoreAlertFeedItem }>) {
           </div>
           <p className="text-xs text-muted-foreground">
             Last 5 videos averaging{" "}
-            <span className={`font-semibold ${isUp ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+            <span className={`font-semibold ${isUp ? "text-muted-foreground" : "text-muted-foreground"}`}>
               {item.recentAvg}
             </span>
             {" "}vs channel baseline of {item.avgScore} ({isUp ? "+" : "-"}{item.delta} points)
@@ -118,11 +118,11 @@ function BreakoutCard({ item }: Readonly<{ item: BreakoutFeedItem }>) {
   return (
     <Link
       href={`/channel/${item.channelId}`}
-      className="group block rounded-xl border border-border/40 bg-card/60 p-4 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200"
+      className="group block rounded-xl border border-border bg-card/60 p-4 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200"
     >
       <div className="flex items-start gap-3">
-        <div className="rounded-lg bg-orange-500/10 p-2 shrink-0">
-          <Flame className="h-4 w-4 text-orange-500" />
+        <div className="rounded-lg bg-muted p-2 shrink-0">
+          <Flame className="h-4 w-4 text-muted-foreground" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -159,11 +159,11 @@ function HiatusCard({ item }: Readonly<{ item: HiatusFeedItem }>) {
   return (
     <Link
       href={`/channel/${item.channelId}`}
-      className="group block rounded-xl border border-border/40 bg-card/60 p-4 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200"
+      className="group block rounded-xl border border-border bg-card/60 p-4 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200"
     >
       <div className="flex items-start gap-3">
-        <div className="rounded-lg bg-violet-500/10 p-2 shrink-0">
-          <Clock className="h-4 w-4 text-violet-500" />
+        <div className="rounded-lg bg-muted p-2 shrink-0">
+          <Clock className="h-4 w-4 text-muted-foreground" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -183,7 +183,7 @@ function HiatusCard({ item }: Readonly<{ item: HiatusFeedItem }>) {
 export function PulseFeed({ items }: PulseFeedProps) {
   if (items.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 text-center">
+      <div className="rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
         <div className="flex justify-center mb-3">
           <div className="rounded-full bg-muted/60 p-3">
             <Sparkles className="h-6 w-6 text-muted-foreground" />

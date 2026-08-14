@@ -1,6 +1,5 @@
 import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { createTaggedLogger } from "@/lib/logger";
 import { withErrorHandling } from "@/lib/route-handler";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -8,14 +7,11 @@ import { NextResponse } from "next/server";
 
 const log = createTaggedLogger("sync-active");
 
+// Open: lets a returning anonymous visitor pick up a sync already running for
+// this channel instead of starting a duplicate one.
 export const GET = withErrorHandling("sync-active", async (_req, ctx) => {
   const start = Date.now();
   log.info("Request received");
-  const session = await auth();
-  if (!session) {
-    log.info({ elapsedMs: Date.now() - start }, "Auth failed");
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
 
   const { channelId } = await ctx.params;
   log.info({ channelId }, "Fetching active jobs");

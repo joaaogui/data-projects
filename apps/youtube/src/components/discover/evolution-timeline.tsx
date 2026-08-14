@@ -2,43 +2,38 @@
 
 import { useDiscoverEvolution } from "@/hooks/use-discover";
 import { Button } from "@data-projects/ui";
-import { AlertCircle, History, Loader2, Sparkles } from "lucide-react";
+import { AlertCircle, Loader2, Sparkles } from "lucide-react";
 
 const ERA_COLORS = [
-  "border-sky-500/60 bg-sky-500/5",
-  "border-violet-500/60 bg-violet-500/5",
-  "border-emerald-500/60 bg-emerald-500/5",
-  "border-amber-500/60 bg-amber-500/5",
-  "border-rose-500/60 bg-rose-500/5",
-  "border-cyan-500/60 bg-cyan-500/5",
+  "border-border bg-muted",
+  "border-border bg-muted",
+  "border-border bg-muted",
+  "border-border bg-muted",
+  "border-destructive/30 bg-destructive/5",
+  "border-border bg-muted",
 ];
 
 const DOT_COLORS = [
-  "bg-sky-500",
-  "bg-violet-500",
-  "bg-emerald-500",
-  "bg-amber-500",
-  "bg-rose-500",
-  "bg-cyan-500",
+  "bg-foreground/40",
+  "bg-foreground/40",
+  "bg-foreground/40",
+  "bg-foreground/40",
+  "bg-destructive",
+  "bg-foreground/40",
 ];
 
 export function EvolutionTimeline({ channelId }: Readonly<{ channelId: string }>) {
   const { data, generate, isLoading, error } = useDiscoverEvolution(channelId);
 
   return (
-    <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
-      <div className="flex items-center gap-2 mb-1">
-        <History className="h-4 w-4 text-sky-500" />
-        <h3 className="text-sm font-semibold">Creator Evolution</h3>
-      </div>
+    <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
       <p className="text-xs text-muted-foreground mb-4">
         How this creator&apos;s content has changed over time.
       </p>
 
       {!data && !isLoading && !error && (
-        <div className="flex flex-col items-center gap-3 py-8">
-          <Sparkles className="h-6 w-6 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground text-center max-w-xs">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
             AI will analyze all videos to map out how this creator evolved
           </p>
           <Button size="sm" onClick={() => generate()} className="gap-1.5">
@@ -106,7 +101,7 @@ export function EvolutionTimeline({ channelId }: Readonly<{ channelId: string }>
                       {era.topics.map((topic) => (
                         <span
                           key={topic}
-                          className="text-[9px] rounded-full bg-foreground/5 border border-border/30 px-2 py-0.5 text-muted-foreground"
+                          className="text-[9px] rounded-full bg-foreground/5 border border-border px-2 py-0.5 text-muted-foreground"
                         >
                           {topic}
                         </span>

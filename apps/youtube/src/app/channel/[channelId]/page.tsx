@@ -1,14 +1,16 @@
 "use client";
 
+import { AccountSpacer } from "@/components/account-spacer";
 import { ChannelOverview } from "@/components/channel-overview";
 import { CommandPalette } from "@/components/command-palette";
-import { ContextRail, type RailTab } from "@/components/context-rail";
+import { ChannelNav, type ChannelTab } from "@/components/channel-nav";
 import { DiscoverView } from "@/components/discover";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { FirstSyncFlow } from "@/components/first-sync-flow";
 import { saveRecentChannel } from "@/components/recent-channels";
 import { SagasView } from "@/components/sagas";
 import { SearchChannel } from "@/components/search-channel";
+import { useIsSignedIn } from "@/components/session-context";
 import { SyncStatusBar } from "@/components/sync-status-bar";
 import { TimelineView } from "@/components/timeline-view";
 import { TrackChannelButton } from "@/components/track-channel-button";
@@ -31,7 +33,7 @@ function YouTubeLogo() {
 function KpiPill({ label, value, icon }: Readonly<{ label: string; value: string; icon: React.ReactNode }>) {
   return (
     <div
-      className="flex items-center gap-2 rounded-full bg-card border border-border/40 px-3 py-1.5"
+      className="flex items-center gap-2 rounded-full bg-card border border-border px-3 py-1.5"
       aria-label={`${label}: ${value}`}
     >
       {icon}
@@ -44,8 +46,8 @@ function KpiPill({ label, value, icon }: Readonly<{ label: string; value: string
 }
 
 function TrendIcon({ value }: Readonly<{ value: number }>) {
-  if (value > 2) return <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />;
-  if (value < -2) return <TrendingDown className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />;
+  if (value > 2) return <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />;
+  if (value < -2) return <TrendingDown className="h-3.5 w-3.5 text-destructive" />;
   return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
 }
 
@@ -75,6 +77,7 @@ function ChannelPageContent() {
 
   const stats = useChannelStats(videos);
 
+  const isSignedIn = useIsSignedIn();
   const [hydrated, setHydrated] = useState(false);
   const [shareState, setShareState] = useState<"idle" | "loading" | "done">("idle");
   useEffect(() => setHydrated(true), []);
@@ -84,9 +87,9 @@ function ChannelPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const activeTab = (searchParams.get("tab") as RailTab) || "overview";
+  const activeTab = (searchParams.get("tab") as ChannelTab) || "overview";
 
-  const setActiveTab = useCallback((tab: RailTab) => {
+  const setActiveTab = useCallback((tab: ChannelTab) => {
     const params = new URLSearchParams(searchParams.toString());
     if (tab === "overview") {
       params.delete("tab");
@@ -183,7 +186,7 @@ function ChannelPageContent() {
   if (channelError) {
     return (
       <div className="h-screen flex flex-col overflow-hidden">
-        <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} search={<SearchChannel compact />} themeIconClassName="text-primary" />
+        <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} fullWidth search={<SearchChannel compact />} themeIconClassName="text-muted-foreground" actions={<AccountSpacer />} />
         <main className="flex-1 min-h-0 container mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center min-h-[50vh] text-center animate-scale-in">
             <div className="rounded-full bg-destructive/10 p-4 mb-4"><AlertCircle className="h-8 w-8 text-destructive" /></div>
@@ -198,26 +201,13 @@ function ChannelPageContent() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} search={<SearchChannel initialValue={hydrated ? channelInfo?.channelTitle : undefined} compact />} themeIconClassName="text-primary" />
+      <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} fullWidth search={<SearchChannel initialValue={hydrated ? channelInfo?.channelTitle : undefined} compact />} themeIconClassName="text-muted-foreground" actions={<AccountSpacer />} />
 
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        <ContextRail
-          channelInfo={channelInfo}
-          channelId={channelId}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          isSyncing={isSyncing}
-          videoSync={videoSync}
-          transcriptSync={transcriptSync}
-          onSyncVideos={syncVideos}
-          onSyncTranscripts={syncTranscripts}
-          videoCount={videos?.length ?? 0}
-        />
-
         <main className="flex-1 min-h-0 flex flex-col overflow-hidden" role="main" aria-label={channelInfo ? `Channel analysis for ${channelInfo.channelTitle}` : "Channel analysis"}>
           {/* Condensed header with KPI strip */}
           {channelInfo && (
-            <div className="shrink-0 border-b border-border/40 px-4 sm:px-6 py-3">
+            <div className="shrink-0 border-b border-border px-4 sm:px-6 py-3">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative h-10 w-10 shrink-0">
@@ -249,7 +239,7 @@ function ChannelPageContent() {
                     <KpiPill
                       label="Views"
                       value={stats.totalViewsFormatted}
-                      icon={<Eye className="h-3.5 w-3.5 text-sky-500" />}
+                      icon={<Eye className="h-3.5 w-3.5 text-muted-foreground" />}
                     />
                     <KpiPill
                       label="Avg Score"
@@ -260,16 +250,17 @@ function ChannelPageContent() {
                       <KpiPill
                         label="Engagement"
                         value={`${stats.avgEngagement.toFixed(1)}/1K`}
-                        icon={<ThumbsUp className="h-3.5 w-3.5 text-violet-500" />}
+                        icon={<ThumbsUp className="h-3.5 w-3.5 text-muted-foreground" />}
                       />
                       <KpiPill
                         label="Cadence"
                         value={stats.cadenceLabel}
-                        icon={<Calendar className="h-3.5 w-3.5 text-orange-500" />}
+                        icon={<Calendar className="h-3.5 w-3.5 text-muted-foreground" />}
                       />
                     </div>
-                    <div className="hidden sm:flex items-center gap-1 ml-1 border-l border-border/30 pl-2">
+                    <div className="hidden sm:flex items-center gap-1 ml-1 border-l border-border pl-2">
                       <TrackChannelButton channelId={channelId} />
+                      {isSignedIn && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -281,7 +272,7 @@ function ChannelPageContent() {
                             aria-label="Share channel report"
                           >
                             {shareState === "loading" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                            {shareState === "done" && <Check className="h-3.5 w-3.5 text-emerald-500" />}
+                            {shareState === "done" && <Check className="h-3.5 w-3.5 text-muted-foreground" />}
                             {shareState === "idle" && <Share2 className="h-3.5 w-3.5" />}
                           </Button>
                         </TooltipTrigger>
@@ -289,6 +280,7 @@ function ChannelPageContent() {
                           {shareState === "done" ? "Link copied!" : "Share report"}
                         </TooltipContent>
                       </Tooltip>
+                      )}
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -312,7 +304,7 @@ function ChannelPageContent() {
           )}
 
           {!channelInfo && isLoadingChannel && (
-            <div className="shrink-0 border-b border-border/40 px-4 sm:px-6 py-3">
+            <div className="shrink-0 border-b border-border px-4 sm:px-6 py-3">
               <div className="flex items-center gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="space-y-1.5">
@@ -323,18 +315,31 @@ function ChannelPageContent() {
             </div>
           )}
 
+          {hasVideos && (
+            <ChannelNav
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              isSyncing={isSyncing}
+              videoSync={videoSync}
+              transcriptSync={transcriptSync}
+              onSyncVideos={syncVideos}
+              onSyncTranscripts={syncTranscripts}
+              videoCount={videos?.length ?? 0}
+            />
+          )}
+
           <SyncStatusBar videoSync={videoSync} transcriptSync={transcriptSync} videoLogs={videoLogs} transcriptLogs={transcriptLogs} isSyncing={isSyncing} onCancel={cancelSync} />
 
-          {showFeatureTips && hasVideos && !isInitialLoading && (
+          {showFeatureTips && hasVideos && !isInitialLoading && isSignedIn && (
             <div className="shrink-0 px-4 sm:px-6 pt-3 animate-fade-down">
-              <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-xs">
+              <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-xs">
                 <span className="text-muted-foreground flex-1 flex flex-wrap items-center gap-x-4 gap-y-1">
                   <span className="flex items-center gap-1.5">
-                    <kbd className="rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
+                    <kbd className="rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
                     <span>Command palette</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <kbd className="rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px]">⌘J</kbd>
+                    <kbd className="rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px]">⌘J</kbd>
                     <span>Ask AI</span>
                   </span>
                   <span className="flex items-center gap-1.5">

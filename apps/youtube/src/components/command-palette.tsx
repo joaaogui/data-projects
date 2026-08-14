@@ -179,11 +179,11 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
             open
             aria-modal="true"
             aria-label="Command palette"
-            className="relative mx-4 sm:mx-auto mt-[15vh] sm:mt-[20vh] w-auto sm:w-full max-w-lg rounded-2xl border border-border/40 bg-card shadow-2xl p-0"
+            className="relative mx-4 sm:mx-auto mt-[15vh] sm:mt-[20vh] w-auto sm:w-full max-w-lg rounded-lg border border-border bg-card shadow-2xl p-0"
           >
             {showShortcuts ? (
               <>
-                <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+                <div className="flex items-center justify-between border-b border-border px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Keyboard className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Keyboard Shortcuts</span>
@@ -196,7 +196,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
                   {SHORTCUTS.map((s) => (
                     <div key={s.keys} className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-muted/40">
                       <span className="text-sm text-muted-foreground">{s.description}</span>
-                      <kbd className="rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                      <kbd className="rounded-md border border-border bg-muted/40 px-2 py-0.5 font-mono text-xs text-muted-foreground">
                         {s.keys}
                       </kbd>
                     </div>
@@ -205,7 +205,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
               </>
             ) : (
               <>
-                <div className="flex items-center gap-2 border-b border-border/40 px-4 py-3">
+                <div className="flex items-center gap-2 border-b border-border px-4 py-3">
                   <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <input
                     ref={inputRef}
@@ -215,7 +215,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
                     placeholder="Type a command…"
                     className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                   />
-                  <kbd className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                  <kbd className="rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                     ESC
                   </kbd>
                 </div>
@@ -243,7 +243,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
                             <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                             <span className="flex-1 text-left">{cmd.label}</span>
                             {cmd.shortcut && (
-                              <kbd className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                              <kbd className="rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                                 {cmd.shortcut}
                               </kbd>
                             )}
@@ -261,9 +261,9 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
 
       {showHint && (
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-2">
-          <div className="flex items-center gap-2 rounded-full border border-border/40 bg-card px-4 py-2 text-sm shadow-lg">
+          <div className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm shadow-lg">
             <span className="text-muted-foreground">Press</span>
-            <kbd className="rounded-md border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-xs">⌘K</kbd>
+            <kbd className="rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-xs">⌘K</kbd>
             <span className="text-muted-foreground">to explore all features</span>
           </div>
         </div>

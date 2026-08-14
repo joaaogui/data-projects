@@ -11,7 +11,6 @@ import {
   type FilterFn,
   type VisibilityState,
 } from "@data-projects/ui";
-import { X } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -107,7 +106,7 @@ function VideoCard({
       onClick={onClick}
       className={`w-full text-left flex items-start gap-3 rounded-xl border p-2.5 transition-all duration-150 border-l-2 ${borderClass} ${isSelected
         ? "bg-primary/8 border-l-primary! border-l-[3px] shadow-sm"
-        : "border-border/30 hover:bg-muted/30"
+        : "border-border hover:bg-muted/30"
         } ${highlightClass}`}
     >
       <div className="relative w-24 aspect-video shrink-0">
@@ -252,18 +251,6 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => loadColumnsFromStorage());
   const [tableMode, setTableMode] = useState<TableMode>(() => loadTableModeFromStorage());
   const [isHydrated, setIsHydrated] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  useEffect(() => {
-    if (globalThis.window === undefined) return;
-    const dismissed = localStorage.getItem("youtube-onboarding-dismissed");
-    if (!dismissed) setShowOnboarding(true);
-  }, []);
-
-  const dismissOnboarding = useCallback(() => {
-    setShowOnboarding(false);
-    localStorage.setItem("youtube-onboarding-dismissed", "true");
-  }, []);
 
   const [searchFilter, setSearchFilter] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -472,16 +459,6 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
 
   return (
     <div className="flex flex-col h-full gap-3 sm:gap-4">
-      {showOnboarding && (
-        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm shrink-0 animate-fade-down">
-          <span className="flex-1 text-muted-foreground">
-            <strong className="text-foreground">Scores rank each video relative to the channel.</strong> Higher score = outperforms peers in views, engagement, and momentum.
-          </span>
-          <Button variant="ghost" size="sm" onClick={dismissOnboarding} className="h-7 w-7 p-0 shrink-0">
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
       <div className="flex flex-col gap-2 sm:gap-3 shrink-0">
         <FilterBar
           searchInput={searchInput}

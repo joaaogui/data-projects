@@ -8,7 +8,7 @@ import { TrackedChannelsGrid } from "./tracked-channels-grid";
 
 function SummaryStat({ icon, label, value }: Readonly<{ icon: React.ReactNode; label: string; value: string }>) {
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-border/40 bg-card/60 px-4 py-3">
+    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card/60 px-4 py-3">
       {icon}
       <div>
         <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
@@ -30,7 +30,7 @@ function PulseSkeleton() {
         <Skeleton className="h-5 w-40 mb-3" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {["sk-ch-1", "sk-ch-2", "sk-ch-3"].map((id) => (
-            <Skeleton key={id} className="h-20 rounded-2xl" />
+            <Skeleton key={id} className="h-20 rounded-lg" />
           ))}
         </div>
       </div>
@@ -65,17 +65,17 @@ export function ChannelPulse() {
             value={String(summary.totalTracked)}
           />
           <SummaryStat
-            icon={<Activity className="h-4 w-4 text-sky-500" />}
+            icon={<Activity className="h-4 w-4 text-muted-foreground" />}
             label="New Videos"
             value={String(summary.totalNewVideos)}
           />
           <SummaryStat
-            icon={<BarChart3 className="h-4 w-4 text-emerald-500" />}
+            icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
             label="Avg Score"
             value={summary.avgScoreAcrossChannels > 0 ? summary.avgScoreAcrossChannels.toFixed(1) : "—"}
           />
           <SummaryStat
-            icon={<Zap className="h-4 w-4 text-amber-500" />}
+            icon={<Zap className="h-4 w-4 text-muted-foreground" />}
             label="Alerts"
             value={String(summary.alerts)}
           />

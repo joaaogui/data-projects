@@ -49,7 +49,7 @@ export function RecentChannels() {
           <Link
             key={ch.channelId}
             href={`/channel/${ch.channelId}`}
-            className="group flex items-center gap-2.5 rounded-full bg-card/80 border border-border/50 px-3.5 py-2 text-sm font-medium hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/20 transition-all duration-200"
+            className="group flex items-center gap-2.5 rounded-full bg-card/80 border border-border px-3.5 py-2 text-sm font-medium hover:bg-muted/60 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/20 transition-all duration-200"
           >
             {ch.thumbnail ? (
               <Image

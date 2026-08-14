@@ -11,8 +11,8 @@ import { useMemo } from "react";
 
 const SOURCE_BADGE: Record<string, { bg: string; label: string }> = {
   playlist: { bg: "bg-primary/10 text-primary", label: "Playlist" },
-  "ai-detected": { bg: "bg-amber-500/10 text-amber-600 dark:text-amber-400", label: "AI Detected" },
-  manual: { bg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", label: "Manual" },
+  "ai-detected": { bg: "bg-muted text-muted-foreground", label: "AI Detected" },
+  manual: { bg: "bg-muted text-muted-foreground", label: "Manual" },
 };
 
 export function SourceBadge({ source }: Readonly<{ source: string }>) {
@@ -53,9 +53,9 @@ export function SagaCard({
   return (
     <button
       onClick={onClick}
-      className={`group w-full h-full text-left rounded-2xl border p-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-200 animate-scale-in flex flex-col ${isStandalone
+      className={`group w-full h-full text-left rounded-lg border p-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-200 animate-scale-in flex flex-col ${isStandalone
         ? "border-dashed border-muted-foreground/30 bg-muted/30 hover:border-muted-foreground/50"
-        : "border-border/50 bg-card hover:border-primary/40"
+        : "border-border bg-card hover:border-primary/40"
         }`}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -128,7 +128,7 @@ export function SagaCard({
 
 export function SagaCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-border/50 bg-card p-4 flex flex-col">
+    <div className="rounded-lg border border-border bg-card p-4 flex flex-col">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0 space-y-2">
           <Skeleton className="h-4 w-3/4" />

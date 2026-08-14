@@ -30,11 +30,11 @@ const METRIC_TO_COMPONENT: Record<string, keyof ScoreComponents> = {
 };
 
 const METRIC_BAR_COLORS: Record<string, { text: string; bg: string }> = {
-  views: { text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-600 dark:bg-emerald-400" },
-  engagement: { text: "text-sky-600 dark:text-sky-400", bg: "bg-sky-600 dark:bg-sky-400" },
-  momentum: { text: "text-amber-600 dark:text-amber-400", bg: "bg-amber-600 dark:bg-amber-400" },
-  efficiency: { text: "text-orange-600 dark:text-orange-400", bg: "bg-orange-600 dark:bg-orange-400" },
-  community: { text: "text-violet-600 dark:text-violet-400", bg: "bg-violet-600 dark:bg-violet-400" },
+  views: { text: "text-muted-foreground", bg: "bg-foreground/40" },
+  engagement: { text: "text-muted-foreground", bg: "bg-foreground/40" },
+  momentum: { text: "text-muted-foreground", bg: "bg-foreground/40" },
+  efficiency: { text: "text-muted-foreground", bg: "bg-foreground/40" },
+  community: { text: "text-muted-foreground", bg: "bg-foreground/40" },
 };
 
 function MetricBar({ label, value, metricType, index = 0 }: Readonly<{ label: string; value: number; metricType: string; index?: number }>) {
@@ -145,8 +145,8 @@ export function VideoDetailPanel({
     <dialog open ref={modalRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 outline-none m-0 w-full h-full max-w-none max-h-none border-none bg-transparent" aria-modal="true" aria-label={`Video details: ${video.title}`}>
       <button type="button" className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity duration-300 cursor-default" aria-label="Close" onClick={onClose} />
 
-      <div className="relative w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] rounded-t-3xl sm:rounded-3xl border border-border/50 bg-card shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-[0.97] duration-300">
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border/20 bg-muted/20">
+      <div className="relative w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] rounded-t-3xl sm:rounded-xl border border-border bg-card shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-[0.97] duration-300">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border bg-muted/20">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground tabular-nums">
               {currentIndex + 1} / {allVideos.length}
@@ -198,13 +198,13 @@ export function VideoDetailPanel({
               {(isLiked || playlists) && (
                 <div className="flex flex-wrap gap-1.5">
                   {isLiked && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-500">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
                       <Heart className="h-3 w-3 fill-current" />
                       Liked
                     </span>
                   )}
                   {playlists?.map((name) => (
-                    <span key={name} className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-medium text-blue-500">
+                    <span key={name} className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                       <FolderOpen className="h-3 w-3" />
                       {name}
                     </span>
@@ -215,23 +215,23 @@ export function VideoDetailPanel({
               <div className="flex items-start gap-3 sm:gap-4">
                 <ScoreRing score={video.score} scoreComponents={video.scoreComponents} weights={weights} size={64} />
                 <div className="grid grid-cols-4 gap-1.5 sm:gap-2 flex-1">
-                  <div className="rounded-xl bg-linear-to-br from-sky-500/5 to-sky-500/10 p-2.5 text-center ring-1 ring-sky-500/10">
-                    <Eye className="h-3.5 w-3.5 mx-auto mb-0.5 text-sky-500" />
+                  <div className="rounded-lg border border-border p-2.5 text-center">
+                    <Eye className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.views)}</p>
                     <p className="text-[10px] text-muted-foreground">views</p>
                   </div>
-                  <div className="rounded-xl bg-linear-to-br from-emerald-500/5 to-emerald-500/10 p-2.5 text-center ring-1 ring-emerald-500/10">
-                    <ThumbsUp className="h-3.5 w-3.5 mx-auto mb-0.5 text-emerald-500" />
+                  <div className="rounded-lg border border-border p-2.5 text-center">
+                    <ThumbsUp className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.likes)}</p>
                     <p className="text-[10px] text-muted-foreground">likes</p>
                   </div>
-                  <div className="rounded-xl bg-linear-to-br from-violet-500/5 to-violet-500/10 p-2.5 text-center ring-1 ring-violet-500/10">
-                    <MessageSquare className="h-3.5 w-3.5 mx-auto mb-0.5 text-violet-500" />
+                  <div className="rounded-lg border border-border p-2.5 text-center">
+                    <MessageSquare className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.comments)}</p>
                     <p className="text-[10px] text-muted-foreground">comments</p>
                   </div>
-                  <div className="rounded-xl bg-linear-to-br from-amber-500/5 to-amber-500/10 p-2.5 text-center ring-1 ring-amber-500/10">
-                    <Star className="h-3.5 w-3.5 mx-auto mb-0.5 text-amber-500" />
+                  <div className="rounded-lg border border-border p-2.5 text-center">
+                    <Star className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.favorites)}</p>
                     <p className="text-[10px] text-muted-foreground">favorites</p>
                   </div>
@@ -306,12 +306,12 @@ export function VideoDetailPanel({
           </div>
         </div>
 
-        <div className="px-4 sm:px-5 py-3.5 border-t border-border/20 bg-muted/10">
+        <div className="px-4 sm:px-5 py-3.5 border-t border-border bg-muted/10">
           <a
             href={video.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full rounded-xl bg-red-600 hover:bg-red-700 text-white py-2.5 text-sm font-semibold active:scale-[0.98] transition-all shadow-sm shadow-red-600/20"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
           >
             <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
               <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />

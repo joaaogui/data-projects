@@ -4,16 +4,16 @@ import { useDiscoverStarterPack } from "@/hooks/use-discover";
 import { formatCompact, getScoreColorClass } from "@/lib/format";
 import type { VideoData } from "@/types/youtube";
 import { Button } from "@data-projects/ui";
-import { AlertCircle, Loader2, Play, Sparkles } from "lucide-react";
+import { AlertCircle, Loader2, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useMemo } from "react";
 
 const CATEGORY_STYLES: Record<string, { label: string; className: string }> = {
-  signature: { label: "Signature", className: "bg-violet-500/90 text-white" },
-  best: { label: "Best Work", className: "bg-emerald-500/90 text-white" },
-  gem: { label: "Hidden Gem", className: "bg-amber-500/90 text-white" },
-  recent: { label: "Recent", className: "bg-sky-500/90 text-white" },
-  classic: { label: "Classic", className: "bg-rose-500/90 text-white" },
+  signature: { label: "Signature", className: "bg-muted text-white" },
+  best: { label: "Best Work", className: "bg-muted text-white" },
+  gem: { label: "Hidden Gem", className: "bg-muted text-white" },
+  recent: { label: "Recent", className: "bg-muted text-white" },
+  classic: { label: "Classic", className: "bg-destructive/90 text-white" },
 };
 
 export function StarterPack({
@@ -28,19 +28,14 @@ export function StarterPack({
   );
 
   return (
-    <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
-      <div className="flex items-center gap-2 mb-1">
-        <Play className="h-4 w-4 text-emerald-500" />
-        <h3 className="text-sm font-semibold">Starter Pack</h3>
-      </div>
+    <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
       <p className="text-xs text-muted-foreground mb-4">
         New to this channel? Here&apos;s where to start.
       </p>
 
       {!data && !isLoading && !error && (
-        <div className="flex flex-col items-center gap-3 py-8">
-          <Play className="h-6 w-6 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground text-center max-w-xs">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
             AI will curate 5-7 essential videos for a first-time viewer
           </p>
           <Button size="sm" onClick={() => generate()} className="gap-1.5">
@@ -70,7 +65,7 @@ export function StarterPack({
       {data && (
         <div className="space-y-3">
           {data.intro && (
-            <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-emerald-500/30 pl-3">
+            <p className="text-xs text-muted-foreground leading-relaxed border-l-2 border-border pl-3">
               {data.intro}
             </p>
           )}
@@ -88,7 +83,7 @@ export function StarterPack({
                   href={video.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group rounded-xl border border-border/30 overflow-hidden hover:border-border/60 transition-colors"
+                  className="group rounded-xl border border-border overflow-hidden hover:border-border transition-colors"
                 >
                   <div className="relative aspect-video bg-muted">
                     <Image

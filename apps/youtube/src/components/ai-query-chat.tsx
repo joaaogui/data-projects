@@ -180,7 +180,7 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
         className={`fixed inset-[unset] top-0 right-0 m-0 p-0 h-full w-full sm:w-[420px] sm:max-w-[90vw] z-50 bg-card/95 backdrop-blur-xl border-l border-border shadow-2xl flex flex-col transition-transform duration-300 ease-out max-w-none max-h-none ${open ? "translate-x-0" : "translate-x-full"
           }`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-border/30">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-semibold">AI Assistant</span>
@@ -300,7 +300,7 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
           )}
         </div>
 
-        <div className="p-4 border-t border-border/30">
+        <div className="p-4 border-t border-border">
           <div className="flex gap-2">
             <Input
               ref={inputRef}

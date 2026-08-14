@@ -10,9 +10,9 @@ function formatLogTime(ts: number): string {
 }
 
 const levelColors: Record<SyncLogEntry["level"], string> = {
-  info: "text-blue-400",
-  warn: "text-yellow-400",
-  error: "text-red-400",
+  info: "text-muted-foreground",
+  warn: "text-muted-foreground",
+  error: "text-destructive",
 };
 
 const levelLabels: Record<SyncLogEntry["level"], string> = {
@@ -23,8 +23,8 @@ const levelLabels: Record<SyncLogEntry["level"], string> = {
 
 const msgColors: Record<SyncLogEntry["level"], string> = {
   info: "text-foreground/80",
-  warn: "text-yellow-200",
-  error: "text-red-300",
+  warn: "text-muted-foreground",
+  error: "text-destructive",
 };
 
 export function SyncLogPanel({
@@ -55,7 +55,7 @@ export function SyncLogPanel({
 
   if (logs.length === 0 && isActive) {
     return (
-      <div className={`rounded-b-lg border border-t-0 border-border/50 bg-background p-3 space-y-1.5 ${className}`}>
+      <div className={`rounded-b-lg border border-t-0 border-border bg-background p-3 space-y-1.5 ${className}`}>
         {[55, 45, 35].map((w) => (
           <div key={w} className="flex items-center gap-2">
             <Skeleton className="h-3 w-16" />
@@ -73,7 +73,7 @@ export function SyncLogPanel({
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className={`rounded-b-lg border border-t-0 border-border/50 bg-background overflow-y-auto font-mono text-xs leading-relaxed ${className}`}
+      className={`rounded-b-lg border border-t-0 border-border bg-background overflow-y-auto font-mono text-xs leading-relaxed ${className}`}
       style={{ maxHeight: 240 }}
     >
       <div className="p-3 space-y-0.5">

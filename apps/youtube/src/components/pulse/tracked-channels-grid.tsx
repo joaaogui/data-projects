@@ -9,7 +9,7 @@ import Link from "next/link";
 export function TrackedChannelsGrid({ channels }: Readonly<{ channels: PulseChannel[] }>) {
   if (channels.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-8 text-center">
+      <div className="rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
         <div className="flex justify-center mb-3">
           <div className="rounded-full bg-muted/60 p-3">
             <Bookmark className="h-6 w-6 text-muted-foreground" />
@@ -30,7 +30,7 @@ export function TrackedChannelsGrid({ channels }: Readonly<{ channels: PulseChan
         <Link
           key={ch.channelId}
           href={`/channel/${ch.channelId}`}
-          className="group rounded-2xl border border-border/50 bg-card/80 backdrop-blur-sm p-4 hover:bg-muted/30 hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
+          className="group rounded-lg border border-border bg-card/80 backdrop-blur-sm p-4 hover:bg-muted/30 hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
         >
           <div className="flex items-start gap-3">
             <div className="relative h-10 w-10 shrink-0">

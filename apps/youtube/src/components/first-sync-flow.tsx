@@ -38,7 +38,7 @@ const ANALYSIS_STEPS = [
 ] as const;
 
 function StepIcon({ status }: Readonly<{ status: StepStatus }>) {
-  if (status === "done") return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
+  if (status === "done") return <CheckCircle2 className="h-5 w-5 text-muted-foreground" />;
   if (status === "active") return <Loader2 className="h-5 w-5 text-primary animate-spin" />;
   return <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />;
 }
@@ -216,7 +216,7 @@ function ReadyPhase({ onReady }: Readonly<{ onReady: () => void }>) {
 
   return (
     <Wrapper>
-      <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+      <CheckCircle2 className="h-12 w-12 text-muted-foreground" />
       <h2 className="text-xl font-bold mt-4">Analysis complete!</h2>
     </Wrapper>
   );

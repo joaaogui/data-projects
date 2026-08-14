@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsSignedIn } from "@/components/session-context";
 import type { AccountChannelData } from "@/types/youtube";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
@@ -32,6 +33,7 @@ export function useAccountData(
   channelId: string | null,
   videoIds: string[] | null
 ): AccountDataResult {
+  const isSignedIn = useIsSignedIn();
   const videoCount = videoIds?.length ?? 0;
   const stableVideoIds = useRef(videoIds);
   if (videoIds && stableVideoIds.current !== videoIds) {
@@ -50,7 +52,8 @@ export function useAccountData(
       if (!cid || !vids) throw new Error("Precondition failed");
       return fetchAccountData(cid, vids);
     },
-    enabled: !!channelId && !!stableVideoIds.current && videoCount > 0,
+    // Reads the viewer's own likes/subscriptions, so it is meaningless anonymously.
+    enabled: isSignedIn && !!channelId && !!stableVideoIds.current && videoCount > 0,
     staleTime: 5 * 60_000,
     retry: 1,
   });

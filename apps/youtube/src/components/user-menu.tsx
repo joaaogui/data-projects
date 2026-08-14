@@ -1,9 +1,10 @@
 import { auth, signOut } from "@/lib/auth";
+import { SignInButton } from "./sign-in-button";
 import { UserMenuClient } from "./user-menu-client";
 
 export async function UserMenu() {
   const session = await auth();
-  if (!session?.user) return null;
+  if (!session?.user) return <SignInButton />;
 
   return (
     <UserMenuClient
@@ -12,7 +13,7 @@ export async function UserMenu() {
       image={session.user.image ?? undefined}
       signOutAction={async () => {
         "use server";
-        await signOut({ redirectTo: "/signin" });
+        await signOut({ redirectTo: "/" });
       }}
     />
   );

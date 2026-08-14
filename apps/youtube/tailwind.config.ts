@@ -12,6 +12,14 @@ const config = {
     ...baseConfig.theme,
     extend: {
       ...baseConfig.theme?.extend,
+      colors: {
+        ...(baseConfig.theme?.extend?.colors ?? {}),
+        // The single chromatic accent in an otherwise greyscale interface.
+        data: {
+          DEFAULT: "hsl(var(--data))",
+          foreground: "hsl(var(--data-foreground))",
+        },
+      },
       fontFamily: {
         sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],

@@ -1,6 +1,5 @@
 import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { createTaggedLogger } from "@/lib/logger";
 import { withErrorHandling } from "@/lib/route-handler";
 import { and, eq, inArray } from "drizzle-orm";
@@ -8,14 +7,11 @@ import { NextResponse } from "next/server";
 
 const log = createTaggedLogger("sync-cancel");
 
+// Open: an anonymous visitor who started a sync needs to be able to stop it.
+// Guarded by the job UUID, and it can only ever halt work, never destroy data.
 export const POST = withErrorHandling("sync-cancel", async (_req, ctx) => {
   const start = Date.now();
   log.info("Request received");
-  const session = await auth();
-  if (!session) {
-    log.info({ elapsedMs: Date.now() - start }, "Auth failed");
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
 
   const { jobId } = await ctx.params;
   log.info({ jobId }, "Processing cancel request");

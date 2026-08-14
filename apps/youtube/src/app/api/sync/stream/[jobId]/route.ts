@@ -1,20 +1,16 @@
 import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { createTaggedLogger } from "@/lib/logger";
 import { eq } from "drizzle-orm";
 
 const log = createTaggedLogger("sync-stream");
 
+// Open, for the same reason as the status route: progress for a sync anyone
+// was allowed to start.
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
-  const session = await auth();
-  if (!session) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
   const { jobId } = await params;
   log.info({ jobId }, "SSE stream started");
 

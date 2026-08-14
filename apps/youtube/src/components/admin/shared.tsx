@@ -18,10 +18,10 @@ export interface ConfirmState {
 
 export function StatusBadge({ status }: Readonly<{ status: string }>) {
   const cfg: Record<string, { dot: string; text: string; label: string }> = {
-    pending: { dot: "bg-yellow-500", text: "text-yellow-600 dark:text-yellow-400", label: "Pending" },
-    running: { dot: "bg-blue-500 animate-pulse", text: "text-blue-600 dark:text-blue-400", label: "Running" },
-    completed: { dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", label: "Completed" },
-    failed: { dot: "bg-red-500", text: "text-red-600 dark:text-red-400", label: "Failed" },
+    pending: { dot: "bg-foreground/40", text: "text-muted-foreground", label: "Pending" },
+    running: { dot: "bg-foreground/40 animate-pulse", text: "text-muted-foreground", label: "Running" },
+    completed: { dot: "bg-foreground/40", text: "text-muted-foreground", label: "Completed" },
+    failed: { dot: "bg-destructive", text: "text-destructive", label: "Failed" },
   };
   const c = cfg[status] ?? { dot: "bg-muted-foreground", text: "text-muted-foreground", label: status };
 
@@ -40,7 +40,7 @@ export function Toasts({
   if (items.length === 0) return null;
 
   const variantClass: Record<ToastItem["variant"], string> = {
-    success: "border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400",
+    success: "border-border bg-muted text-muted-foreground",
     error: "border-destructive/20 bg-destructive/5 text-destructive",
     info: "border-primary/20 bg-primary/5 text-primary",
   };
@@ -69,9 +69,9 @@ export function Toasts({
 }
 
 export function healthColor(percentage: number): string {
-  if (percentage >= 80) return "bg-emerald-500";
-  if (percentage >= 50) return "bg-amber-500";
-  return "bg-red-500";
+  if (percentage >= 80) return "bg-foreground/40";
+  if (percentage >= 50) return "bg-foreground/40";
+  return "bg-destructive";
 }
 
 export function pct(n: number, d: number): number {

@@ -146,11 +146,10 @@ export async function startSyncJob(opts: {
   const { channelId, type, request } = opts;
   slog.info({ channelId, type }, "Sync request received");
 
+  // Analysing a channel is open to everyone. Signed-in users are additionally
+  // held to a per-account daily quota; anonymous callers are bounded by the
+  // per-IP rate limit below.
   const session = await auth();
-  if (!session) {
-    slog.info({ channelId, type, elapsedMs: Date.now() - start }, "Auth failed");
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
 
   const validation = validateChannelId(channelId);
   if (!validation.valid) {
@@ -158,7 +157,7 @@ export async function startSyncJob(opts: {
     return NextResponse.json({ error: validation.error }, { status: 400 });
   }
 
-  const email = session.user?.email;
+  const email = session?.user?.email;
   const quotaResponse = await checkQuotaOrReturn(email, channelId, type);
   if (quotaResponse) return quotaResponse;
 

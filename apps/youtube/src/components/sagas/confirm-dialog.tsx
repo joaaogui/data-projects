@@ -21,7 +21,7 @@ export function ConfirmDialog({
       <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" aria-hidden="true" onClick={onCancel} />
       <dialog
         open
-        className="fixed z-50 inset-0 m-auto bg-card border border-border rounded-2xl p-6 max-w-sm w-full shadow-xl space-y-4 animate-scale-in"
+        className="fixed z-50 inset-0 m-auto bg-card border border-border rounded-lg p-6 max-w-sm w-full shadow-xl space-y-4 animate-scale-in"
         onClose={onCancel}
       >
         <h3 className="text-base font-semibold">{title}</h3>

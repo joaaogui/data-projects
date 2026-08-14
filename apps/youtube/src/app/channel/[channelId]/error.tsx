@@ -11,7 +11,7 @@ export default function ChannelError({
 }>) {
   return (
     <div className="flex flex-col items-center justify-center p-12 text-center animate-scale-in">
-      <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-8 max-w-md w-full">
+      <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-8 max-w-md w-full">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
           <AlertCircle className="h-6 w-6 text-destructive" />
         </div>

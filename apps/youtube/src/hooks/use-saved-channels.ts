@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsSignedIn } from "@/components/session-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface SavedChannel {
@@ -12,6 +13,8 @@ interface SavedChannel {
 }
 
 export function useSavedChannels() {
+  const isSignedIn = useIsSignedIn();
+
   return useQuery<SavedChannel[]>({
     queryKey: ["saved-channels"],
     queryFn: async () => {
@@ -20,6 +23,7 @@ export function useSavedChannels() {
       const data = await res.json();
       return data.channels ?? [];
     },
+    enabled: isSignedIn,
     staleTime: 60_000,
   });
 }

@@ -2,7 +2,7 @@
 
 import { formatCompact, getScoreColorClass } from "@/lib/format";
 import type { VideoData } from "@/types/youtube";
-import { ArrowRight, Heart, Shuffle } from "lucide-react";
+import { Heart, Shuffle } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -116,11 +116,7 @@ export function SimilarVideos({
   if (videos.length < 5) return null;
 
   return (
-    <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
-      <div className="flex items-center gap-2 mb-1">
-        <ArrowRight className="h-4 w-4 text-sky-500" />
-        <h3 className="text-sm font-semibold">If You Liked&hellip;</h3>
-      </div>
+    <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
       <p className="text-xs text-muted-foreground mb-4">
         {likedVideos.length > 0
           ? "Based on the videos you liked on this channel."
@@ -130,7 +126,7 @@ export function SimilarVideos({
       {likedVideos.length > 0 && (
         <div className="mb-3">
           <div className="flex items-center gap-1.5 mb-2">
-            <Heart className="h-3 w-3 text-rose-500" />
+            <Heart className="h-3 w-3 text-destructive" />
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
               Your liked videos
             </span>
@@ -141,7 +137,7 @@ export function SimilarVideos({
                 key={v.videoId}
                 onClick={() => setSelectedId(v.videoId)}
                 className={`text-[11px] rounded-full px-2.5 py-1 font-medium transition-colors truncate max-w-[200px] ${selectedId === v.videoId
-                    ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/30"
+                    ? "bg-destructive/15 text-destructive ring-1 ring-destructive/30"
                     : "bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted"
                   }`}
               >
@@ -156,7 +152,7 @@ export function SimilarVideos({
         <select
           value={selectedId ?? ""}
           onChange={(e) => setSelectedId(e.target.value || null)}
-          className="flex-1 rounded-lg border border-border/40 bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 truncate"
+          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary/50 truncate"
         >
           <option value="">Choose a video&hellip;</option>
           {[...videos]
@@ -169,7 +165,7 @@ export function SimilarVideos({
         </select>
         <button
           onClick={pickRandom}
-          className="shrink-0 rounded-lg border border-border/40 p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           title="Pick a random popular video"
         >
           <Shuffle className="h-4 w-4" />
@@ -219,7 +215,7 @@ export function SimilarVideos({
                   {reasons.map((r) => (
                     <span
                       key={r}
-                      className="text-[9px] rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 px-2 py-0.5 font-medium"
+                      className="text-[9px] rounded-full bg-muted text-muted-foreground px-2 py-0.5 font-medium"
                     >
                       {r}
                     </span>

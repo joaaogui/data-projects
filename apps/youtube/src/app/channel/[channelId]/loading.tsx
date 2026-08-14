@@ -4,7 +4,7 @@ export default function ChannelLoading() {
   return (
     <div className="flex flex-col gap-4 p-4 sm:p-6 animate-fade-up">
       {/* Channel header skeleton */}
-      <Card className="rounded-2xl overflow-hidden">
+      <Card className="rounded-lg overflow-hidden">
         <CardContent className="p-4 sm:p-5">
           <div className="flex items-center gap-4">
             <Skeleton className="h-14 w-14 sm:h-16 sm:w-16 rounded-full" />
@@ -18,7 +18,7 @@ export default function ChannelLoading() {
       </Card>
 
       {/* Video table skeleton */}
-      <Card className="rounded-2xl overflow-hidden">
+      <Card className="rounded-lg overflow-hidden">
         <CardContent className="p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between">
             <Skeleton className="h-5 w-36" />

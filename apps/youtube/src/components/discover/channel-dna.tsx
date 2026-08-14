@@ -2,34 +2,29 @@
 
 import { useDiscoverDna } from "@/hooks/use-discover";
 import { Button } from "@data-projects/ui";
-import { AlertCircle, Dna, Loader2, MessageCircle, Quote, Sparkles } from "lucide-react";
+import { AlertCircle, Loader2, MessageCircle, Quote, Sparkles } from "lucide-react";
 
 const TRAIT_COLORS = [
-  "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
-  "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
-  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-  "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-  "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
-  "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
+  "bg-muted text-muted-foreground border-border",
+  "bg-muted text-muted-foreground border-border",
+  "bg-muted text-muted-foreground border-border",
+  "bg-muted text-muted-foreground border-border",
+  "bg-destructive/10 text-destructive border-destructive/30",
+  "bg-muted text-muted-foreground border-border",
 ];
 
 export function ChannelDna({ channelId }: Readonly<{ channelId: string }>) {
   const { data, generate, isLoading, error } = useDiscoverDna(channelId);
 
   return (
-    <div className="bg-card border border-border/40 rounded-2xl p-4 sm:p-5">
-      <div className="flex items-center gap-2 mb-1">
-        <Dna className="h-4 w-4 text-violet-500" />
-        <h3 className="text-sm font-semibold">Channel DNA</h3>
-      </div>
+    <div className="bg-card border border-border rounded-lg p-4 sm:p-5">
       <p className="text-xs text-muted-foreground mb-4">
         Personality profile built from transcript analysis.
       </p>
 
       {!data && !isLoading && !error && (
-        <div className="flex flex-col items-center gap-3 py-8">
-          <Dna className="h-6 w-6 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground text-center max-w-xs">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
             AI will read transcript excerpts to build a personality fingerprint
           </p>
           <Button size="sm" onClick={() => generate()} className="gap-1.5">
@@ -113,7 +108,7 @@ export function ChannelDna({ channelId }: Readonly<{ channelId: string }>) {
                 {data.catchphrases.map((phrase) => (
                   <span
                     key={phrase}
-                    className="text-xs rounded-full border border-border/40 bg-muted/30 px-2.5 py-1 font-medium"
+                    className="text-xs rounded-full border border-border bg-muted/30 px-2.5 py-1 font-medium"
                   >
                     &ldquo;{phrase}&rdquo;
                   </span>
