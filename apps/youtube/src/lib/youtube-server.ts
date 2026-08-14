@@ -20,9 +20,42 @@ function redactKey(url: string): string {
   return url.replace(/key=[^&]+/, "key=REDACTED");
 }
 
+const MAX_ATTEMPTS = 4;
+const RETRY_BASE_MS = 500;
+
+/** Transient: a network blip, a rate limit, or a YouTube-side error. */
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+const sleep = (ms: number) => new Promise((r) => globalThis.setTimeout(r, ms));
+
+/**
+ * Syncing a large channel is ~2 requests per 50 videos, so a 2,700-video
+ * channel makes over a hundred sequential calls. Without retries a single
+ * dropped connection anywhere in that chain fails the whole job, which is the
+ * most common way a sync dies. Client errors other than 429 are permanent
+ * (bad key, quota exhausted) and fail fast.
+ */
 async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-  if (!response.ok) {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch (err) {
+      lastError = new Error(
+        `YouTube API request failed: ${(err as Error).message} [${redactKey(url)}]`,
+        { cause: err }
+      );
+      if (attempt === MAX_ATTEMPTS) break;
+      await sleep(RETRY_BASE_MS * 2 ** (attempt - 1));
+      continue;
+    }
+
+    if (response.ok) return response.json();
+
     let detail = "";
     try {
       const body = await response.json();
@@ -30,11 +63,18 @@ async function fetchJson<T>(url: string): Promise<T> {
     } catch {
       detail = await response.text().catch(() => "(unreadable body)");
     }
-    throw new Error(
+
+    lastError = new Error(
       `YouTube API ${response.status}: ${detail} [${redactKey(url)}]`
     );
+
+    if (!isRetryableStatus(response.status) || attempt === MAX_ATTEMPTS) {
+      throw lastError;
+    }
+    await sleep(RETRY_BASE_MS * 2 ** (attempt - 1));
   }
-  return response.json();
+
+  throw lastError ?? new Error(`YouTube API request failed [${redactKey(url)}]`);
 }
 
 async function getPlaylistItems(

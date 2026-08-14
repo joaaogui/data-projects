@@ -7,7 +7,13 @@ export const JOB_LOG_POLL_INTERVAL_MS = 3000;
 
 export const CHANNEL_FRESHNESS_MS = 6 * 60 * 60 * 1000; // 6 hours
 export const SUGGESTION_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-export const STALE_JOB_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
+/**
+ * A live sync writes progress after every API page, so it touches updatedAt
+ * every few seconds. If a job has gone quiet for minutes its process is gone
+ * (a restart, a deploy, or a serverless timeout) and the row is only blocking
+ * retries -- an hour of that is far too long to leave a channel unsyncable.
+ */
+export const STALE_JOB_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 // Transcript fetching
 export const TRANSCRIPT_LANGUAGE_PRIORITY = ["pt", "en", "es", "fr", "de", "it", "ja", "ko", "zh", "ru"];
