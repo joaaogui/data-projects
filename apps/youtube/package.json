@@ -33,7 +33,7 @@
     "ai": "^6.0.0",
     "dayjs": "^1.11.13",
     "drizzle-orm": "^0.45.1",
-    "inngest": "^3.52.6",
+    "inngest": "^3.54.2",
     "lucide-react": "catalog:",
     "next": "catalog:",
     "next-auth": "5.0.0-beta.30",
