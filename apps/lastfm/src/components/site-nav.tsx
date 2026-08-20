@@ -28,8 +28,10 @@ export function SiteNav() {
       <Navbar
         logo={<AudioLines className="size-5 text-data" aria-hidden />}
         appName="Listening Habits"
-        homeLink={<Link href="/" />}
-        homeLabel="Listening Habits home"
+        // Navbar clones this and overrides only className and children, so the
+        // label survives. It has to live here because the brand text is hidden
+        // on small screens, which would otherwise leave the link unnamed.
+        homeLink={<Link href="/" aria-label="Listening Habits home" />}
       />
       <nav
         aria-label="Sections"
