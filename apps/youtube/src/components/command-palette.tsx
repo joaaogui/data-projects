@@ -25,6 +25,7 @@ interface CommandPaletteProps {
   onSyncTranscripts: () => void;
   onShareReport?: () => void;
   channelId?: string;
+  isSignedIn: boolean;
 }
 
 interface PaletteCommand {
@@ -36,7 +37,14 @@ interface PaletteCommand {
   action: () => void;
 }
 
-export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, onShareReport, channelId }: Readonly<CommandPaletteProps>) {
+export function CommandPalette({
+  onNavigate,
+  onSyncVideos,
+  onSyncTranscripts,
+  onShareReport,
+  channelId,
+  isSignedIn,
+}: Readonly<CommandPaletteProps>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -59,7 +67,11 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
     { id: "nav-sagas", label: "Sagas", icon: BookOpen, group: "Navigation", action: () => { onNavigate("sagas"); close(); } },
     { id: "nav-discover", label: "Discover", icon: Compass, group: "Navigation", action: () => { onNavigate("discover"); close(); } },
     {
-      id: "tool-ai", label: "Ask AI", icon: Sparkles, group: "Tools", shortcut: "⌘J",
+      id: "tool-ai",
+      label: isSignedIn ? "Ask AI" : "Ask AI (sign in)",
+      icon: Sparkles,
+      group: "Tools",
+      shortcut: "⌘J",
       action: () => { onNavigate("videos"); close(); setTimeout(() => document.dispatchEvent(new CustomEvent("open-ai-drawer")), 100); },
     },
     {
@@ -67,12 +79,16 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
       action: () => { onNavigate("videos"); close(); setTimeout(() => document.dispatchEvent(new CustomEvent("export-csv")), 100); },
     },
     { id: "tool-search", label: "Search Videos", icon: Search, group: "Tools", shortcut: "/", action: () => { onNavigate("videos"); close(); setTimeout(() => document.dispatchEvent(new CustomEvent("focus-search")), 100); } },
-    { id: "tool-transcript-search", label: "Search Transcripts", icon: FileSearch, group: "Tools", shortcut: "⌘⇧F", action: () => { close(); setTimeout(() => document.dispatchEvent(new CustomEvent("open-transcript-search")), 100); } },
-    ...(onShareReport ? [{ id: "tool-share", label: "Share Report", icon: Share2, group: "Tools", action: () => { onShareReport(); close(); } }] : []),
+    ...(isSignedIn
+      ? [{ id: "tool-transcript-search", label: "Search Transcripts", icon: FileSearch, group: "Tools", shortcut: "⌘⇧F", action: () => { close(); setTimeout(() => document.dispatchEvent(new CustomEvent("open-transcript-search")), 100); } }]
+      : []),
+    ...(isSignedIn && onShareReport ? [{ id: "tool-share", label: "Share Report", icon: Share2, group: "Tools", action: () => { onShareReport(); close(); } }] : []),
     ...(channelId ? [{ id: "tool-compare", label: "Compare Channels", icon: BarChart3, group: "Tools", action: () => { globalThis.open(`/compare?channels=${channelId}`, "_self"); close(); } }] : []),
     { id: "tool-shortcuts", label: "Keyboard Shortcuts", icon: Keyboard, group: "Tools", action: () => { setShowShortcuts(true); } },
     { id: "sync-videos", label: "Sync Videos", icon: Database, group: "Sync", action: () => { onSyncVideos(); close(); } },
-    { id: "sync-transcripts", label: "Sync Transcripts", icon: FileText, group: "Sync", action: () => { onSyncTranscripts(); close(); } },
+    ...(isSignedIn
+      ? [{ id: "sync-transcripts", label: "Sync Transcripts", icon: FileText, group: "Sync", action: () => { onSyncTranscripts(); close(); } }]
+      : []),
   ];
 
   const filtered = query
@@ -100,14 +116,14 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
         onNavigate("videos");
         setTimeout(() => document.dispatchEvent(new CustomEvent("open-ai-drawer")), 100);
       }
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "f") {
+      if (isSignedIn && (e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "f") {
         e.preventDefault();
         document.dispatchEvent(new CustomEvent("open-transcript-search"));
       }
     }
     globalThis.addEventListener("keydown", handleKeyDown);
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
-  }, [onNavigate]);
+  }, [onNavigate, isSignedIn]);
 
   useEffect(() => {
     if (open) {
@@ -167,7 +183,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
   return (
     <>
       {open && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[70] flex justify-center overflow-y-auto p-3 sm:p-4">
           <button
             type="button"
             className="absolute inset-0 w-full h-full bg-black/50 backdrop-blur-sm border-0 p-0 cursor-default"
@@ -179,7 +195,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
             open
             aria-modal="true"
             aria-label="Command palette"
-            className="relative mx-4 sm:mx-auto mt-[15vh] sm:mt-[20vh] w-auto sm:w-full max-w-lg rounded-lg border border-border bg-card shadow-2xl p-0"
+            className="relative mt-[6dvh] flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-card p-0 shadow-2xl sm:mt-[18vh]"
           >
             {showShortcuts ? (
               <>
@@ -220,7 +236,7 @@ export function CommandPalette({ onNavigate, onSyncVideos, onSyncTranscripts, on
                   </kbd>
                 </div>
 
-                <div ref={listRef} className="max-h-[320px] overflow-y-auto p-2">
+                <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto p-2 sm:max-h-[320px]">
                   {filtered.length === 0 && (
                     <p className="px-3 py-6 text-center text-sm text-muted-foreground">No results found.</p>
                   )}

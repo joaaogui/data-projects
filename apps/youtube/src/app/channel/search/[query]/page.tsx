@@ -33,7 +33,7 @@ export default function SearchChannelPage() {
 
   if (error) {
     return (
-      <div className="h-screen flex flex-col overflow-hidden">
+      <div className="h-dvh flex flex-col overflow-hidden">
         <Navbar
           homeLink={<Link href="/" />}
           logo={<YouTubeLogo />}
@@ -42,7 +42,7 @@ export default function SearchChannelPage() {
           themeIconClassName="text-muted-foreground"
           actions={<AccountSpacer />}
         />
-        <main className="flex-1 min-h-0 container mx-auto px-4 py-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-h-0 container mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
             <div className="rounded-full bg-destructive/10 p-4 mb-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
@@ -64,7 +64,7 @@ export default function SearchChannelPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-dvh flex flex-col overflow-hidden">
       <Navbar
         homeLink={<Link href="/" />}
         logo={<YouTubeLogo />}
@@ -74,7 +74,7 @@ export default function SearchChannelPage() {
         actions={<AccountSpacer />}
       />
 
-      <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
+      <main id="main-content" tabIndex={-1} className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
         {isLoading && (
           <Card className="mb-6 flex-shrink-0">
             <CardContent className="p-6">

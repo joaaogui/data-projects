@@ -40,7 +40,7 @@ export default async function ReportPage({ params }: PageProps) {
 
   if (report.expiresAt && report.expiresAt < new Date()) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
+      <main id="main-content" tabIndex={-1} className="min-h-dvh flex items-center justify-center">
         <div className="text-center space-y-2">
           <h1 className="text-xl font-bold">Report Expired</h1>
           <p className="text-muted-foreground">This shared report has expired.</p>
@@ -53,7 +53,7 @@ export default async function ReportPage({ params }: PageProps) {
   const BUCKET_LABELS = ["0-20", "20-40", "40-60", "60-80", "80-100"];
 
   return (
-    <main className="min-h-screen bg-background py-8 px-4">
+    <main id="main-content" tabIndex={-1} className="min-h-dvh bg-background px-3 py-5 sm:px-4 sm:py-8">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold">{report.channelTitle}</h1>
@@ -87,7 +87,7 @@ export default async function ReportPage({ params }: PageProps) {
 
         {/* Score Distribution */}
         <div className="bg-card border border-border rounded-lg p-5">
-          <h3 className="text-sm font-semibold mb-3">Score Distribution</h3>
+          <h2 className="text-sm font-semibold mb-3">Score Distribution</h2>
           <div className="flex items-end gap-2 h-20 justify-center">
             {data.scoreDistribution.map((count, i) => {
               const maxCount = Math.max(...data.scoreDistribution, 1);
@@ -107,7 +107,7 @@ export default async function ReportPage({ params }: PageProps) {
 
         {/* Top Performers */}
         <div className="bg-card border border-border rounded-lg p-5">
-          <h3 className="text-sm font-semibold mb-3">Top Performers</h3>
+          <h2 className="text-sm font-semibold mb-3">Top Performers</h2>
           <div className="space-y-2">
             {data.topPerformers.map((v, i) => (
               <div key={`${v.title}-${v.views}-${i}`} className="flex items-center gap-3">

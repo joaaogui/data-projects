@@ -101,7 +101,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased gradient-bg min-h-screen`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased gradient-bg min-h-dvh`}>
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-17815630894"
           strategy="afterInteractive"
@@ -116,6 +116,12 @@ export default async function RootLayout({
         </Script>
         <Providers posthogApiKey={process.env.NEXT_PUBLIC_POSTHOG_KEY}>
           <SignedInProvider isSignedIn={!!session?.user}>
+            <a
+              href="#main-content"
+              className="fixed left-3 top-3 z-[100] -translate-y-16 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-transform focus:translate-y-0"
+            >
+              Skip to content
+            </a>
             <div className="fixed right-14 sm:right-4 top-2 sm:top-3 z-[60] flex items-center gap-2">
               <UserMenu />
             </div>

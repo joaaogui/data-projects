@@ -570,7 +570,7 @@ export function TranscriptSearchOverlay({
     const showInitial = !hasSearched && !isBusy && query.trim().length < 2;
 
     return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[70] flex justify-center overflow-y-auto p-3 sm:p-4">
       <button
         type="button"
         className="absolute inset-0 w-full h-full bg-black/50 backdrop-blur-sm border-0 p-0 cursor-default transition-opacity duration-300"
@@ -583,7 +583,7 @@ export function TranscriptSearchOverlay({
         open
         aria-modal="true"
         aria-label="Search transcripts"
-        className="relative mx-4 sm:mx-auto mt-[10vh] sm:mt-[15vh] w-auto sm:w-full max-w-2xl rounded-lg border border-border bg-card shadow-2xl p-0 animate-spotlight-in glass-strong"
+        className="relative mt-[4dvh] flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card p-0 shadow-2xl animate-spotlight-in glass-strong sm:mt-[12vh]"
       >
         {viewingVideo ? (
           <TranscriptReader
@@ -649,7 +649,7 @@ export function TranscriptSearchOverlay({
             )}
 
             {/* Results area */}
-            <div ref={listRef} className="max-h-[60vh] overflow-y-auto p-2">
+            <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto p-2 sm:max-h-[60vh]">
               {(isSearching || isGenerating) && (
                 <div className="space-y-1 p-1">
                   <ShimmerCard index={0} />

@@ -2,6 +2,11 @@
 
 import { formatCompact } from "@/lib/format";
 import { getScoreLabel } from "@/lib/scoring";
+import {
+  computeChannelFingerprint,
+  DURATION_RANGES,
+  type ChannelFingerprint,
+} from "@/lib/channel-insights";
 import type { VideoData } from "@/types/youtube";
 import dayjs from "dayjs";
 import { useMemo } from "react";
@@ -48,6 +53,7 @@ export interface ChannelStats {
   monthlyBuckets: MonthBucket[];
   durationBuckets: DurationBucket[];
   cadence: CadenceStats;
+  fingerprint: ChannelFingerprint;
 }
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -103,15 +109,6 @@ function computeCadenceStats(videos: VideoData[], sorted: VideoData[]): CadenceS
     trend: cadenceTrend,
   };
 }
-
-const DURATION_RANGES: Array<{ label: string; range: string; min: number; max: number }> = [
-  { label: "<1m", range: "0-60s", min: 0, max: 60 },
-  { label: "1-5m", range: "1-5 min", min: 60, max: 300 },
-  { label: "5-10m", range: "5-10 min", min: 300, max: 600 },
-  { label: "10-20m", range: "10-20 min", min: 600, max: 1200 },
-  { label: "20-40m", range: "20-40 min", min: 1200, max: 2400 },
-  { label: "40m+", range: "40+ min", min: 2400, max: Infinity },
-];
 
 export function useChannelStats(videos: VideoData[] | null): ChannelStats | null {
   return useMemo(() => {
@@ -179,6 +176,8 @@ export function useChannelStats(videos: VideoData[] | null): ChannelStats | null
     });
 
     const cadence = computeCadenceStats(videos, sorted);
+    const fingerprint = computeChannelFingerprint(videos);
+    if (!fingerprint) return null;
 
     return {
       avgScore,
@@ -197,6 +196,7 @@ export function useChannelStats(videos: VideoData[] | null): ChannelStats | null
       monthlyBuckets,
       durationBuckets,
       cadence,
+      fingerprint,
     };
   }, [videos]);
 }

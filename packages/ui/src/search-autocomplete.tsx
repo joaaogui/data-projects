@@ -18,6 +18,7 @@ export interface SearchAutocompleteProps<TItem> {
   className?: string;
   compact?: boolean;
   placeholder?: string;
+  ariaLabel?: string;
   inputName?: string;
   debounceMs?: number;
   minQueryLength?: number;
@@ -37,6 +38,7 @@ export interface SearchAutocompleteProps<TItem> {
 
   onSubmit: (value: string) => void;
   onSelect: (item: TItem) => void;
+  resetAfterCommit?: boolean;
 
   inputClassName?: string;
   buttonClassName?: string;
@@ -49,6 +51,7 @@ export function SearchAutocomplete<TItem>({
   className,
   compact = false,
   placeholder = "Search…",
+  ariaLabel,
   inputName = "search",
   debounceMs = 300,
   minQueryLength = 2,
@@ -59,6 +62,7 @@ export function SearchAutocomplete<TItem>({
   renderSuggestion,
   onSubmit,
   onSelect,
+  resetAfterCommit = false,
   inputClassName,
   buttonClassName,
   dropdownClassName,
@@ -70,6 +74,8 @@ export function SearchAutocomplete<TItem>({
   const [isOpen, setIsOpen] = React.useState(false);
   const [highlightedIndex, setHighlightedIndex] = React.useState(-1);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const listboxId = React.useId();
+  const statusId = `${listboxId}-status`;
 
   const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const committedValueRef = React.useRef<string | null>(null);
@@ -161,7 +167,12 @@ export function SearchAutocomplete<TItem>({
     setHighlightedIndex(-1);
     setIsSubmitting(true);
     onSubmit(committed);
-  }, [value, onSubmit]);
+    if (resetAfterCommit) {
+      committedValueRef.current = null;
+      setValue("");
+      setIsSubmitting(false);
+    }
+  }, [value, onSubmit, resetAfterCommit]);
 
   const select = React.useCallback(
     (item: TItem) => {
@@ -172,8 +183,13 @@ export function SearchAutocomplete<TItem>({
       setHighlightedIndex(-1);
       setIsSubmitting(true);
       onSelect(item);
+      if (resetAfterCommit) {
+        committedValueRef.current = null;
+        setValue("");
+        setIsSubmitting(false);
+      }
     },
-    [getSuggestionValue, onSelect]
+    [getSuggestionValue, onSelect, resetAfterCommit]
   );
 
   const handleSubmit = (event?: React.FormEvent) => {
@@ -220,14 +236,21 @@ export function SearchAutocomplete<TItem>({
   return (
     <form
       onSubmit={handleSubmit}
+      role="search"
       data-testid={testIds?.form}
       className={cn("flex gap-2 w-full", compact ? "max-w-md" : "max-w-xl", className)}
     >
       <div className="relative flex-1">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search
+          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+          aria-hidden="true"
+        />
         {isSuggestLoading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <Loader2
+              className="h-4 w-4 animate-spin text-muted-foreground"
+              aria-hidden="true"
+            />
           </div>
         )}
 
@@ -236,6 +259,18 @@ export function SearchAutocomplete<TItem>({
           name={inputName}
           autoComplete="off"
           placeholder={placeholder}
+          aria-label={ariaLabel ?? placeholder}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={isOpen}
+          aria-controls={isOpen ? listboxId : undefined}
+          aria-activedescendant={
+            isOpen && highlightedIndex >= 0
+              ? `${listboxId}-option-${highlightedIndex}`
+              : undefined
+          }
+          aria-describedby={statusId}
+          aria-busy={isSuggestLoading}
           data-testid={testIds?.input}
           value={value}
           onChange={(event) => {
@@ -269,6 +304,16 @@ export function SearchAutocomplete<TItem>({
           )}
         />
 
+        <span id={statusId} className="sr-only" aria-live="polite">
+          {isSuggestLoading
+            ? "Loading suggestions"
+            : isOpen
+              ? `${displayedSuggestions.length} suggestion${
+                  displayedSuggestions.length === 1 ? "" : "s"
+                } available. Use the arrow keys to navigate.`
+              : ""}
+        </span>
+
         {isOpen && (isSuggestLoading || displayedSuggestions.length > 0) && (
           <div
             data-testid={testIds?.dropdown}
@@ -278,34 +323,38 @@ export function SearchAutocomplete<TItem>({
             )}
           >
             {isSuggestLoading && displayedSuggestions.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
+              <div
+                role="status"
+                className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2"
+              >
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 <span>Loading…</span>
               </div>
             ) : (
-              <ul>
+              <ul id={listboxId} role="listbox" aria-label={`${ariaLabel ?? placeholder} suggestions`}>
                 {displayedSuggestions.map((item, index) => {
                   const isActive = index === highlightedIndex;
                   return (
-                    <li key={getSuggestionKey(item)}>
-                      <button
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => select(item)}
-                        onMouseEnter={() => setHighlightedIndex(index)}
-                        className={cn(
-                          "w-full text-left px-3 py-2 transition-colors",
-                          isActive ? "bg-muted/60" : "hover:bg-muted/40"
-                        )}
-                      >
-                        {renderSuggestion ? (
-                          renderSuggestion({ item, isActive })
-                        ) : (
-                          <span className="truncate font-medium">
-                            {getSuggestionValue(item)}
-                          </span>
-                        )}
-                      </button>
+                    <li
+                      key={getSuggestionKey(item)}
+                      id={`${listboxId}-option-${index}`}
+                      role="option"
+                      aria-selected={isActive}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => select(item)}
+                      onMouseEnter={() => setHighlightedIndex(index)}
+                      className={cn(
+                        "w-full cursor-pointer px-3 py-2 text-left transition-colors",
+                        isActive ? "bg-muted/60" : "hover:bg-muted/40"
+                      )}
+                    >
+                      {renderSuggestion ? (
+                        renderSuggestion({ item, isActive })
+                      ) : (
+                        <span className="truncate font-medium">
+                          {getSuggestionValue(item)}
+                        </span>
+                      )}
                     </li>
                   );
                 })}
@@ -317,15 +366,16 @@ export function SearchAutocomplete<TItem>({
 
       <Button
         type="submit"
+        aria-label={isSubmitting ? "Searching" : "Search"}
         disabled={isSubmitting || !value.trim()}
         data-testid={testIds?.button}
         className={cn(compact ? "h-9 px-3 sm:px-4" : "h-12 px-3 sm:px-6", buttonClassName)}
       >
         {isSubmitting ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
         ) : (
           <>
-            <Search className="h-4 w-4 sm:hidden" />
+            <Search className="h-4 w-4 sm:hidden" aria-hidden="true" />
             <span className="hidden sm:inline">Search</span>
           </>
         )}

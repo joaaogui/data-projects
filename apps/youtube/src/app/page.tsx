@@ -54,8 +54,8 @@ const FEATURES = [
   },
   {
     icon: Sparkles,
-    label: "AI-powered insights",
-    description: "Ask natural language questions about any channel's video catalog",
+    label: "Optional AI insights",
+    description: "Sign in to ask natural-language questions about a channel's catalog",
   },
   {
     icon: TrendingUp,
@@ -75,7 +75,7 @@ export default async function HomePage() {
   const isSignedIn = !!session?.user;
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main id="main-content" tabIndex={-1} className="min-h-dvh flex flex-col">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD_WEBSITE) }}
@@ -89,7 +89,7 @@ export default async function HomePage() {
       </div>
 
       {isSignedIn ? (
-        <div className="relative z-10 flex-1 px-6 py-10">
+        <div className="relative z-10 flex-1 px-4 py-8 sm:px-6 sm:py-10">
           <div className="mx-auto w-full max-w-5xl space-y-10">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2.5">
@@ -128,11 +128,11 @@ export default async function HomePage() {
           </div>
         </div>
       ) : (
-        <div className="relative z-10 flex-1 px-6 py-20 sm:py-28">
-          <div className="mx-auto w-full max-w-3xl space-y-16">
+        <div className="relative z-10 flex-1 px-4 py-14 sm:px-6 sm:py-28">
+          <div className="mx-auto w-full max-w-3xl space-y-12 sm:space-y-16">
             <div className="animate-fade-up space-y-5">
               <YouTubeIcon className="h-9 w-9 text-foreground" />
-              <h1 className="max-w-2xl text-4xl font-medium leading-[1.1] tracking-tight sm:text-5xl">
+              <h1 className="max-w-2xl text-3xl font-medium leading-[1.1] tracking-tight sm:text-5xl">
                 Understand any YouTube channel in seconds
               </h1>
               <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
@@ -200,7 +200,7 @@ export default async function HomePage() {
         </div>
       )}
 
-      <footer className="relative z-10 border-t border-border py-5 text-sm text-muted-foreground">
+      <footer className="relative z-10 flex flex-col items-center gap-3 border-t border-border px-4 py-5 text-sm text-muted-foreground sm:block">
         <p className="text-center text-xs">
           Powered by{" "}
           <a
@@ -218,7 +218,7 @@ export default async function HomePage() {
           href="https://github.com/joaaogui/data-projects"
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+          className="static text-muted-foreground/50 transition-colors hover:text-foreground sm:absolute sm:right-4 sm:top-1/2 sm:-translate-y-1/2"
           aria-label="View source on GitHub"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current">

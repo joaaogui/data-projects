@@ -29,18 +29,18 @@ export default async function SignInPage({
   const redirectTo = callbackUrl || "/";
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center">
+    <main id="main-content" tabIndex={-1} className="signin-shell fixed inset-0 flex overflow-y-auto px-4 py-10 sm:py-12">
       <div className="fixed right-4 top-4 z-[60]">
         <ThemeToggle iconClassName="text-primary" />
       </div>
 
-      <div className="relative z-10 mx-4 w-full max-w-sm animate-fade-up">
+      <div className="relative z-10 m-auto w-full max-w-sm animate-fade-up">
         <div className="space-y-8">
           <div className="space-y-3">
             <YouTubeIcon className="h-8 w-8 text-foreground" />
             <h1 className="text-2xl font-medium tracking-tight">Sign in</h1>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Analyze new channels, track them, and ask AI about their catalog.
+              Save channels, search transcripts, and ask AI about the catalog.
             </p>
           </div>
 
@@ -67,6 +67,6 @@ export default async function SignInPage({
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

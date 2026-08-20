@@ -3,6 +3,8 @@
 import { useChannel } from "@/hooks/use-channel-context";
 import type { VideoData } from "@/types/youtube";
 import { useState } from "react";
+import { AuthRequired } from "../auth-required";
+import { useIsSignedIn } from "../session-context";
 import { ChannelDna } from "./channel-dna";
 import { ChannelTrivia } from "./channel-trivia";
 import { EvolutionTimeline } from "./evolution-timeline";
@@ -46,7 +48,7 @@ function Zone<T extends string>({
           {label}
         </h2>
         {options && (
-          <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
+          <div className="flex max-w-full items-center gap-0.5 overflow-x-auto rounded-md border border-border p-0.5">
             {options.map((opt) => (
               <button
                 key={opt.id}
@@ -71,13 +73,22 @@ function Zone<T extends string>({
 
 export function DiscoverView({ channelId, videos }: Readonly<DiscoverViewProps>) {
   const { accountData } = useChannel();
+  const isSignedIn = useIsSignedIn();
   const [lens, setLens] = useState<WatchLens>("gems");
   const [insight, setInsight] = useState<Insight>("trivia");
 
   return (
     <div className="h-full space-y-6 overflow-y-auto p-1">
       <Zone label="Start here">
-        <StarterPack channelId={channelId} videos={videos} />
+        {isSignedIn ? (
+          <StarterPack channelId={channelId} videos={videos} />
+        ) : (
+          <AuthRequired
+            compact
+            title="Create an AI starter pack"
+            description="Sign in to generate a curated path through this channel. Hidden gems, viral moments, and trivia remain available without an account."
+          />
+        )}
       </Zone>
 
       <Zone
@@ -87,13 +98,23 @@ export function DiscoverView({ channelId, videos }: Readonly<DiscoverViewProps>)
         options={[
           { id: "gems", label: "Hidden gems" },
           { id: "viral", label: "Viral moments" },
-          { id: "liked", label: "If you liked…" },
+          {
+            id: "liked",
+            label: isSignedIn ? "If you liked…" : "If you liked… · Sign in",
+          },
         ]}
       >
         {lens === "gems" && <HiddenGems videos={videos} />}
         {lens === "viral" && <ViralMoments videos={videos} />}
-        {lens === "liked" && (
+        {lens === "liked" && isSignedIn && (
           <SimilarVideos videos={videos} likedVideoIds={accountData.likedVideoIds} />
+        )}
+        {lens === "liked" && !isSignedIn && (
+          <AuthRequired
+            compact
+            title="Get recommendations from your likes"
+            description="Sign in with Google so the analyzer can use the videos you liked on this channel."
+          />
         )}
       </Zone>
 
@@ -103,17 +124,41 @@ export function DiscoverView({ channelId, videos }: Readonly<DiscoverViewProps>)
         onChange={setInsight}
         options={[
           { id: "trivia", label: "Trivia" },
-          { id: "evolution", label: "Evolution" },
-          { id: "dna", label: "DNA" },
+          {
+            id: "evolution",
+            label: isSignedIn ? "Evolution" : "Evolution · Sign in",
+          },
+          { id: "dna", label: isSignedIn ? "DNA" : "DNA · Sign in" },
         ]}
       >
         {insight === "trivia" && <ChannelTrivia videos={videos} />}
-        {insight === "evolution" && <EvolutionTimeline channelId={channelId} />}
-        {insight === "dna" && <ChannelDna channelId={channelId} />}
+        {insight === "evolution" && isSignedIn && (
+          <EvolutionTimeline channelId={channelId} />
+        )}
+        {insight === "dna" && isSignedIn && <ChannelDna channelId={channelId} />}
+        {insight !== "trivia" && !isSignedIn && (
+          <AuthRequired
+            compact
+            title={
+              insight === "evolution"
+                ? "Generate the creator evolution"
+                : "Generate the channel DNA"
+            }
+            description="This AI-generated insight is available after sign-in. Trivia and computed watch lists remain public."
+          />
+        )}
       </Zone>
 
       <Zone label="Beyond this channel">
-        <RabbitHole channelId={channelId} />
+        {isSignedIn ? (
+          <RabbitHole channelId={channelId} />
+        ) : (
+          <AuthRequired
+            compact
+            title="Find related creators"
+            description="Sign in to scan descriptions and transcripts for recurring collaborators and references."
+          />
+        )}
       </Zone>
     </div>
   );

@@ -93,7 +93,7 @@ export function QuickFilters({ videos, activeFilters, onToggle }: Readonly<Quick
   }, [videos, filterDefs]);
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
       {filterDefs.map((def) => {
         const count = counts.get(def.id) ?? 0;
         const isActive = def.id === "all" ? activeFilters.size === 0 || activeFilters.has("all") : activeFilters.has(def.id);
@@ -108,7 +108,7 @@ export function QuickFilters({ videos, activeFilters, onToggle }: Readonly<Quick
             onClick={() => onToggle(def.id)}
             aria-pressed={isActive}
             className={`
-              inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium active:scale-95 transition-all duration-200
+              inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium active:scale-95 transition-all duration-200
               ${isActive ? style.active : style.inactive}
             `}
           >

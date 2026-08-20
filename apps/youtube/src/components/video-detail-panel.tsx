@@ -1,6 +1,7 @@
 "use client";
 
 import { useChannel } from "@/hooks/use-channel-context";
+import { useVideoDescription } from "@/hooks/use-video-detail";
 import { formatCompact } from "@/lib/format";
 import { formatDuration } from "@/lib/scoring";
 import type { ScoreComponents, VideoData } from "@/types/youtube";
@@ -73,12 +74,21 @@ export function VideoDetailPanel({
   const modalRef = useRef<HTMLDialogElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const isLiked = accountData.likedVideoIds.has(video.videoId);
+  const {
+    description,
+    isLoading: descriptionLoading,
+  } = useVideoDescription(video.videoId, video.description);
 
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement;
+    const dialog = modalRef.current;
+    if (dialog && !dialog.open) {
+      dialog.showModal();
+    }
     const timer = setTimeout(() => modalRef.current?.focus(), 50);
     return () => {
       clearTimeout(timer);
+      if (dialog?.open) dialog.close();
       previousFocusRef.current?.focus();
     };
   }, []);
@@ -131,7 +141,7 @@ export function VideoDetailPanel({
   }, [video.videoId, transcript, transcriptLoading]);
 
   const publishDate = dayjs(video.publishedAt).format("MMM D, YYYY");
-  const hasDescription = video.description && video.description.trim().length > 0;
+  const hasDescription = description.trim().length > 0;
 
   let animationClass = 'animate-fade-up';
   if (direction === 'right') animationClass = 'animate-slide-right';
@@ -142,10 +152,10 @@ export function VideoDetailPanel({
   else if (transcriptExpanded) transcriptLabel = 'Hide transcript';
 
   return (
-    <dialog open ref={modalRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 outline-none m-0 w-full h-full max-w-none max-h-none border-none bg-transparent" aria-modal="true" aria-label={`Video details: ${video.title}`}>
+    <dialog ref={modalRef} tabIndex={-1} className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 outline-none m-0 w-full h-full max-w-none max-h-none border-none bg-transparent backdrop:bg-transparent" aria-modal="true" aria-label={`Video details: ${video.title}`}>
       <button type="button" className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity duration-300 cursor-default" aria-label="Close" onClick={onClose} />
 
-      <div className="relative w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] rounded-t-3xl sm:rounded-xl border border-border bg-card shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-[0.97] duration-300">
+      <div className="relative flex max-h-[96dvh] w-full flex-col overflow-hidden rounded-t-xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in-[0.97] duration-300 sm:max-h-[85dvh] sm:max-w-2xl sm:rounded-xl">
         <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border bg-muted/20">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground tabular-nums">
@@ -261,6 +271,12 @@ export function VideoDetailPanel({
               </Button>
             )}
 
+            {descriptionLoading && (
+              <p role="status" className="text-xs text-muted-foreground">
+                Loading description…
+              </p>
+            )}
+
             {hasDescription && (
               <div>
                 <button
@@ -272,7 +288,7 @@ export function VideoDetailPanel({
                 {descExpanded && (
                   <div className="animate-fade-up">
                     <p className="text-xs text-muted-foreground mt-2 whitespace-pre-line leading-relaxed">
-                      {video.description}
+                      {description}
                     </p>
                   </div>
                 )}

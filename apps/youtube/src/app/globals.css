@@ -379,12 +379,64 @@
   }
 }
 
+/*
+ * Short landscape phones have enough width for a desktop-like header but very
+ * little vertical space. Keep navigation and channel identity on one line,
+ * and reduce the KPI strip to the two values that orient the user fastest.
+ */
+@media (max-height: 420px) and (min-width: 480px) and (max-width: 767px) {
+  .responsive-navbar {
+    flex-wrap: nowrap !important;
+  }
+
+  .responsive-navbar-search {
+    order: initial !important;
+    width: auto !important;
+    min-width: 0;
+    flex: 1 1 auto;
+    margin-left: auto;
+  }
+
+  .channel-header-shell {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  .channel-header-layout {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 0.5rem !important;
+  }
+
+  .channel-identity-row {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .channel-kpi-strip {
+    max-width: 13rem;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .channel-kpi-strip > :nth-child(n + 3) {
+    display: none;
+  }
+
+  .signin-shell {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
 
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }

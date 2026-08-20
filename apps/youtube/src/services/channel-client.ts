@@ -50,9 +50,25 @@ export interface ChannelVideosResponse {
 
 export async function fetchChannelVideos(channelId: string): Promise<ChannelVideosResponse> {
   const response = await apiFetch(
-    `/api/youtube/channel/${channelId}`,
+    `/api/youtube/channel/${channelId}?fields=compact`,
     undefined,
     "Failed to fetch channel videos"
+  );
+  return response.json();
+}
+
+export interface VideoDetailResponse {
+  videoId: string;
+  description: string | null;
+}
+
+export async function fetchVideoDetail(
+  videoId: string
+): Promise<VideoDetailResponse> {
+  const response = await apiFetch(
+    `/api/youtube/video/${videoId}`,
+    undefined,
+    "Failed to fetch video details"
   );
   return response.json();
 }

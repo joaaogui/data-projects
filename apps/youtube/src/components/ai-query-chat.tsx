@@ -11,6 +11,8 @@ import { Button, Input } from "@data-projects/ui";
 import { DefaultChatTransport } from "ai";
 import { Eye, Loader2, Send, Sparkles, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AuthRequired } from "./auth-required";
+import { useIsSignedIn } from "./session-context";
 
 function useFocusTrap(containerRef: React.RefObject<HTMLElement | null>, active: boolean) {
   useEffect(() => {
@@ -59,6 +61,7 @@ interface AIDrawerProps {
 }
 
 export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
+  const isSignedIn = useIsSignedIn();
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -110,6 +113,8 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
       if ((e.metaKey || e.ctrlKey) && e.key === "j") {
         e.preventDefault();
         setOpen((prev) => !prev);
+      } else if (e.key === "Escape") {
+        setOpen(false);
       }
     };
     document.addEventListener("keydown", handler);
@@ -163,7 +168,7 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
       {open && (
         <button
           type="button"
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-200 cursor-default"
+          className="fixed inset-0 z-[70] cursor-default bg-black/40 backdrop-blur-sm transition-opacity duration-200"
           onClick={() => setOpen(false)}
           onKeyDown={(e) => {
             if (e.key === "Escape") setOpen(false);
@@ -172,14 +177,20 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
         />
       )}
 
-      <dialog
-        open={open || undefined}
-        ref={drawerRef}
-        aria-modal="true"
-        aria-label="AI Assistant"
-        className={`fixed inset-[unset] top-0 right-0 m-0 p-0 h-full w-full sm:w-[420px] sm:max-w-[90vw] z-50 bg-card/95 backdrop-blur-xl border-l border-border shadow-2xl flex flex-col transition-transform duration-300 ease-out max-w-none max-h-none ${open ? "translate-x-0" : "translate-x-full"
-          }`}
-      >
+      {open && (
+        <dialog
+          open
+          ref={drawerRef}
+          aria-modal="true"
+          aria-label="AI Assistant"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              setOpen(false);
+            }
+          }}
+          className="fixed inset-[unset] top-0 right-0 z-[80] m-0 flex h-dvh max-h-none w-full max-w-none flex-col border-l border-border bg-card/95 p-0 shadow-2xl backdrop-blur-xl animate-slide-right sm:w-[420px] sm:max-w-[90vw]"
+        >
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -205,14 +216,27 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
               size="sm"
               onClick={() => setOpen(false)}
               className="h-7 w-7 p-0"
+              aria-label="Close AI assistant"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4" aria-live="polite" aria-label="AI conversation">
-          {messages.length === 0 && !isLoading && (
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+          aria-live="polite"
+          aria-label="AI conversation"
+        >
+          {!isSignedIn && (
+            <AuthRequired
+              title="Ask AI about this channel"
+              description="Sign in to ask questions across the full video catalog. Search, filters, CSV export, and every public analysis tab remain available without an account."
+            />
+          )}
+
+          {isSignedIn && messages.length === 0 && !isLoading && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center pt-8">
                 Ask anything about this channel&apos;s {videos.length} videos
@@ -231,7 +255,7 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
             </div>
           )}
 
-          {messages.map((msg) => {
+          {isSignedIn && messages.map((msg) => {
             const rawText = getMessageText(msg);
             const displayText = msg.role === "assistant" ? stripHighlightMarker(rawText) : rawText;
             const videoIds = msg.role === "assistant" ? parseHighlightedVideoIds(rawText) : [];
@@ -273,7 +297,7 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
             );
           })}
 
-          {isLoading && messages.length > 0 && messages.at(-1)?.role === "user" && (
+          {isSignedIn && isLoading && messages.length > 0 && messages.at(-1)?.role === "user" && (
             <div className="flex justify-start">
               <div className="rounded-xl px-3.5 py-2.5 bg-muted/60">
                 <div className="flex gap-1 items-center py-1">
@@ -285,7 +309,7 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
             </div>
           )}
 
-          {showFollowUps && (
+          {isSignedIn && showFollowUps && (
             <div className="flex flex-wrap gap-1.5 animate-fade-up" style={{ animationDelay: '400ms' }}>
               {suggestions.slice(0, 2).map((s) => (
                 <button
@@ -300,37 +324,42 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
           )}
         </div>
 
-        <div className="p-4 border-t border-border">
-          <div className="flex gap-2">
-            <Input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit(input);
-                }
-              }}
-              placeholder="Ask about this channel..."
-              disabled={isLoading}
-              className="flex-1 h-9 text-sm"
-            />
-            <Button
-              size="sm"
-              onClick={() => handleSubmit(input)}
-              disabled={!input.trim() || isLoading}
-              className="h-9 px-3"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
+        {isSignedIn && (
+          <div className="p-4 border-t border-border">
+            <div className="flex gap-2">
+              <Input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(input);
+                  }
+                }}
+                placeholder="Ask about this channel..."
+                aria-label="Ask about this channel"
+                disabled={isLoading}
+                className="flex-1 h-9 text-sm"
+              />
+              <Button
+                size="sm"
+                onClick={() => handleSubmit(input)}
+                disabled={!input.trim() || isLoading}
+                className="h-9 px-3"
+                aria-label={isLoading ? "Sending question" : "Send question"}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-      </dialog>
+        )}
+        </dialog>
+      )}
     </>
   );
 }

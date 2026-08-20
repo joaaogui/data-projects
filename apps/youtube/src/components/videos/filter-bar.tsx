@@ -199,8 +199,8 @@ export function FilterBar({
   );
 
   return (
-    <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
-      <div className="relative flex-1 max-w-40 sm:max-w-xs">
+    <div className="flex flex-wrap items-center gap-2 text-xs sm:flex-nowrap sm:gap-3 sm:text-sm">
+      <div className="relative w-full sm:max-w-xs sm:flex-1">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           ref={searchInputRef}
@@ -225,7 +225,7 @@ export function FilterBar({
           </kbd>
         )}
       </div>
-      <div className="flex items-center gap-1 ml-auto">
+      <div className="ml-auto flex w-full items-center justify-end gap-1 sm:w-auto">
         <div className="hidden sm:flex items-center rounded-lg border border-border p-0.5">
           <button
             onClick={() => {

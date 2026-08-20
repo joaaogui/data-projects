@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { validateSearchQuery, validateChannelId } from "@/lib/validation";
+import {
+  validateSearchQuery,
+  validateChannelId,
+  validateVideoId,
+} from "@/lib/validation";
 
 describe("validateSearchQuery", () => {
   it("accepts a normal search string", () => {
@@ -125,5 +129,20 @@ describe("validateChannelId", () => {
     const result = validateChannelId("UC@channel!");
     expect(result.valid).toBe(false);
     expect(result.error).toContain("invalid characters");
+  });
+});
+
+describe("validateVideoId", () => {
+  it("accepts an 11-character YouTube video ID", () => {
+    expect(validateVideoId("abc_DEF-123")).toEqual({
+      valid: true,
+      sanitized: "abc_DEF-123",
+    });
+  });
+
+  it("rejects malformed or wrong-length IDs", () => {
+    expect(validateVideoId("short").valid).toBe(false);
+    expect(validateVideoId("contains space").valid).toBe(false);
+    expect(validateVideoId(undefined).valid).toBe(false);
   });
 });

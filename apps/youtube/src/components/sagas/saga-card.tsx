@@ -53,7 +53,7 @@ export function SagaCard({
   return (
     <button
       onClick={onClick}
-      className={`group w-full h-full text-left rounded-lg border p-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-200 animate-scale-in flex flex-col ${isStandalone
+      className={`group h-full w-full min-w-0 max-w-full overflow-hidden rounded-lg border p-4 text-left hover:-translate-y-1 hover:shadow-lg transition-all duration-200 animate-scale-in flex flex-col ${isStandalone
         ? "border-dashed border-muted-foreground/30 bg-muted/30 hover:border-muted-foreground/50"
         : "border-border bg-card hover:border-primary/40"
         }`}

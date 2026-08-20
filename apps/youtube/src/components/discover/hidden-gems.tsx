@@ -79,7 +79,7 @@ export function HiddenGems({ videos }: Readonly<{ videos: VideoData[] }>) {
             href={video.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-start gap-3 rounded-xl p-2 -m-2 hover:bg-muted/60 transition-colors"
+            className="group flex min-w-0 items-start gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60 sm:-m-2"
           >
             <div className="relative w-20 shrink-0 aspect-video rounded-lg overflow-hidden bg-muted">
               <Image

@@ -46,6 +46,7 @@ export function useChannelSagas(channelId: string | null, videos: VideoData[] | 
   const {
     allSagas, aiSagas,
     isLoading: isLoadingSagas,
+    error: sagaLoadError,
   } = useSagaStorage(channelId);
 
   const { sagaSync, sagaLogs, syncSagas, cancelSync } = useChannel();
@@ -91,6 +92,7 @@ export function useChannelSagas(channelId: string | null, videos: VideoData[] | 
     sagas,
     uncategorizedVideoIds,
     isLoadingSagas,
+    sagaLoadError,
     progress,
     sagaLogs,
     startAnalysis,

@@ -8,6 +8,7 @@ interface NavbarProps {
   appName?: string;
   search?: React.ReactNode;
   homeLink?: React.ReactNode;
+  homeLabel?: string;
   themeIconClassName?: string;
   /** Trailing slot, for apps that overlay their own control in the corner. */
   actions?: React.ReactNode;
@@ -23,6 +24,7 @@ export function Navbar({
   appName,
   search,
   homeLink,
+  homeLabel,
   themeIconClassName,
   actions,
   fullWidth = false,
@@ -40,11 +42,12 @@ export function Navbar({
 
   return (
     <header className="flex-shrink-0 sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-      <div className={fullWidth ? "px-4 sm:px-6 py-3" : "container mx-auto px-4 py-3"}>
-        <div className="flex items-center gap-3 sm:gap-4">
+      <div className={fullWidth ? "px-3 py-2.5 sm:px-6 sm:py-3" : "container mx-auto px-3 py-2.5 sm:px-4 sm:py-3"}>
+        <div className="responsive-navbar flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-4">
           {homeLink ? (
-            React.cloneElement(homeLink as React.ReactElement<{ className?: string; children?: React.ReactNode }>, {
+            React.cloneElement(homeLink as React.ReactElement<{ className?: string; children?: React.ReactNode; "aria-label"?: string }>, {
               className: "shrink-0 flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity",
+              "aria-label": homeLabel ?? (appName ? `${appName} home` : "Home"),
               children: brandContent,
             })
           ) : (
@@ -53,10 +56,14 @@ export function Navbar({
             </div>
           )}
           {search && (
-            <div className="flex-1 max-w-md ml-auto">{search}</div>
+            <div className="responsive-navbar-search order-last w-full sm:order-none sm:ml-auto sm:max-w-md sm:flex-1">
+              {search}
+            </div>
           )}
-          <ThemeToggle iconClassName={themeIconClassName} />
-          {actions}
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:ml-0 sm:gap-2">
+            <ThemeToggle iconClassName={themeIconClassName} />
+            {actions}
+          </div>
         </div>
       </div>
     </header>

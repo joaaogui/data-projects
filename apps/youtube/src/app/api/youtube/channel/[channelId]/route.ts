@@ -16,6 +16,20 @@ import {
 import { eq } from "drizzle-orm";
 
 const log = createTaggedLogger("channel-videos");
+const catalogColumns = {
+  id: videos.id,
+  title: videos.title,
+  publishedAt: videos.publishedAt,
+  duration: videos.duration,
+  views: videos.views,
+  likes: videos.likes,
+  comments: videos.comments,
+  favorites: videos.favorites,
+  url: videos.url,
+  thumbnail: videos.thumbnail,
+  topics: videos.topics,
+  fetchedAt: videos.fetchedAt,
+};
 
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
@@ -53,7 +67,15 @@ export const GET = withErrorHandling("channel-videos", async (request, { params 
   const { searchParams } = new URL(request.url);
   const compact = searchParams.get("fields") === "compact";
 
-  const dbRows = await db.select().from(videos).where(eq(videos.channelId, channelId));
+  const dbRows = compact
+    ? await db
+        .select(catalogColumns)
+        .from(videos)
+        .where(eq(videos.channelId, channelId))
+    : await db
+        .select({ ...catalogColumns, description: videos.description })
+        .from(videos)
+        .where(eq(videos.channelId, channelId));
   log.info({ count: dbRows.length }, "DB query result");
 
   if (dbRows.length === 0) {
@@ -76,10 +98,7 @@ export const GET = withErrorHandling("channel-videos", async (request, { params 
   const oldestFetch = new Date(oldestFetchMs);
   const isFresh = Date.now() - oldestFetch.getTime() < CHANNEL_FRESHNESS_MS;
 
-  const videoData = dbRowsToVideoData(dbRows);
-  const responseVideos = compact
-    ? videoData.map(({ description: _, ...rest }) => rest)
-    : videoData;
+  const responseVideos = dbRowsToVideoData(dbRows, !compact);
 
   log.info({ source: "database", fresh: isFresh, videoCount: responseVideos.length }, "Response");
   return Response.json(

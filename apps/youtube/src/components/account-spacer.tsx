@@ -4,5 +4,5 @@
  * content never slides underneath it.
  */
 export function AccountSpacer() {
-  return <div aria-hidden className="w-16 shrink-0 sm:w-20" />;
+  return <div aria-hidden className="order-first w-28 shrink-0 sm:order-last sm:w-20" />;
 }

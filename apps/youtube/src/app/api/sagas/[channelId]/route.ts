@@ -54,11 +54,6 @@ async function computeDateRange(
 }
 
 export const GET = withErrorHandling("sagas:GET", async (_request, { params }) => {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
   const { channelId } = await params;
   log.info({ channelId }, "GET");
   const v = validateChannelId(channelId);

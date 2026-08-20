@@ -55,7 +55,8 @@ export interface VideoData {
   rates: EngagementRates;
   url: string;
   thumbnail: string;
-  description: string;
+  /** Omitted from compact catalog responses; fetched when a detail view opens. */
+  description?: string;
   topics?: string[];
 }
 

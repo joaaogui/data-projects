@@ -1,6 +1,8 @@
 "use client";
 
 import { SyncLogPanel } from "@/components/sync-log-panel";
+import { AuthRequired } from "@/components/auth-required";
+import { useIsSignedIn } from "@/components/session-context";
 import { useChannelSagas, type AnalysisProgress } from "@/hooks/use-channel-sagas";
 import { useSagaStorage } from "@/hooks/use-saga-storage";
 import { formatDuration } from "@/lib/scoring";
@@ -235,10 +237,12 @@ function GapCard({
 }
 
 export function SagasView({ channelId, videos }: Readonly<SagasViewProps>) {
+  const isSignedIn = useIsSignedIn();
   const {
     sagas,
     uncategorizedVideoIds,
     isLoadingSagas,
+    sagaLoadError,
     progress,
     sagaLogs,
     startAnalysis,
@@ -299,11 +303,11 @@ export function SagasView({ channelId, videos }: Readonly<SagasViewProps>) {
   }, [displaySagas, sortBy, sortDir, sagaStats]);
 
   const gridItems = useMemo(() => {
-    if (sortBy !== "date" || !hasUncategorized) {
+    if (!isSignedIn || sortBy !== "date" || !hasUncategorized) {
       return sortedSagas.map((saga): GridItem => ({ type: "saga", saga }));
     }
     return buildGridItems(sortedSagas, uncategorizedVideoIds, videos);
-  }, [sortedSagas, sortBy, hasUncategorized, uncategorizedVideoIds, videos]);
+  }, [sortedSagas, sortBy, hasUncategorized, uncategorizedVideoIds, videos, isSignedIn]);
 
   if (selectedSaga) {
     return (
@@ -326,7 +330,7 @@ export function SagasView({ channelId, videos }: Readonly<SagasViewProps>) {
             <span>
               <span className="font-medium text-foreground tabular-nums">{displaySagas.length}</span>{" "}
               {displaySagas.length === 1 ? "saga" : "sagas"} found
-              {uncategorizedVideoIds.length > 0 && (
+              {isSignedIn && uncategorizedVideoIds.length > 0 && (
                 <span>
                   {" "}&middot; <span className="tabular-nums">{uncategorizedVideoIds.length}</span> uncategorized
                 </span>
@@ -335,7 +339,11 @@ export function SagasView({ channelId, videos }: Readonly<SagasViewProps>) {
           )}
         </div>
 
-        {isLoadingSagas ? (
+        {!isSignedIn ? (
+          <span className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground">
+            Read-only
+          </span>
+        ) : isLoadingSagas ? (
           <Skeleton className="h-8 w-32 rounded-md" />
         ) : (
           <div className="flex items-center gap-2">
@@ -392,12 +400,22 @@ export function SagasView({ channelId, videos }: Readonly<SagasViewProps>) {
         )}
       </div>
 
-      <ProgressBar progress={progress} logs={sagaLogs} />
+      {isSignedIn && <ProgressBar progress={progress} logs={sagaLogs} />}
 
-      {progress.phase === "error" && progress.error && (
+      {isSignedIn && progress.phase === "error" && progress.error && (
         <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {progress.error}
+        </div>
+      )}
+
+      {sagaLoadError && (
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {sagaLoadError}
         </div>
       )}
 
@@ -417,7 +435,14 @@ export function SagasView({ channelId, videos }: Readonly<SagasViewProps>) {
         </>
       )}
 
-      {displaySagas.length === 0 && !isLoadingSagas && !isActive && progress.phase !== "done" && (
+      {displaySagas.length === 0 && !isLoadingSagas && !sagaLoadError && !isSignedIn && (
+        <AuthRequired
+          title="Analyze this channel's stories"
+          description="Sign in to detect recurring series, import playlist sagas, and save corrections. Existing saga results are public and remain readable without an account."
+        />
+      )}
+
+      {displaySagas.length === 0 && !isLoadingSagas && !sagaLoadError && isSignedIn && !isActive && progress.phase !== "done" && (
         <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
           <div className="rounded-full bg-muted p-4">
             <List className="h-8 w-8 text-muted-foreground" />
@@ -495,7 +520,7 @@ export function SagasView({ channelId, videos }: Readonly<SagasViewProps>) {
         </>
       )}
 
-      {!isLoadingSagas && displaySagas.length === 0 && uncategorizedVideoIds.length > 0 && (
+      {isSignedIn && !isLoadingSagas && displaySagas.length === 0 && uncategorizedVideoIds.length > 0 && (
         <UncategorizedSection
           channelId={channelId}
           videos={videos}
@@ -504,16 +529,18 @@ export function SagasView({ channelId, videos }: Readonly<SagasViewProps>) {
         />
       )}
 
-      <ConfirmDialog
-        open={showResetConfirm}
-        title="Reset & Re-analyze"
-        description="This will delete all AI-detected sagas and start the analysis from scratch. Manual and playlist sagas will be preserved. This cannot be undone."
-        onConfirm={() => {
-          setShowResetConfirm(false);
-          resetAndReanalyze();
-        }}
-        onCancel={() => setShowResetConfirm(false)}
-      />
+      {isSignedIn && (
+        <ConfirmDialog
+          open={showResetConfirm}
+          title="Reset & Re-analyze"
+          description="This will delete all AI-detected sagas and start the analysis from scratch. Manual and playlist sagas will be preserved. This cannot be undone."
+          onConfirm={() => {
+            setShowResetConfirm(false);
+            resetAndReanalyze();
+          }}
+          onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
     </div>
   );
 }

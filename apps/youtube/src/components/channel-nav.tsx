@@ -52,9 +52,9 @@ export function ChannelNav({
       className="shrink-0 border-b border-border bg-background"
       aria-label="Channel navigation"
     >
-      <div className="flex items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="flex items-center gap-2 px-3 sm:gap-4 sm:px-6">
         <div
-          className="flex items-center gap-5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto [scrollbar-width:none] sm:gap-5 [&::-webkit-scrollbar]:hidden"
           role="tablist"
           aria-label="Channel views"
         >
@@ -68,7 +68,7 @@ export function ChannelNav({
                 aria-selected={isActive}
                 aria-controls={`tabpanel-${id}`}
                 onClick={() => onTabChange(id)}
-                className={`relative shrink-0 py-3.5 text-sm transition-colors ${
+                className={`relative shrink-0 py-3 text-xs transition-colors sm:py-3.5 sm:text-sm ${
                   isActive
                     ? "font-medium text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -83,7 +83,7 @@ export function ChannelNav({
           })}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1 bg-background">
           {/* Transcript search reads stored transcripts, which is account-only. */}
           {isSignedIn && (
             <Button
@@ -125,21 +125,25 @@ export function ChannelNav({
                 onClick={onSyncVideos}
                 disabled={isVideoSyncing}
               />
-              <SyncAction
-                icon={FileText}
-                label="Sync Transcripts"
-                description="Fetch and store video transcripts"
-                onClick={() => onSyncTranscripts()}
-                disabled={isTranscriptSyncing || videoCount === 0}
-              />
-              <div className="my-1 h-px bg-border" />
-              <SyncAction
-                icon={RotateCcw}
-                label="Retry Failed"
-                description="Re-fetch empty transcripts"
-                onClick={() => onSyncTranscripts({ retry: true })}
-                disabled={isTranscriptSyncing || videoCount === 0}
-              />
+              {isSignedIn && (
+                <>
+                  <SyncAction
+                    icon={FileText}
+                    label="Sync Transcripts"
+                    description="Fetch and store video transcripts"
+                    onClick={() => onSyncTranscripts()}
+                    disabled={isTranscriptSyncing || videoCount === 0}
+                  />
+                  <div className="my-1 h-px bg-border" />
+                  <SyncAction
+                    icon={RotateCcw}
+                    label="Retry Failed"
+                    description="Re-fetch empty transcripts"
+                    onClick={() => onSyncTranscripts({ retry: true })}
+                    disabled={isTranscriptSyncing || videoCount === 0}
+                  />
+                </>
+              )}
             </PopoverContent>
           </Popover>
         </div>

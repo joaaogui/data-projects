@@ -4,27 +4,52 @@ import { AccountSpacer } from "@/components/account-spacer";
 import { ChannelOverview } from "@/components/channel-overview";
 import { CommandPalette } from "@/components/command-palette";
 import { ChannelNav, type ChannelTab } from "@/components/channel-nav";
-import { DiscoverView } from "@/components/discover";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { FirstSyncFlow } from "@/components/first-sync-flow";
 import { saveRecentChannel } from "@/components/recent-channels";
-import { SagasView } from "@/components/sagas";
 import { SearchChannel } from "@/components/search-channel";
 import { useIsSignedIn } from "@/components/session-context";
 import { SyncStatusBar } from "@/components/sync-status-bar";
-import { TimelineView } from "@/components/timeline-view";
 import { TrackChannelButton } from "@/components/track-channel-button";
 import { TranscriptSearchOverlay } from "@/components/transcript-search-overlay";
-import { VideosTable } from "@/components/videos";
 import { YouTubeIcon } from "@/components/youtube-icon";
 import { ChannelProvider, useChannel } from "@/hooks/use-channel-context";
 import { useChannelStats } from "@/hooks/use-channel-stats";
 import { Button, Navbar, Skeleton, Tooltip, TooltipContent, TooltipTrigger } from "@data-projects/ui";
 import { AlertCircle, ArrowLeft, BarChart3, Calendar, Check, Eye, Loader2, Minus, Share2, ThumbsUp, TrendingDown, TrendingUp } from "lucide-react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+
+function TabLoading() {
+  return (
+    <div role="status" className="flex min-h-40 items-center justify-center">
+      <span className="text-sm text-muted-foreground">Loading view…</span>
+    </div>
+  );
+}
+
+const VideosTable = dynamic(
+  () => import("@/components/videos").then((module) => module.VideosTable),
+  { loading: TabLoading }
+);
+const TimelineView = dynamic(
+  () =>
+    import("@/components/timeline-view").then(
+      (module) => module.TimelineView
+    ),
+  { loading: TabLoading }
+);
+const SagasView = dynamic(
+  () => import("@/components/sagas").then((module) => module.SagasView),
+  { loading: TabLoading }
+);
+const DiscoverView = dynamic(
+  () => import("@/components/discover").then((module) => module.DiscoverView),
+  { loading: TabLoading }
+);
 
 function YouTubeLogo() {
   return <YouTubeIcon className="h-8 w-8 sm:h-10 sm:w-10 text-foreground" />;
@@ -33,7 +58,7 @@ function YouTubeLogo() {
 function KpiPill({ label, value, icon }: Readonly<{ label: string; value: string; icon: React.ReactNode }>) {
   return (
     <div
-      className="flex items-center gap-2 rounded-full bg-card border border-border px-3 py-1.5"
+      className="flex shrink-0 items-center gap-2 rounded-full bg-card border border-border px-3 py-1.5"
       aria-label={`${label}: ${value}`}
     >
       {icon}
@@ -185,9 +210,9 @@ function ChannelPageContent() {
 
   if (channelError) {
     return (
-      <div className="h-screen flex flex-col overflow-hidden">
+      <div className="h-dvh flex flex-col overflow-hidden">
         <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} fullWidth search={<SearchChannel compact />} themeIconClassName="text-muted-foreground" actions={<AccountSpacer />} />
-        <main className="flex-1 min-h-0 container mx-auto px-4 py-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 min-h-0 container mx-auto px-4 py-8">
           <div className="flex flex-col items-center justify-center min-h-[50vh] text-center animate-scale-in">
             <div className="rounded-full bg-destructive/10 p-4 mb-4"><AlertCircle className="h-8 w-8 text-destructive" /></div>
             <h2 className="text-2xl font-bold tracking-tight mb-2">Channel Not Found</h2>
@@ -200,16 +225,16 @@ function ChannelPageContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-dvh flex flex-col overflow-hidden">
       <Navbar homeLink={<Link href="/" />} logo={<YouTubeLogo />} fullWidth search={<SearchChannel initialValue={hydrated ? channelInfo?.channelTitle : undefined} compact />} themeIconClassName="text-muted-foreground" actions={<AccountSpacer />} />
 
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        <main className="flex-1 min-h-0 flex flex-col overflow-hidden" role="main" aria-label={channelInfo ? `Channel analysis for ${channelInfo.channelTitle}` : "Channel analysis"}>
+        <main id="main-content" tabIndex={-1} className="flex-1 min-h-0 flex flex-col overflow-hidden" role="main" aria-label={channelInfo ? `Channel analysis for ${channelInfo.channelTitle}` : "Channel analysis"}>
           {/* Condensed header with KPI strip */}
           {channelInfo && (
-            <div className="shrink-0 border-b border-border px-4 sm:px-6 py-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-3 min-w-0">
+            <div className="channel-header-shell shrink-0 border-b border-border px-3 py-3 sm:px-6">
+              <div className="channel-header-layout flex flex-col gap-3 md:flex-row md:items-center">
+                <div className="channel-identity-row flex min-w-0 items-center gap-3">
                   <div className="relative h-10 w-10 shrink-0">
                     <Image
                       src={channelInfo.thumbnails.default.url}
@@ -220,53 +245,34 @@ function ChannelPageContent() {
                     />
                   </div>
                   <div className="min-w-0">
-                    <h1 className="text-lg font-bold tracking-tight truncate">{channelInfo.channelTitle}</h1>
+                    <h1 className="truncate text-base font-bold tracking-tight sm:text-lg">
+                      {channelInfo.channelTitle}
+                    </h1>
                     {hasVideos && fetchedAt && (
                       <p className="text-xs text-muted-foreground">
                         {videos.length} videos analyzed
                         {fresh === false && (
-                          <button onClick={handleRefresh} className="text-primary hover:underline ml-1.5" disabled={isLoadingVideos || isFetchingVideos}>
+                          <button
+                            onClick={handleRefresh}
+                            className="ml-1.5 text-primary hover:underline"
+                            disabled={isLoadingVideos || isFetchingVideos}
+                          >
                             Refresh
                           </button>
                         )}
                       </p>
                     )}
                   </div>
-                </div>
 
-                {stats && (
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 ml-auto">
-                    <KpiPill
-                      label="Views"
-                      value={stats.totalViewsFormatted}
-                      icon={<Eye className="h-3.5 w-3.5 text-muted-foreground" />}
-                    />
-                    <KpiPill
-                      label="Avg Score"
-                      value={stats.avgScore.toFixed(1)}
-                      icon={<TrendIcon value={stats.scoreTrend} />}
-                    />
-                    <div className="hidden sm:contents">
-                      <KpiPill
-                        label="Engagement"
-                        value={`${stats.avgEngagement.toFixed(1)}/1K`}
-                        icon={<ThumbsUp className="h-3.5 w-3.5 text-muted-foreground" />}
-                      />
-                      <KpiPill
-                        label="Cadence"
-                        value={stats.cadenceLabel}
-                        icon={<Calendar className="h-3.5 w-3.5 text-muted-foreground" />}
-                      />
-                    </div>
-                    <div className="hidden sm:flex items-center gap-1 ml-1 border-l border-border pl-2">
-                      <TrackChannelButton channelId={channelId} />
-                      {isSignedIn && (
+                  <div className="ml-auto flex shrink-0 items-center gap-0.5 border-l border-border pl-2">
+                    <TrackChannelButton channelId={channelId} />
+                    {isSignedIn && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 rounded-lg"
+                            className="h-8 w-8 rounded-lg p-0"
                             onClick={handleShareReport}
                             disabled={shareState === "loading"}
                             aria-label="Share channel report"
@@ -280,23 +286,50 @@ function ChannelPageContent() {
                           {shareState === "done" ? "Link copied!" : "Share report"}
                         </TooltipContent>
                       </Tooltip>
-                      )}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 rounded-lg"
-                            asChild
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 rounded-lg p-0"
+                          asChild
+                        >
+                          <Link
+                            href={`/compare?channels=${channelId}`}
+                            aria-label="Compare with another channel"
                           >
-                            <Link href={`/compare?channels=${channelId}`}>
-                              <BarChart3 className="h-3.5 w-3.5" />
-                            </Link>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Compare with another channel</TooltipContent>
-                      </Tooltip>
-                    </div>
+                            <BarChart3 className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Compare with another channel</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+
+                {stats && (
+                  <div className="channel-kpi-strip -mx-3 flex items-center gap-1.5 overflow-x-auto px-3 pb-1 [scrollbar-width:none] md:mx-0 md:ml-auto md:gap-2 md:px-0 md:pb-0 [&::-webkit-scrollbar]:hidden">
+                    <KpiPill
+                      label="Views"
+                      value={stats.totalViewsFormatted}
+                      icon={<Eye className="h-3.5 w-3.5 text-muted-foreground" />}
+                    />
+                    <KpiPill
+                      label="Avg Score"
+                      value={stats.avgScore.toFixed(1)}
+                      icon={<TrendIcon value={stats.scoreTrend} />}
+                    />
+                    <KpiPill
+                      label="Engagement"
+                      value={`${stats.avgEngagement.toFixed(1)}/1K`}
+                      icon={<ThumbsUp className="h-3.5 w-3.5 text-muted-foreground" />}
+                    />
+                    <KpiPill
+                      label="Cadence"
+                      value={stats.cadenceLabel}
+                      icon={<Calendar className="h-3.5 w-3.5 text-muted-foreground" />}
+                    />
                   </div>
                 )}
               </div>
@@ -359,9 +392,13 @@ function ChannelPageContent() {
           )}
 
           {/* Content area */}
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 pb-20 md:pb-4">
+          <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 pb-6 sm:px-6 sm:py-4 sm:pb-4">
             {isInitialLoading && !showFirstSyncFlow && (
-              <div className="flex items-center justify-center min-h-[40vh]">
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex items-center justify-center min-h-[40vh]"
+              >
                 <div className="animate-pulse text-muted-foreground">Loading...</div>
               </div>
             )}
@@ -414,14 +451,17 @@ function ChannelPageContent() {
         onSyncTranscripts={() => syncTranscripts()}
         onShareReport={handleShareReport}
         channelId={channelId}
+        isSignedIn={isSignedIn}
       />
 
-      <TranscriptSearchOverlay
-        channelId={channelId}
-        open={transcriptSearchOpen}
-        onClose={() => setTranscriptSearchOpen(false)}
-        onSelectVideo={handleTranscriptVideoSelect}
-      />
+      {isSignedIn && (
+        <TranscriptSearchOverlay
+          channelId={channelId}
+          open={transcriptSearchOpen}
+          onClose={() => setTranscriptSearchOpen(false)}
+          onSelectVideo={handleTranscriptVideoSelect}
+        />
+      )}
     </div>
   );
 }

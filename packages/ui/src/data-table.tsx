@@ -48,6 +48,7 @@ export interface DataTableProps<TData, TValue> {
   stickyHeader?: boolean;
   renderExpandedRow?: (row: Row<TData>) => React.ReactNode;
   onRowClick?: (row: Row<TData>) => void;
+  getRowAriaLabel?: (row: Row<TData>) => string;
 }
 
 interface SortButtonProps {
@@ -93,6 +94,7 @@ export function DataTable<TData, TValue>({
   stickyHeader = true,
   renderExpandedRow,
   onRowClick,
+  getRowAriaLabel,
 }: Readonly<DataTableProps<TData, TValue>>) {
   const [sorting, setSorting] = React.useState<SortingState>(defaultSorting);
   const [expandedRowId, setExpandedRowId] = React.useState<string | null>(null);
@@ -173,6 +175,8 @@ export function DataTable<TData, TValue>({
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row, index) => {
                 const isExpanded = renderExpandedRow && expandedRowId === row.id;
+                const rowClickHandler = getRowClickHandler(row);
+                const isInteractive = !!rowClickHandler;
                 return (
                   <React.Fragment key={row.id}>
                     <TableRow
@@ -187,7 +191,20 @@ export function DataTable<TData, TValue>({
                         animationDelay: `${index * 20}ms`,
                         ...rowStyle?.(row, index),
                       }}
-                      onClick={getRowClickHandler(row)}
+                      onClick={rowClickHandler}
+                      tabIndex={isInteractive ? 0 : undefined}
+                      aria-label={isInteractive ? getRowAriaLabel?.(row) : undefined}
+                      aria-expanded={renderExpandedRow ? !!isExpanded : undefined}
+                      onKeyDown={
+                        isInteractive
+                          ? (event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                rowClickHandler();
+                              }
+                            }
+                          : undefined
+                      }
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>

@@ -7,7 +7,10 @@ import { useChannel } from "./use-channel-context";
 
 async function fetchSagas(channelId: string): Promise<Saga[]> {
   const res = await fetch(`/api/sagas/${channelId}`);
-  if (!res.ok) return [];
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to load sagas");
+  }
   return res.json();
 }
 
@@ -57,7 +60,7 @@ export function useSagaStorage(channelId: string | null) {
   const queryKey = useMemo(() => ["sagas", channelId], [channelId]);
   const { pushSagaLog } = useChannel();
 
-  const { data: allSagas = [], isLoading } = useQuery({
+  const { data: allSagas = [], isLoading, error } = useQuery({
     queryKey,
     queryFn: () => fetchSagas(channelId!), // NOSONAR
     enabled: !!channelId,
@@ -180,5 +183,6 @@ export function useSagaStorage(channelId: string | null) {
     createManualSaga,
     syncPlaylists,
     isLoading,
+    error: error instanceof Error ? error.message : null,
   };
 }

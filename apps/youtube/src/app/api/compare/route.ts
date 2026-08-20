@@ -1,19 +1,17 @@
 import { db } from "@/db";
 import { channels, videos } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/route-handler";
+import { validateChannelId } from "@/lib/validation";
 import { inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 export const GET = withErrorHandling("compare:GET", async (request) => {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
   const channelIds = request.nextUrl.searchParams.get("channels")?.split(",").filter(Boolean) ?? [];
-  if (channelIds.length < 2 || channelIds.length > 5) {
-    return NextResponse.json({ error: "Provide 2-5 channel IDs" }, { status: 400 });
+  if (channelIds.length < 1 || channelIds.length > 5) {
+    return NextResponse.json({ error: "Provide 1-5 channel IDs" }, { status: 400 });
+  }
+  if (channelIds.some((id) => !validateChannelId(id).valid)) {
+    return NextResponse.json({ error: "Invalid channel ID" }, { status: 400 });
   }
 
   const channelRows = await db
@@ -60,5 +58,12 @@ export const GET = withErrorHandling("compare:GET", async (request) => {
     };
   });
 
-  return NextResponse.json({ channels: results });
+  return NextResponse.json(
+    { channels: results },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      },
+    }
+  );
 });

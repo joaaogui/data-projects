@@ -58,7 +58,7 @@ import {
 } from "./video-column-cells";
 
 function useIsMobile(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
   useEffect(() => {
     const mql = globalThis.matchMedia(`(max-width: ${breakpoint - 1}px)`);
     setIsMobile(mql.matches);
@@ -481,7 +481,14 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
 
       <WeightsProvider value={weights}>
         <div className="flex-1 min-h-0">
-          {isMobile ? (
+          {isMobile === null ? (
+            <div
+              role="status"
+              className="flex min-h-40 items-center justify-center text-sm text-muted-foreground"
+            >
+              Preparing video list…
+            </div>
+          ) : isMobile ? (
             <MobileVideoList
               data={processedData}
               searchFilter={searchFilter}
@@ -508,11 +515,12 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
                 itemName: "videos",
               }}
               emptyMessage={searchFilter ? "No videos match your search." : "No videos found."}
+              getRowAriaLabel={(row) => `Open video details: ${row.original.title}`}
               rowStyle={(row) => {
                 const score = row.original.score;
-                let color = "hsl(240 4% 30% / 0.15)";
-                if (score >= 80) color = "hsl(160 50% 50% / 0.3)";
-                else if (score >= 40) color = "hsl(172 48% 45% / 0.2)";
+                let color = "hsl(var(--foreground) / 0.08)";
+                if (score >= 80) color = "hsl(var(--data) / 0.25)";
+                else if (score >= 40) color = "hsl(var(--foreground) / 0.15)";
                 return { "--row-score-color": color } as React.CSSProperties;
               }}
               rowClassName={(row) => {

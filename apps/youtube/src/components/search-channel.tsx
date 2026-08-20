@@ -10,16 +10,24 @@ import { useTransition } from "react";
 interface SearchChannelProps {
   initialValue?: string;
   compact?: boolean;
+  onSelectChannel?: (channel: ChannelSuggestion) => void;
+  onSubmitQuery?: (query: string) => void;
 }
 
-export function SearchChannel({ initialValue = "", compact = false }: Readonly<SearchChannelProps>) {
+export function SearchChannel({
+  initialValue = "",
+  compact = false,
+  onSelectChannel,
+  onSubmitQuery,
+}: Readonly<SearchChannelProps>) {
   const [, startTransition] = useTransition();
   const router = useRouter();
   return (
     <SearchAutocomplete<ChannelSuggestion>
       initialValue={initialValue}
       compact={compact}
-      placeholder="Search for a YouTube channel..."
+      placeholder="Search channels..."
+      ariaLabel="Search for a YouTube channel"
       useSuggestions={useChannelSuggestions}
       getSuggestionKey={(item) => item.channelId}
       getSuggestionValue={(item) => item.channelTitle}
@@ -49,15 +57,24 @@ export function SearchChannel({ initialValue = "", compact = false }: Readonly<S
         </div>
       )}
       onSubmit={(value) => {
+        if (onSubmitQuery) {
+          onSubmitQuery(value);
+          return;
+        }
         startTransition(() => {
           router.push(`/channel/search/${encodeURIComponent(value)}`)
         })
       }}
       onSelect={(item) => {
+        if (onSelectChannel) {
+          onSelectChannel(item);
+          return;
+        }
         startTransition(() => {
           router.push(`/channel/${item.channelId}`)
         })
       }}
+      resetAfterCommit={!!onSelectChannel || !!onSubmitQuery}
       inputClassName="focus:border-primary focus:ring-primary/20"
       buttonClassName="font-semibold"
     />

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-4">
+    <main id="main-content" tabIndex={-1} className="min-h-dvh flex items-center justify-center px-4">
       <div className="text-center space-y-6 max-w-md animate-scale-in">
         <div className="flex justify-center">
           <div className="rounded-full bg-muted p-5">

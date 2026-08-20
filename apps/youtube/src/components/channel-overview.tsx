@@ -3,6 +3,7 @@
 import { useChannelSagas } from "@/hooks/use-channel-sagas";
 import { useChannelStats } from "@/hooks/use-channel-stats";
 import type { CadenceStats, DurationBucket, MonthBucket } from "@/hooks/use-channel-stats";
+import type { ChannelFingerprint } from "@/lib/channel-insights";
 import { formatCompact, getScoreColorClass } from "@/lib/format";
 import type { VideoData } from "@/types/youtube";
 import dayjs from "dayjs";
@@ -34,9 +35,9 @@ function Panel({
   return (
     <section className={`rounded-lg border border-border bg-card p-4 sm:p-5 ${className}`}>
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {title}
-        </h3>
+        </h2>
         {action}
       </div>
       {children}
@@ -96,6 +97,95 @@ function Summary({
   );
 }
 
+function FingerprintPanel({
+  fingerprint,
+}: Readonly<{ fingerprint: ChannelFingerprint }>) {
+  let concentrationInsight = "Views are spread broadly across the catalog.";
+  if (fingerprint.topTenViewShare >= 60) {
+    concentrationInsight = "A small group of breakout videos drives most of the reach.";
+  } else if (fingerprint.topTenViewShare >= 40) {
+    concentrationInsight = "Reach is moderately concentrated in the strongest uploads.";
+  }
+
+  const metrics = [
+    {
+      label: "Typical upload",
+      value: formatCompact(fingerprint.medianViews),
+      detail: `median views · mean is ${fingerprint.viewsSkew.toFixed(1)}× higher`,
+    },
+    {
+      label: "View concentration",
+      value: `${fingerprint.topTenViewShare.toFixed(0)}%`,
+      detail: "of all views come from the top 10%",
+    },
+    {
+      label: "Hit rate",
+      value: `${fingerprint.hitRate.toFixed(1)}%`,
+      detail: "of videos score 70 or higher",
+    },
+    {
+      label: "Best format",
+      value: fingerprint.bestDuration?.label ?? "—",
+      detail: fingerprint.bestDuration
+        ? `avg score ${fingerprint.bestDuration.avgScore.toFixed(0)} · ${fingerprint.bestDuration.count} videos`
+        : "not enough videos per duration bucket",
+      accent: true,
+    },
+    {
+      label: "Best year",
+      value: fingerprint.bestYear?.year ?? "—",
+      detail: fingerprint.bestYear
+        ? `avg score ${fingerprint.bestYear.avgScore.toFixed(0)} · ${fingerprint.bestYear.count} uploads`
+        : "not enough uploads per year",
+      accent: true,
+    },
+    {
+      label: "Consistency",
+      value: fingerprint.consistency,
+      detail: `score spread ±${fingerprint.scoreStdDev.toFixed(1)} points`,
+    },
+  ];
+
+  return (
+    <Panel
+      title="Channel fingerprint"
+      action={
+        <span className="text-[11px] text-muted-foreground">
+          Whole catalog
+        </span>
+      }
+    >
+      <p className="mb-5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        {concentrationInsight} A typical upload gets{" "}
+        <span className="font-medium text-foreground">
+          {formatCompact(fingerprint.medianViews)} views
+        </span>
+        , which is more representative than the channel average.
+      </p>
+      <dl className="grid grid-cols-2 gap-x-5 gap-y-5 lg:grid-cols-3">
+        {metrics.map((metric) => (
+          <div key={metric.label} className="min-w-0">
+            <dt className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {metric.label}
+            </dt>
+            <dd
+              className={`mt-1 truncate text-xl font-semibold tabular-nums ${
+                metric.accent ? "text-data" : "text-foreground"
+              }`}
+              title={metric.value}
+            >
+              {metric.value}
+            </dd>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              {metric.detail}
+            </p>
+          </div>
+        ))}
+      </dl>
+    </Panel>
+  );
+}
+
 /**
  * Horizontal bars: a wide panel reads far better this way than as five thin
  * vertical columns, and the counts can sit inline instead of in a tooltip.
@@ -118,9 +208,9 @@ function ScoreDistribution({
       {distribution.map((count, i) => {
         const isAvgBand = i === avgBand;
         return (
-          <div key={BUCKET_LABELS[i]} className="flex items-center gap-3">
+          <div key={BUCKET_LABELS[i]} className="flex items-center gap-2 sm:gap-3">
             <span
-              className={`w-14 shrink-0 text-right font-mono text-xs ${isAvgBand ? "text-foreground" : "text-muted-foreground"}`}
+              className={`w-11 shrink-0 text-right font-mono text-[11px] sm:w-14 sm:text-xs ${isAvgBand ? "text-foreground" : "text-muted-foreground"}`}
             >
               {BUCKET_LABELS[i]}
             </span>
@@ -130,12 +220,13 @@ function ScoreDistribution({
                 style={{ width: `${Math.max((count / maxCount) * 100, count > 0 ? 1.5 : 0)}%` }}
               />
               {isAvgBand && (
-                <span className="absolute inset-y-0 right-2 flex items-center text-[11px] text-muted-foreground">
-                  channel average {avgScore.toFixed(0)}
+                <span className="absolute inset-y-0 right-1 flex items-center rounded bg-card/90 px-1.5 text-[10px] font-medium text-foreground sm:text-[11px]">
+                  <span className="sm:hidden">avg {avgScore.toFixed(0)}</span>
+                  <span className="hidden sm:inline">channel average {avgScore.toFixed(0)}</span>
                 </span>
               )}
             </div>
-            <span className="w-20 shrink-0 text-xs tabular-nums text-muted-foreground">
+            <span className="w-14 shrink-0 text-[11px] tabular-nums text-muted-foreground sm:w-20 sm:text-xs">
               <span className="font-medium text-foreground">{count}</span>
               {total > 0 && ` · ${Math.round((count / total) * 100)}%`}
             </span>
@@ -429,7 +520,7 @@ function SagasPreview({
         </button>
       }
     >
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid min-w-0 gap-3 sm:grid-cols-3">
         {realSagas.slice(0, 3).map((saga) => (
           <SagaCard key={saga.id} saga={saga} videos={videos} onClick={onNavigateToSagas} />
         ))}
@@ -459,6 +550,7 @@ export function ChannelOverview({
   return (
     <div className="h-full space-y-4 overflow-y-auto p-1">
       <Summary videos={videos} stats={stats} />
+      <FingerprintPanel fingerprint={stats.fingerprint} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel title="Score distribution" className="lg:col-span-2">

@@ -3,7 +3,23 @@ import { scoreVideoBatch, calculateVideoScore } from "./scoring";
 import type { VideoData } from "@/types/youtube";
 import type { videos } from "@/db/schema";
 
-type VideoRow = typeof videos.$inferSelect;
+type VideoRow = Pick<
+  typeof videos.$inferSelect,
+  | "id"
+  | "title"
+  | "publishedAt"
+  | "duration"
+  | "views"
+  | "likes"
+  | "comments"
+  | "favorites"
+  | "url"
+  | "thumbnail"
+  | "topics"
+  | "fetchedAt"
+> & {
+  description?: string | null;
+};
 
 interface PartialVideoData {
   videoId: string;
@@ -17,11 +33,14 @@ interface PartialVideoData {
   favorites: number;
   url: string;
   thumbnail: string;
-  description: string;
+  description?: string;
   topics?: string[];
 }
 
-function dbRowToPartial(row: VideoRow): PartialVideoData {
+function dbRowToPartial(
+  row: VideoRow,
+  includeDescription = true
+): PartialVideoData {
   const publishedAt = row.publishedAt instanceof Date
     ? row.publishedAt.toISOString()
     : row.publishedAt;
@@ -38,7 +57,7 @@ function dbRowToPartial(row: VideoRow): PartialVideoData {
     favorites: row.favorites,
     url: row.url,
     thumbnail: row.thumbnail,
-    description: row.description ?? "",
+    ...(includeDescription && { description: row.description ?? "" }),
     topics: row.topics ?? undefined,
   };
 }
@@ -61,10 +80,15 @@ export function dbRowToVideoData(row: VideoRow): VideoData {
   };
 }
 
-export function dbRowsToVideoData(rows: VideoRow[]): VideoData[] {
+export function dbRowsToVideoData(
+  rows: VideoRow[],
+  includeDescription = true
+): VideoData[] {
   if (rows.length === 0) return [];
 
-  const partials = rows.map(dbRowToPartial);
+  const partials = rows.map((row) =>
+    dbRowToPartial(row, includeDescription)
+  );
 
   const metrics = partials.map((p) => ({
     views: p.views,

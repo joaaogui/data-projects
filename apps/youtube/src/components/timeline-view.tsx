@@ -2,6 +2,7 @@
 
 import { formatCompact, getScoreColorClass } from "@/lib/format";
 import { formatDuration } from "@/lib/scoring";
+import { useVideoDescription } from "@/hooks/use-video-detail";
 import type { VideoData } from "@/types/youtube";
 import { Input } from "@data-projects/ui";
 import dayjs from "dayjs";
@@ -29,6 +30,10 @@ interface YearGroup {
   avgScore: number;
 }
 
+const YEAR_BATCH_SIZE = 2;
+const VIDEO_BATCH_SIZE = 100;
+const MAX_SCORE_BARS = 120;
+
 /**
  * One bar per video in publication order: at a glance it shows whether a year
  * was consistent or erratic, which a single average can't convey.
@@ -41,14 +46,24 @@ function YearScoreStrip({ videos }: Readonly<{ videos: VideoData[] }>) {
       ),
     [videos]
   );
+  const sampleStep = Math.max(
+    1,
+    Math.ceil(chronological.length / MAX_SCORE_BARS)
+  );
+  const sampled = chronological.filter(
+    (_, index) =>
+      index % sampleStep === 0 || index === chronological.length - 1
+  );
 
   return (
     <div
       className="flex h-8 flex-1 items-end gap-px overflow-hidden"
       aria-hidden
-      title="Scores in publication order"
+      title={`Scores in publication order${
+        sampleStep > 1 ? `, sampled every ${sampleStep} videos` : ""
+      }`}
     >
-      {chronological.map((v) => (
+      {sampled.map((v) => (
         <div
           key={v.videoId}
           className={`w-1 shrink-0 rounded-[1px] ${v.score >= 70 ? "bg-data" : "bg-foreground/30"}`}
@@ -60,6 +75,11 @@ function YearScoreStrip({ videos }: Readonly<{ videos: VideoData[] }>) {
 }
 
 function ExpandedDetail({ video }: Readonly<{ video: VideoData }>) {
+  const {
+    description,
+    isLoading: descriptionLoading,
+  } = useVideoDescription(video.videoId, video.description);
+
   return (
     <div className="flex flex-col gap-5 border-t border-border bg-muted/20 p-4 sm:flex-row sm:p-5">
       <div className="relative aspect-video w-full shrink-0 sm:w-72">
@@ -99,9 +119,15 @@ function ExpandedDetail({ video }: Readonly<{ video: VideoData }>) {
           </div>
         </div>
 
-        {video.description && (
+        {descriptionLoading && (
+          <p role="status" className="text-xs text-muted-foreground">
+            Loading description…
+          </p>
+        )}
+
+        {description && (
           <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-            {video.description}
+            {description}
           </p>
         )}
 
@@ -178,6 +204,10 @@ export function TimelineView({ videos, initialVideoId }: Readonly<TimelineViewPr
   const [query, setQuery] = useState("");
   const [newestFirst, setNewestFirst] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(initialVideoId ?? null);
+  const [visibleYearCount, setVisibleYearCount] = useState(YEAR_BATCH_SIZE);
+  const [visibleVideosByYear, setVisibleVideosByYear] = useState<
+    Record<string, number>
+  >({});
 
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
 
@@ -210,23 +240,64 @@ export function TimelineView({ videos, initialVideoId }: Readonly<TimelineViewPr
       }));
   }, [filtered, newestFirst]);
 
+  const visibleGroups = query.trim()
+    ? groups
+    : groups.slice(0, visibleYearCount);
+  const hiddenGroups = Math.max(0, groups.length - visibleGroups.length);
+  const hiddenVideoCount = groups
+    .slice(visibleGroups.length)
+    .reduce((sum, group) => sum + group.videos.length, 0);
+
+  useEffect(() => {
+    setVisibleYearCount(YEAR_BATCH_SIZE);
+    setVisibleVideosByYear({});
+  }, [newestFirst]);
+
   // Deep link from the videos table: reveal and scroll to the requested video.
   useEffect(() => {
     if (!initialVideoId) return;
     setExpandedId(initialVideoId);
-    const el = rowRefs.current.get(initialVideoId);
-    el?.scrollIntoView({ block: "center" });
-  }, [initialVideoId]);
+    const targetVideo = videos.find((video) => video.videoId === initialVideoId);
+    if (!targetVideo) return;
+    const targetYear = dayjs(targetVideo.publishedAt).format("YYYY");
+    const groupIndex = groups.findIndex((group) => group.year === targetYear);
+    if (groupIndex >= 0) {
+      setVisibleYearCount((current) => Math.max(current, groupIndex + 1));
+      const videoIndex = groups[groupIndex].videos.findIndex(
+        (video) => video.videoId === initialVideoId
+      );
+      setVisibleVideosByYear((current) => ({
+        ...current,
+        [targetYear]: Math.max(
+          current[targetYear] ?? VIDEO_BATCH_SIZE,
+          videoIndex + 1
+        ),
+      }));
+      globalThis.setTimeout(() => {
+        rowRefs.current
+          .get(initialVideoId)
+          ?.scrollIntoView({ block: "center" });
+      }, 0);
+    }
+  }, [initialVideoId, videos, groups]);
 
   const toggle = useCallback((videoId: string) => {
     setExpandedId((current) => (current === videoId ? null : videoId));
   }, []);
 
-  const jumpToYear = useCallback((year: string) => {
-    document
-      .getElementById(`timeline-year-${year}`)
-      ?.scrollIntoView({ block: "start", behavior: "smooth" });
-  }, []);
+  const jumpToYear = useCallback(
+    (year: string) => {
+      const groupIndex = groups.findIndex((group) => group.year === year);
+      if (groupIndex < 0) return;
+      setVisibleYearCount((current) => Math.max(current, groupIndex + 1));
+      globalThis.setTimeout(() => {
+        document
+          .getElementById(`timeline-year-${year}`)
+          ?.scrollIntoView({ block: "start", behavior: "smooth" });
+      }, 0);
+    },
+    [groups]
+  );
 
   if (videos.length === 0) return null;
 
@@ -241,8 +312,8 @@ export function TimelineView({ videos, initialVideoId }: Readonly<TimelineViewPr
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <div className="flex shrink-0 flex-wrap items-center gap-3">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-3">
+        <p className="w-full text-xs text-muted-foreground sm:w-auto sm:text-sm">
           <span className="font-medium text-foreground tabular-nums">
             {filtered.length}
           </span>
@@ -250,7 +321,7 @@ export function TimelineView({ videos, initialVideoId }: Readonly<TimelineViewPr
           {span}
         </p>
 
-        <div className="relative ml-auto w-full sm:w-64">
+        <div className="relative w-full sm:ml-auto sm:w-64">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
@@ -262,7 +333,7 @@ export function TimelineView({ videos, initialVideoId }: Readonly<TimelineViewPr
 
         <button
           onClick={() => setNewestFirst((v) => !v)}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground sm:ml-0"
         >
           {newestFirst ? (
             <ArrowDownWideNarrow className="h-3.5 w-3.5" />
@@ -273,7 +344,7 @@ export function TimelineView({ videos, initialVideoId }: Readonly<TimelineViewPr
         </button>
       </div>
 
-      <div className="flex shrink-0 flex-wrap gap-1">
+      <div className="flex shrink-0 gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {allYears.map((year) => (
           <button
             key={year}
@@ -292,20 +363,29 @@ export function TimelineView({ videos, initialVideoId }: Readonly<TimelineViewPr
           </p>
         )}
 
-        {groups.map((group) => (
+        {visibleGroups.map((group) => {
+          const visibleVideoCount =
+            visibleVideosByYear[group.year] ?? VIDEO_BATCH_SIZE;
+          const visibleVideos = group.videos.slice(0, visibleVideoCount);
+          const hiddenVideos = Math.max(
+            0,
+            group.videos.length - visibleVideos.length
+          );
+
+          return (
           <section key={group.year} id={`timeline-year-${group.year}`} className="mb-6">
-            <div className="sticky top-0 z-10 flex items-center gap-4 border-b border-border bg-background/95 py-2 backdrop-blur">
+            <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-background/95 py-2 backdrop-blur sm:gap-4">
               <h3 className="w-12 shrink-0 font-mono text-sm font-medium">
                 {group.year}
               </h3>
               <YearScoreStrip videos={group.videos} />
-              <p className="shrink-0 text-xs tabular-nums text-muted-foreground">
+              <p className="hidden shrink-0 text-xs tabular-nums text-muted-foreground sm:block">
                 {group.videos.length} videos · avg {group.avgScore.toFixed(0)}
               </p>
             </div>
 
             <div>
-              {group.videos.map((video) => (
+              {visibleVideos.map((video) => (
                 <TimelineRow
                   key={video.videoId}
                   video={video}
@@ -319,8 +399,51 @@ export function TimelineView({ videos, initialVideoId }: Readonly<TimelineViewPr
                 />
               ))}
             </div>
+
+            {hiddenVideos > 0 && (
+              <div className="flex justify-center border-b border-border py-3">
+                <button
+                  onClick={() =>
+                    setVisibleVideosByYear((current) => ({
+                      ...current,
+                      [group.year]: Math.min(
+                        group.videos.length,
+                        visibleVideoCount + VIDEO_BATCH_SIZE
+                      ),
+                    }))
+                  }
+                  className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  Show {Math.min(VIDEO_BATCH_SIZE, hiddenVideos)} more from{" "}
+                  {group.year}
+                  <span className="ml-1 font-normal">
+                    · {hiddenVideos.toLocaleString()} remaining
+                  </span>
+                </button>
+              </div>
+            )}
           </section>
-        ))}
+          );
+        })}
+
+        {!query.trim() && hiddenGroups > 0 && (
+          <div className="flex justify-center pb-4">
+            <button
+              onClick={() =>
+                setVisibleYearCount((count) =>
+                  Math.min(groups.length, count + YEAR_BATCH_SIZE)
+                )
+              }
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Show {Math.min(YEAR_BATCH_SIZE, hiddenGroups)}{" "}
+              {newestFirst ? "older" : "newer"} years
+              <span className="ml-1.5 text-xs font-normal">
+                · {hiddenVideoCount.toLocaleString()} videos remaining
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

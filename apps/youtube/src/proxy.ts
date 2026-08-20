@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 // Signing in is optional. Searching a channel and reading its dashboard are the
-// primary flow and work anonymously; signing in adds syncing, saved channels,
-// AI features and admin.
+// primary flow and work anonymously; signing in adds account-specific
+// transcripts, saved channels, AI features and admin.
 //
 // Everything that mutates state or exposes per-user data enforces auth inside
 // its own route handler (`auth()` / `requireAdmin()`), which is the real
