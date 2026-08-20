@@ -1,0 +1,7 @@
+[
+    {
+        "path": "apps/lastfm/vercel.json",
+        "policy": "VercelPolicy",
+        "justification": "Contains only HTTP security headers, framework=nextjs and the turbo-ignore build-skip command for this monorepo; no project/org IDs, tokens or environment values. Personal side-project repo where the three sibling apps already track an equivalent file."
+    }
+]

@@ -1,23 +1,20 @@
-name: Monorepo CI
+name: Last.fm App CI
 
 on:
   push:
     branches: [main]
-    paths: ['packages/**']
+    paths: ['apps/lastfm/**', 'packages/**']
   pull_request:
     branches: [main]
-    paths: ['packages/**']
+    paths: ['apps/lastfm/**', 'packages/**']
 
 jobs:
   quality:
-    name: Verify all apps
+    name: Lint, Type Check & Build
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        app: [youtube, imdb-best-season, spotify-popularity, lastfm]
     defaults:
       run:
-        working-directory: apps/${{ matrix.app }}
+        working-directory: apps/lastfm
 
     steps:
       - uses: actions/checkout@v4

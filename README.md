@@ -1,8 +1,8 @@
 # Data Projects
 
-A monorepo of web apps that turn entertainment APIs into interactive dashboards -- analyze YouTube channels, rank TV show seasons, and explore Spotify artist catalogs.
+A monorepo of web apps that turn entertainment APIs into interactive dashboards -- analyze YouTube channels, rank TV show seasons, explore Spotify artist catalogs, and dissect a decade of Last.fm listening.
 
-Built with Next.js 16, TypeScript, and a shared component library. Each app connects to a different public API (YouTube, OMDb/TMDB, Spotify, Deezer) and presents the data through searchable, sortable, and themeable interfaces.
+Built with Next.js 16, TypeScript, and a shared component library. Each app connects to a different public API (YouTube, OMDb/TMDB, Spotify, Deezer, Last.fm) and presents the data through searchable, sortable, and themeable interfaces.
 
 ## Apps
 
@@ -36,6 +36,22 @@ Both data sources are cached in-memory (24h TTL) and rate-limited. The app inclu
 
 ---
 
+### [Listening Habits](apps/lastfm) -- [lastfm.joaog.space](https://lastfm.joaog.space)
+
+Deep analysis of a Last.fm scrobble history -- the questions Last.fm's own charts cannot answer.
+
+Last.fm's aggregate endpoints only tell you what you played most. This app imports the entire play-by-play record (225k scrobbles across a decade) into Postgres, then computes things that need the raw stream: an hour-by-weekday heatmap, a per-day calendar going back to the first scrobble, listening sessions detected from gaps between plays, and consecutive-day streaks.
+
+The more interesting half is behavioural. Every artist is classified by how they moved through rotation -- **companion**, **phase**, **abandoned**, **recent**, or **casual** -- from their active span and how much of their listening collapsed into a single month. Alongside that: discovery rate over time, comeback detection (a long silence followed by a return that stuck), year-over-year rank movement, one-hit wonders, and concentration measured as both top-10 share and normalised Shannon entropy.
+
+The import is one resumable mechanism for both the initial backfill and ongoing syncs. It pins its upper bound so page numbers stay stable mid-run, works in bounded chunks that save a cursor, and leans on a unique index so a retried page is harmless.
+
+**Stack:** Last.fm API, Neon Postgres, Drizzle ORM, recharts, TanStack Table. Tables live in a dedicated `lastfm` Postgres schema so the database can be shared safely.
+
+[Full documentation -->](apps/lastfm/README.md)
+
+---
+
 ### [Spotify Popularity](apps/spotify-popularity)
 
 See every track an artist has ever released on Spotify, ranked by popularity score.
@@ -50,7 +66,7 @@ Unlike Spotify's own interface (which only shows the top 10), this app traverses
 
 ## Tech Stack
 
-All three apps share the same core stack through the monorepo's shared packages. The YouTube app extends it significantly with database, auth, AI, and background job infrastructure.
+All four apps share the same core stack through the monorepo's shared packages. The YouTube app extends it significantly with database, auth, AI, and background job infrastructure; Listening Habits adds a database and charting.
 
 | Layer | Technology | Used by |
 |-------|-----------|---------|
@@ -64,7 +80,8 @@ All three apps share the same core stack through the monorepo's shared packages.
 | Theme | next-themes (dark/light + system) | All |
 | Analytics | PostHog | All |
 | Deployment | Vercel | All |
-| Database | Neon Postgres + Drizzle ORM | YouTube |
+| Database | Neon Postgres + Drizzle ORM | YouTube, Listening Habits |
+| Charts | recharts (heatmaps hand-rolled as CSS grids) | Listening Habits |
 | Auth | NextAuth v5 + Google OAuth | YouTube |
 | AI | Vercel AI SDK, Google Gemini 2.0 Flash, Groq Llama 3.1 | YouTube |
 | Background Jobs | Inngest (sync pipeline, scheduled cleanup) | YouTube |
