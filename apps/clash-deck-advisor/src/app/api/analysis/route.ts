@@ -1,32 +1,38 @@
 import { NextResponse } from "next/server";
-import {
-  checkRateLimit,
-  createRateLimitConfig,
-  getClientIp,
-  rateLimitExceededResponse,
-  withRateLimitHeaders,
-} from "@data-projects/shared";
 
 import { MissingAiConfigurationError } from "@/lib/ai-provider";
 import { getCachedDeckAnalysis } from "@/lib/analyze-deck";
 import { MissingConfigurationError } from "@/lib/clash-royale";
+import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const analysisRateLimit = createRateLimitConfig(12, 5 * 60 * 1000);
+const analysisRateLimit = createRateLimiter({
+  limit: 12,
+  windowMs: 5 * 60 * 1000,
+});
 
 export async function GET(request: Request) {
-  const rateLimit = checkRateLimit(
-    `clash-deck-advisor:${getClientIp(request)}`,
-    analysisRateLimit,
-  );
+  const rateLimit = analysisRateLimit.check(getClientIp(request));
 
   if (!rateLimit.success) {
-    return rateLimitExceededResponse(
-      rateLimit,
-      "Too many analysis requests. Try again in a few minutes.",
-      { "Cache-Control": "no-store" },
+    return NextResponse.json(
+      {
+        error: {
+          code: "RATE_LIMITED",
+          message: "Too many analysis requests. Try again in a few minutes.",
+        },
+      },
+      {
+        status: 429,
+        headers: {
+          "Cache-Control": "no-store",
+          "Retry-After": String(rateLimit.retryAfter ?? 60),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(rateLimit.resetAt),
+        },
+      },
     );
   }
 
@@ -34,9 +40,11 @@ export async function GET(request: Request) {
     const result = await getCachedDeckAnalysis();
 
     return NextResponse.json(result, {
-      headers: withRateLimitHeaders(rateLimit, {
+      headers: {
         "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=60",
-      }),
+        "X-RateLimit-Remaining": String(rateLimit.remaining),
+        "X-RateLimit-Reset": String(rateLimit.resetAt),
+      },
     });
   } catch (error) {
     if (

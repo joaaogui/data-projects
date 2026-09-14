@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20.9.0"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "next dev --turbopack -p 3012",
@@ -18,28 +18,27 @@
   "dependencies": {
     "@ai-sdk/google": "^3.0.0",
     "@ai-sdk/groq": "^3.0.0",
-    "@data-projects/shared": "workspace:*",
     "ai": "^6.0.0",
-    "lucide-react": "catalog:",
-    "next": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:",
+    "lucide-react": "^0.577.0",
+    "next": "^16.0.10",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@eslint/js": "catalog:",
-    "@next/eslint-plugin-next": "catalog:",
+    "@eslint/js": "^9.17.0",
+    "@next/eslint-plugin-next": "^15.1.0",
     "@tailwindcss/postcss": "^4.0.0",
-    "@types/node": "catalog:",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
-    "eslint": "catalog:",
-    "eslint-plugin-react": "catalog:",
-    "eslint-plugin-react-hooks": "catalog:",
-    "postcss": "catalog:",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "postcss": "^8.4.51",
     "tailwindcss": "^4.0.0",
-    "typescript": "catalog:",
-    "typescript-eslint": "catalog:",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1",
     "vitest": "^4.1.0"
   }
 }
