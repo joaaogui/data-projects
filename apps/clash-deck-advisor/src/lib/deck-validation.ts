@@ -20,13 +20,44 @@ function cardLookup(player: Player): Map<string, ClashCard> {
   );
 }
 
+function cardNameKey(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/^the\s+/, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function canonicalizeCardNames(
+  analysis: DeckAnalysis,
+  ownedCards: Map<string, ClashCard>,
+): DeckAnalysis {
+  const canonicalNames = new Map(
+    [...ownedCards.keys()].map((name) => [cardNameKey(name), name]),
+  );
+  const canonicalize = (name: string) =>
+    canonicalNames.get(cardNameKey(name)) ?? name;
+
+  return {
+    ...analysis,
+    originalDeck: analysis.originalDeck.map(canonicalize),
+    improvedDeck: analysis.improvedDeck.map(canonicalize),
+    changes: analysis.changes.map((change) => ({
+      ...change,
+      out: canonicalize(change.out),
+      in: canonicalize(change.in),
+    })),
+  };
+}
+
 export function validateAnalysis(input: unknown, player: Player): DeckAnalysis {
-  const analysis = deckAnalysisSchema.parse(input);
+  const parsedAnalysis = deckAnalysisSchema.parse(input);
+  const ownedCards = cardLookup(player);
+  const analysis = canonicalizeCardNames(parsedAnalysis, ownedCards);
 
   assertUniqueDeck(analysis.originalDeck, "Original");
   assertUniqueDeck(analysis.improvedDeck, "Improved");
 
-  const ownedCards = cardLookup(player);
   for (const cardName of [...analysis.originalDeck, ...analysis.improvedDeck]) {
     if (!ownedCards.has(cardName)) {
       throw new Error(`Player does not own card: ${cardName}`);

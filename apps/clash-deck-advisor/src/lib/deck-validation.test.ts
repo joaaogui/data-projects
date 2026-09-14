@@ -67,7 +67,7 @@ const matchups = Array.from({ length: 5 }, (_, index) => ({
 
 function validAnalysis() {
   return {
-    originalDeck,
+    originalDeck: [...originalDeck],
     improvedDeck: originalDeck.map((name) =>
       name === "Miner" ? "Poison" : name,
     ),
@@ -115,6 +115,17 @@ function validAnalysis() {
 describe("validateAnalysis", () => {
   it("accepts a valid analysis", () => {
     expect(() => validateAnalysis(validAnalysis(), player)).not.toThrow();
+  });
+
+  it("canonicalizes harmless card-name aliases to the owned API name", () => {
+    const analysis = validAnalysis();
+    analysis.originalDeck[4] = "Log";
+    analysis.improvedDeck[4] = "Log";
+
+    const validated = validateAnalysis(analysis, player);
+
+    expect(validated.originalDeck[4]).toBe("The Log");
+    expect(validated.improvedDeck[4]).toBe("The Log");
   });
 
   it("rejects a card the player does not own", () => {
