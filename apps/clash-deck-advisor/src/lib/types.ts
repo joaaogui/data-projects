@@ -92,4 +92,5 @@ export interface AnalysisResponse {
   levelWarnings: LevelWarning[];
   generatedAt: string;
   metaAvailable: boolean;
+  mode: import("./engine-context").AnalysisMode;
 }

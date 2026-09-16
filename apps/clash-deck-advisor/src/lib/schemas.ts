@@ -41,6 +41,32 @@ export const weaknessScoresSchema = z.object({
   synergy: score,
 });
 
+/** A deck proposed during candidate generation, before local validation. */
+export const deckCandidateSchema = z.object({
+  deck: z.array(nonEmptyText).length(8),
+  archetype: nonEmptyText,
+  rationale: nonEmptyText,
+});
+
+/**
+ * The prose half of an analysis.
+ *
+ * Deck contents, swaps, and strength scores are all derived locally, so the
+ * model is only asked for the judgement and explanation it is actually good
+ * at. That removes any chance of the narrative contradicting the deck.
+ */
+export const deckExplanationSchema = z.object({
+  verdictReason: nonEmptyText,
+  problems: z.array(deckProblemSchema).max(4),
+  changeReasons: z
+    .array(z.object({ card: nonEmptyText, reason: nonEmptyText }))
+    .max(3),
+  metaTier: metaTierSchema,
+  matchups: z.array(matchupSchema).length(5),
+  replayAdvice: z.array(replayAdviceSchema).max(3),
+  strategy: nonEmptyText,
+});
+
 export const deckAnalysisSchema = z.object({
   originalDeck: z.array(nonEmptyText).length(8),
   improvedDeck: z.array(nonEmptyText).length(8),
@@ -57,6 +83,8 @@ export const deckAnalysisSchema = z.object({
 });
 
 export type DeckAnalysis = z.infer<typeof deckAnalysisSchema>;
+export type DeckCandidateOutput = z.infer<typeof deckCandidateSchema>;
+export type DeckExplanation = z.infer<typeof deckExplanationSchema>;
 export type DeckProblem = z.infer<typeof deckProblemSchema>;
 export type CardSwap = z.infer<typeof cardSwapSchema>;
 export type MetaTier = z.infer<typeof metaTierSchema>;

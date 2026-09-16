@@ -164,57 +164,67 @@ describe("validateAnalysis", () => {
     );
   });
 
-  it("rejects fewer than two evolved cards", () => {
+  it("accepts a single evolution, since only the Evo slot is required", () => {
     const analysis = validAnalysis();
     analysis.improvedDeck[1] = "Goblins";
     analysis.changes.push({
       out: "Archers",
       in: "Goblins",
-      reason: "Removes an evolution.",
-    });
-
-    expect(() => validateAnalysis(analysis, player)).toThrow(
-      "Improved deck must contain at least 2 evolution-capable cards",
-    );
-  });
-
-  it("accepts more than two evolution-capable cards", () => {
-    const analysis = validAnalysis();
-    analysis.improvedDeck[7] = "Skeletons";
-    analysis.changes.push({
-      out: "Ice Spirit",
-      in: "Skeletons",
-      reason: "Adds another evolution-capable cycle card.",
+      reason: "Leaves the deck with one evolution.",
     });
 
     expect(() => validateAnalysis(analysis, player)).not.toThrow();
   });
 
-  it("rejects fewer than one champion", () => {
+  it("accepts a deck with no champion at all", () => {
     const analysis = validAnalysis();
     analysis.improvedDeck[2] = "Goblins";
     analysis.changes.push({
       out: "Little Prince",
       in: "Goblins",
-      reason: "Removes the champion.",
+      reason: "Drops the champion for a cheaper option.",
     });
 
+    expect(() => validateAnalysis(analysis, player)).not.toThrow();
+  });
+
+  it("accepts two champions alongside one evolution", () => {
+    const analysis = validAnalysis();
+    analysis.improvedDeck[1] = "Golden Knight";
+    analysis.changes.push({
+      out: "Archers",
+      in: "Golden Knight",
+      reason: "Fills the Wild slot with a second champion.",
+    });
+
+    expect(() => validateAnalysis(analysis, player)).not.toThrow();
+  });
+
+  it("rejects three evolutions, which no slot combination allows", () => {
+    const analysis = validAnalysis();
+    analysis.improvedDeck[2] = "Goblins";
+    analysis.improvedDeck[7] = "Skeletons";
+    analysis.changes.push(
+      { out: "Little Prince", in: "Goblins", reason: "Drops the champion." },
+      { out: "Ice Spirit", in: "Skeletons", reason: "Adds a third evolution." },
+    );
+
     expect(() => validateAnalysis(analysis, player)).toThrow(
-      "Improved deck must contain exactly 1 champion",
+      /at most 2 Evolutions/i,
     );
   });
 
-  it("rejects more than one champion", () => {
+  it("rejects four special cards across the three slots", () => {
     const analysis = validAnalysis();
-    analysis.improvedDeck[7] = "Golden Knight";
+    analysis.improvedDeck[3] = "Golden Knight";
     analysis.changes.push({
-      out: "Ice Spirit",
+      out: "Fireball",
       in: "Golden Knight",
-      reason: "Adds a second champion.",
+      reason: "Adds a fourth special card.",
     });
 
     expect(() => validateAnalysis(analysis, player)).toThrow(
-      "Improved deck must contain exactly 1 champion",
+      /at most 3 special/i,
     );
   });
 });
