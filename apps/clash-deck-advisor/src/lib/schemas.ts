@@ -58,9 +58,11 @@ export const deckCandidateSchema = z.object({
 export const deckExplanationSchema = z.object({
   verdictReason: nonEmptyText,
   problems: z.array(deckProblemSchema).max(4),
+  // Building the best deck from a collection can replace the whole list, so
+  // the cap is a full deck rather than the three swaps an improvement allows.
   changeReasons: z
     .array(z.object({ card: nonEmptyText, reason: nonEmptyText }))
-    .max(3),
+    .max(8),
   metaTier: metaTierSchema,
   matchups: z.array(matchupSchema).length(5),
   replayAdvice: z.array(replayAdviceSchema).max(3),
@@ -73,7 +75,7 @@ export const deckAnalysisSchema = z.object({
   verdict: z.enum(["keep", "improve"]),
   verdictReason: nonEmptyText,
   problems: z.array(deckProblemSchema).max(4),
-  changes: z.array(cardSwapSchema).max(3),
+  changes: z.array(cardSwapSchema).max(8),
   metaTier: metaTierSchema,
   matchups: z.array(matchupSchema).length(5),
   replayAdvice: z.array(replayAdviceSchema).max(3),

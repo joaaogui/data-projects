@@ -18,7 +18,8 @@ import {
 } from "./deck-candidates";
 import { scoreDeck, type DeckScore } from "./deck-score";
 import {
-  buildSharedBrief,
+  buildExplanationBrief,
+  buildGenerationBrief,
   type AnalysisMode,
   type EngineContext,
 } from "./engine-context";
@@ -134,7 +135,6 @@ async function generateCandidates(
  */
 async function explainDeck(
   engine: EngineContext,
-  brief: string,
   winner: RankedCandidate,
   chosenScore: DeckScore,
 ): Promise<{ explanation: DeckExplanation; modelLabel: string }> {
@@ -148,22 +148,13 @@ async function explainDeck(
     engine.currentDeck.map((card) => card.name),
     winner.deck,
   );
-
-  const reviewBrief = [
-    brief,
-    "",
-    "Deck selected by deterministic scoring:",
-    winner.deck.join(", "),
-    `Archetype: ${winner.archetype}`,
-    `Score: ${chosenScore.total}/100, average elixir ${chosenScore.averageElixir}`,
-    chosenScore.weaknesses.length > 0
-      ? `Remaining weaknesses: ${chosenScore.weaknesses.join("; ")}`
-      : "No structural weaknesses remain.",
-    "",
-    swaps.length > 0
-      ? `Changes from the current deck: ${swaps.map((swap) => `${swap.out} out, ${swap.in} in`).join("; ")}`
-      : "This is the current deck, unchanged.",
-  ].join("\n");
+  const reviewBrief = buildExplanationBrief(
+    engine,
+    winner.profiles,
+    chosenScore,
+    winner.archetype,
+    swaps,
+  );
 
   let lastError: unknown;
 
@@ -177,11 +168,12 @@ async function explainDeck(
           schemaDescription:
             "Coaching notes explaining an already-decided Clash Royale deck.",
           temperature: 0.3,
-          maxOutputTokens: 2_500,
+          maxOutputTokens: 4_000,
           system: [
             "You are an expert Clash Royale coach reviewing a deck decision that has already been made.",
             "Do not propose a different deck. Explain the deck you are given.",
             "Give one reason per changed card, naming the incoming card.",
+            "Keep every reason, problem, and summary to a single sentence.",
             "Ground replay advice in the supplied recent losses. Do not invent match events.",
             "Return exactly five matchup assessments against broad archetypes.",
             "Only list genuine problems; an empty problems array is valid.",
@@ -277,7 +269,7 @@ function currentDeckAsCandidate(engine: EngineContext): RankedCandidate {
 export async function runDeckEngine(
   engine: EngineContext,
 ): Promise<EngineResult> {
-  const brief = buildSharedBrief(engine);
+  const brief = buildGenerationBrief(engine);
   const { candidates, requested } = await generateCandidates(engine, brief);
   const ranked = rankCandidates(candidates, engine.ownedCards);
 
@@ -290,7 +282,6 @@ export async function runDeckEngine(
   const chosenScore = scoreDeck(winner.profiles);
   const { explanation, modelLabel } = await explainDeck(
     engine,
-    brief,
     winner,
     chosenScore,
   );

@@ -239,6 +239,17 @@ describe("selectWinner", () => {
     expect(selection.discardedForTooManySwaps).toBe(1);
   });
 
+  it("never returns a deck worse than the current one in best-deck mode", () => {
+    const selection = selectWinner(
+      [ranked("a", [...strongDeck.slice(0, 7), "Valkyrie"], 70)],
+      currentDeck,
+      "best",
+    );
+
+    expect(selection.keptCurrentDeck).toBe(true);
+    expect(selection.winner.deck).toEqual(strongDeck);
+  });
+
   it("takes the highest scorer in best-deck mode regardless of swap count", () => {
     const rebuilt = [
       "Valkyrie",

@@ -13,8 +13,43 @@ export interface EngineContext {
   mode: AnalysisMode;
   currentDeck: CardProfile[];
   currentScore: DeckScore;
+  /** Everything the player owns, used to validate candidates. */
   ownedCards: CardProfile[];
+  /** The subset worth offering to a model, used to build prompts. */
+  viableCards: CardProfile[];
   context: AnalysisContext;
+}
+
+/** How far below the current deck's level a card can be and still be worth offering. */
+const LEVEL_TOLERANCE = 2;
+
+function medianLevel(deck: CardProfile[]): number {
+  if (deck.length === 0) return 0;
+  const levels = deck.map((card) => card.level).sort((a, b) => a - b);
+  return levels[Math.floor(levels.length / 2)];
+}
+
+/**
+ * Narrows the collection to cards worth suggesting.
+ *
+ * Recommending a level 7 card to a player running a level 13 deck is bad
+ * advice however good the card is, and listing every card the player has ever
+ * touched wastes prompt budget that the meta evidence uses better.
+ */
+export function selectViableCards(
+  ownedCards: CardProfile[],
+  currentDeck: CardProfile[],
+): CardProfile[] {
+  const threshold = medianLevel(currentDeck) - LEVEL_TOLERANCE;
+  const currentDeckNames = new Set(currentDeck.map((card) => card.name));
+
+  return ownedCards.filter(
+    (card) =>
+      card.level >= threshold ||
+      currentDeckNames.has(card.name) ||
+      card.isChampion ||
+      card.isEvolutionUnlocked,
+  );
 }
 
 export function buildEngineContext(
@@ -29,6 +64,7 @@ export function buildEngineContext(
     currentDeck,
     currentScore: scoreDeck(currentDeck),
     ownedCards,
+    viableCards: selectViableCards(ownedCards, currentDeck),
     context,
   };
 }
@@ -140,17 +176,21 @@ export const DECK_RULES_BRIEF = [
   "  - Cards at a competitive level; a strong card at a low level loses to a weaker card at a high level.",
 ].join("\n");
 
-export function buildSharedBrief(engine: EngineContext): string {
-  const { context, currentDeck, currentScore } = engine;
+function playerLine(engine: EngineContext): string {
+  const { player } = engine.context;
+  return `Player: ${player.name} (${player.tag}), ${player.trophies} trophies, arena ${player.arena.name}.`;
+}
 
+/** The full brief a model needs in order to build a deck from scratch. */
+export function buildGenerationBrief(engine: EngineContext): string {
   return [
-    `Player: ${context.player.name} (${context.player.tag}), ${context.player.trophies} trophies, arena ${context.player.arena.name}.`,
+    playerLine(engine),
     "",
     "Current deck:",
-    describeCurrentDeck(currentDeck),
+    describeCurrentDeck(engine.currentDeck),
     "",
     "Deterministic evaluation of the current deck:",
-    describeScore(currentScore),
+    describeScore(engine.currentScore),
     "",
     describeLosses(engine),
     "",
@@ -158,7 +198,45 @@ export function buildSharedBrief(engine: EngineContext): string {
     "",
     DECK_RULES_BRIEF,
     "",
-    "Cards this player owns, with level on the unified 1-16 scale:",
-    describeOwnedCards(engine.ownedCards),
+    "Cards this player owns at a competitive level, on the unified 1-16 scale.",
+    "You may only choose from this list:",
+    describeOwnedCards(engine.viableCards),
+  ].join("\n");
+}
+
+/**
+ * A much smaller brief for explaining a deck that is already chosen.
+ *
+ * Leaving out the collection keeps this call well inside provider rate limits
+ * and makes it noticeably faster, and the reviewer cannot pick cards anyway.
+ */
+export function buildExplanationBrief(
+  engine: EngineContext,
+  chosenDeck: CardProfile[],
+  chosenScore: DeckScore,
+  archetype: string,
+  swaps: { out: string; in: string }[],
+): string {
+  return [
+    playerLine(engine),
+    "",
+    "Current deck:",
+    describeCurrentDeck(engine.currentDeck),
+    `Current deck score: ${engine.currentScore.total}/100`,
+    "",
+    "Deck that was selected, which you must explain rather than change:",
+    describeCurrentDeck(chosenDeck),
+    `Archetype: ${archetype}`,
+    "",
+    "Deterministic evaluation of the selected deck:",
+    describeScore(chosenScore),
+    "",
+    swaps.length > 0
+      ? `Changes from the current deck: ${swaps.map((swap) => `${swap.out} out, ${swap.in} in`).join("; ")}`
+      : "The selected deck is the current deck, unchanged.",
+    "",
+    describeLosses(engine),
+    "",
+    describeMeta(engine),
   ].join("\n");
 }

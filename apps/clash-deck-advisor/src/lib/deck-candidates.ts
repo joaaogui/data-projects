@@ -132,12 +132,14 @@ export function selectWinner(
   mode: "improve" | "best",
 ): WinnerSelection {
   if (mode === "best") {
-    const best = [...candidates].sort(
+    // The current deck competes here too. The best deck available from a
+    // collection can never be worse than the deck already being played.
+    const best = [...candidates, currentDeck].sort(
       (left, right) => right.score.total - left.score.total,
     )[0];
     return {
-      winner: best ?? currentDeck,
-      keptCurrentDeck: !best,
+      winner: best,
+      keptCurrentDeck: best === currentDeck,
       discardedForTooManySwaps: 0,
     };
   }

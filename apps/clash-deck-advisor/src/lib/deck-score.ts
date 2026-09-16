@@ -83,6 +83,29 @@ function scoreElixirCurve(deck: CardProfile[]): number {
   return clamp01(1 - distance / 2);
 }
 
+/**
+ * Graded rather than binary, so the strength radar can distinguish a deck
+ * that merely has an answer from one that comfortably covers the threat.
+ */
+function scoreCoverage(count: number): number {
+  if (count >= 2) return 1;
+  if (count === 1) return 0.6;
+  return 0;
+}
+
+function scoreTankAnswer(deck: CardProfile[]): number {
+  return scoreCoverage(
+    deck.filter(
+      (card) =>
+        card.roles.includes("tankKiller") || card.roles.includes("building"),
+    ).length,
+  );
+}
+
+function scoreSplashAnswer(deck: CardProfile[]): number {
+  return scoreCoverage(countRole(deck, "splash"));
+}
+
 function scoreCycleSpeed(deck: CardProfile[]): number {
   const cheap = countCycleCards(deck);
   if (cheap >= 3) return 1;
@@ -116,9 +139,8 @@ export function scoreDeck(deck: CardProfile[]): DeckScore {
     winCondition: hasRole(deck, "winCondition") ? 1 : 0,
     airDefense: scoreAirDefense(deck),
     spellCoverage: scoreSpellCoverage(deck),
-    tankAnswer:
-      hasRole(deck, "tankKiller") || hasRole(deck, "building") ? 1 : 0,
-    splashAnswer: hasRole(deck, "splash") ? 1 : 0,
+    tankAnswer: scoreTankAnswer(deck),
+    splashAnswer: scoreSplashAnswer(deck),
     elixirCurve: scoreElixirCurve(deck),
     cycleSpeed: scoreCycleSpeed(deck),
     cardLevels: scoreCardLevels(deck),
@@ -147,9 +169,13 @@ export function scoreDeck(deck: CardProfile[]): DeckScore {
   }
   if (components.tankAnswer === 0) {
     weaknesses.push("No tank answer, so heavy pushes are hard to stop");
+  } else if (components.tankAnswer < 1) {
+    weaknesses.push("Only one tank answer, which is thin against heavy decks");
   }
   if (components.splashAnswer === 0) {
     weaknesses.push("No splash damage, so swarms are hard to clear");
+  } else if (components.splashAnswer < 1) {
+    weaknesses.push("Only one splash card, which is thin against swarm decks");
   }
   if (components.elixirCurve < 1) {
     weaknesses.push(
