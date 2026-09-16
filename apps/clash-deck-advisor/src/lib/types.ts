@@ -1,6 +1,8 @@
 export interface CardIconUrls {
   medium: string;
   evolutionMedium?: string;
+  /** Present when the card has a Hero form in game, not when one is unlocked. */
+  heroMedium?: string;
 }
 
 export interface ClashCard {
@@ -66,7 +68,8 @@ export interface RecentLoss {
 export interface MetaDeckReference {
   playerTag: string;
   playerName: string;
-  trophies: number;
+  /** Trophies on the legacy feed, Elo on the Path of Legend feed. */
+  rating: number;
   deck: string[];
 }
 

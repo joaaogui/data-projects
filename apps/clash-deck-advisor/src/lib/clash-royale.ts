@@ -22,7 +22,9 @@ type NextFetchInit = RequestInit & {
 interface RankedPlayer {
   tag: string;
   name: string;
-  trophies: number;
+  /** The legacy trophy feed reports trophies, Path of Legend reports Elo. */
+  trophies?: number;
+  eloRating?: number;
 }
 
 interface RankedPlayersResponse {
@@ -155,7 +157,7 @@ function winningDeckForPlayer(
       return {
         playerTag: rankedPlayer.tag,
         playerName: rankedPlayer.name,
-        trophies: rankedPlayer.trophies,
+        rating: rankedPlayer.trophies ?? rankedPlayer.eloRating ?? 0,
         deck: player.cards.map((card) => card.name),
       };
     }
@@ -164,16 +166,42 @@ function winningDeckForPlayer(
   return null;
 }
 
+/**
+ * Top-player feeds, most reliable first.
+ *
+ * The legacy trophy ranking endpoint still returns HTTP 200 but with an empty
+ * item list, which silently starved the analysis of meta evidence. Path of
+ * Legend is the feed that actually carries data now.
+ */
+const TOP_PLAYER_ENDPOINTS = [
+  "/locations/global/pathoflegend/players",
+  "/locations/global/rankings/players",
+] as const;
+
+async function fetchTopPlayers(limit: number): Promise<RankedPlayer[]> {
+  for (const endpoint of TOP_PLAYER_ENDPOINTS) {
+    try {
+      const response = await clashFetch<RankedPlayersResponse>(
+        `${endpoint}?limit=${limit}`,
+        { next: { revalidate: 1_800 } },
+      );
+      if (response.items.length > 0) {
+        return response.items;
+      }
+    } catch {
+      // Try the next feed rather than losing meta evidence entirely.
+    }
+  }
+  return [];
+}
+
 export async function getTopLadderMeta(
   limit = 10,
 ): Promise<MetaDeckReference[]> {
-  const rankings = await clashFetch<RankedPlayersResponse>(
-    `/locations/global/rankings/players?limit=${Math.min(limit, 10)}`,
-    { next: { revalidate: 1_800 } },
-  );
+  const topPlayers = await fetchTopPlayers(Math.min(limit, 10));
 
   const results = await Promise.allSettled(
-    rankings.items.slice(0, 10).map(async (rankedPlayer) => {
+    topPlayers.slice(0, 10).map(async (rankedPlayer) => {
       const battles = await clashFetch<Battle[]>(
         `/players/${encodedTag(rankedPlayer.tag)}/battlelog`,
         { next: { revalidate: 1_800 } },
