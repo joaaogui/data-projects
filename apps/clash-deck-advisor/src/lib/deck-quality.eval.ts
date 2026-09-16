@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { buildCardProfile } from "./card-knowledge";
 import { getAnalysisContext } from "./clash-royale";
 import { runDeckEngine, type EngineResult } from "./deck-engine";
+import { refineDeck } from "./deck-refine";
 import { checkDeckLegality } from "./deck-rules";
 import { scoreDeck } from "./deck-score";
 import { buildEngineContext, type AnalysisMode } from "./engine-context";
@@ -148,6 +149,28 @@ describe.each(["improve", "best"] as const)("%s mode", (mode) => {
     }
     for (const change of analysis.changes) {
       expect(change.reason.length).toBeGreaterThan(10);
+    }
+  });
+});
+
+describe("the two modes together", () => {
+  it("never rates the best available deck below the improved one", () => {
+    expect(results.get("best")!.diagnostics.chosenScore).toBeGreaterThanOrEqual(
+      results.get("improve")!.diagnostics.chosenScore,
+    );
+  });
+
+  it("leaves no obvious local improvement on the table", () => {
+    for (const mode of ["improve", "best"] as const) {
+      const analysis = results.get(mode)!.analysis;
+      const deck = profilesFor(analysis.improvedDeck);
+      const pool = context.player.cards.map(buildCardProfile);
+
+      // Best mode is free to reach any deck, so refining its answer again
+      // must find nothing. Improve mode is deliberately swap-limited.
+      if (mode === "best") {
+        expect(refineDeck(deck, pool).swapsApplied).toBe(0);
+      }
     }
   });
 });

@@ -60,8 +60,11 @@ function scoreAirDefense(deck: CardProfile[]): number {
 }
 
 function scoreSpellCoverage(deck: CardProfile[]): number {
-  const small = countRole(deck, "spellSmall");
-  const big = countRole(deck, "spellBig");
+  // Rage and Clone are spells, but they cannot clear troops or finish a
+  // tower, so they do not fill a deck's spell requirement.
+  const damageSpells = deck.filter((card) => !card.utilitySpell);
+  const small = countRole(damageSpells, "spellSmall");
+  const big = countRole(damageSpells, "spellBig");
 
   if (small >= 1 && big >= 1) {
     // Three or more spells starts costing board presence.

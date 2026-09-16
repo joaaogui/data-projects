@@ -10,6 +10,7 @@ import {
   Gauge,
   History,
   MapPinned,
+  RefreshCw,
   ServerCog,
   ShieldCheck,
   Sparkles,
@@ -21,6 +22,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { buildDeckLink } from "@/lib/deck-link";
+import type { AnalysisMode } from "@/lib/engine-context";
 import type { AnalysisResponse, ClashCard } from "@/lib/types";
 
 import { AnalysisError } from "./analysis-error";
@@ -73,17 +75,95 @@ function WorkshopHeader() {
   );
 }
 
-function LoadingDashboard() {
-  const stages = [
-    "Reading the current deck",
-    "Reviewing recent battles",
-    "Comparing the ladder meta",
-  ];
+const MODE_LABELS: Record<AnalysisMode, { title: string; caption: string }> = {
+  improve: {
+    title: "Improve current deck",
+    caption: "Targeted swaps that keep your deck recognisable",
+  },
+  best: {
+    title: "Best from collection",
+    caption: "The strongest deck your cards can build",
+  },
+};
+
+function ModeControls({
+  mode,
+  onSelectMode,
+  onRefresh,
+  busy,
+}: {
+  mode: AnalysisMode;
+  onSelectMode: (mode: AnalysisMode) => void;
+  onRefresh: () => void;
+  busy: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        role="tablist"
+        aria-label="Analysis mode"
+        className="inline-flex rounded-xl border border-[#cdd8e8] bg-white p-1 shadow-sm"
+      >
+        {(Object.keys(MODE_LABELS) as AnalysisMode[]).map((option) => (
+          <button
+            key={option}
+            type="button"
+            role="tab"
+            aria-selected={mode === option}
+            disabled={busy}
+            onClick={() => onSelectMode(option)}
+            className={[
+              "royal-focus min-h-11 rounded-lg px-4 py-2 text-sm font-extrabold transition-colors disabled:cursor-not-allowed",
+              mode === option
+                ? "bg-[#164fc9] text-white shadow-[0_6px_16px_rgba(22,79,201,0.18)]"
+                : "text-[#33445c] hover:bg-[#f2f6ff] disabled:opacity-50",
+            ].join(" ")}
+          >
+            {MODE_LABELS[option].title}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onRefresh}
+        disabled={busy}
+        className="royal-focus inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#bdcbe0] bg-white px-4 py-2.5 text-sm font-extrabold text-[#0b1f3a] transition-colors hover:bg-[#f8faff] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <RefreshCw
+          aria-hidden="true"
+          className={["size-4", busy ? "animate-spin" : ""].join(" ")}
+        />
+        {busy ? "Analyzing" : "Refresh recommendation"}
+      </button>
+    </div>
+  );
+}
+
+function LoadingDashboard({
+  mode,
+  controls,
+}: {
+  mode: AnalysisMode;
+  controls: React.ReactNode;
+}) {
+  const stages =
+    mode === "best"
+      ? [
+          "Reading the full collection",
+          "Building candidate decks",
+          "Scoring them against the meta",
+        ]
+      : [
+          "Reading the current deck",
+          "Reviewing recent battles",
+          "Comparing the ladder meta",
+        ];
 
   return (
     <>
       <WorkshopHeader />
       <main className="mx-auto w-full max-w-[1480px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+        <div className="mb-7">{controls}</div>
         <section
           aria-live="polite"
           aria-busy="true"
@@ -159,6 +239,8 @@ function fallbackCopy(value: string): boolean {
 
 export function DeckDashboard() {
   const [requestKey, setRequestKey] = useState(0);
+  const [mode, setMode] = useState<AnalysisMode>("improve");
+  const [forceRefresh, setForceRefresh] = useState(false);
   const [state, setState] = useState<DashboardState>({ status: "loading" });
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
     "idle",
@@ -170,7 +252,11 @@ export function DeckDashboard() {
 
     async function loadAnalysis() {
       try {
-        const response = await fetch("/api/analysis", {
+        const query = new URLSearchParams({ mode });
+        if (forceRefresh) {
+          query.set("refresh", "1");
+        }
+        const response = await fetch(`/api/analysis?${query}`, {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -205,10 +291,32 @@ export function DeckDashboard() {
 
     void loadAnalysis();
     return () => controller.abort();
-  }, [requestKey]);
+  }, [requestKey, mode, forceRefresh]);
+
+  function switchMode(next: AnalysisMode) {
+    if (next === mode) {
+      return;
+    }
+    setForceRefresh(false);
+    setMode(next);
+  }
+
+  function refreshNow() {
+    setForceRefresh(true);
+    setRequestKey((value) => value + 1);
+  }
+
+  const modeControls = (
+    <ModeControls
+      mode={mode}
+      onSelectMode={switchMode}
+      onRefresh={refreshNow}
+      busy={state.status === "loading"}
+    />
+  );
 
   if (state.status === "loading") {
-    return <LoadingDashboard />;
+    return <LoadingDashboard mode={mode} controls={modeControls} />;
   }
 
   if (state.status === "error") {
@@ -262,6 +370,7 @@ export function DeckDashboard() {
     <>
       <WorkshopHeader />
       <main className="mx-auto w-full max-w-[1480px] px-4 pb-14 pt-7 sm:px-6 lg:px-10 lg:pb-20 lg:pt-10">
+        <div className="mb-8">{modeControls}</div>
         <div className="space-y-12 lg:space-y-16">
           <section className="paper-panel relative overflow-hidden rounded-[1.6rem]">
             <div
@@ -279,11 +388,14 @@ export function DeckDashboard() {
                   </span>
                 </div>
                 <h1 className="font-display mt-6 max-w-4xl text-[clamp(2.65rem,7vw,5.5rem)] font-semibold leading-[0.96] tracking-[-0.052em]">
-                  {player.name}&apos;s deck is on the workbench.
+                  {mode === "best"
+                    ? `The best deck in ${player.name}'s collection.`
+                    : `${player.name}'s deck is on the workbench.`}
                 </h1>
                 <p className="mt-5 max-w-2xl text-base leading-7 text-[#5c6b7f] sm:text-lg sm:leading-8">
-                  One current deck, recent battle evidence, and a live ladder
-                  sample—reviewed without chasing changes for their own sake.
+                  {mode === "best"
+                    ? "Every card you own, scored against the live ladder meta to find the strongest legal deck you can field today."
+                    : "One current deck, recent battle evidence, and a live ladder sample—reviewed without chasing changes for their own sake."}
                 </p>
 
                 <dl className="mt-8 grid grid-cols-2 gap-x-5 gap-y-6 border-t border-[#d9e1ec] pt-6 sm:grid-cols-4">

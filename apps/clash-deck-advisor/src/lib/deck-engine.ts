@@ -11,11 +11,14 @@ import {
 import { averageElixir } from "./card-knowledge";
 import {
   diffDecks,
+  MAX_IMPROVE_SWAPS,
   rankCandidates,
   selectWinner,
   type DeckCandidate,
   type RankedCandidate,
 } from "./deck-candidates";
+import { refineDeck } from "./deck-refine";
+import { DECK_SIZE } from "./deck-rules";
 import { scoreDeck, type DeckScore } from "./deck-score";
 import {
   buildExplanationBrief,
@@ -30,8 +33,16 @@ import {
   type DeckExplanation,
 } from "./schemas";
 
-const CANDIDATE_TIMEOUT_MS = 25_000;
-const EXPLANATION_TIMEOUT_MS = 30_000;
+/**
+ * Budgets chosen to fit inside the route's 60 second ceiling.
+ *
+ * Candidate generation runs in parallel, so it costs one timeout. Explanation
+ * is sequential across at most two providers, so the worst case is roughly
+ * 18 + 18 + 18 seconds plus the Clash API fetch.
+ */
+const CANDIDATE_TIMEOUT_MS = 18_000;
+const EXPLANATION_TIMEOUT_MS = 18_000;
+const MAX_EXPLANATION_ATTEMPTS = 2;
 
 export interface EngineResult {
   analysis: DeckAnalysis;
@@ -142,7 +153,7 @@ async function explainDeck(
   const reviewers = [
     ...chain.filter((config) => config.label !== winner.modelLabel),
     ...chain,
-  ];
+  ].slice(0, MAX_EXPLANATION_ATTEMPTS);
 
   const swaps = diffDecks(
     engine.currentDeck.map((card) => card.name),
@@ -266,6 +277,41 @@ function currentDeckAsCandidate(engine: EngineContext): RankedCandidate {
   };
 }
 
+/**
+ * Polishes the selected deck with deterministic local search.
+ *
+ * A model picks a coherent archetype but often leaves a strictly better card
+ * unused. In improve mode the search is capped so the total distance from the
+ * player's deck still reads as a few targeted swaps.
+ */
+function refineWinner(
+  engine: EngineContext,
+  winner: RankedCandidate,
+  incumbent: RankedCandidate,
+): RankedCandidate {
+  const alreadySwapped = diffDecks(incumbent.deck, winner.deck).length;
+  const maxSwaps =
+    engine.mode === "improve"
+      ? Math.max(0, MAX_IMPROVE_SWAPS - alreadySwapped)
+      : DECK_SIZE;
+
+  if (maxSwaps === 0) {
+    return winner;
+  }
+
+  const refined = refineDeck(winner.profiles, engine.viableCards, { maxSwaps });
+  if (refined.swapsApplied === 0) {
+    return winner;
+  }
+
+  return {
+    ...winner,
+    deck: refined.deck.map((card) => card.name),
+    profiles: refined.deck,
+    score: refined.score,
+  };
+}
+
 export async function runDeckEngine(
   engine: EngineContext,
 ): Promise<EngineResult> {
@@ -273,12 +319,11 @@ export async function runDeckEngine(
   const { candidates, requested } = await generateCandidates(engine, brief);
   const ranked = rankCandidates(candidates, engine.ownedCards);
 
-  const { winner, keptCurrentDeck, discardedForTooManySwaps } = selectWinner(
-    ranked.accepted,
-    currentDeckAsCandidate(engine),
-    engine.mode,
-  );
+  const incumbent = currentDeckAsCandidate(engine);
+  const selection = selectWinner(ranked.accepted, incumbent, engine.mode);
+  const { keptCurrentDeck, discardedForTooManySwaps } = selection;
 
+  const winner = refineWinner(engine, selection.winner, incumbent);
   const chosenScore = scoreDeck(winner.profiles);
   const { explanation, modelLabel } = await explainDeck(
     engine,

@@ -16,6 +16,8 @@ export interface CardProfile {
   roles: CardRole[];
   targets: CardAttributes["targets"];
   isAirUnit: boolean;
+  weakAirDefense: boolean;
+  utilitySpell: boolean;
   archetypes: Archetype[];
   isChampion: boolean;
   isEvolutionUnlocked: boolean;
@@ -48,6 +50,8 @@ export function buildCardProfile(card: ClashCard): CardProfile {
     roles: attributes.roles,
     targets: attributes.targets,
     isAirUnit: attributes.isAirUnit ?? false,
+    weakAirDefense: attributes.weakAirDefense ?? false,
+    utilitySpell: attributes.utilitySpell ?? false,
     archetypes: attributes.archetypes ?? [],
     isChampion: card.rarity.toLowerCase() === "champion",
     isEvolutionUnlocked: (card.evolutionLevel ?? 0) > 0,
@@ -82,14 +86,17 @@ export function countAirAnswers(deck: CardProfile[]): number {
 }
 
 /**
- * Not every card that technically hits air is real air defense. A 1-elixir
- * spirit clips a Balloon once; a Musketeer actually kills it. Cards carrying
- * the explicit airDefense role count fully, incidental ones count half.
+ * Not every card that technically hits air is real air defense.
+ *
+ * A Musketeer kills a Balloon. An Ice Wizard tickles it, and a Goblin Gang
+ * dies to the Balloon's death damage. A 1-elixir spirit clips it once. Those
+ * are three different things, so they contribute three different amounts.
  */
 export function airDefenseStrength(deck: CardProfile[]): number {
   return deck.reduce((strength, card) => {
     if (!canHitAir(card)) return strength;
-    return strength + (card.roles.includes("airDefense") ? 1 : 0.5);
+    if (!card.roles.includes("airDefense")) return strength + 0.25;
+    return strength + (card.weakAirDefense ? 0.5 : 1);
   }, 0);
 }
 

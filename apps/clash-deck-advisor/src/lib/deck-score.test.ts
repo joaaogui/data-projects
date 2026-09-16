@@ -65,6 +65,50 @@ describe("scoreDeck", () => {
     );
   });
 
+  it("does not treat fragile or low-damage cards as real air defense", () => {
+    // Ice Wizard and Goblin Gang reach air but cannot kill a Balloon, so a
+    // deck defended only by them must not read as fully covered.
+    const onlyWeakAirDefense = deckOf([
+      ["P.E.K.K.A", 7],
+      ["Golden Knight", 4],
+      ["Arrows", 3],
+      ["Ice Wizard", 3],
+      ["Bomb Tower", 4],
+      ["Goblin Gang", 3],
+      ["Skeleton Army", 3],
+      ["Fireball", 4],
+    ]);
+
+    expect(scoreDeck(onlyWeakAirDefense).components.airDefense).toBeLessThan(1);
+  });
+
+  it("rates dropping the only strong air defender as a downgrade", () => {
+    const withMegaMinion = deckOf([
+      ["P.E.K.K.A", 7],
+      ["Golden Knight", 4],
+      ["Mega Minion", 3],
+      ["Ice Wizard", 3],
+      ["Bomb Tower", 4],
+      ["Goblin Gang", 3],
+      ["Skeleton Army", 3],
+      ["Fireball", 4],
+    ]);
+    const swappedForASpell = deckOf([
+      ["P.E.K.K.A", 7],
+      ["Golden Knight", 4],
+      ["Arrows", 3],
+      ["Ice Wizard", 3],
+      ["Bomb Tower", 4],
+      ["Goblin Gang", 3],
+      ["Skeleton Army", 3],
+      ["Fireball", 4],
+    ]);
+
+    expect(scoreDeck(swappedForASpell).components.airDefense).toBeLessThan(
+      scoreDeck(withMegaMinion).components.airDefense,
+    );
+  });
+
   it("heavily penalizes a deck with no win condition", () => {
     const noWinCondition = deckOf([
       ["Musketeer", 4],

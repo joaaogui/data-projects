@@ -33,6 +33,18 @@ export interface CardAttributes {
   targets: "ground" | "air" | "both" | "none";
   /** Flying units can only be answered by air-capable cards. */
   isAirUnit?: boolean;
+  /**
+   * Set for cards that reach air but cannot be relied on to kill it, either
+   * because their damage is negligible or because they evaporate to splash.
+   * A deck defended only by these loses to Balloon and Lava Hound.
+   */
+  weakAirDefense?: boolean;
+  /**
+   * Set for spells that deal no damage. They can be excellent in the right
+   * deck, but they do not satisfy a deck's need for a spell that can finish
+   * a tower or clear support troops.
+   */
+  utilitySpell?: boolean;
   archetypes?: Archetype[];
 }
 
@@ -69,10 +81,15 @@ export const CARD_ATTRIBUTES: Record<string, CardAttributes> = {
     targets: "ground",
     archetypes: ["cycle"],
   },
-  Rage: { roles: ["spellSmall"], targets: "none" },
+  Rage: {
+    roles: ["spellSmall"],
+    targets: "none",
+    utilitySpell: true,
+  },
   "Spear Goblins": {
     roles: ["cycle", "swarm", "airDefense"],
     targets: "both",
+    weakAirDefense: true,
   },
   "Suspicious Bush": { roles: ["cycle", "support"], targets: "ground" },
   "The Log": {
@@ -100,7 +117,11 @@ export const CARD_ATTRIBUTES: Record<string, CardAttributes> = {
     targets: "ground",
     archetypes: ["cycle", "control"],
   },
-  Clone: { roles: ["spellSmall"], targets: "none" },
+  Clone: {
+    roles: ["spellSmall"],
+    targets: "none",
+    utilitySpell: true,
+  },
   "Dart Goblin": {
     roles: ["support", "airDefense"],
     targets: "both",
@@ -125,12 +146,14 @@ export const CARD_ATTRIBUTES: Record<string, CardAttributes> = {
   "Goblin Gang": {
     roles: ["swarm", "airDefense"],
     targets: "both",
+    weakAirDefense: true,
     archetypes: ["bait"],
   },
   Guards: { roles: ["swarm", "tankKiller"], targets: "ground" },
   "Ice Wizard": {
     roles: ["support", "splash", "airDefense"],
     targets: "both",
+    weakAirDefense: true,
     archetypes: ["control"],
   },
   Knight: {
@@ -220,7 +243,11 @@ export const CARD_ATTRIBUTES: Record<string, CardAttributes> = {
     targets: "both",
     isAirUnit: true,
   },
-  Freeze: { roles: ["spellBig"], targets: "none" },
+  Freeze: {
+    roles: ["spellBig"],
+    targets: "none",
+    utilitySpell: true,
+  },
   Furnace: { roles: ["building"], targets: "none" },
   "Goblin Cage": { roles: ["building", "tankKiller"], targets: "ground" },
   "Goblin Demolisher": { roles: ["support", "splash"], targets: "ground" },
@@ -301,7 +328,11 @@ export const CARD_ATTRIBUTES: Record<string, CardAttributes> = {
     targets: "ground",
     archetypes: ["control"],
   },
-  Zappies: { roles: ["support", "airDefense"], targets: "both" },
+  Zappies: {
+    roles: ["support", "airDefense"],
+    targets: "both",
+    weakAirDefense: true,
+  },
 
   "Minion Giant": {
     roles: ["tank", "winCondition"],
@@ -363,7 +394,11 @@ export const CARD_ATTRIBUTES: Record<string, CardAttributes> = {
     targets: "ground",
     archetypes: ["bridgeSpam"],
   },
-  Rascals: { roles: ["swarm", "airDefense"], targets: "both" },
+  Rascals: {
+    roles: ["swarm", "airDefense"],
+    targets: "both",
+    weakAirDefense: true,
+  },
   Ronin: { roles: ["tankKiller", "support"], targets: "ground" },
   "Royal Hogs": {
     roles: ["winCondition"],

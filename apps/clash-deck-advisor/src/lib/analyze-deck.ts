@@ -10,6 +10,8 @@ import type { AnalysisResponse } from "./types";
 
 const ANALYSIS_CACHE_SECONDS = 30 * 60;
 
+export const ANALYSIS_CACHE_TAG = "clash-deck-advisor-analysis";
+
 export async function generateDeckAnalysis(
   mode: AnalysisMode = "improve",
 ): Promise<AnalysisResponse> {
@@ -43,12 +45,12 @@ const cachedByMode: Record<
   improve: unstable_cache(
     () => generateDeckAnalysis("improve"),
     ["clash-deck-advisor", PLAYER_TAG, "analysis-v4", "improve"],
-    { revalidate: ANALYSIS_CACHE_SECONDS, tags: ["clash-deck-advisor-analysis"] },
+    { revalidate: ANALYSIS_CACHE_SECONDS, tags: [ANALYSIS_CACHE_TAG] },
   ),
   best: unstable_cache(
     () => generateDeckAnalysis("best"),
     ["clash-deck-advisor", PLAYER_TAG, "analysis-v4", "best"],
-    { revalidate: ANALYSIS_CACHE_SECONDS, tags: ["clash-deck-advisor-analysis"] },
+    { revalidate: ANALYSIS_CACHE_SECONDS, tags: [ANALYSIS_CACHE_TAG] },
   ),
 };
 
