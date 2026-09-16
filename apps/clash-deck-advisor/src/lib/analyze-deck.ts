@@ -101,7 +101,7 @@ async function generateDeckAnalysis(): Promise<AnalysisResponse> {
 
 export const getCachedDeckAnalysis = unstable_cache(
   generateDeckAnalysis,
-  ["clash-deck-advisor", PLAYER_TAG, "analysis-v2"],
+  ["clash-deck-advisor", PLAYER_TAG, "analysis-v3"],
   {
     revalidate: ANALYSIS_CACHE_SECONDS,
     tags: ["clash-deck-advisor-analysis"],
