@@ -54,8 +54,8 @@ function CoachHeader() {
             <p className="font-display truncate text-base leading-tight sm:text-lg">
               Brawl Account Coach
             </p>
-            <p className="mt-0.5 text-[11px] font-extrabold text-[#5d6681]">
-              Progression dossier for #Y0GLCU0GL
+            <p className="mt-0.5 text-xs font-extrabold text-[#3d4663]">
+              Personal sample for #Y0GLCU0GL · not a public lookup
             </p>
           </div>
         </div>
@@ -143,7 +143,7 @@ interface StatProps {
 function Stat({ icon, label, value }: StatProps) {
   return (
     <div className="px-4 py-4 sm:px-5">
-      <dt className="flex items-center gap-1.5 text-xs font-extrabold text-[#5d6681]">
+      <dt className="flex items-center gap-1.5 text-xs font-extrabold text-[#3d4663]">
         {icon}
         {label}
       </dt>
@@ -310,11 +310,14 @@ export function AccountDashboard() {
                       <span className="border-2 border-[#101631] bg-[#ffcb2f] px-3 py-1 text-xs font-black">
                         {player.club?.name ?? "No club"}
                       </span>
+                      <span className="border-2 border-[#101631] bg-white px-3 py-1 text-xs font-black text-[#101631]">
+                        Personal sample
+                      </span>
                     </div>
                     <h1 className="font-display mt-6 max-w-4xl text-[clamp(2.5rem,7vw,5.6rem)] leading-[0.98] tracking-[-0.03em]">
                       {player.name}
                     </h1>
-                    <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-[#4b5572] sm:text-lg">
+                    <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-[#3d4663] sm:text-lg">
                       A live progression brief built from the full roster,
                       owned loadouts, and the latest battle log.
                     </p>
@@ -369,6 +372,49 @@ export function AccountDashboard() {
                 <p className="relative z-10 border-l-4 border-[#f42f8c] bg-white/90 p-3 text-sm font-bold leading-6 text-[#3d4663]">
                   {analysis.health.verdict}
                 </p>
+                <dl className="relative z-10 mt-4 grid grid-cols-2 gap-2">
+                  <div className="border-2 border-[#101631] bg-white/95 p-2.5">
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wide text-[#3d4663]">
+                      Roster power
+                    </dt>
+                    <dd className="mt-1 font-display text-lg tabular-nums text-[#101631]">
+                      {
+                        metrics.powerDistribution.find(
+                          (entry) => entry.power === 11,
+                        )?.percentage ?? 0
+                      }
+                      % at P11
+                    </dd>
+                  </div>
+                  <div className="border-2 border-[#101631] bg-white/95 p-2.5">
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wide text-[#3d4663]">
+                      Trophy keep
+                    </dt>
+                    <dd className="mt-1 font-display text-lg tabular-nums text-[#101631]">
+                      {metrics.trophyEfficiency.peakRetentionPercentage}%
+                    </dd>
+                  </div>
+                  <div className="border-2 border-[#101631] bg-white/95 p-2.5">
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wide text-[#3d4663]">
+                      Recent form
+                    </dt>
+                    <dd className="mt-1 font-display text-lg tabular-nums text-[#101631]">
+                      {metrics.recentTrend.winRate}% WR
+                    </dd>
+                  </div>
+                  <div className="border-2 border-[#101631] bg-white/95 p-2.5">
+                    <dt className="text-[11px] font-extrabold uppercase tracking-wide text-[#3d4663]">
+                      Roster unlock
+                    </dt>
+                    <dd className="mt-1 font-display text-lg tabular-nums text-[#101631]">
+                      {metrics.rosterCompletion.percentage}%
+                    </dd>
+                  </div>
+                </dl>
+                <p className="relative z-10 mt-3 text-xs font-bold leading-5 text-[#3d4663]">
+                  Live signals that feed the coach score — a heuristic, not a
+                  predicted win rate.
+                </p>
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-32 items-end justify-center overflow-hidden opacity-25">
                   {heroBrawlers.map((brawler, index) => (
                     <Image
@@ -422,11 +468,43 @@ export function AccountDashboard() {
               />
               Snapshot generated at {refreshedAt}
             </p>
-            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#5d6681]">
+            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#3d4663]">
               <Zap aria-hidden="true" className="size-3.5 text-[#f42f8c]" />
               Complete analysis cached for 30 minutes
             </span>
           </div>
+
+          <section
+            aria-labelledby="action-plan-title"
+            className="arcade-panel overflow-hidden rounded-[1.2rem_0.35rem_1.2rem_0.35rem]"
+          >
+            <div className="border-b-2 border-[#101631] bg-[#155eef] p-5 text-white sm:p-6">
+              <p className="text-sm font-extrabold text-[#cbdcff]">
+                Next session
+              </p>
+              <h2
+                id="action-plan-title"
+                className="font-display mt-2 text-2xl"
+              >
+                Three-step action plan
+              </h2>
+            </div>
+            <ol className="grid divide-y-2 divide-[#101631] md:grid-cols-3 md:divide-x-2 md:divide-y-0">
+              {analysis.actionPlan.map((step, index) => (
+                <li key={step.title} className="p-5 sm:p-6">
+                  <span className="font-display flex size-10 items-center justify-center rounded-full border-2 border-[#101631] bg-[#ffcb2f] text-lg shadow-[3px_3px_0_#101631]">
+                    {index + 1}
+                  </span>
+                  <h3 className="font-display mt-5 text-base leading-snug text-[#101631]">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#3d4663]">
+                    {step.detail}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </section>
 
           <UpgradePriorities
             priorities={analysis.upgradePriorities}
@@ -449,83 +527,49 @@ export function AccountDashboard() {
             brawlers={player.brawlers}
           />
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-            <section
-              aria-labelledby="avoid-title"
-              className="arcade-panel overflow-hidden rounded-[1.2rem_0.35rem_1.2rem_0.35rem]"
-            >
-              <div className="border-b-2 border-[#101631] bg-[#fff0f7] p-5 sm:p-6">
-                <p className="flex items-center gap-2 text-sm font-extrabold text-[#a51458]">
-                  <ShieldAlert aria-hidden="true" className="size-4" />
-                  Resource guardrail
-                </p>
-                <h2 id="avoid-title" className="font-display mt-2 text-2xl">
-                  Avoid for now
-                </h2>
-              </div>
-              {analysis.avoidForNow.length > 0 ? (
-                <ul className="divide-y-2 divide-[#101631]">
-                  {analysis.avoidForNow.map((investment) => (
-                    <li
-                      key={investment.brawlerName}
-                      className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 p-5"
-                    >
-                      <span className="flex size-9 items-center justify-center rounded-full border-2 border-[#101631] bg-[#f42f8c] font-black text-white">
-                        !
-                      </span>
-                      <div>
-                        <h3 className="font-display text-base">
-                          {investment.brawlerName}
-                        </h3>
-                        <p className="mt-1 text-sm leading-6 text-[#5d6681]">
-                          {investment.reason}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="p-6 text-sm leading-6 text-[#5d6681]">
-                  No low-value investment stands out in this snapshot.
-                </p>
-              )}
-            </section>
-
-            <section
-              aria-labelledby="action-plan-title"
-              className="arcade-panel overflow-hidden rounded-[1.2rem_0.35rem_1.2rem_0.35rem]"
-            >
-              <div className="border-b-2 border-[#101631] bg-[#155eef] p-5 text-white sm:p-6">
-                <p className="text-sm font-extrabold text-[#cbdcff]">
-                  Next session
-                </p>
-                <h2
-                  id="action-plan-title"
-                  className="font-display mt-2 text-2xl"
-                >
-                  Three-step action plan
-                </h2>
-              </div>
-              <ol className="grid divide-y-2 divide-[#101631] md:grid-cols-3 md:divide-x-2 md:divide-y-0">
-                {analysis.actionPlan.map((step, index) => (
-                  <li key={step.title} className="p-5 sm:p-6">
-                    <span className="font-display flex size-10 items-center justify-center rounded-full border-2 border-[#101631] bg-[#ffcb2f] text-lg shadow-[3px_3px_0_#101631]">
-                      {index + 1}
+          <section
+            aria-labelledby="avoid-title"
+            className="arcade-panel overflow-hidden rounded-[1.2rem_0.35rem_1.2rem_0.35rem]"
+          >
+            <div className="border-b-2 border-[#101631] bg-[#fff0f7] p-5 sm:p-6">
+              <p className="flex items-center gap-2 text-sm font-extrabold text-[#a51458]">
+                <ShieldAlert aria-hidden="true" className="size-4" />
+                Resource guardrail
+              </p>
+              <h2 id="avoid-title" className="font-display mt-2 text-2xl">
+                Avoid for now
+              </h2>
+            </div>
+            {analysis.avoidForNow.length > 0 ? (
+              <ul className="divide-y-2 divide-[#101631]">
+                {analysis.avoidForNow.map((investment) => (
+                  <li
+                    key={investment.brawlerName}
+                    className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 p-5"
+                  >
+                    <span className="flex size-9 items-center justify-center rounded-full border-2 border-[#101631] bg-[#f42f8c] font-black text-white">
+                      !
                     </span>
-                    <h3 className="font-display mt-5 text-base leading-snug">
-                      {step.title}
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-[#5d6681]">
-                      {step.detail}
-                    </p>
+                    <div>
+                      <h3 className="font-display text-base text-[#101631]">
+                        {investment.brawlerName}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-[#3d4663]">
+                        {investment.reason}
+                      </p>
+                    </div>
                   </li>
                 ))}
-              </ol>
-            </section>
-          </div>
+              </ul>
+            ) : (
+              <p className="p-6 text-sm leading-6 text-[#3d4663]">
+                No low-value investment stands out in this snapshot.
+              </p>
+            )}
+          </section>
         </div>
 
-        <footer className="mt-16 flex flex-col gap-3 border-t-2 border-[#101631] py-6 text-xs font-bold text-[#5d6681] sm:flex-row sm:items-center sm:justify-between">
+        <footer className="mt-16 flex flex-col gap-3 border-t-2 border-[#101631] py-6 text-xs font-bold text-[#3d4663] sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-center gap-2">
             <LockKeyhole
               aria-hidden="true"
@@ -533,7 +577,7 @@ export function AccountDashboard() {
             />
             Brawl Stars and AI provider credentials stay server-only.
           </span>
-          <span>Personal coach for {player.tag}</span>
+          <span>Personal sample for {player.tag}</span>
         </footer>
       </main>
     </>

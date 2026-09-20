@@ -195,4 +195,24 @@ describe("deriveAccountMetrics", () => {
       },
     ]);
   });
+
+  it("keeps percentage-style metrics within 0–100", () => {
+    const metrics = deriveAccountMetrics(player, battleLog, catalog);
+
+    expect(metrics.rosterCompletion.percentage).toBeGreaterThanOrEqual(0);
+    expect(metrics.rosterCompletion.percentage).toBeLessThanOrEqual(100);
+    expect(metrics.trophyEfficiency.peakRetentionPercentage).toBeGreaterThanOrEqual(0);
+    expect(metrics.trophyEfficiency.peakRetentionPercentage).toBeLessThanOrEqual(100);
+    expect(metrics.recentTrend.winRate).toBeGreaterThanOrEqual(0);
+    expect(metrics.recentTrend.winRate).toBeLessThanOrEqual(100);
+
+    for (const bucket of metrics.powerDistribution) {
+      expect(bucket.percentage).toBeGreaterThanOrEqual(0);
+      expect(bucket.percentage).toBeLessThanOrEqual(100);
+    }
+    for (const modeTrend of metrics.recentTrend.byMode) {
+      expect(modeTrend.winRate).toBeGreaterThanOrEqual(0);
+      expect(modeTrend.winRate).toBeLessThanOrEqual(100);
+    }
+  });
 });
