@@ -19,8 +19,8 @@
   },
   "dependencies": {
     "@data-projects/shared": "workspace:*",
-    "@data-projects/ui": "workspace:*",
     "@data-projects/tailwind-config": "workspace:*",
+    "@data-projects/ui": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-table": "catalog:",
     "lucide-react": "catalog:",
@@ -31,7 +31,7 @@
   "devDependencies": {
     "@eslint/js": "catalog:",
     "@next/eslint-plugin-next": "catalog:",
-    "@playwright/test": "^1.57.0",
+    "@playwright/test": "^1.63.0",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

@@ -15,11 +15,11 @@
   },
   "dependencies": {
     "@data-projects/shared": "workspace:*",
-    "radix-ui": "^1.0.0",
     "class-variance-authority": "catalog:",
     "lucide-react": "catalog:",
     "next-themes": "catalog:",
-    "posthog-js": "catalog:"
+    "posthog-js": "catalog:",
+    "radix-ui": "^1.6.7"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
