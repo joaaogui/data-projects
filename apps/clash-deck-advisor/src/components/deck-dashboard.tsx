@@ -27,6 +27,7 @@ import type { AnalysisResponse, ClashCard } from "@/lib/types";
 
 import { AnalysisError } from "./analysis-error";
 import { DeckComparison } from "./deck-comparison";
+import { EvidencePanel } from "./evidence-panel";
 import { Matchups } from "./matchups";
 import { StrengthBars } from "./strength-bars";
 import { SwapList } from "./swap-list";
@@ -527,6 +528,10 @@ export function DeckDashboard() {
           </div>
 
           <DeckComparison analysis={analysis} player={player} />
+
+          {analysis.evidence ? (
+            <EvidencePanel evidence={analysis.evidence} />
+          ) : null}
 
           <SwapList changes={analysis.changes} player={player} />
 

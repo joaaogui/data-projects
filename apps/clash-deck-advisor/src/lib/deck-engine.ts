@@ -1,48 +1,12 @@
 import "server-only";
 
-import { generateObject } from "ai";
+import { generateText } from "ai";
 
-import {
-  getAiModelChain,
-  getCandidateModels,
-  instantiateModel,
-  type AiModelConfig,
-} from "./ai-provider";
-import { averageElixir } from "./card-knowledge";
-import {
-  diffDecks,
-  MAX_IMPROVE_SWAPS,
-  rankCandidates,
-  selectWinner,
-  type DeckCandidate,
-  type RankedCandidate,
-} from "./deck-candidates";
-import { refineDeck } from "./deck-refine";
-import { DECK_SIZE } from "./deck-rules";
-import { scoreDeck, type DeckScore } from "./deck-score";
-import {
-  buildExplanationBrief,
-  buildGenerationBrief,
-  type AnalysisMode,
-  type EngineContext,
-} from "./engine-context";
-import {
-  deckCandidateSchema,
-  deckExplanationSchema,
-  type DeckAnalysis,
-  type DeckExplanation,
-} from "./schemas";
-
-/**
- * Budgets chosen to fit inside the route's 60 second ceiling.
- *
- * Candidate generation runs in parallel, so it costs one timeout. Explanation
- * is sequential across at most two providers, so the worst case is roughly
- * 18 + 18 + 18 seconds plus the Clash API fetch.
- */
-const CANDIDATE_TIMEOUT_MS = 18_000;
-const EXPLANATION_TIMEOUT_MS = 18_000;
-const MAX_EXPLANATION_ATTEMPTS = 2;
+import { recommendArchetype } from "./archetype-engine";
+import { getAiModelChain, instantiateModel } from "./ai-provider";
+import { groundedClaims } from "./claim-check";
+import type { EngineContext } from "./engine-context";
+import type { DeckAnalysis } from "./schemas";
 
 export interface EngineResult {
   analysis: DeckAnalysis;
@@ -59,293 +23,104 @@ export interface EngineResult {
   };
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string) {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms),
-    ),
-  ]);
+function readiness(deck: { level: number }[]): number {
+  if (deck.length === 0) return 0;
+  const ready = deck.filter((card) => card.level >= 11).length;
+  return Math.round((ready / deck.length) * 100);
 }
 
-function candidateInstruction(mode: AnalysisMode): string {
-  if (mode === "best") {
-    return [
-      "Task: build the strongest possible deck from this player's collection.",
-      "Ignore the current deck except as context. Choose the archetype that best suits the cards and levels available.",
-    ].join("\n");
-  }
-  return [
-    "Task: improve this player's current deck with the smallest effective change.",
-    "Change at most three cards. Keep the deck's identity and archetype unless it is fundamentally broken.",
-    "If the current deck is already strong, return it unchanged.",
-  ].join("\n");
-}
+/**
+ * Rewrites only the coaching sentences. The deck, swaps, and evidence stay
+ * local. If the model names a card that is not in the deck, or invents a
+ * replay, the deterministic copy is kept.
+ */
+async function polishCopy(
+  analysis: DeckAnalysis,
+  knownCards: string[],
+): Promise<{ analysis: DeckAnalysis; modelLabel: string }> {
+  const allowed = [
+    ...analysis.originalDeck,
+    ...analysis.improvedDeck,
+    ...analysis.changes.flatMap((change) => [change.out, change.in]),
+  ];
+  const facts = {
+    archetype: analysis.metaTier.archetype,
+    deck: analysis.improvedDeck,
+    changes: analysis.changes,
+    strengths: analysis.evidence?.strengths ?? [],
+    weaknesses: analysis.evidence?.weaknesses ?? [],
+    strategy: analysis.strategy,
+    verdictReason: analysis.verdictReason,
+  };
 
-async function generateOneCandidate(
-  config: AiModelConfig,
-  engine: EngineContext,
-  brief: string,
-): Promise<DeckCandidate | null> {
   try {
-    const { object } = await withTimeout(
-      generateObject({
+    const config = getAiModelChain()[0];
+    if (!config) return { analysis, modelLabel: "deterministic" };
+
+    const result = await Promise.race([
+      generateText({
         model: instantiateModel(config),
-        schema: deckCandidateSchema,
-        schemaName: "clashDeckCandidate",
-        schemaDescription: "A single legal Clash Royale deck for this player.",
-        temperature: 0.4,
-        maxOutputTokens: 1_200,
+        temperature: 0.2,
+        maxOutputTokens: 400,
         system: [
-          "You are an expert Clash Royale deck builder.",
-          "Return only a deck of exactly 8 card names, the archetype it plays as, and a short rationale.",
-          "Every card must appear verbatim in the player's owned card list.",
-          "Respect the deck construction rules exactly; an illegal deck is discarded.",
-        ].join("\n"),
-        prompt: `${candidateInstruction(engine.mode)}\n\n${brief}`,
+          "Rewrite the supplied Clash Royale coaching in two short sentences.",
+          "Use only the facts in the prompt.",
+          "Do not name a card that is not in the supplied deck or changes.",
+          "Do not mention replays, placements, or elixir trades you were not given.",
+          "Return plain text, not JSON.",
+        ].join(" "),
+        prompt: JSON.stringify(facts),
       }),
-      CANDIDATE_TIMEOUT_MS,
-      `candidate generation via ${config.label}`,
-    );
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("explanation timed out")), 12_000),
+      ),
+    ]);
 
-    return { modelLabel: config.label, ...object };
-  } catch (error) {
-    console.warn("[clash-deck-advisor] candidate generation failed", {
-      model: config.label,
-      message: error instanceof Error ? error.message : "unknown error",
+    const problems = groundedClaims({
+      text: result.text,
+      allowedCards: allowed,
+      knownCards,
     });
-    return null;
-  }
-}
-
-/**
- * Asks every configured provider for a deck at the same time.
- *
- * Different models favour different archetypes, so generating in parallel and
- * ranking the results locally produces a better deck than trusting whichever
- * single model happened to answer.
- */
-async function generateCandidates(
-  engine: EngineContext,
-  brief: string,
-): Promise<{ candidates: DeckCandidate[]; requested: number }> {
-  const models = getCandidateModels();
-  const results = await Promise.all(
-    models.map((config) => generateOneCandidate(config, engine, brief)),
-  );
-
-  return {
-    candidates: results.filter((entry): entry is DeckCandidate => entry !== null),
-    requested: models.length,
-  };
-}
-
-/**
- * Explains the chosen deck, preferring a model that did not propose it so the
- * write-up is a second opinion rather than self-justification.
- */
-async function explainDeck(
-  engine: EngineContext,
-  winner: RankedCandidate,
-  chosenScore: DeckScore,
-): Promise<{ explanation: DeckExplanation; modelLabel: string }> {
-  const chain = getAiModelChain();
-  const reviewers = [
-    ...chain.filter((config) => config.label !== winner.modelLabel),
-    ...chain,
-  ].slice(0, MAX_EXPLANATION_ATTEMPTS);
-
-  const swaps = diffDecks(
-    engine.currentDeck.map((card) => card.name),
-    winner.deck,
-  );
-  const reviewBrief = buildExplanationBrief(
-    engine,
-    winner.profiles,
-    chosenScore,
-    winner.archetype,
-    swaps,
-  );
-
-  let lastError: unknown;
-
-  for (const config of reviewers) {
-    try {
-      const { object } = await withTimeout(
-        generateObject({
-          model: instantiateModel(config),
-          schema: deckExplanationSchema,
-          schemaName: "clashDeckExplanation",
-          schemaDescription:
-            "Coaching notes explaining an already-decided Clash Royale deck.",
-          temperature: 0.3,
-          maxOutputTokens: 4_000,
-          system: [
-            "You are an expert Clash Royale coach reviewing a deck decision that has already been made.",
-            "Do not propose a different deck. Explain the deck you are given.",
-            "Give one reason per changed card, naming the incoming card.",
-            "Keep every reason, problem, and summary to a single sentence.",
-            "Ground replay advice in the supplied recent losses. Do not invent match events.",
-            "Return exactly five matchup assessments against broad archetypes.",
-            "Only list genuine problems; an empty problems array is valid.",
-          ].join("\n"),
-          prompt: reviewBrief,
-        }),
-        EXPLANATION_TIMEOUT_MS,
-        `explanation via ${config.label}`,
-      );
-
-      return { explanation: object, modelLabel: config.label };
-    } catch (error) {
-      lastError = error;
-      console.warn("[clash-deck-advisor] explanation attempt failed", {
-        model: config.label,
-        message: error instanceof Error ? error.message : "unknown error",
-      });
+    if (problems.length > 0 || result.text.trim().length < 40) {
+      return { analysis, modelLabel: "deterministic" };
     }
+
+    return {
+      analysis: { ...analysis, strategy: result.text.trim() },
+      modelLabel: config.label,
+    };
+  } catch {
+    return { analysis, modelLabel: "deterministic" };
   }
-
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("All explanation attempts failed");
-}
-
-/** Converts the local score into the 0-100 dimensions the UI renders. */
-function toWeaknessScores(score: DeckScore): DeckAnalysis["weaknessScores"] {
-  const percent = (value: number) => Math.round(value * 100);
-  return {
-    airDefense: percent(score.components.airDefense),
-    tankStopping: percent(score.components.tankAnswer),
-    swarmControl: percent(score.components.splashAnswer),
-    spellCoverage: percent(score.components.spellCoverage),
-    cycle: percent(score.components.cycleSpeed),
-    synergy: percent(
-      (score.components.winCondition +
-        score.components.specialSlots +
-        score.components.elixirCurve) /
-        3,
-    ),
-  };
-}
-
-function assembleAnalysis(
-  engine: EngineContext,
-  winner: RankedCandidate,
-  chosenScore: DeckScore,
-  explanation: DeckExplanation,
-): DeckAnalysis {
-  const originalDeck = engine.currentDeck.map((card) => card.name);
-  const swaps = diffDecks(originalDeck, winner.deck);
-  const reasonForCard = new Map(
-    explanation.changeReasons.map((entry) => [entry.card, entry.reason]),
-  );
-
-  return {
-    originalDeck,
-    improvedDeck: winner.deck,
-    verdict: swaps.length > 0 ? "improve" : "keep",
-    verdictReason: explanation.verdictReason,
-    problems: explanation.problems,
-    changes: swaps.map((swap) => ({
-      out: swap.out,
-      in: swap.in,
-      reason:
-        reasonForCard.get(swap.in) ??
-        `Upgrades the slot held by ${swap.out}.`,
-    })),
-    metaTier: explanation.metaTier,
-    matchups: explanation.matchups,
-    replayAdvice: explanation.replayAdvice,
-    weaknessScores: toWeaknessScores(chosenScore),
-    strategy: explanation.strategy,
-    averageElixir: averageElixir(winner.profiles),
-  };
-}
-
-/**
- * Falls back to the current deck when no model produced a legal candidate, so
- * the player still gets coaching rather than an error page.
- */
-function currentDeckAsCandidate(engine: EngineContext): RankedCandidate {
-  return {
-    modelLabel: "none",
-    deck: engine.currentDeck.map((card) => card.name),
-    archetype: "Current deck",
-    rationale: "No legal candidate was produced, so the current deck stands.",
-    profiles: engine.currentDeck,
-    score: engine.currentScore,
-  };
-}
-
-/**
- * Polishes the selected deck with deterministic local search.
- *
- * A model picks a coherent archetype but often leaves a strictly better card
- * unused. In improve mode the search is capped so the total distance from the
- * player's deck still reads as a few targeted swaps.
- */
-function refineWinner(
-  engine: EngineContext,
-  winner: RankedCandidate,
-  incumbent: RankedCandidate,
-): RankedCandidate {
-  const alreadySwapped = diffDecks(incumbent.deck, winner.deck).length;
-  const maxSwaps =
-    engine.mode === "improve"
-      ? Math.max(0, MAX_IMPROVE_SWAPS - alreadySwapped)
-      : DECK_SIZE;
-
-  if (maxSwaps === 0) {
-    return winner;
-  }
-
-  const refined = refineDeck(winner.profiles, engine.viableCards, { maxSwaps });
-  if (refined.swapsApplied === 0) {
-    return winner;
-  }
-
-  return {
-    ...winner,
-    deck: refined.deck.map((card) => card.name),
-    profiles: refined.deck,
-    score: refined.score,
-  };
 }
 
 export async function runDeckEngine(
   engine: EngineContext,
 ): Promise<EngineResult> {
-  const brief = buildGenerationBrief(engine);
-  const { candidates, requested } = await generateCandidates(engine, brief);
-  const ranked = rankCandidates(candidates, engine.ownedCards);
-
-  const incumbent = currentDeckAsCandidate(engine);
-  const selection = selectWinner(ranked.accepted, incumbent, engine.mode);
-  const { keptCurrentDeck, discardedForTooManySwaps } = selection;
-
-  const winner = refineWinner(engine, selection.winner, incumbent);
-  const chosenScore = scoreDeck(winner.profiles);
-  const { explanation, modelLabel } = await explainDeck(
-    engine,
-    winner,
-    chosenScore,
+  const recommendation = recommendArchetype({
+    owned: engine.ownedCards,
+    current: engine.currentDeck,
+    metaDecks: engine.context.metaDecks,
+    losses: engine.context.recentLosses,
+    mode: engine.mode,
+  });
+  const polished = await polishCopy(
+    recommendation.analysis,
+    engine.ownedCards.map((card) => card.name),
   );
 
   return {
-    analysis: assembleAnalysis(engine, winner, chosenScore, explanation),
+    analysis: polished.analysis,
     diagnostics: {
-      candidatesRequested: requested,
-      candidatesAccepted: ranked.accepted.length,
-      candidatesRejected: ranked.rejected.map((entry) => ({
-        modelLabel: entry.modelLabel,
-        reason: entry.reason,
-      })),
-      winningModel: winner.modelLabel,
-      explanationModel: modelLabel,
-      currentScore: engine.currentScore.total,
-      chosenScore: chosenScore.total,
-      keptCurrentDeck,
-      discardedForTooManySwaps,
+      candidatesRequested: 4,
+      candidatesAccepted: recommendation.keptCurrentDeck ? 1 : 2,
+      candidatesRejected: [],
+      winningModel: recommendation.analysis.evidence?.archetypeId ?? "current",
+      explanationModel: polished.modelLabel,
+      currentScore: readiness(engine.currentDeck),
+      chosenScore: recommendation.analysis.evidence?.levelReadiness ?? 0,
+      keptCurrentDeck: recommendation.keptCurrentDeck,
+      discardedForTooManySwaps: 0,
     },
   };
 }

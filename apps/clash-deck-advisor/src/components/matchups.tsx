@@ -42,12 +42,17 @@ export function Matchups({ matchups }: MatchupsProps) {
             Matchup map
           </h2>
           <p className="text-sm text-[#5c6b7f]">
-            Five common tests for the final deck
+            Only ratings the deck can actually explain
           </p>
         </div>
       </div>
 
       <div className="divide-y divide-[#e2e7ee]">
+        {matchups.length === 0 ? (
+          <p className="text-sm leading-6 text-[#5c6b7f]">
+            No matchup rating is shown when the battle log cannot support one.
+          </p>
+        ) : null}
         {matchups.map((matchup) => {
           const rating = ratingDetails[matchup.rating];
           return (

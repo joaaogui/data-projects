@@ -28,10 +28,17 @@ export async function generateDeckAnalysis(
     ...diagnostics,
   });
 
+  const recommendedCards = analysis.improvedDeck.flatMap((name) => {
+    const card =
+      context.player.cards.find((owned) => owned.name === name) ??
+      context.player.currentDeck.find((owned) => owned.name === name);
+    return card ? [card] : [];
+  });
+
   return {
     analysis,
     player: context.player,
-    levelWarnings: getLevelWarnings(context.player.currentDeck),
+    levelWarnings: getLevelWarnings(recommendedCards),
     generatedAt: new Date().toISOString(),
     metaAvailable: context.metaAvailable,
     mode,
@@ -44,12 +51,12 @@ const cachedByMode: Record<
 > = {
   improve: unstable_cache(
     () => generateDeckAnalysis("improve"),
-    ["clash-deck-advisor", PLAYER_TAG, "analysis-v4", "improve"],
+    ["clash-deck-advisor", PLAYER_TAG, "analysis-v5", "improve"],
     { revalidate: ANALYSIS_CACHE_SECONDS, tags: [ANALYSIS_CACHE_TAG] },
   ),
   best: unstable_cache(
     () => generateDeckAnalysis("best"),
-    ["clash-deck-advisor", PLAYER_TAG, "analysis-v4", "best"],
+    ["clash-deck-advisor", PLAYER_TAG, "analysis-v5", "best"],
     { revalidate: ANALYSIS_CACHE_SECONDS, tags: [ANALYSIS_CACHE_TAG] },
   ),
 };

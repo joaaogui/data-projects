@@ -69,6 +69,17 @@ export const deckExplanationSchema = z.object({
   strategy: nonEmptyText,
 });
 
+export const deckEvidenceSchema = z.object({
+  archetypeId: nonEmptyText,
+  archetypeName: nonEmptyText,
+  source: nonEmptyText,
+  confidence: z.enum(["high", "medium", "low"]),
+  levelReadiness: score,
+  strengths: z.array(nonEmptyText).max(4),
+  weaknesses: z.array(nonEmptyText).max(4),
+  liveMetaOverlap: z.number().int().min(0),
+});
+
 export const deckAnalysisSchema = z.object({
   originalDeck: z.array(nonEmptyText).length(8),
   improvedDeck: z.array(nonEmptyText).length(8),
@@ -77,14 +88,16 @@ export const deckAnalysisSchema = z.object({
   problems: z.array(deckProblemSchema).max(4),
   changes: z.array(cardSwapSchema).max(8),
   metaTier: metaTierSchema,
-  matchups: z.array(matchupSchema).length(5),
+  matchups: z.array(matchupSchema).max(5),
   replayAdvice: z.array(replayAdviceSchema).max(3),
   weaknessScores: weaknessScoresSchema,
   strategy: nonEmptyText,
   averageElixir: z.number().min(0).max(10),
+  evidence: deckEvidenceSchema.optional(),
 });
 
 export type DeckAnalysis = z.infer<typeof deckAnalysisSchema>;
+export type DeckEvidence = z.infer<typeof deckEvidenceSchema>;
 export type DeckCandidateOutput = z.infer<typeof deckCandidateSchema>;
 export type DeckExplanation = z.infer<typeof deckExplanationSchema>;
 export type DeckProblem = z.infer<typeof deckProblemSchema>;

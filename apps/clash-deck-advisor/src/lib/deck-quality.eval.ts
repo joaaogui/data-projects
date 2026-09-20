@@ -5,10 +5,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { buildCardProfile } from "./card-knowledge";
 import { getAnalysisContext } from "./clash-royale";
 import { runDeckEngine, type EngineResult } from "./deck-engine";
-import { refineDeck } from "./deck-refine";
 import { checkDeckLegality } from "./deck-rules";
 import { scoreDeck } from "./deck-score";
 import { buildEngineContext, type AnalysisMode } from "./engine-context";
+import { MIN_RECOMMENDED_LEVEL } from "./archetype-engine";
 import type { AnalysisContext } from "./types";
 
 /**
@@ -143,7 +143,8 @@ describe.each(["improve", "best"] as const)("%s mode", (mode) => {
 
     expect(analysis.verdictReason.length).toBeGreaterThan(20);
     expect(analysis.strategy.length).toBeGreaterThan(40);
-    expect(analysis.matchups).toHaveLength(5);
+    expect(analysis.matchups.length).toBeGreaterThan(0);
+    expect(analysis.matchups.length).toBeLessThanOrEqual(5);
     for (const matchup of analysis.matchups) {
       expect(matchup.advice.length).toBeGreaterThan(10);
     }
@@ -154,22 +155,23 @@ describe.each(["improve", "best"] as const)("%s mode", (mode) => {
 });
 
 describe("the two modes together", () => {
-  it("never rates the best available deck below the improved one", () => {
-    expect(results.get("best")!.diagnostics.chosenScore).toBeGreaterThanOrEqual(
-      results.get("improve")!.diagnostics.chosenScore,
-    );
-  });
-
-  it("leaves no obvious local improvement on the table", () => {
+  it("names the archetype and does not hide weaknesses behind a perfect score", () => {
     for (const mode of ["improve", "best"] as const) {
       const analysis = results.get(mode)!.analysis;
-      const deck = profilesFor(analysis.improvedDeck);
-      const pool = context.player.cards.map(buildCardProfile);
+      expect(analysis.evidence?.archetypeName.length).toBeGreaterThan(3);
+      expect(analysis.weaknessScores.synergy).toBeLessThanOrEqual(100);
+      expect(analysis.weaknessScores.airDefense).toBeLessThan(100);
+    }
+  });
 
-      // Best mode is free to reach any deck, so refining its answer again
-      // must find nothing. Improve mode is deliberately swap-limited.
-      if (mode === "best") {
-        expect(refineDeck(deck, pool).swapsApplied).toBe(0);
+  it("does not recommend a card below the level gate", () => {
+    for (const mode of ["improve", "best"] as const) {
+      const names = results.get(mode)!.analysis.improvedDeck;
+      for (const name of names) {
+        const card = context.player.cards.find((owned) => owned.name === name);
+        const level =
+          (card?.level ?? 0) + Math.max(0, 16 - (card?.maxLevel ?? 16));
+        expect(level, name).toBeGreaterThanOrEqual(MIN_RECOMMENDED_LEVEL);
       }
     }
   });

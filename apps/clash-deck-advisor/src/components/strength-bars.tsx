@@ -10,12 +10,12 @@ const dimensions: Array<{
   key: keyof WeaknessScores;
   label: string;
 }> = [
-  { key: "airDefense", label: "Air defense" },
-  { key: "tankStopping", label: "Tank stopping" },
-  { key: "swarmControl", label: "Swarm control" },
-  { key: "spellCoverage", label: "Spell coverage" },
-  { key: "cycle", label: "Cycle" },
-  { key: "synergy", label: "Synergy" },
+  { key: "airDefense", label: "Air answers" },
+  { key: "tankStopping", label: "Building pull" },
+  { key: "swarmControl", label: "Small spell" },
+  { key: "spellCoverage", label: "Spell pair" },
+  { key: "cycle", label: "Elixir" },
+  { key: "synergy", label: "Template fit" },
 ];
 
 export function StrengthBars({ scores }: StrengthBarsProps) {
@@ -36,7 +36,7 @@ export function StrengthBars({ scores }: StrengthBarsProps) {
             Deck strength
           </h2>
           <p className="text-sm text-[#5c6b7f]">
-            How the final eight balance out
+            Structural checks, not a predicted win rate
           </p>
         </div>
       </div>
