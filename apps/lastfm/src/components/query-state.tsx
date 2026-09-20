@@ -2,7 +2,6 @@
 
 import { Skeleton } from "@data-projects/ui";
 import { AlertTriangle } from "lucide-react";
-import Link from "next/link";
 
 export function LoadingGrid({ rows = 3 }: Readonly<{ rows?: number }>) {
   return (
@@ -36,14 +35,8 @@ export function NoData() {
     <div className="rounded-xl border border-dashed p-10 text-center">
       <p className="text-sm font-medium">No scrobbles stored yet</p>
       <p className="mt-1 text-sm text-muted-foreground">
-        Run a full import to pull your Last.fm history into the database.
+        Run a full import (authenticated) to pull your Last.fm history into the database.
       </p>
-      <Link
-        href="/import"
-        className="mt-4 inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-      >
-        Go to import
-      </Link>
     </div>
   );
 }

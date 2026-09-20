@@ -78,7 +78,7 @@ export function CardTile({ card, change, priority = false }: CardTileProps) {
         </div>
       </div>
 
-      <h3 className="mt-1.5 truncate text-center text-[9px] font-extrabold leading-tight text-[#0b1f3a] sm:text-[11px]">
+      <h3 className="mt-1.5 truncate text-center text-xs font-extrabold leading-tight text-[#0b1f3a]">
         {card.name}
       </h3>
     </article>

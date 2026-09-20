@@ -11,6 +11,12 @@ const envSchema = z.object({
   LASTFM_USERNAME: z.string().min(1),
   /** IANA zone used to bucket scrobbles by local hour/day. Stored data is UTC. */
   LASTFM_TIMEZONE: z.string().default("America/Sao_Paulo"),
+  /**
+   * Bearer token required for POST /api/import. Either secret is accepted.
+   * At least one must be set in production or imports are rejected (401).
+   */
+  IMPORT_SECRET: z.string().optional(),
+  ADMIN_TOKEN: z.string().optional(),
   LOG_LEVEL: z.string().optional(),
 });
 

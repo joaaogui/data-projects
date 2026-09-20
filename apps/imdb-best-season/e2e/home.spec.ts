@@ -7,7 +7,7 @@ test.describe("Home Page", () => {
     await expect(page.getByTestId("main-heading")).toContainText("Find the Best Season");
     await expect(page.getByTestId("tagline")).toBeVisible();
     await expect(page.getByTestId("tagline")).toContainText(
-      "Discover which season of your favorite TV show"
+      "median of each episode's IMDb and TMDB ratings"
     );
   });
 
@@ -21,15 +21,15 @@ test.describe("Home Page", () => {
   test("should display suggestion links", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByTestId("suggestion-breaking-bad")).toBeVisible();
-    await expect(page.getByTestId("suggestion-game-of-thrones")).toBeVisible();
-    await expect(page.getByTestId("suggestion-the-office")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Breaking Bad" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "The Wire" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "The Office" })).toBeVisible();
   });
 
   test("should navigate to show page when clicking suggestion", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByTestId("suggestion-breaking-bad").click();
+    await page.getByRole("link", { name: "Breaking Bad" }).click();
 
     await expect(page).toHaveURL(/\/Breaking%20Bad/);
   });
@@ -120,6 +120,52 @@ test.describe("Accessibility", () => {
 
 test.describe("Show Results", () => {
   const API_TIMEOUT = 30000;
+  const rankedSeasons = [5, 4, 3, 2, 1].map((seasonNumber, index) => ({
+    seasonNumber,
+    rating: 9.4 - index * 0.2,
+    episodes: [
+      {
+        episode: 1,
+        rating: 9.4 - index * 0.2,
+        imdbRating: 9.3 - index * 0.2,
+        tmdbRating: 9.5 - index * 0.2,
+        title: `Season ${seasonNumber} premiere`,
+        imdbID: `tt-season-${seasonNumber}`,
+      },
+    ],
+  }));
+
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/search/**", async (route) => {
+      const title = decodeURIComponent(new URL(route.request().url()).pathname.split("/").at(-1) ?? "");
+      if (title === "NonExistentShowXYZ123456") {
+        await route.fulfill({
+          status: 404,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "Show not found" }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          show: {
+            imageUrl: "/images/logo.png",
+            name: title,
+            description: `${title} test description`,
+            imdbID: "tt0903747",
+            totalSeasons: 5,
+            ratings: [
+              { source: "Internet Movie Database", value: "9.5/10" },
+              { source: "TMDB", value: "9.2/10" },
+            ],
+          },
+          rankedSeasons,
+        }),
+      });
+    });
+  });
 
   test("should display show information after searching", async ({ page }) => {
     await page.goto("/Breaking%20Bad");
@@ -141,9 +187,8 @@ test.describe("Show Results", () => {
 
     await expect(page.getByTestId("seasons-table")).toBeVisible({ timeout: API_TIMEOUT });
 
-    await expect(page.locator('[data-testid^="season-row-"]').first()).toBeVisible();
-
-    await expect(page.locator('[data-best-season="true"]')).toBeVisible();
+    await expect(page.locator('[data-testid^="season-number-"]').first()).toBeVisible();
+    await expect(page.getByText("1 / Best season")).toBeAttached();
   });
 
   test("should show season ratings in the table", async ({ page }) => {
@@ -163,14 +208,16 @@ test.describe("Show Results", () => {
 
     await expect(page.getByTestId("seasons-table")).toBeVisible({ timeout: API_TIMEOUT });
 
-    const seasonRows = page.locator('[data-testid^="season-row-"]');
-    await expect(seasonRows).toHaveCount(5);
+    const seasonNumbers = page.locator('[data-testid^="season-number-"]');
+    await expect(seasonNumbers).toHaveCount(5);
   });
 
   test("should show error state for non-existent show", async ({ page }) => {
     await page.goto("/NonExistentShowXYZ123456");
 
-    await expect(page.getByText("Show Not Found")).toBeVisible({ timeout: API_TIMEOUT });
+    await expect(
+      page.getByRole("heading", { name: "Show Not Found" }),
+    ).toBeVisible({ timeout: API_TIMEOUT });
 
     await expect(page.getByRole("link", { name: /back to home/i })).toBeVisible();
   });
@@ -192,7 +239,7 @@ test.describe("Show Results", () => {
 
     await expect(page.getByTestId("seasons-table")).toBeVisible({ timeout: API_TIMEOUT });
 
-    const firstRow = page.locator('[data-testid^="season-row-"]').first();
-    await expect(firstRow).toHaveAttribute("data-best-season", "true");
+    const firstDataRow = page.getByTestId("seasons-table").getByRole("row").nth(1);
+    await expect(firstDataRow.getByText("1 / Best season")).toBeAttached();
   });
 });

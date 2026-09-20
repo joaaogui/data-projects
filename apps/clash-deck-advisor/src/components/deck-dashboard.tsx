@@ -63,7 +63,7 @@ function WorkshopHeader() {
               Clash Deck Advisor
             </p>
             <p className="mt-1 text-[11px] font-bold text-[#6d7a8b]">
-              Royal Workshop / #VGURQ0QQ2
+              Personal demo for #VGURQ0QQ2 · not a public lookup
             </p>
           </div>
         </div>
@@ -101,7 +101,6 @@ function ModeControls({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div
-        role="tablist"
         aria-label="Analysis mode"
         className="inline-flex rounded-xl border border-[#cdd8e8] bg-white p-1 shadow-sm"
       >
@@ -109,8 +108,7 @@ function ModeControls({
           <button
             key={option}
             type="button"
-            role="tab"
-            aria-selected={mode === option}
+            aria-pressed={mode === option}
             disabled={busy}
             onClick={() => onSelectMode(option)}
             className={[
@@ -379,70 +377,7 @@ export function DeckDashboard() {
               className="absolute -left-20 -top-28 size-72 rounded-full border-[48px] border-[#164fc9]/[0.035]"
             />
             <div className="relative grid lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
-              <div className="p-6 sm:p-9 lg:p-12">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-[#cbd7e8] bg-[#f8faff] px-3 py-1 text-xs font-extrabold text-[#33445c]">
-                    {player.tag}
-                  </span>
-                  <span className="rounded-full bg-[#fff5d6] px-3 py-1 text-xs font-extrabold text-[#76530a]">
-                    {player.arena.name}
-                  </span>
-                </div>
-                <h1 className="font-display mt-6 max-w-4xl text-[clamp(2.65rem,7vw,5.5rem)] font-semibold leading-[0.96] tracking-[-0.052em]">
-                  {mode === "best"
-                    ? `The best deck in ${player.name}'s collection.`
-                    : `${player.name}'s deck is on the workbench.`}
-                </h1>
-                <p className="mt-5 max-w-2xl text-base leading-7 text-[#5c6b7f] sm:text-lg sm:leading-8">
-                  {mode === "best"
-                    ? "Every card you own, scored against the live ladder meta to find the strongest legal deck you can field today."
-                    : "One current deck, recent battle evidence, and a live ladder sample—reviewed without chasing changes for their own sake."}
-                </p>
-
-                <dl className="mt-8 grid grid-cols-2 gap-x-5 gap-y-6 border-t border-[#d9e1ec] pt-6 sm:grid-cols-4">
-                  <div>
-                    <dt className="flex items-center gap-1.5 text-xs font-bold text-[#6d7a8b]">
-                      <Trophy aria-hidden="true" className="size-3.5" />
-                      Trophies
-                    </dt>
-                    <dd className="mt-1 text-xl font-extrabold tabular-nums">
-                      {numberFormatter.format(player.trophies)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="flex items-center gap-1.5 text-xs font-bold text-[#6d7a8b]">
-                      <Target aria-hidden="true" className="size-3.5" />
-                      Win rate
-                    </dt>
-                    <dd className="mt-1 text-xl font-extrabold tabular-nums">
-                      {winRate.toFixed(1)}%
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="flex items-center gap-1.5 text-xs font-bold text-[#6d7a8b]">
-                      <MapPinned aria-hidden="true" className="size-3.5" />
-                      Arena
-                    </dt>
-                    <dd className="mt-1 truncate text-sm font-extrabold sm:text-base">
-                      {player.arena.name}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="flex items-center gap-1.5 text-xs font-bold text-[#6d7a8b]">
-                      <Clock3 aria-hidden="true" className="size-3.5" />
-                      Refreshed
-                    </dt>
-                    <dd className="mt-1 text-sm font-extrabold sm:text-base">
-                      {new Date(generatedAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-
-              <aside className="relative overflow-hidden bg-[#0b1f3a] p-6 text-white sm:p-9 lg:p-10">
+              <aside className="relative order-1 overflow-hidden bg-[#0b1f3a] p-6 text-white sm:p-9 lg:order-2 lg:p-10">
                 <div
                   aria-hidden="true"
                   className="absolute -bottom-16 -right-12 size-56 rounded-full border-[34px] border-white/[0.035]"
@@ -451,19 +386,19 @@ export function DeckDashboard() {
                   <span className="flex size-12 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-[#f3c95e]">
                     <VerdictIcon aria-hidden="true" className="size-6" />
                   </span>
-                  <p className="mt-8 text-xs font-extrabold text-[#f3c95e]">
+                  <p className="mt-6 text-xs font-extrabold tracking-wide text-[#f3c95e] sm:mt-8">
                     Workshop verdict
                   </p>
-                  <h2 className="font-display mt-2 text-4xl font-semibold leading-none tracking-[-0.04em]">
+                  <h2 className="font-display mt-2 text-3xl font-semibold leading-none tracking-[-0.04em] sm:text-4xl">
                     {verdictKeepsDeck
                       ? "Keep this deck."
                       : "Improve this deck."}
                   </h2>
-                  <p className="mt-5 text-sm leading-6 text-[#d7e0ed]">
+                  <p className="mt-4 text-sm leading-6 text-[#e8eef6] sm:mt-5">
                     {analysis.verdictReason}
                   </p>
-                  <div className="mt-8 border-t border-white/15 pt-5">
-                    <p className="text-xs font-bold text-[#9fb0c8]">
+                  <div className="mt-6 border-t border-white/15 pt-5 sm:mt-8">
+                    <p className="text-xs font-bold text-[#c5d0e0]">
                       Meta position
                     </p>
                     <div className="mt-2 flex items-end justify-between gap-3">
@@ -471,7 +406,7 @@ export function DeckDashboard() {
                         <p className="font-display text-2xl font-semibold">
                           {analysis.metaTier.archetype}
                         </p>
-                        <p className="mt-1 text-xs text-[#b9c6d8]">
+                        <p className="mt-1 text-xs text-[#d0d9e6]">
                           {metaAvailable
                             ? "Live ladder evidence included"
                             : "Recent battles only"}
@@ -484,6 +419,72 @@ export function DeckDashboard() {
                   </div>
                 </div>
               </aside>
+
+              <div className="order-2 p-6 sm:p-9 lg:order-1 lg:p-12">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-[#cbd7e8] bg-[#f8faff] px-3 py-1 text-xs font-extrabold text-[#33445c]">
+                    {player.tag}
+                  </span>
+                  <span className="rounded-full bg-[#fff5d6] px-3 py-1 text-xs font-extrabold text-[#76530a]">
+                    {player.arena.name}
+                  </span>
+                  <span className="rounded-full border border-[#cdd8e8] bg-white px-3 py-1 text-xs font-extrabold text-[#33445c]">
+                    Personal demo
+                  </span>
+                </div>
+                <h1 className="font-display mt-6 max-w-4xl text-[clamp(2.65rem,7vw,5.5rem)] font-semibold leading-[0.96] tracking-[-0.052em]">
+                  {mode === "best"
+                    ? `The best deck in ${player.name}'s collection.`
+                    : `${player.name}'s deck is on the workbench.`}
+                </h1>
+                <p className="mt-5 max-w-2xl text-base leading-7 text-[#3d4d63] sm:text-lg sm:leading-8">
+                  {mode === "best"
+                    ? "Every card you own, scored against the live ladder meta to find the strongest legal deck you can field today."
+                    : "One current deck, recent battle evidence, and a live ladder sample—reviewed without chasing changes for their own sake."}
+                </p>
+
+                <dl className="mt-8 grid grid-cols-2 gap-x-5 gap-y-6 border-t border-[#d9e1ec] pt-6 sm:grid-cols-4">
+                  <div>
+                    <dt className="flex items-center gap-1.5 text-xs font-bold text-[#526175]">
+                      <Trophy aria-hidden="true" className="size-3.5" />
+                      Trophies
+                    </dt>
+                    <dd className="mt-1 text-xl font-extrabold tabular-nums">
+                      {numberFormatter.format(player.trophies)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="flex items-center gap-1.5 text-xs font-bold text-[#526175]">
+                      <Target aria-hidden="true" className="size-3.5" />
+                      Win rate
+                    </dt>
+                    <dd className="mt-1 text-xl font-extrabold tabular-nums">
+                      {winRate.toFixed(1)}%
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="flex items-center gap-1.5 text-xs font-bold text-[#526175]">
+                      <MapPinned aria-hidden="true" className="size-3.5" />
+                      Arena
+                    </dt>
+                    <dd className="mt-1 truncate text-sm font-extrabold sm:text-base">
+                      {player.arena.name}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="flex items-center gap-1.5 text-xs font-bold text-[#526175]">
+                      <Clock3 aria-hidden="true" className="size-3.5" />
+                      Refreshed
+                    </dt>
+                    <dd className="mt-1 text-sm font-extrabold sm:text-base">
+                      {new Date(generatedAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
             </div>
           </section>
 

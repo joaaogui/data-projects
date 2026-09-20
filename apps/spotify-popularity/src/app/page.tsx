@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { Logo } from "@/components/logo"
 import { SearchArtist } from "@/components/search-artist"
 import { SuggestionLinks, ThemeToggle } from "@data-projects/ui"
@@ -26,7 +25,9 @@ export default function Home() {
               tracks
             </h1>
             <p className="text-muted-foreground">
-              Search for an artist and see their tracks ranked by Spotify popularity
+              Search for an artist and see their tracks ranked by Spotify
+              popularity (0–100). Scores reflect relative play activity at the
+              moment this page loads — pick an exact match from suggestions.
             </p>
           </div>
 

@@ -34,14 +34,18 @@ export default function ArtistPage() {
 
       <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
         {error && (
-          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="flex flex-col items-center justify-center py-20 space-y-4"
+          >
             <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
               <AlertCircle className="h-8 w-8 text-destructive" />
             </div>
             <h2 className="text-xl font-semibold">Artist not found</h2>
             <p className="text-muted-foreground text-center max-w-md">
-              We couldn&apos;t find an artist named &quot;{artistName}&quot;.
-              Please check the spelling and try again.
+              No exact artist match for &quot;{artistName}&quot;. Pick a suggestion
+              from search, or check the spelling.
             </p>
             <Button asChild variant="outline">
               <Link href="/">
@@ -52,10 +56,8 @@ export default function ArtistPage() {
           </div>
         )}
 
-        { }
         {isLoading && (
           <div className="space-y-8 animate-slide-up">
-            { }
             <div className="flex flex-col sm:flex-row items-center gap-6 mb-8">
               <Skeleton className="h-32 w-32 sm:h-40 sm:w-40 rounded-full" />
               <div className="text-center sm:text-left space-y-3">
@@ -71,10 +73,14 @@ export default function ArtistPage() {
           </div>
         )}
 
-        { }
         {data && (
           <div className="flex flex-col flex-1 min-h-0 animate-slide-up">
             <ArtistHeader artist={data.artist} trackCount={data.tracks.length} />
+            <p className="mb-4 text-sm text-muted-foreground">
+              Popularity is Spotify&apos;s 0–100 score for how often a track is
+              played relative to others. Freshness: snapshotted when this page
+              loaded (not a live stream).
+            </p>
             <div className="flex-1 min-h-0">
               <TracksTable tracks={data.tracks} />
             </div>

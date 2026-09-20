@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { allowedEmails, env } from "./env";
+import { allowedEmails, allowPublicAuth, env } from "./env";
 import { createTaggedLogger } from "./logger";
 
 const log = createTaggedLogger("auth");
@@ -38,7 +38,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   callbacks: {
     signIn({ profile }) {
-      if (!allowedEmails.length) return true;
+      // Fail closed: empty allow-list rejects everyone unless explicitly opted in.
+      if (!allowedEmails.length) {
+        return allowPublicAuth;
+      }
       const email = profile?.email?.toLowerCase();
       return !!email && allowedEmails.includes(email);
     },

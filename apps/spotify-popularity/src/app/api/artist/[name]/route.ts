@@ -56,9 +56,13 @@ export async function GET(
     })
   } catch (error) {
     console.error("Error fetching artist:", error)
+    const message = getSafeErrorMessage(error, "Failed to fetch artist")
+    const notFound =
+      error instanceof Error &&
+      /artist not found/i.test(error.message)
     return Response.json(
-      { error: getSafeErrorMessage(error, "Failed to fetch artist") },
-      { status: 500, headers: corsHeaders }
+      { error: message },
+      { status: notFound ? 404 : 500, headers: corsHeaders }
     )
   }
 }

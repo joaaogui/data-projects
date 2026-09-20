@@ -30,7 +30,7 @@
     "@neondatabase/serverless": "^0.10.0",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-table": "catalog:",
-    "ai": "^6.0.0",
+    "ai": "^7.0.107",
     "dayjs": "^1.11.23",
     "drizzle-orm": "^0.45.1",
     "inngest": "^3.54.2",

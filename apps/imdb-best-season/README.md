@@ -6,7 +6,7 @@ A web application that ranks TV show seasons based on their episode ratings. Sea
 
 - **Search with autocomplete** -- type a show name and get instant suggestions from OMDb. The home page includes quick-access links to popular shows (Breaking Bad, The Wire, The Office) to get started immediately.
 
-- **Season ranking** -- every season is ranked by its median episode rating. When TMDB data is available, each episode's rating is the average of its IMDb and TMDB scores, combining two independent audiences. The median (rather than mean) is used so a single bad episode doesn't tank an otherwise great season.
+- **Season ranking** -- every season is ranked by its median episode rating. When TMDB data is available, each episode's rating is the median of its IMDb and TMDB scores, combining two independent audiences. The season median (rather than mean) is used so a single bad episode doesn't tank an otherwise great season.
 
 - **Episode-by-episode breakdown** -- click any season to open a dialog showing every episode with its title, IMDb link, and ratings from both sources. Episodes missing a TMDB score display a tooltip explaining the fallback to IMDb-only data.
 
@@ -24,17 +24,17 @@ Each season's score is the **median** of its episode ratings:
 
 1. Fetch all episode ratings from OMDb (IMDb scores)
 2. If TMDB is configured, fetch per-episode ratings from TMDB as well
-3. For each episode, compute the average across available sources
-4. Take the median of all episode averages within each season
+3. For each episode, take the median across available sources (IMDb and/or TMDB)
+4. Take the median of those episode ratings within each season
 5. Rank seasons from highest to lowest median
 
-The median was chosen over the mean because TV seasons often have one or two outlier episodes (a weak finale, a bottle episode) that would disproportionately drag down an otherwise strong season. The median gives a more representative picture of the typical episode quality.
+The season median was chosen over the mean because TV seasons often have one or two outlier episodes (a weak finale, a bottle episode) that would disproportionately drag down an otherwise strong season. The median gives a more representative picture of the typical episode quality. At most 40 seasons are fetched per show, in batches of five, to cap API fan-out.
 
 ### Data Sources
 
 **OMDb API** (required) -- the primary source. Provides show metadata (title, year, poster, plot, ratings), season structure, and per-episode IMDb ratings. Free tier allows 1,000 requests/day.
 
-**TMDB API** (optional) -- when a TMDB API key is configured, the app searches for the show on TMDB, fetches per-episode ratings from their community, and averages them with IMDb scores. This dual-source approach smooths out biases inherent in any single rating platform.
+**TMDB API** (optional) -- when a TMDB API key is configured, the app searches for the show on TMDB, fetches per-episode ratings from their community, and medians them with IMDb scores. This dual-source approach smooths out biases inherent in any single rating platform.
 
 Both sources are cached in-memory with a 24-hour TTL and a max of 1,000 entries. Search and suggestion endpoints are rate-limited (30 req/min for search, 60 req/min for suggestions) using the shared rate limiter from `@data-projects/shared`.
 

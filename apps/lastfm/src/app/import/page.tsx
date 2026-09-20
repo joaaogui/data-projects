@@ -4,8 +4,10 @@ import { PageHeader, Section } from "@/components/section";
 import { StatCard } from "@/components/stat-card";
 import { useImport } from "@/hooks/use-import";
 import { formatDate, formatNumber, formatRelative } from "@/lib/format";
-import { Button, Skeleton } from "@data-projects/ui";
+import { getStoredImportToken, setStoredImportToken } from "@/services/api-client";
+import { Button, Input, Skeleton } from "@data-projects/ui";
 import { Download, RefreshCw, Square } from "lucide-react";
+import { useEffect, useState } from "react";
 
 function ProgressBar({ done, total }: Readonly<{ done: number; total: number | null }>) {
   const pct = total && total > 0 ? Math.min(100, (done / total) * 100) : 0;
@@ -37,7 +39,13 @@ export default function ImportPage() {
     stop,
   } = useImport();
 
+  const [token, setToken] = useState("");
+  useEffect(() => {
+    setToken(getStoredImportToken());
+  }, []);
+
   const hasData = (summary?.scrobbleCount ?? 0) > 0;
+  const canRun = Boolean(token.trim()) && !isRunning;
 
   return (
     <div className="animate-fade-up">
@@ -86,14 +94,36 @@ export default function ImportPage() {
               : "Start with a full import. Roughly 1,125 requests at about four per second, so expect a few minutes."
           }
         >
+          <div className="mb-4 space-y-2">
+            <label htmlFor="import-token" className="text-sm font-medium">
+              Import token
+            </label>
+            <Input
+              id="import-token"
+              type="password"
+              autoComplete="off"
+              placeholder="IMPORT_SECRET or ADMIN_TOKEN"
+              value={token}
+              onChange={(event) => {
+                const next = event.target.value;
+                setToken(next);
+                setStoredImportToken(next.trim());
+              }}
+              disabled={isRunning}
+            />
+            <p className="text-xs text-muted-foreground">
+              Required for POST /api/import. Stored in sessionStorage for this tab only.
+            </p>
+          </div>
+
           <div className="flex flex-wrap gap-2">
-            <Button onClick={startIncremental} disabled={isRunning} className="gap-2">
+            <Button onClick={startIncremental} disabled={!canRun} className="gap-2">
               <RefreshCw className="size-4" aria-hidden />
               Sync new plays
             </Button>
             <Button
               onClick={startFull}
-              disabled={isRunning}
+              disabled={!canRun}
               variant="outline"
               className="gap-2"
             >
@@ -107,7 +137,7 @@ export default function ImportPage() {
               </Button>
             )}
             {!isRunning && job?.status === "error" && (
-              <Button onClick={resume} variant="outline">
+              <Button onClick={resume} variant="outline" disabled={!token.trim()}>
                 Resume from page {job.pagesDone + 1}
               </Button>
             )}

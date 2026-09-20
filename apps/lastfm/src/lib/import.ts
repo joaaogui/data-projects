@@ -3,6 +3,7 @@ import { importJobs, scrobbles } from "@/db/schema";
 import type { ImportJobView, ImportLogEntry, ImportMode } from "@/types/lastfm";
 import { desc, eq, sql } from "drizzle-orm";
 import { env } from "./env";
+import { AppError } from "./errors";
 import { getRecentTracks, RECENT_TRACKS_MAX_LIMIT } from "./lastfm-server";
 import { createTaggedLogger } from "./logger";
 
@@ -86,7 +87,13 @@ function appendLogs(existing: ImportLogEntry[], messages: string[]): ImportLogEn
  */
 export async function createJob(mode: ImportMode): Promise<ImportJobRow> {
   const running = await getRunningJob();
-  if (running) return running;
+  if (running) {
+    throw new AppError(
+      "IMPORT_IN_PROGRESS",
+      "An import job is already running. Wait for it to finish or continue that job.",
+      409
+    );
+  }
 
   const toTimestamp = Math.floor(Date.now() / 1000);
   let fromTimestamp: number | null = null;
@@ -291,6 +298,15 @@ export async function runChunk(jobId: string): Promise<ChunkResult> {
 
 /** Clears the error state so the next chunk resumes from the stored cursor. */
 export async function resumeJob(jobId: string): Promise<ImportJobRow> {
+  const running = await getRunningJob();
+  if (running && running.id !== jobId) {
+    throw new AppError(
+      "IMPORT_IN_PROGRESS",
+      "An import job is already running. Wait for it to finish.",
+      409
+    );
+  }
+
   const [job] = await db
     .update(importJobs)
     .set({ status: "running", error: null, updatedAt: new Date() })

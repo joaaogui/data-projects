@@ -19,8 +19,7 @@ vi.mock("@/lib/errors", async () => {
     isAppError: (e: unknown) => e instanceof AppError,
     toErrorResponse: (e: unknown) => {
       if (e instanceof AppError) return { message: e.message, status: e.status };
-      const message = e instanceof Error ? e.message : "Internal server error";
-      return { message, status: 500 };
+      return { message: "Internal server error", status: 500 };
     },
   };
 });
@@ -60,24 +59,24 @@ describe("withErrorHandling", () => {
     expect(await res.json()).toEqual({ error: "Resource not found" });
   });
 
-  it("catches generic Error and returns 500", async () => {
+  it("catches generic Error and returns 500 without leaking the message", async () => {
     const handler = withErrorHandling("test", async () => {
       throw new Error("something broke");
     });
 
     const res = await handler(createMockRequest(), dummyCtx);
     expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: "something broke" });
+    expect(await res.json()).toEqual({ error: "Internal server error" });
   });
 
   it("catches non-Error values and returns 500", async () => {
     const handler = withErrorHandling("test", async () => {
-      throw new Error("string error");
+      throw "string error";
     });
 
     const res = await handler(createMockRequest(), dummyCtx);
     expect(res.status).toBe(500);
-    expect(await res.json()).toEqual({ error: "string error" });
+    expect(await res.json()).toEqual({ error: "Internal server error" });
   });
 
   it("logs AppError as warning with status", async () => {

@@ -6,6 +6,7 @@ import {
   runChunk,
   toJobView,
 } from "@/lib/import";
+import { assertImportAuthorized } from "@/lib/import-auth";
 import { withErrorHandling } from "@/lib/route-handler";
 import type { ImportMode } from "@/types/lastfm";
 
@@ -29,8 +30,12 @@ interface ImportRequestBody {
  * Advances the import by one chunk and returns the cursor. The client re-posts
  * until `job.status` leaves "running", which keeps a multi-minute backfill
  * inside a series of short requests.
+ *
+ * Requires `Authorization: Bearer <IMPORT_SECRET|ADMIN_TOKEN>`.
  */
 export const POST = withErrorHandling("import-run", async (request) => {
+  assertImportAuthorized(request);
+
   const body = (await request.json().catch(() => ({}))) as ImportRequestBody;
   const mode: ImportMode = body.mode === "full" ? "full" : "incremental";
 
@@ -38,6 +43,7 @@ export const POST = withErrorHandling("import-run", async (request) => {
 
   let jobId: string;
   if (latest?.status === "running") {
+    // Single-job lock: never start a second job; only advance the in-flight one.
     jobId = latest.id;
   } else if (body.resume && latest?.status === "error") {
     jobId = (await resumeJob(latest.id)).id;

@@ -12,6 +12,8 @@
     "start": "next start -p 3004",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -50,6 +52,7 @@
     "postcss": "catalog:",
     "tailwindcss": "^4.0.0",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:"
+    "typescript-eslint": "catalog:",
+    "vitest": "^5.0.1"
   }
 }

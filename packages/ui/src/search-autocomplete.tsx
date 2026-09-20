@@ -261,9 +261,10 @@ export function SearchAutocomplete<TItem>({
           placeholder={placeholder}
           aria-label={ariaLabel ?? placeholder}
           role="combobox"
+          aria-haspopup="listbox"
           aria-autocomplete="list"
           aria-expanded={isOpen}
-          aria-controls={isOpen ? listboxId : undefined}
+          aria-controls={listboxId}
           aria-activedescendant={
             isOpen && highlightedIndex >= 0
               ? `${listboxId}-option-${highlightedIndex}`
@@ -314,54 +315,58 @@ export function SearchAutocomplete<TItem>({
               : ""}
         </span>
 
-        {isOpen && (isSuggestLoading || displayedSuggestions.length > 0) && (
-          <div
-            data-testid={testIds?.dropdown}
-            className={cn(
-              "absolute left-0 right-0 top-full mt-2 rounded-md border border-border/50 bg-card/95 backdrop-blur-sm shadow-xl z-[9999] overflow-hidden",
-              dropdownClassName
-            )}
-          >
-            {isSuggestLoading && displayedSuggestions.length === 0 ? (
-              <div
-                role="status"
-                className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2"
-              >
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                <span>Loading…</span>
-              </div>
-            ) : (
-              <ul id={listboxId} role="listbox" aria-label={`${ariaLabel ?? placeholder} suggestions`}>
-                {displayedSuggestions.map((item, index) => {
-                  const isActive = index === highlightedIndex;
-                  return (
-                    <li
-                      key={getSuggestionKey(item)}
-                      id={`${listboxId}-option-${index}`}
-                      role="option"
-                      aria-selected={isActive}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => select(item)}
-                      onMouseEnter={() => setHighlightedIndex(index)}
-                      className={cn(
-                        "w-full cursor-pointer px-3 py-2 text-left transition-colors",
-                        isActive ? "bg-muted/60" : "hover:bg-muted/40"
-                      )}
-                    >
-                      {renderSuggestion ? (
-                        renderSuggestion({ item, isActive })
-                      ) : (
-                        <span className="truncate font-medium">
-                          {getSuggestionValue(item)}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        )}
+        <div
+          data-testid={testIds?.dropdown}
+          id={listboxId}
+          role="listbox"
+          hidden={!isOpen || (!isSuggestLoading && displayedSuggestions.length === 0)}
+          aria-label={`${ariaLabel ?? placeholder} suggestions`}
+          className={cn(
+            "absolute left-0 right-0 top-full mt-2 rounded-md border border-border/50 bg-card/95 backdrop-blur-sm shadow-xl z-[9999] overflow-hidden",
+            (!isOpen || (!isSuggestLoading && displayedSuggestions.length === 0)) &&
+              "invisible pointer-events-none",
+            dropdownClassName
+          )}
+        >
+          {isSuggestLoading && displayedSuggestions.length === 0 ? (
+            <div
+              role="status"
+              className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2"
+            >
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <span>Loading…</span>
+            </div>
+          ) : (
+            <ul className="m-0 list-none p-0">
+              {displayedSuggestions.map((item, index) => {
+                const isActive = index === highlightedIndex;
+                return (
+                  <li
+                    key={getSuggestionKey(item)}
+                    id={`${listboxId}-option-${index}`}
+                    role="option"
+                    aria-selected={isActive}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => select(item)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                    className={cn(
+                      "w-full cursor-pointer px-3 py-2 text-left transition-colors",
+                      isActive ? "bg-muted/60" : "hover:bg-muted/40"
+                    )}
+                  >
+                    {renderSuggestion ? (
+                      renderSuggestion({ item, isActive })
+                    ) : (
+                      <span className="truncate font-medium">
+                        {getSuggestionValue(item)}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </div>
 
       <Button

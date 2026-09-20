@@ -80,7 +80,7 @@ export function ShowInfo({ show }: Readonly<{ show: Show }>) {
         {show.totalSeasons && (
           <p data-testid="show-seasons-count" className="mt-2 sm:mt-4 text-xs sm:text-sm text-muted-foreground">
             <span className="font-semibold text-gold">{show.totalSeasons}</span>{" "}
-            {show.totalSeasons === 1 ? "season" : "seasons"} ranked by IMDb ratings
+            {show.totalSeasons === 1 ? "season" : "seasons"} ranked by IMDb + TMDB episode medians
           </p>
         )}
         {show.ratings && show.ratings.length > 0 && (

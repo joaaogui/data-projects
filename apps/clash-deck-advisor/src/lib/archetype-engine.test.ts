@@ -8,7 +8,7 @@ import {
 } from "./archetype-engine";
 import { buildCardProfiles } from "./card-knowledge";
 import snapshot from "./fixtures/player-snapshot.json";
-import type { ClashCard } from "./types";
+import type { ClashCard, MetaDeckReference } from "./types";
 
 const cards = snapshot.cards as ClashCard[];
 const current = snapshot.currentDeck as ClashCard[];
@@ -166,6 +166,81 @@ describe("archetype recommendation", () => {
 
     expect(advice).not.toMatch(/Poison/);
     expect(advice).not.toMatch(/Magic Archer/);
-    expect(result.analysis.evidence?.confidence).not.toBe("low");
+    // Zero live sample cannot claim high live-meta confidence.
+    expect(result.analysis.evidence?.confidence).not.toBe("high");
+    expect(result.analysis.evidence?.liveMetaOverlap).toBe(0);
+  });
+
+  it("never marks confidence high when meta decks are empty or have zero overlap", () => {
+    const unrelatedMeta: MetaDeckReference[] = [
+      {
+        playerTag: "#META1",
+        playerName: "Meta One",
+        rating: 9_000,
+        deck: [
+          "Hog Rider",
+          "Musketeer",
+          "Ice Golem",
+          "Ice Spirit",
+          "Cannon",
+          "Skeletons",
+          "The Log",
+          "Fireball",
+        ],
+      },
+    ];
+
+    for (const metaDecks of [[], unrelatedMeta] as MetaDeckReference[][]) {
+      const best = recommendArchetype({
+        owned,
+        current: currentProfiles,
+        metaDecks,
+        losses: [],
+        mode: "best",
+      });
+      const improve = recommendArchetype({
+        owned,
+        current: currentProfiles,
+        metaDecks,
+        losses: [],
+        mode: "improve",
+      });
+
+      expect(best.analysis.evidence?.confidence).not.toBe("high");
+      expect(improve.analysis.evidence?.confidence).not.toBe("high");
+      expect(best.analysis.evidence?.liveMetaOverlap ?? 0).toBe(0);
+      expect(improve.analysis.evidence?.liveMetaOverlap ?? 0).toBe(0);
+    }
+  });
+
+  it("can mark confidence high when live meta overlap exists and the shell is strong", () => {
+    const overlappingMeta: MetaDeckReference[] = [
+      {
+        playerTag: "#META1",
+        playerName: "Recruits ladder",
+        rating: 9_500,
+        deck: [
+          "Royal Recruits",
+          "Wall Breakers",
+          "Skeleton Barrel",
+          "Goblin Gang",
+          "Mighty Miner",
+          "Archers",
+          "Fireball",
+          "Royal Delivery",
+        ],
+      },
+    ];
+
+    const result = recommendArchetype({
+      owned,
+      current: currentProfiles,
+      metaDecks: overlappingMeta,
+      losses: [],
+      mode: "best",
+    });
+
+    expect(result.analysis.evidence?.liveMetaOverlap).toBeGreaterThan(0);
+    expect(result.analysis.evidence?.confidence).toBe("high");
   });
 });

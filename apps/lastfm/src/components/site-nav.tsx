@@ -6,13 +6,13 @@ import { AudioLines } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+/** Public section tabs. Import/Sync is intentionally omitted — operators open /import directly. */
 const TABS = [
   { href: "/", label: "Overview" },
   { href: "/time", label: "Time" },
   { href: "/artists", label: "Artists" },
   { href: "/evolution", label: "Evolution" },
   { href: "/library", label: "Library" },
-  { href: "/import", label: "Import" },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {

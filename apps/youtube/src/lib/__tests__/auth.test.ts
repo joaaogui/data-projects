@@ -23,8 +23,13 @@ interface AuthCallbacks {
   session: (params: { session: { user: object; expires: string }; token: Record<string, unknown> }) => Record<string, unknown>;
 }
 
-async function loadAuth(allowedEmails: string) {
+async function loadAuth(allowedEmails: string, allowPublicAuth?: string) {
   vi.stubEnv("ALLOWED_EMAILS", allowedEmails);
+  if (allowPublicAuth === undefined) {
+    vi.stubEnv("ALLOW_PUBLIC_AUTH", "");
+  } else {
+    vi.stubEnv("ALLOW_PUBLIC_AUTH", allowPublicAuth);
+  }
   vi.resetModules();
   capturedConfig = undefined;
   await import("../auth");
@@ -63,8 +68,13 @@ describe("auth", () => {
   });
 
   describe("signIn callback", () => {
-    it("allows any email when ALLOWED_EMAILS is empty", async () => {
+    it("rejects any email when ALLOWED_EMAILS is empty (fail closed)", async () => {
       const { signIn } = await loadAuth("");
+      expect(signIn({ profile: { email: "anyone@example.com" } })).toBe(false);
+    });
+
+    it("allows any email when ALLOWED_EMAILS is empty and ALLOW_PUBLIC_AUTH=true", async () => {
+      const { signIn } = await loadAuth("", "true");
       expect(signIn({ profile: { email: "anyone@example.com" } })).toBe(true);
     });
 
@@ -96,7 +106,7 @@ describe("auth", () => {
 
   describe("session callback", () => {
     it("sets hasYoutubeAccess true when token has access_token", async () => {
-      const { session } = await loadAuth("");
+      const { session } = await loadAuth("allowed@test.com");
       const result = session({
         session: { user: {}, expires: "" },
         token: { access_token: "tok_123" },
@@ -106,7 +116,7 @@ describe("auth", () => {
     });
 
     it("sets hasYoutubeAccess false when token lacks access_token", async () => {
-      const { session } = await loadAuth("");
+      const { session } = await loadAuth("allowed@test.com");
       const result = session({
         session: { user: {}, expires: "" },
         token: {},

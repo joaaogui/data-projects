@@ -31,7 +31,11 @@ export default function SeasonsPage() {
       <div className="h-screen flex flex-col overflow-hidden">
         <ShowHeader searchQuery={title} />
         <main className="flex-1 min-h-0 container mx-auto px-4 py-8">
-          <div className="flex flex-col items-center justify-center min-h-[50vh] text-center animate-fade-in">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="flex flex-col items-center justify-center min-h-[50vh] text-center animate-fade-in"
+          >
             <div className="rounded-full bg-destructive/10 p-4 mb-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
             </div>
@@ -64,7 +68,7 @@ export default function SeasonsPage() {
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 flex-shrink-0">
             Season Rankings{" "}
             <span className="text-sm font-normal text-muted-foreground">
-              (by average episode rating)
+              (median of IMDb + TMDB episode ratings)
             </span>
           </h2>
           <div className="flex-1 min-h-0">

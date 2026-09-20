@@ -22,12 +22,20 @@ export function EvidencePanel({ evidence }: { evidence: DeckEvidence }) {
           <dd className="mt-1 text-lg font-extrabold capitalize">
             {evidence.confidence}
           </dd>
+          <p className="mt-1 text-xs leading-5 text-[#526175]">
+            How sure the engine is. Cannot be high when zero live ladder decks
+            share the core.
+          </p>
         </div>
         <div>
           <dt className="text-xs font-bold text-[#6d7a8b]">Level readiness</dt>
           <dd className="mt-1 text-lg font-extrabold tabular-nums">
             {evidence.levelReadiness}%
           </dd>
+          <p className="mt-1 text-xs leading-5 text-[#526175]">
+            Share of recommended cards at or above this deck&apos;s median
+            level — the same bar that triggers level warnings.
+          </p>
         </div>
         <div>
           <dt className="text-xs font-bold text-[#6d7a8b]">
@@ -36,6 +44,10 @@ export function EvidencePanel({ evidence }: { evidence: DeckEvidence }) {
           <dd className="mt-1 text-lg font-extrabold tabular-nums">
             {evidence.liveMetaOverlap}
           </dd>
+          <p className="mt-1 text-xs leading-5 text-[#526175]">
+            Count of checked top-ladder decks that share at least four signature
+            cards.
+          </p>
         </div>
       </dl>
       <div className="mt-6 grid gap-4 md:grid-cols-2">

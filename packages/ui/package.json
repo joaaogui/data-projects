@@ -11,10 +11,13 @@
     }
   },
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@data-projects/shared": "workspace:*",
+    "@tanstack/react-query": "catalog:",
     "class-variance-authority": "catalog:",
     "lucide-react": "catalog:",
     "next-themes": "catalog:",
@@ -23,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
+    "@testing-library/react": "^16.3.3",
     "@tanstack/react-table": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
@@ -31,11 +35,14 @@
     "eslint-plugin-react": "catalog:",
     "eslint-plugin-react-hooks": "catalog:",
     "next": "catalog:",
+    "jsdom": "^30.1.0",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:"
+    "typescript-eslint": "catalog:",
+    "vitest": "^5.0.1"
   },
   "peerDependencies": {
-    "@tanstack/react-query": "^5.0.0",
     "@tanstack/react-table": "^8.0.0",
     "next": "^14.0.0 || ^15.0.0 || ^16.0.0",
     "react": "^18.3.1 || ^19.0.0",

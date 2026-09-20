@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "IMDb Best Season | TV Show Season Ranker",
   description:
-    "Discover which season of your favorite TV show is the best rated according to IMDb episode ratings",
+    "Discover which season of your favorite TV show ranks highest by the median of IMDb and TMDB episode ratings",
   icons: {
     icon: "/favicon.svg",
   },

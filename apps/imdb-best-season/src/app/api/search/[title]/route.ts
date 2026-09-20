@@ -26,6 +26,12 @@ import {
   rateLimitExceededResponse,
   withRateLimitHeaders,
 } from "@data-projects/shared";
+import {
+  SEASON_FETCH_BATCH,
+  calculateMedian,
+  mapInBatches,
+  seasonNumbersUpTo,
+} from "@/lib/ratings";
 
 const OMDB_BASE_URL = "https://www.omdbapi.com";
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
@@ -42,15 +48,6 @@ async function fetchFromOMDB(params: string): Promise<Response> {
     );
   }
   return fetch(`${OMDB_BASE_URL}/?${params}&apikey=${apiKey}`);
-}
-
-async function fetchFromTMDB(endpoint: string): Promise<Response> {
-  const apiKey = process.env.TMDB_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ tv_results: [] }), { status: 200 });
-  }
-  const separator = endpoint.includes("?") ? "&" : "?";
-  return fetch(`${TMDB_BASE_URL}${endpoint}${separator}api_key=${apiKey}`);
 }
 
 async function getTmdbShowData(imdbId: string): Promise<TMDBShowData | null> {
@@ -138,14 +135,6 @@ async function getSeason(imdbID: string, season: number): Promise<OMDBSeason> {
   return data;
 }
 
-function calculateMedian(values: number[]): number {
-  if (values.length === 0) return 0;
-  if (values.length === 1) return values[0];
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-}
-
 function calculateSeasonRating(
   omdbEpisodes: OMDBSeason["Episodes"],
   tmdbSeason: TMDBSeasonResponse | null
@@ -194,9 +183,10 @@ function calculateSeasonRating(
   }
 
   return {
-    rating: allMedianRatings.length > 0
-      ? allMedianRatings.reduce((a, b) => a + b, 0) / allMedianRatings.length
-      : 0,
+    // Season score = median of per-episode ratings (each episode already
+    // blends IMDb/TMDB via median). Matches the product copy everywhere.
+    rating:
+      allMedianRatings.length > 0 ? calculateMedian(allMedianRatings) : 0,
     episodeRatings,
   };
 }
@@ -240,19 +230,18 @@ export async function GET(
       );
     }
 
+    const seasonNumbers = seasonNumbersUpTo(
+      titleData.totalSeasons ? Number.parseInt(titleData.totalSeasons, 10) : 0,
+    );
+
     const totalSeasons = titleData.totalSeasons
       ? Number.parseInt(titleData.totalSeasons, 10)
       : 0;
-    
-    const omdbSeasonPromises: Promise<OMDBSeason>[] = [];
-    if (totalSeasons > 0 && totalSeasons < 100) {
-      for (let i = 1; i <= totalSeasons; i++) {
-        omdbSeasonPromises.push(getSeason(titleData.imdbID, i));
-      }
-    }
 
     const [omdbSeasonsData, tmdbShowData] = await Promise.all([
-      Promise.all(omdbSeasonPromises),
+      mapInBatches(seasonNumbers, SEASON_FETCH_BATCH, (season) =>
+        getSeason(titleData.imdbID, season),
+      ),
       getTmdbShowData(titleData.imdbID),
     ]);
 
@@ -278,12 +267,12 @@ export async function GET(
     };
 
     let tmdbSeasonsData: (TMDBSeasonResponse | null)[] = [];
-    if (tmdbShowData && totalSeasons > 0) {
-      const tmdbSeasonPromises: Promise<TMDBSeasonResponse | null>[] = [];
-      for (let i = 1; i <= totalSeasons; i++) {
-        tmdbSeasonPromises.push(getTmdbSeason(tmdbShowData.id, i));
-      }
-      tmdbSeasonsData = await Promise.all(tmdbSeasonPromises);
+    if (tmdbShowData && seasonNumbers.length > 0) {
+      tmdbSeasonsData = await mapInBatches(
+        seasonNumbers,
+        SEASON_FETCH_BATCH,
+        (season) => getTmdbSeason(tmdbShowData.id, season),
+      );
     }
 
     const rankedSeasons: RankedSeason[] = omdbSeasonsData.map(

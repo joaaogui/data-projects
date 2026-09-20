@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import { SearchTitle } from "@/components/search-title";
 import { SuggestionLinks, ThemeToggle } from "@data-projects/ui";
 
@@ -19,6 +18,7 @@ export default function HomePage() {
               src="/images/logo.png"
               alt="IMDb Best Season"
               fill
+              sizes="256px"
               className="object-contain dark:invert dark:brightness-200"
               priority
             />
@@ -29,7 +29,7 @@ export default function HomePage() {
               Find the <span className="text-gold">Best Season</span>
             </h1>
             <p data-testid="tagline" className="text-muted-foreground">
-              Discover which season of your favorite TV show is the highest rated according to IMDb
+              Discover which season of your favorite TV show ranks highest by the median of each episode&apos;s IMDb and TMDB ratings
             </p>
           </div>
 

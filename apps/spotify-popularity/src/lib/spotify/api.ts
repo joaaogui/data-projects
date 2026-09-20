@@ -33,10 +33,17 @@ async function spotifyFetch<T>(endpoint: string, retry = true): Promise<T> {
 
 export async function searchArtist(query: string): Promise<SpotifyArtist | null> {
   const data = await spotifyFetch<SpotifySearchResponse>(
-    `/search?q=${encodeURIComponent(query)}&type=artist&limit=1`
+    `/search?q=${encodeURIComponent(query)}&type=artist&limit=5`
   )
-  
-  return data.artists.items[0] || null
+
+  const artists = data.artists.items || []
+  if (artists.length === 0) return null
+
+  const normalized = query.trim().toLowerCase()
+  const exact = artists.find(
+    (artist) => artist.name.trim().toLowerCase() === normalized
+  )
+  return exact ?? null
 }
 
 export async function searchArtists(query: string, limit = 8): Promise<SpotifyArtist[]> {
@@ -107,7 +114,7 @@ export async function getArtistTopTracks(artistName: string): Promise<{
   const artist = await searchArtist(artistName)
   
   if (!artist) {
-    throw new Error("Artist not found")
+    throw new Error("Artist not found — no exact name match")
   }
 
   const albumIds = await getArtistAlbums(artist.id)

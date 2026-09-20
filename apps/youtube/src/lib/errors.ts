@@ -20,8 +20,8 @@ export function toErrorResponse(error: unknown): { message: string; status: numb
   if (isAppError(error)) {
     return { message: error.message, status: error.status };
   }
-  const message = error instanceof Error ? error.message : "Internal server error";
-  return { message, status: 500 };
+  // Never leak raw Error.message — it may expose internals to clients.
+  return { message: "Internal server error", status: 500 };
 }
 
 export function handleRouteError(error: unknown): NextResponse {

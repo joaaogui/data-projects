@@ -279,12 +279,27 @@ export function rankArchetypes(input: {
   return ranked;
 }
 
+/**
+ * Share of cards at or above the deck's median level — the same benchmark
+ * getLevelWarnings uses — so readiness never reads 100% while warnings fire.
+ */
 function levelReadiness(deck: CardProfile[]): number {
-  const ready = deck.filter((card) => card.level >= 11).length;
+  if (deck.length === 0) return 0;
+  const levels = deck.map((card) => card.level).sort((left, right) => left - right);
+  const benchmark = levels[Math.floor(levels.length / 2)]!;
+  const ready = deck.filter((card) => card.level >= benchmark).length;
   return Math.round((ready / deck.length) * 100);
 }
 
-function confidenceFor(candidate: RankedDeck): DeckEvidence["confidence"] {
+function confidenceFor(
+  candidate: RankedDeck,
+  liveMetaOverlap: number,
+): DeckEvidence["confidence"] {
+  // Live sample size gates how sure we can be about ladder fit.
+  if (liveMetaOverlap === 0) {
+    if (candidate.minLevel >= 11 && candidate.coherence >= 5) return "medium";
+    return "low";
+  }
   if (candidate.minLevel >= 11 && candidate.coherence >= 5) return "high";
   if (candidate.minLevel >= MIN_RECOMMENDED_LEVEL) return "medium";
   return "low";
@@ -364,20 +379,24 @@ function buildAnalysis(
   const improved = namesOf(candidate.deck);
   const removed = original.filter((name) => !improved.includes(name));
   const added = improved.filter((name) => !original.includes(name));
+  const liveMetaOverlap = metaDecks.filter((deck) => {
+    const signature = new Set(
+      candidate.template.slots.map((slot) => slot.options[0]!),
+    );
+    return deck.deck.filter((name) => signature.has(name)).length >= 4;
+  }).length;
   const evidence: DeckEvidence = {
     archetypeId: candidate.template.id,
     archetypeName: candidate.template.name,
-    source: `${candidate.template.tier}-tier ladder shell. ${metaDecks.length} live top-ladder decks were checked for the same core.`,
-    confidence: confidenceFor(candidate),
+    source:
+      liveMetaOverlap > 0
+        ? `${candidate.template.tier}-tier ladder shell. ${liveMetaOverlap} of ${metaDecks.length} checked top-ladder decks share this core.`
+        : `${candidate.template.tier}-tier structural shell. ${metaDecks.length} top-ladder decks were checked; none share this core, so live-meta confidence stays limited.`,
+    confidence: confidenceFor(candidate, liveMetaOverlap),
     levelReadiness: levelReadiness(candidate.deck),
     strengths: candidate.strengths,
     weaknesses: candidate.weaknesses,
-    liveMetaOverlap: metaDecks.filter((deck) => {
-      const signature = new Set(
-        candidate.template.slots.map((slot) => slot.options[0]!),
-      );
-      return deck.deck.filter((name) => signature.has(name)).length >= 4;
-    }).length,
+    liveMetaOverlap,
   };
 
   const verdictReason = keptCurrentDeck

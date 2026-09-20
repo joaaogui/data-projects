@@ -33,7 +33,10 @@ function createColumns(meta: TableMeta): ColumnDef<RankedSeason>[] {
         return (
           <div className="flex items-center gap-2">
             {isFirst ? (
-              <Trophy className="h-5 w-5 text-gold fill-gold" />
+              <>
+                <Trophy className="h-5 w-5 text-gold fill-gold" aria-hidden="true" />
+                <span className="sr-only">1 / Best season</span>
+              </>
             ) : (
               <span className="w-5 text-center text-muted-foreground font-mono">
                 {originalIndex + 1}

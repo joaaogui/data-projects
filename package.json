@@ -5,8 +5,11 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
+    "test": "pnpm test:unit",
+    "typecheck": "turbo typecheck",
     "clean": "turbo clean && rm -rf node_modules",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "test:unit": "pnpm --filter @data-projects/shared --filter @data-projects/ui --filter clash-deck-advisor --filter lastfm-habits --filter spotify-popularity --filter youtube-analyzer run test && pnpm --filter imdb-best-season run test:unit"
   },
   "devDependencies": {
     "prettier": "catalog:",
