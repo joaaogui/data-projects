@@ -138,6 +138,11 @@ export interface LossAutopsy {
   currentStreak: { type: "win" | "loss" | "none"; count: number };
   threeCrownLosses: number;
   oneCrownLosses: number;
+  currentDeckBattles?: number;
+  currentDeckWins?: number;
+  currentDeckLosses?: number;
+  currentDeckDraws?: number;
+  currentDeckWinRate?: number;
   topThreatCards: ThreatCardStat[];
   topThreatArchetypes: {
     archetype: string;

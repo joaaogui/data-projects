@@ -7,10 +7,12 @@ import {
   RECENT_BATTLE_WINDOW,
 } from "./battle-history";
 import { buildCardProfiles } from "./card-knowledge";
+import { MAX_DB_BATTLES, syncAndLoadBattles } from "./db-store";
 import { selectViableCards } from "./engine-context";
 import {
   buildDeckVersions,
   buildLossAutopsy,
+  deckKeyOf,
   evaluateDeckChangeImpacts,
   lossesFromNormalized,
   normalizeBattles,
@@ -22,7 +24,6 @@ import type {
   BattleParticipant,
   MetaDeckReference,
   Player,
-  RecentLoss,
   StoredSuggestionEntry,
 } from "./types";
 
@@ -192,40 +193,6 @@ function participantForTag(
   );
 }
 
-export function compactRecentLosses(
-  battles: Battle[],
-  playerTag = PLAYER_TAG,
-): RecentLoss[] {
-  return battles
-    .flatMap((battle): RecentLoss[] => {
-      const player =
-        participantForTag(battle.team, playerTag) ??
-        participantForTag(battle.opponent, playerTag);
-      if (!player) {
-        return [];
-      }
-
-      const playerIsOnTeam = battle.team.includes(player);
-      const opponents = playerIsOnTeam ? battle.opponent : battle.team;
-      const opponent = opponents[0];
-
-      if (!opponent || player.crowns >= opponent.crowns) {
-        return [];
-      }
-
-      return [
-        {
-          battleTime: battle.battleTime,
-          opponentName: opponent.name,
-          opponentCrowns: opponent.crowns,
-          playerCrowns: player.crowns,
-          opponentDeck: opponent.cards.map((card) => card.name),
-        },
-      ];
-    })
-    .slice(0, 6);
-}
-
 function winningDeckForPlayer(
   battles: Battle[],
   rankedPlayer: RankedPlayer,
@@ -334,12 +301,21 @@ export async function getAnalysisContext({
   const currentDeckNames = player.currentDeck.map((card) => card.name);
 
   const freshBattles = normalizeBattles(battles, player.tag);
-  const normalizedBattles = mergeBattleHistory([
-    freshBattles,
-    storedBattles.map(fromStoredBattle),
-  ]);
+  const incomingBattles = mergeBattleHistory(
+    [freshBattles, storedBattles.map(fromStoredBattle)],
+    MAX_DB_BATTLES,
+  );
+  const normalizedBattles = await syncAndLoadBattles(
+    player.tag,
+    incomingBattles,
+    MAX_DB_BATTLES,
+  );
   const recentBattles = normalizedBattles.slice(0, RECENT_BATTLE_WINDOW);
-  const recentLosses = lossesFromNormalized(recentBattles, 6);
+  const currentDeckKey = deckKeyOf(currentDeckNames);
+  const currentDeckBattles = normalizedBattles.filter(
+    (b) => b.deckKey === currentDeckKey,
+  );
+  const recentLosses = lossesFromNormalized(currentDeckBattles, 6);
   const lossAutopsy = buildLossAutopsy(
     recentBattles,
     currentDeckProfiles,

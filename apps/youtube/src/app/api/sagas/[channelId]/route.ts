@@ -4,13 +4,12 @@ import { auth } from "@/lib/auth";
 import { createTaggedLogger } from "@/lib/logger";
 import { withErrorHandling } from "@/lib/route-handler";
 import { validateChannelId } from "@/lib/validation";
-import type { Saga, SagaSource } from "@/types/youtube";
-import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
+import type { Saga } from "@/types/youtube";
+import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 const log = createTaggedLogger("sagas");
 
-const MAX_SAGAS = 200;
 const MAX_VIDEO_IDS_PER_SAGA = 2000;
 
 function toSaga(row: typeof sagas.$inferSelect): Saga {
@@ -61,115 +60,6 @@ export const GET = withErrorHandling("sagas:GET", async (_request, { params }) =
   const result = await getAllSagas(channelId);
   log.info({ channelId, sagaCount: result.length }, "GET complete");
   return NextResponse.json(result);
-});
-
-export const PUT = withErrorHandling("sagas:PUT", async (request, { params }) => {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { channelId } = await params;
-  const body = (await request.json()) as {
-    sagas: Saga[];
-    source?: SagaSource | "replace-all";
-  };
-
-  const v = validateChannelId(channelId);
-  if (!v.valid) return NextResponse.json({ error: v.error }, { status: 400 });
-
-  const incomingSagas = body.sagas ?? (body as unknown as Saga[]);
-  const source = body.source ?? "replace-all";
-  const toUpsert = (Array.isArray(incomingSagas) ? incomingSagas : []).slice(0, MAX_SAGAS);
-  log.info({ channelId, incomingCount: toUpsert.length, source }, "PUT");
-
-  for (const s of toUpsert) {
-    if (Array.isArray(s.videoIds) && s.videoIds.length > MAX_VIDEO_IDS_PER_SAGA) {
-      s.videoIds = s.videoIds.slice(0, MAX_VIDEO_IDS_PER_SAGA);
-      s.videoCount = s.videoIds.length;
-    }
-  }
-
-  for (let i = 0; i < toUpsert.length; i += 50) {
-    const chunk = toUpsert.slice(i, i + 50);
-    await db
-      .insert(sagas)
-      .values(
-        chunk.map((s) => ({
-          id: s.id,
-          channelId,
-          name: s.name,
-          source: s.source,
-          playlistId: s.playlistId ?? null,
-          videoIds: s.videoIds,
-          videoCount: s.videoCount,
-          dateRange: s.dateRange,
-          reasoning: s.reasoning ?? null,
-          videoEvidence: s.videoEvidence ?? null,
-        }))
-      )
-      .onConflictDoUpdate({
-        target: sagas.id,
-        set: {
-          name: sql`excluded.name`,
-          source: sql`excluded.source`,
-          playlistId: sql`excluded.playlist_id`,
-          videoIds: sql`excluded.video_ids`,
-          videoCount: sql`excluded.video_count`,
-          dateRange: sql`excluded.date_range`,
-          reasoning: sql`excluded.reasoning`,
-          videoEvidence: sql`excluded.video_evidence`,
-        },
-      });
-  }
-
-  const incomingIds = toUpsert.map((s) => s.id);
-  let deletedStaleCount = 0;
-  if (incomingIds.length > 0) {
-    const deleteWhere =
-      source === "replace-all"
-        ? and(
-          eq(sagas.channelId, channelId),
-          notInArray(sagas.id, incomingIds)
-        )
-        : and(
-          eq(sagas.channelId, channelId),
-          eq(sagas.source, source),
-          notInArray(sagas.id, incomingIds)
-        );
-    const staleRows = await db.select({ id: sagas.id }).from(sagas).where(deleteWhere);
-    deletedStaleCount = staleRows.length;
-    await db.delete(sagas).where(deleteWhere);
-  }
-
-  const result = await getAllSagas(channelId);
-  log.info({ channelId, upsertedCount: toUpsert.length, deletedStaleCount }, "PUT complete");
-  return NextResponse.json({ saved: toUpsert.length, sagas: result });
-});
-
-export const DELETE = withErrorHandling("sagas:DELETE", async (request, { params }) => {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { channelId } = await params;
-  const { searchParams } = new URL(request.url);
-  const source = searchParams.get("source") as SagaSource | null;
-  log.info({ channelId, sourceFilter: source ?? "all" }, "DELETE");
-
-  let deletedCount = 0;
-  if (source) {
-    const toDelete = await db.select({ id: sagas.id }).from(sagas).where(and(eq(sagas.channelId, channelId), eq(sagas.source, source)));
-    deletedCount = toDelete.length;
-    await db.delete(sagas).where(and(eq(sagas.channelId, channelId), eq(sagas.source, source)));
-  } else {
-    const toDelete = await db.select({ id: sagas.id }).from(sagas).where(eq(sagas.channelId, channelId));
-    deletedCount = toDelete.length;
-    await db.delete(sagas).where(eq(sagas.channelId, channelId));
-  }
-  log.info({ channelId, deletedCount }, "DELETE complete");
-  return NextResponse.json({ deleted: true });
 });
 
 async function removeVideosFromOtherSagas(

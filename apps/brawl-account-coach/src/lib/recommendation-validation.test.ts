@@ -180,4 +180,34 @@ describe("validateRecommendations", () => {
       ).toThrow(/Player does not own/);
     },
   );
+
+  it("filters out excludedBrawlers and boosts pinnedBrawlers", () => {
+    const result = validateRecommendations(
+      validAnalysis(),
+      player,
+      [shellyCatalog, coltCatalog],
+      {
+        pinnedBrawlers: ["colt"],
+        excludedBrawlers: ["shelly"],
+      },
+    );
+
+    expect(result.upgradePriorities).toEqual([
+      expect.objectContaining({
+        brawlerName: "COLT",
+        currentPower: 9,
+        currentTrophies: 700,
+        accountImpact: "high",
+      }),
+    ]);
+    expect(result.pushTargets).toEqual([
+      expect.objectContaining({
+        brawlerName: "COLT",
+        currentTrophies: 700,
+        targetTrophies: 775,
+      }),
+    ]);
+    expect(result.avoidForNow).toEqual([]);
+  });
 });
+

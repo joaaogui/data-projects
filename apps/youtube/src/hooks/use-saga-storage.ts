@@ -14,33 +14,6 @@ async function fetchSagas(channelId: string): Promise<Saga[]> {
   return res.json();
 }
 
-async function syncPlaylistSagasApi(channelId: string): Promise<Saga[]> {
-  const res = await fetch(`/api/sagas/${channelId}/sync-playlists`, { method: "POST" });
-  if (!res.ok) return [];
-  return res.json();
-}
-
-async function saveAiSagasApi(
-  channelId: string,
-  aiSagas: Saga[]
-): Promise<Saga[]> {
-  const res = await fetch(`/api/sagas/${channelId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sagas: aiSagas, source: "ai-detected" }),
-  });
-  if (!res.ok) throw new Error("Failed to save AI sagas");
-  const data = await res.json();
-  return data.sagas;
-}
-
-async function deleteAiSagasApi(channelId: string): Promise<void> {
-  const res = await fetch(`/api/sagas/${channelId}?source=ai-detected`, {
-    method: "DELETE",
-  });
-  if (!res.ok) throw new Error("Failed to delete AI sagas");
-}
-
 async function patchSagaApi(
   channelId: string,
   body: Record<string, unknown>
@@ -67,29 +40,6 @@ export function useSagaStorage(channelId: string | null) {
     staleTime: 60_000,
   });
 
-  const syncPlaylistsMutation = useMutation({
-    mutationFn: () => syncPlaylistSagasApi(channelId!), // NOSONAR
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-    },
-  });
-
-  const saveAiMutation = useMutation({
-    mutationFn: (aiSagas: Saga[]) => saveAiSagasApi(channelId!, aiSagas), // NOSONAR
-    onSuccess: (merged) => {
-      queryClient.setQueryData(queryKey, merged);
-    },
-  });
-
-  const deleteAiMutation = useMutation({
-    mutationFn: () => deleteAiSagasApi(channelId!), // NOSONAR
-    onSuccess: () => {
-      queryClient.setQueryData(queryKey, (prev: Saga[] | undefined) =>
-        (prev ?? []).filter((s) => s.source !== "ai-detected")
-      );
-    },
-  });
-
   const patchMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) => patchSagaApi(channelId!, body), // NOSONAR
     onSuccess: (updated, variables) => {
@@ -112,36 +62,6 @@ export function useSagaStorage(channelId: string | null) {
 
   const playlistSagas = allSagas.filter((s) => s.source === "playlist");
   const aiSagas = allSagas.filter((s) => s.source === "ai-detected");
-
-  const setAiSagas = useCallback(
-    (newAiSagas: Saga[]) => {
-      queryClient.setQueryData(queryKey, (prev: Saga[] | undefined) => {
-        const playlists = (prev ?? []).filter((s) => s.source === "playlist");
-        const manual = (prev ?? []).filter((s) => s.source === "manual");
-        return [...playlists, ...manual, ...newAiSagas];
-      });
-    },
-    [queryClient, queryKey]
-  );
-
-  const saveAiSagas = useCallback(
-    (sagasToSave: Saga[]) => {
-      if (!channelId) return Promise.resolve();
-      console.log(`[Saga Storage] Saving ${sagasToSave.length} AI sagas for ${channelId}`);
-      return saveAiMutation.mutateAsync(sagasToSave).catch((err) => {
-        console.error("[Saga Storage] Failed to save:", err);
-      });
-    },
-    [channelId, saveAiMutation]
-  );
-
-  const deleteAiSagas = useCallback(() => {
-    if (!channelId) return Promise.resolve();
-    console.log(`[Saga Storage] Deleting AI sagas for ${channelId}`);
-    return deleteAiMutation.mutateAsync().catch((err) => {
-      console.error("[Saga Storage] Failed to delete:", err);
-    });
-  }, [channelId, deleteAiMutation]);
 
   const assignVideos = useCallback(
     (sagaId: string, videoIds: string[], neighborContext?: { leftSaga?: { id: string; name: string }; rightSaga?: { id: string; name: string } }) => {
@@ -167,22 +87,15 @@ export function useSagaStorage(channelId: string | null) {
     [channelId, patchMutation]
   );
 
-  const syncPlaylists = useCallback(() => {
-    if (channelId) syncPlaylistsMutation.mutate();
-  }, [channelId, syncPlaylistsMutation]);
-
   return {
     allSagas,
     playlistSagas,
     aiSagas,
-    setAiSagas,
-    saveAiSagas,
-    deleteAiSagas,
     assignVideos,
     unassignVideos,
     createManualSaga,
-    syncPlaylists,
     isLoading,
     error: error instanceof Error ? error.message : null,
   };
 }
+

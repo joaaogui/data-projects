@@ -10,9 +10,6 @@ import type {
   RecentBattleSummary,
 } from "./types";
 
-const PORTRAIT_BASE =
-  "https://cdn.brawlify.com/brawlers/borderless";
-
 function round(value: number, places = 1): number {
   const factor = 10 ** places;
   return Math.round(value * factor) / factor;
@@ -192,7 +189,6 @@ export function deriveAccountMetrics(
         trophies: brawler.trophies,
         highestTrophies: brawler.highestTrophies,
         gapToPeak: Math.max(0, brawler.highestTrophies - brawler.trophies),
-        portraitUrl: `${PORTRAIT_BASE}/${brawler.id}.png`,
       }))
       .filter((brawler) => brawler.power >= 9 && brawler.gapToPeak >= 150)
       .sort(

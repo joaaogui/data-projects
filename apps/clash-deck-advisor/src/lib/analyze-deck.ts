@@ -4,9 +4,15 @@ import { unstable_cache } from "next/cache";
 
 import { toStoredBattle } from "./battle-history";
 import { getAnalysisContext, PLAYER_TAG } from "./clash-royale";
+import {
+  loadPlayerPreferences,
+  loadStoredSuggestions,
+  savePlayerPreferences,
+  saveSuggestionEntry,
+} from "./db-store";
 import { runDeckEngine } from "./deck-engine";
 import { buildEngineContext, type AnalysisMode } from "./engine-context";
-import { mergeSuggestionHistories } from "./feedback-store";
+import { buildSuggestionEntry, mergeSuggestionHistories } from "./feedback-store";
 import { getLevelWarnings } from "./level-warnings";
 import type { StoredBattle } from "./schemas";
 import type { AnalysisResponse, PlayerFeedbackInput } from "./types";
@@ -15,11 +21,6 @@ const ANALYSIS_CACHE_SECONDS = 30 * 60;
 
 export const ANALYSIS_CACHE_TAG = "clash-deck-advisor-analysis";
 
-/**
- * Everything the advisor has learned arrives with the request. The server
- * keeps no ledger of its own: serverless instances do not share memory and
- * lose it on cold starts, so the browser's saved history is the only record.
- */
 export interface AnalysisInput {
   feedback?: PlayerFeedbackInput;
   battleHistory?: StoredBattle[];
@@ -39,12 +40,31 @@ export async function generateDeckAnalysis(
   input: AnalysisInput = {},
 ): Promise<AnalysisResponse> {
   const startedAt = Date.now();
+
+  const [dbSuggestions, dbPrefs] = await Promise.all([
+    loadStoredSuggestions(PLAYER_TAG),
+    input.feedback !== undefined
+      ? Promise.resolve(null)
+      : loadPlayerPreferences(PLAYER_TAG),
+  ]);
+
+  const lockedCards = [
+    ...new Set(input.feedback?.lockedCards ?? dbPrefs?.lockedCards ?? []),
+  ];
+  const excludedCards = [
+    ...new Set(input.feedback?.excludedCards ?? dbPrefs?.excludedCards ?? []),
+  ];
+
+  if (input.feedback !== undefined) {
+    await savePlayerPreferences(PLAYER_TAG, { lockedCards, excludedCards });
+  }
+
   const feedback: PlayerFeedbackInput = {
-    lockedCards: [...new Set(input.feedback?.lockedCards ?? [])],
-    excludedCards: [...new Set(input.feedback?.excludedCards ?? [])],
+    lockedCards,
+    excludedCards,
     suggestionHistory: mergeSuggestionHistories(
       input.feedback?.suggestionHistory ?? [],
-      [],
+      dbSuggestions,
     ),
   };
 
@@ -82,7 +102,7 @@ export async function generateDeckAnalysis(
     return card ? [card] : [];
   });
 
-  return {
+  const response: AnalysisResponse = {
     analysis,
     player: context.player,
     levelWarnings: getLevelWarnings(recommendedCards),
@@ -100,17 +120,24 @@ export async function generateDeckAnalysis(
     battleLog: (context.freshBattles ?? []).map(toStoredBattle),
     historyStats,
   };
+
+  const suggestionEntry = buildSuggestionEntry(response);
+  if (suggestionEntry) {
+    await saveSuggestionEntry(PLAYER_TAG, suggestionEntry);
+  }
+
+  return response;
 }
 
 const cachedByMode: Record<AnalysisMode, () => Promise<AnalysisResponse>> = {
   improve: unstable_cache(
     () => generateDeckAnalysis("improve"),
-    ["clash-deck-advisor", PLAYER_TAG, "analysis-v7", "improve"],
+    ["clash-deck-advisor", PLAYER_TAG, "analysis-v8", "improve"],
     { revalidate: ANALYSIS_CACHE_SECONDS, tags: [ANALYSIS_CACHE_TAG] },
   ),
   best: unstable_cache(
     () => generateDeckAnalysis("best"),
-    ["clash-deck-advisor", PLAYER_TAG, "analysis-v7", "best"],
+    ["clash-deck-advisor", PLAYER_TAG, "analysis-v8", "best"],
     { revalidate: ANALYSIS_CACHE_SECONDS, tags: [ANALYSIS_CACHE_TAG] },
   ),
 };

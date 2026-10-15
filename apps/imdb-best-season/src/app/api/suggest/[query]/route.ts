@@ -9,21 +9,10 @@ import {
   rateLimitExceededResponse,
   withRateLimitHeaders,
 } from "@data-projects/shared";
-
-const OMDB_BASE_URL = "https://www.omdbapi.com";
+import { fetchFromOMDB } from "@/lib/omdb";
 
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
-}
-
-async function fetchFromOMDB(params: string): Promise<Response> {
-  const apiKey = process.env.OMDB_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "OMDB API key not configured. Get your free key at https://www.omdbapi.com/apikey.aspx"
-    );
-  }
-  return fetch(`${OMDB_BASE_URL}/?${params}&apikey=${apiKey}`);
 }
 
 async function suggestSeries(query: string): Promise<OMDBSearchItem[]> {

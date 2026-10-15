@@ -78,6 +78,13 @@ export const accountCoachSchema = z
   })
   .strict();
 
+export const playerPreferencesSchema = z
+  .object({
+    pinnedBrawlers: z.array(brawlerName).max(12).default([]),
+    excludedBrawlers: z.array(brawlerName).max(30).default([]),
+  })
+  .strict();
+
 export type AccountHealth = z.infer<typeof accountHealthSchema>;
 export type UpgradePriority = z.infer<typeof upgradePrioritySchema>;
 export type PushTarget = z.infer<typeof pushTargetSchema>;
@@ -86,3 +93,5 @@ export type BattleDiagnosis = z.infer<typeof battleDiagnosisSchema>;
 export type AvoidInvestment = z.infer<typeof avoidInvestmentSchema>;
 export type ActionStep = z.infer<typeof actionStepSchema>;
 export type AccountCoachAnalysis = z.infer<typeof accountCoachSchema>;
+export type PlayerPreferences = z.infer<typeof playerPreferencesSchema>;
+

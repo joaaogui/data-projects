@@ -2,6 +2,8 @@ import { db } from "@/db";
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const start = Date.now();
   const checks: Record<string, "ok" | "error"> = {};
@@ -13,7 +15,15 @@ export async function GET() {
     checks.database = "error";
   }
 
-  const allOk = Object.values(checks).every((v) => v === "ok");
+  checks.youtubeApiKey = process.env.YOUTUBE_API_KEY?.trim() ? "ok" : "error";
+  checks.ai =
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
+    process.env.GOOGLE_AI_API_KEY?.trim() ||
+    process.env.GROQ_API_KEY?.trim()
+      ? "ok"
+      : "error";
+
+  const allOk = checks.database === "ok" && checks.youtubeApiKey === "ok";
   const elapsed = Date.now() - start;
 
   return NextResponse.json(
@@ -23,6 +33,11 @@ export async function GET() {
       responseTimeMs: elapsed,
       checks,
     },
-    { status: allOk ? 200 : 503 }
+    {
+      status: allOk ? 200 : 503,
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
   );
 }

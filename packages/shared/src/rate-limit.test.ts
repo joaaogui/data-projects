@@ -73,6 +73,17 @@ describe("checkRateLimit", () => {
     expect(checkRateLimit(key, config).success).toBe(false);
     expect(RATE_LIMIT_PRESETS.search.maxRequests).toBe(30);
   });
+
+  it("evicts the oldest client when capacity is reached", () => {
+    const config = createRateLimitConfig(1, 60_000);
+
+    for (let i = 0; i < 10_000; i++) {
+      expect(checkRateLimit(`legacy-client-${i}`, config).success).toBe(true);
+    }
+
+    expect(checkRateLimit("legacy-client-overflow", config).success).toBe(true);
+    expect(checkRateLimit("legacy-client-0", config).success).toBe(true);
+  });
 });
 
 describe("getClientIp", () => {

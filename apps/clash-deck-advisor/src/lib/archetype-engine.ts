@@ -1,4 +1,4 @@
-import { buildCardProfiles, type CardProfile } from "./card-knowledge";
+import type { CardProfile } from "./card-knowledge";
 import {
   airQuality,
   BIG_DAMAGE_SPELLS,
@@ -17,6 +17,7 @@ import {
   buildLossAutopsy,
   cardCountersThreatCategory,
   deckKeyOf,
+  MIN_BATTLES_FOR_SWAP,
   normalizeBattles,
 } from "./learning-engine";
 import type {
@@ -35,6 +36,8 @@ import type {
   RecentLoss,
   ThreatCardStat,
 } from "./types";
+
+export { MIN_BATTLES_FOR_SWAP };
 
 /** New cards below this level are not competitive at the player's trophy range. */
 export const MIN_RECOMMENDED_LEVEL = 10;
@@ -244,7 +247,9 @@ export function scoreLossCounters(
   counterTargetsByCard: Map<string, string[]>;
 } {
   const counterTargetsByCard = new Map<string, string[]>();
-  if (!lossAutopsy || lossAutopsy.recentLosses === 0) {
+  const activeLosses =
+    lossAutopsy?.currentDeckLosses ?? lossAutopsy?.recentLosses ?? 0;
+  if (!lossAutopsy || activeLosses === 0) {
     return { bonus: 0, counteredThreats: [], counterTargetsByCard };
   }
 
@@ -344,12 +349,16 @@ export function scoreHistoryFeedback(
   );
   const currentIsLosingInVersions =
     currentVersion !== undefined &&
-    currentVersion.battles >= 3 &&
+    currentVersion.battles >= MIN_BATTLES_FOR_SWAP &&
     currentVersion.winRate < 45;
+  const autopsyDeckBattles =
+    lossAutopsy?.currentDeckBattles ?? lossAutopsy?.totalBattlesAnalyzed ?? 0;
+  const autopsyDeckWinRate =
+    lossAutopsy?.currentDeckWinRate ?? lossAutopsy?.recentWinRate ?? 0;
   const currentIsLosingInAutopsy =
     lossAutopsy !== undefined &&
-    ((lossAutopsy.totalBattlesAnalyzed >= 3 &&
-      lossAutopsy.recentWinRate < 45 &&
+    autopsyDeckBattles >= MIN_BATTLES_FOR_SWAP &&
+    ((autopsyDeckWinRate < 45 &&
       deckVersions.filter((v) => v.battles > 0).length <= 1) ||
       (lossAutopsy.currentStreak.type === "loss" &&
         lossAutopsy.currentStreak.count >= 3));
@@ -938,6 +947,7 @@ function buildAnalysis(
   keptCurrentDeck: boolean,
   lossAutopsy?: LossAutopsy,
   deckVersions?: DeckVersionSummary[],
+  verdictReasonOverride?: string,
 ): DeckAnalysis {
   const original = namesOf(current);
   const improved = namesOf(candidate.deck);
@@ -976,10 +986,12 @@ function buildAnalysis(
   const activeVersion = deckVersions?.find((v) => v.deckKey === currentKey);
 
   let verdictReason: string;
-  if (keptCurrentDeck) {
+  if (verdictReasonOverride) {
+    verdictReason = verdictReasonOverride;
+  } else if (keptCurrentDeck) {
     if (
       activeVersion &&
-      activeVersion.battles >= 3 &&
+      activeVersion.battles >= MIN_BATTLES_FOR_SWAP &&
       activeVersion.winRate >= 52
     ) {
       verdictReason = `Current ${candidate.template.name} build is winning ${activeVersion.winRate.toFixed(1)}% across ${activeVersion.battles} recent battles. No swap beat its live performance.`;
@@ -1075,6 +1087,60 @@ function elixirAverage(deck: CardProfile[]): number {
   return Math.round((total / deck.length) * 10) / 10;
 }
 
+function getCurrentDeckSample(input: {
+  current: CardProfile[];
+  deckVersions?: DeckVersionSummary[];
+  lossAutopsy?: LossAutopsy;
+  losses: RecentLoss[];
+}): { battles: number; wins: number; losses: number } {
+  const currentKey = deckKeyOf(namesOf(input.current));
+  const activeVersion =
+    input.deckVersions?.find((v) => v.deckKey === currentKey) ??
+    input.deckVersions?.find((v) => v.isCurrentActiveDeck);
+
+  if (activeVersion) {
+    return {
+      battles: activeVersion.battles,
+      wins: activeVersion.wins,
+      losses: activeVersion.losses,
+    };
+  }
+
+  if (input.lossAutopsy !== undefined) {
+    return {
+      battles:
+        input.lossAutopsy.currentDeckBattles ??
+        input.lossAutopsy.totalBattlesAnalyzed,
+      wins:
+        input.lossAutopsy.currentDeckWins ?? input.lossAutopsy.recentWins,
+      losses:
+        input.lossAutopsy.currentDeckLosses ?? input.lossAutopsy.recentLosses,
+    };
+  }
+
+  if (input.losses.length > 0) {
+    return {
+      battles: input.losses.length,
+      wins: 0,
+      losses: input.losses.length,
+    };
+  }
+
+  return { battles: 0, wins: 0, losses: 0 };
+}
+
+function sampleGateReason(sample: {
+  battles: number;
+  wins: number;
+  losses: number;
+}): string {
+  if (sample.battles === 0) {
+    return `We have 0 recorded battles with this exact 8-card deck. Play ${MIN_BATTLES_FOR_SWAP} matches with it first so recommendations are based on real results with this deck, not guesses.`;
+  }
+  const remaining = MIN_BATTLES_FOR_SWAP - sample.battles;
+  return `Only ${sample.battles} recorded battle${sample.battles === 1 ? "" : "s"} with this exact deck (${sample.wins}W–${sample.losses}L). Play ${remaining} more so we have enough games with this deck before suggesting swaps.`;
+}
+
 export function recommendArchetype(input: {
   owned: CardProfile[];
   current: CardProfile[];
@@ -1089,6 +1155,53 @@ export function recommendArchetype(input: {
   const effectiveAutopsy =
     input.lossAutopsy ??
     synthesizeAutopsyFromLosses(input.losses, input.current, input.owned);
+
+  const hasExplicitRules =
+    (input.feedback?.lockedCards?.length ?? 0) > 0 ||
+    (input.feedback?.excludedCards?.length ?? 0) > 0;
+
+  if (input.mode === "improve" && !hasExplicitRules) {
+    const sample = getCurrentDeckSample({
+      current: input.current,
+      deckVersions: input.deckVersions,
+      lossAutopsy: effectiveAutopsy,
+      losses: input.losses,
+    });
+
+    if (sample.battles < MIN_BATTLES_FOR_SWAP) {
+      const currentNames = namesOf(input.current);
+      const template = classifyArchetype(currentNames);
+      const preferred = template.slots.filter(
+        (slot, index) => currentNames[index] === slot.options[0],
+      ).length;
+      const gatedDeck: RankedDeck = {
+        template,
+        deck: input.current,
+        support: template.support + metaBoost(template, input.metaDecks),
+        coherence: preferred,
+        minLevel: Math.min(...input.current.map((card) => card.level)),
+        averageLevel: averageLevel(input.current),
+        weaknesses: listWeaknesses(input.current),
+        strengths: listStrengths(template, input.current),
+        swapsFromCurrent: 0,
+      };
+      return {
+        analysis: buildAnalysis(
+          gatedDeck,
+          input.current,
+          input.metaDecks,
+          input.losses,
+          true,
+          effectiveAutopsy,
+          input.deckVersions,
+          sampleGateReason(sample),
+        ),
+        keptCurrentDeck: true,
+        support: gatedDeck.support,
+        penalizedDecks: [],
+      };
+    }
+  }
 
   const ranked = rankArchetypes({
     ...input,
@@ -1147,10 +1260,4 @@ export function recommendArchetype(input: {
     support: winner.support,
     penalizedDecks: [...allPenalized],
   };
-}
-
-export function profilesFromCards(
-  cards: Parameters<typeof buildCardProfiles>[0],
-): CardProfile[] {
-  return buildCardProfiles(cards);
 }

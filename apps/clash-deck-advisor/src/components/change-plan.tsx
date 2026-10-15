@@ -1,12 +1,13 @@
 "use client";
 
-import { Ban, Check, Copy, ExternalLink, Lock, X } from "lucide-react";
+import { Ban, Check, Clock, Copy, ExternalLink, Lock, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 
 import { buildDeckLink } from "@/lib/deck-link";
 import type { AnalysisMode } from "@/lib/engine-context";
+import { MIN_BATTLES_FOR_SWAP } from "@/lib/learning-engine";
 import type { DeckAnalysis } from "@/lib/schemas";
-import type { ClashCard } from "@/lib/types";
+import type { ClashCard, DeckVersionSummary } from "@/lib/types";
 
 import { CardTile } from "./card-tile";
 import { SwapList } from "./swap-list";
@@ -17,9 +18,11 @@ interface ChangePlanProps {
   cardsByName: Map<string, ClashCard>;
   lockedCards: string[];
   excludedCards: string[];
+  currentDeckVersion?: DeckVersionSummary;
   onToggleLock: (cardName: string) => void;
   onToggleExclude: (cardName: string) => void;
   onClearRules: () => void;
+  onSwitchToBestMode?: () => void;
 }
 
 function fallbackCopy(value: string): boolean {
@@ -34,8 +37,15 @@ function fallbackCopy(value: string): boolean {
   return copied;
 }
 
-function headlineFor(mode: AnalysisMode, swapCount: number): string {
+function headlineFor(
+  mode: AnalysisMode,
+  swapCount: number,
+  remainingSampleBattles: number,
+): string {
   if (swapCount === 0) {
+    if (mode === "improve" && remainingSampleBattles > 0) {
+      return `Need ${remainingSampleBattles} more battle${remainingSampleBattles === 1 ? "" : "s"} with this deck.`;
+    }
     return mode === "best"
       ? "Your deck is already your best build."
       : "Keep your deck as it is.";
@@ -82,9 +92,11 @@ export function ChangePlan({
   cardsByName,
   lockedCards,
   excludedCards,
+  currentDeckVersion,
   onToggleLock,
   onToggleExclude,
   onClearRules,
+  onSwitchToBestMode,
 }: ChangePlanProps) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
     "idle",
@@ -96,6 +108,20 @@ export function ChangePlan({
   const deckLink = buildDeckLink(deckCards);
   const originalNames = new Set(analysis.originalDeck);
   const hasRules = lockedCards.length > 0 || excludedCards.length > 0;
+
+  const currentDeckBattles = currentDeckVersion?.battles ?? 0;
+  const isSampleGated =
+    mode === "improve" &&
+    analysis.changes.length === 0 &&
+    !hasRules &&
+    currentDeckBattles < MIN_BATTLES_FOR_SWAP;
+  const remainingSampleBattles = isSampleGated
+    ? Math.max(0, MIN_BATTLES_FOR_SWAP - currentDeckBattles)
+    : 0;
+  const sampleProgressPct = Math.min(
+    100,
+    Math.round((currentDeckBattles / MIN_BATTLES_FOR_SWAP) * 100),
+  );
 
   async function copyDeckLink() {
     if (!deckLink) {
@@ -127,11 +153,54 @@ export function ChangePlan({
         What to change now
       </h2>
       <p className="mt-3 text-lg font-extrabold text-[#0b1f3a]">
-        {headlineFor(mode, analysis.changes.length)}
+        {headlineFor(mode, analysis.changes.length, remainingSampleBattles)}
       </p>
       <p className="mt-1 max-w-prose text-sm leading-6 text-[#5c6b7f]">
         {analysis.verdictReason}
       </p>
+
+      {isSampleGated ? (
+        <div className="mt-5 rounded-xl border border-[#d8e3f5] bg-[#f5f8ff] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-extrabold text-[#164fc9]">
+            <span className="inline-flex items-center gap-1.5">
+              <Clock aria-hidden="true" className="size-3.5" />
+              {currentDeckBattles} / {MIN_BATTLES_FOR_SWAP} battles recorded with your current deck
+            </span>
+            {currentDeckVersion && currentDeckBattles > 0 ? (
+              <span className="text-[#33445c]">
+                {currentDeckVersion.wins}W–{currentDeckVersion.losses}L so far
+              </span>
+            ) : null}
+          </div>
+          <div
+            role="progressbar"
+            aria-valuenow={currentDeckBattles}
+            aria-valuemin={0}
+            aria-valuemax={MIN_BATTLES_FOR_SWAP}
+            aria-label="Battles recorded with your current deck"
+            className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-[#dce6f7]"
+          >
+            <div
+              className="h-full rounded-full bg-[#164fc9] transition-all"
+              style={{ width: `${sampleProgressPct}%` }}
+            />
+          </div>
+          <p className="mt-2.5 text-xs leading-5 text-[#33445c]">
+            The advisor only recommends card swaps from matches actually played
+            with this exact 8-card deck — never from older deck versions.
+          </p>
+          {onSwitchToBestMode ? (
+            <button
+              type="button"
+              onClick={onSwitchToBestMode}
+              className="royal-focus mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-[#c3d4f2] bg-white px-3.5 text-xs font-extrabold text-[#164fc9] transition-colors hover:bg-[#eaf1ff]"
+            >
+              <Sparkles aria-hidden="true" className="size-3.5" />
+              Switch to &ldquo;Best possible&rdquo; collection build
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {analysis.changes.length > 0 ? (
         <div className="mt-6">

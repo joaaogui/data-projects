@@ -32,6 +32,17 @@ export function SiteNav() {
         // label survives. It has to live here because the brand text is hidden
         // on small screens, which would otherwise leave the link unnamed.
         homeLink={<Link href="/" aria-label="Listening Habits home" />}
+        portfolioUrl={null}
+        actions={
+          <a
+            href="https://joaog.space"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            joaog.space
+          </a>
+        }
       />
       <nav
         aria-label="Sections"

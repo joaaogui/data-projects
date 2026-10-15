@@ -12,6 +12,8 @@ interface NavbarProps {
   themeIconClassName?: string;
   /** Trailing slot, for apps that overlay their own control in the corner. */
   actions?: React.ReactNode;
+  /** Portfolio back-link URL shown next to the theme toggle. Defaults to "https://joaog.space". */
+  portfolioUrl?: string | null;
   /**
    * Span the full width with flush padding instead of a centred container, so
    * the navbar lines up with full-bleed page content underneath it.
@@ -27,6 +29,7 @@ export function Navbar({
   homeLabel,
   themeIconClassName,
   actions,
+  portfolioUrl = "https://joaog.space",
   fullWidth = false,
 }: Readonly<NavbarProps>) {
   const brandContent = (
@@ -61,6 +64,16 @@ export function Navbar({
             </div>
           )}
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:ml-0 sm:gap-2">
+            {portfolioUrl && (
+              <a
+                href={portfolioUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                joaog.space
+              </a>
+            )}
             <ThemeToggle iconClassName={themeIconClassName} />
             {actions}
           </div>

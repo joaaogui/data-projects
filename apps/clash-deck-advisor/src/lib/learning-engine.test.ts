@@ -540,5 +540,78 @@ describe("learning-engine", () => {
     expect(threatNames).toContain("Balloon");
     expect(threatNames).toContain("Lava Hound");
     expect(autopsy.dominantBlindSpots.length).toBeGreaterThan(0);
+    expect(autopsy.currentDeckBattles).toBe(3);
+    expect(autopsy.currentDeckLosses).toBe(3);
+  });
+
+  it("only attributes threat cards and blind spots from losses played with the current deck, not an older deck version", () => {
+    const battles: Battle[] = [
+      // 4 losses played with an older deck (DECK_V1) against LavaLoon
+      ...[1, 2, 3, 4].map((idx) =>
+        makeBattle({
+          battleTime: `20260919T100${idx}00.000Z`,
+          playerDeck: DECK_V1,
+          opponentDeck: OPP_LAVALOON,
+          playerCrowns: 0,
+          opponentCrowns: 3,
+          trophyChange: -30,
+        }),
+      ),
+      // 2 battles played with the current deck (DECK_V2): 1 win vs Mega Knight, 1 loss vs Hog Cycle
+      makeBattle({
+        battleTime: "20260919T120000.000Z",
+        playerDeck: DECK_V2,
+        opponentDeck: OPP_MEGA_KNIGHT,
+        playerCrowns: 2,
+        opponentCrowns: 1,
+        trophyChange: 30,
+      }),
+      makeBattle({
+        battleTime: "20260919T121000.000Z",
+        playerDeck: DECK_V2,
+        opponentDeck: OPP_HOG_CYCLE,
+        playerCrowns: 1,
+        opponentCrowns: 2,
+        trophyChange: -28,
+      }),
+    ];
+
+    const normalized = normalizeBattles(battles, "#VGURQ0QQ2");
+    const currentProfiles = DECK_V2.map((name) =>
+      buildCardProfile(makeCard(name)),
+    );
+    const viableProfiles = [
+      ...DECK_V2,
+      "Archers",
+      "Musketeer",
+      "Cannon",
+      "Tesla",
+    ].map((name) => buildCardProfile(makeCard(name)));
+
+    const autopsy = buildLossAutopsy(
+      normalized,
+      currentProfiles,
+      viableProfiles,
+    );
+
+    // Overall log stats reflect all 6 battles
+    expect(autopsy.totalBattlesAnalyzed).toBe(6);
+    expect(autopsy.recentWins).toBe(1);
+    expect(autopsy.recentLosses).toBe(5);
+
+    // Current-deck stats reflect only the 2 battles played with DECK_V2
+    expect(autopsy.currentDeckBattles).toBe(2);
+    expect(autopsy.currentDeckWins).toBe(1);
+    expect(autopsy.currentDeckLosses).toBe(1);
+    expect(autopsy.currentDeckWinRate).toBe(50);
+
+    // Threat cards MUST NOT include Lava Hound or Balloon from DECK_V1 losses
+    const threatNames = autopsy.topThreatCards.map((t) => t.cardName);
+    expect(threatNames).not.toContain("Lava Hound");
+    expect(threatNames).not.toContain("Balloon");
+    expect(threatNames).toContain("Hog Rider");
+    expect(
+      autopsy.topThreatArchetypes.map((a) => a.archetype),
+    ).toEqual(["Hog Cycle"]);
   });
 });

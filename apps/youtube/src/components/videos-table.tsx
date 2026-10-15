@@ -1,1 +1,0 @@
-export { VideosTable } from "./videos";

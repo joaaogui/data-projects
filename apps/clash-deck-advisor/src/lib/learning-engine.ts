@@ -147,6 +147,9 @@ const NON_THREAT_UTILITY_CARDS = new Set([
 /** Battles a deck version needs before its win rate earns a verdict. */
 export const MIN_BATTLES_FOR_VERDICT = 3;
 
+/** Minimum recorded battles with the exact 8-card current deck before "improve" mode recommends card swaps. */
+export const MIN_BATTLES_FOR_SWAP = 5;
+
 export function battleOutcome(
   playerCrowns: number,
   opponentCrowns: number,
@@ -612,7 +615,31 @@ export function buildLossAutopsy(
     }
   }
 
-  const lossBattles = normalizedBattles.filter((b) => b.outcome === "loss");
+  const currentDeckNames = new Set(currentDeck.map((card) => card.name));
+  const currentDeckKey =
+    currentDeck.length === 8
+      ? deckKeyOf(currentDeck.map((card) => card.name))
+      : "";
+  const currentDeckBattleList = currentDeckKey
+    ? normalizedBattles.filter((b) => b.deckKey === currentDeckKey)
+    : normalizedBattles;
+
+  const currentDeckBattles = currentDeckBattleList.length;
+  const currentDeckWins = currentDeckBattleList.filter(
+    (b) => b.outcome === "win",
+  ).length;
+  const currentDeckLosses = currentDeckBattleList.filter(
+    (b) => b.outcome === "loss",
+  ).length;
+  const currentDeckDraws = currentDeckBattleList.filter(
+    (b) => b.outcome === "draw",
+  ).length;
+  const currentDeckWinRate =
+    currentDeckBattles > 0
+      ? Math.round((currentDeckWins / currentDeckBattles) * 1000) / 10
+      : 0;
+
+  const lossBattles = currentDeckBattleList.filter((b) => b.outcome === "loss");
   const threeCrownLosses = lossBattles.filter(
     (b) => b.opponentCrowns >= 3,
   ).length;
@@ -620,13 +647,12 @@ export function buildLossAutopsy(
     (b) => b.opponentCrowns - b.playerCrowns === 1,
   ).length;
 
-  const currentDeckNames = new Set(currentDeck.map((card) => card.name));
   const cardCounts = new Map<
     string,
     { losses: number; wins: number; total: number }
   >();
 
-  for (const battle of normalizedBattles) {
+  for (const battle of currentDeckBattleList) {
     for (const cardName of new Set(battle.opponentDeck)) {
       const entry = cardCounts.get(cardName) ?? {
         losses: 0,
@@ -676,12 +702,12 @@ export function buildLossAutopsy(
 
   const topThreatCards = candidateThreats.slice(0, 6);
 
-  // Archetype breakdown
+  // Archetype breakdown (scoped to battles played with currentDeck)
   const archetypeCounts = new Map<
     string,
     { losses: number; wins: number; total: number }
   >();
-  for (const battle of normalizedBattles) {
+  for (const battle of currentDeckBattleList) {
     const entry = archetypeCounts.get(battle.opponentArchetype) ?? {
       losses: 0,
       wins: 0,
@@ -709,7 +735,7 @@ export function buildLossAutopsy(
     )
     .slice(0, 4);
 
-  // Dominant blind spots by threat category
+  // Dominant blind spots by threat category (scoped to losses played with currentDeck)
   const categories: Exclude<ThreatCategory, "other">[] = [
     "heavyTank",
     "airBeatdown",
@@ -733,7 +759,7 @@ export function buildLossAutopsy(
     const gap = currentDeckCoverageGap(category, currentDeck);
 
     if (lossCount === 0) continue;
-    if (lossCount === 1 && !gap && recentLosses > 2) continue;
+    if (lossCount === 1 && !gap && currentDeckLosses > 2) continue;
 
     const matchingCards = candidateThreats
       .filter((item) => item.threatCategory === category)
@@ -749,7 +775,7 @@ export function buildLossAutopsy(
 
     const meta = BLIND_SPOT_METADATA[category];
     const gapText = gap ? ` — ${gap}` : "";
-    const evidence = `Lost ${lossCount} of ${recentLosses} recent defeat${recentLosses === 1 ? "" : "s"} against ${matchingCards.join(", ")}${gapText}.`;
+    const evidence = `Lost ${lossCount} of ${currentDeckLosses} recent defeat${currentDeckLosses === 1 ? "" : "s"} against ${matchingCards.join(", ")}${gapText}.`;
 
     blindSpots.push({
       category,
@@ -778,6 +804,11 @@ export function buildLossAutopsy(
     currentStreak: { type: streakType, count: streakCount },
     threeCrownLosses,
     oneCrownLosses,
+    currentDeckBattles,
+    currentDeckWins,
+    currentDeckLosses,
+    currentDeckDraws,
+    currentDeckWinRate,
     topThreatCards,
     topThreatArchetypes,
     dominantBlindSpots: blindSpots

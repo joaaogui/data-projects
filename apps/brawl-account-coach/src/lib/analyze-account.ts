@@ -9,8 +9,11 @@ import {
   runWithAiFallback,
 } from "./ai-provider";
 import { getAnalysisContext, PLAYER_TAG } from "./brawl-stars";
-import { validateRecommendations } from "./recommendation-validation";
-import { accountCoachSchema } from "./schemas";
+import {
+  applyBrawlerPreferences,
+  validateRecommendations,
+} from "./recommendation-validation";
+import { accountCoachSchema, type PlayerPreferences } from "./schemas";
 import type { AnalysisResponse } from "./types";
 
 const ANALYSIS_CACHE_SECONDS = 30 * 60;
@@ -18,6 +21,7 @@ export const ANALYSIS_CACHE_TAG = "brawl-account-coach-analysis";
 
 export async function generateAccountAnalysis(
   tag = PLAYER_TAG,
+  preferences?: PlayerPreferences,
 ): Promise<AnalysisResponse> {
   const startedAt = Date.now();
   const context = await getAnalysisContext(tag);
@@ -71,6 +75,8 @@ export async function generateAccountAnalysis(
           "Recommend only brawlers in the owned roster. Build advice may contain only items listed under that brawler's ownedBuild; use null or an empty gears array when no justified owned option exists.",
           "Return zero to five upgrade priorities. Fewer is better when evidence does not justify five. Copy currentPower and currentTrophies exactly from the roster.",
           "Prioritize account-wide value: under-pushed high-power brawlers, complete owned builds, power breakpoints, and concentrated resource use.",
+          "If playerPreferences.pinnedBrawlers are provided, prioritize them in upgradePriorities (if below Power 11), pushTargets, and buildAdvice.",
+          "If playerPreferences.excludedBrawlers are provided, never include them in upgradePriorities or pushTargets.",
           "Push target current trophies must match the roster and target trophies must be higher but realistic.",
           "Ground battle diagnosis in recentBattles. Do not claim a matchup, mode, map, or result that is absent from that evidence.",
           "Avoid-for-now entries must explain why spending now has lower account value.",
@@ -88,6 +94,10 @@ export async function generateAccountAnalysis(
               duo: context.player.duoVictories,
             },
           },
+          playerPreferences: preferences ?? {
+            pinnedBrawlers: [],
+            excludedBrawlers: [],
+          },
           catalogBrawlerNames: context.catalog.map(
             (brawler) => brawler.name,
           ),
@@ -102,6 +112,7 @@ export async function generateAccountAnalysis(
           object,
           context.player,
           context.catalog,
+          preferences,
         ),
         provider: config.provider,
         model: config.label,
@@ -145,3 +156,33 @@ export const getCachedAccountAnalysis = unstable_cache(
     tags: [ANALYSIS_CACHE_TAG],
   },
 );
+
+export async function getAccountAnalysisWithPreferences(options?: {
+  refresh?: boolean;
+  preferences?: PlayerPreferences;
+}): Promise<AnalysisResponse> {
+  const refresh = options?.refresh ?? false;
+  const preferences = options?.preferences;
+
+  if (refresh) {
+    return generateAccountAnalysis(PLAYER_TAG, preferences);
+  }
+
+  const cached = await getCachedAccountAnalysis();
+  if (
+    !preferences ||
+    (preferences.pinnedBrawlers.length === 0 &&
+      preferences.excludedBrawlers.length === 0)
+  ) {
+    return cached;
+  }
+
+  return {
+    ...cached,
+    analysis: applyBrawlerPreferences(
+      cached.analysis,
+      cached.player,
+      preferences,
+    ),
+  };
+}

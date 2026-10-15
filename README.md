@@ -14,9 +14,9 @@ Sync an entire channel's video catalog into a Neon Postgres database, then explo
 
 Every video gets a 0-100 score computed from five weighted components -- reach, engagement, momentum, efficiency, and community -- using sigmoid normalization and duration-aware bucketing so short and long videos are compared fairly.
 
-The sync pipeline runs as Inngest background jobs with real-time SSE progress streaming. An AI chat drawer (Cmd+J) lets you ask natural language questions with full channel context. Channels can be compared side-by-side (2-5 at once), and reports can be shared via expiring snapshot links.
+The sync pipeline runs as background jobs with real-time SSE progress streaming. An AI chat drawer (Cmd+J) lets you ask natural language questions with full channel context. Channels can be compared side-by-side (2-5 at once), and reports can be shared via expiring snapshot links.
 
-**Stack:** Neon Postgres, Drizzle ORM, NextAuth (Google OAuth), Inngest, Vercel AI SDK (Gemini 2.0 Flash / Groq), React Three Fiber, Vitest, PostHog.
+**Stack:** Neon Postgres, Drizzle ORM, NextAuth (Google OAuth), Vercel AI SDK (Gemini 3.5 Flash Lite / Groq), Vitest, PostHog.
 
 [Full documentation -->](apps/youtube/README.md)
 
@@ -70,9 +70,9 @@ Personal Clash Royale deck workshop and collection-aware advisor for player `#VG
 
 Evaluates either the active 8-card deck (**Improve current deck** mode, recommending targeted swaps that preserve the deck's archetype) or the full card collection (**Best from collection** mode, assembling the strongest legal deck the account can field). Candidate decks are generated across configured AI providers, validated against 2026 special-slot rules (0-2 Evolutions, 0-2 Champions, at most 3 special slots total) and owned cards, scored deterministically across a 123-card role and mechanics knowledge base, and hill-climbed over the collection before an AI explanation pass summarizes matchups, replay notes from recent losses, and level-impact warnings.
 
-Includes one-click "Open in Clash Royale" deep links, a 30-minute server-side analysis cache, and a rate-limited manual refresh.
+Includes one-click "Open in Clash Royale" deep links, a 30-minute server-side analysis cache backed by Neon Postgres, and a rate-limited manual refresh.
 
-**Stack:** Clash Royale API (`proxy.royaleapi.dev`), Vercel AI SDK (Google Gemini 3.5 Flash Lite / 3.6 Flash, Groq `openai/gpt-oss-120b`), Zod 4, Vitest. Fraunces + Manrope typography in a "Royal Workshop" aesthetic.
+**Stack:** Clash Royale API (`proxy.royaleapi.dev`), Neon Postgres, Vercel AI SDK (Google Gemini 3.5 Flash Lite / 3.6 Flash, Groq `openai/gpt-oss-120b`), Zod 4, Vitest. Fraunces + Manrope typography in a "Royal Workshop" aesthetic.
 
 ---
 
@@ -102,12 +102,10 @@ The four catalog and analytics apps (`youtube`, `imdb-best-season`, `spotify-pop
 | Theme | next-themes (dark/light + system) | YouTube, IMDb, Spotify, Listening Habits |
 | Analytics | PostHog | YouTube, IMDb, Spotify |
 | Deployment | Vercel | All |
-| Database | Neon Postgres + Drizzle ORM | YouTube, Listening Habits |
+| Database | Neon Postgres + Drizzle ORM | YouTube, Listening Habits, Clash Deck Advisor |
 | Charts | recharts (heatmaps hand-rolled as CSS grids) | Listening Habits |
 | Auth | NextAuth v5 + Google OAuth | YouTube |
 | AI | Vercel AI SDK, Google Gemini, Groq | YouTube, Clash Deck Advisor, Brawl Account Coach |
-| Background Jobs | Inngest (sync pipeline, scheduled cleanup) | YouTube |
-| 3D Graphics | React Three Fiber + Three.js | YouTube |
 | Unit Tests | Vitest | All |
 | E2E Tests | Playwright | IMDb |
 

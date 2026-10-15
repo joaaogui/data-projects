@@ -3,7 +3,6 @@
 import { TrendChart } from "@/components/charts/trend-chart";
 import { LoadingGrid, NoData, QueryError } from "@/components/query-state";
 import { PageHeader, Section } from "@/components/section";
-import { sortableHeader } from "@/components/sortable-header";
 import { StatCard } from "@/components/stat-card";
 import { useArtistStats } from "@/hooks/use-stats";
 import type { ArtistLifecycle } from "@/lib/analytics/artists";
@@ -17,6 +16,7 @@ import { formatDate, formatMonth, formatNumber, formatPercent } from "@/lib/form
 import { cn } from "@data-projects/shared";
 import {
   DataTable,
+  sortableHeader,
   type ColumnDef,
   Tooltip,
   TooltipContent,

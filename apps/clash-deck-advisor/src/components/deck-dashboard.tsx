@@ -59,23 +59,31 @@ const MODES: Record<AnalysisMode, { label: string; caption: string }> = {
 function Header() {
   return (
     <header className="border-b border-[#d9e1ec]/80 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        <Image
-          src="/crown-mark.svg"
-          alt=""
-          width={36}
-          height={36}
-          className="size-9"
-          priority
-        />
-        <div>
-          <p className="font-display text-lg font-semibold leading-none tracking-[-0.02em]">
-            Clash Deck Advisor
-          </p>
-          <p className="mt-1 text-[11px] font-bold text-[#6d7a8b]">
-            Personal advisor for #VGURQ0QQ2
-          </p>
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-3">
+          <Image
+            src="/crown-mark.svg"
+            alt=""
+            width={36}
+            height={36}
+            className="size-9 shrink-0"
+            priority
+          />
+          <div className="min-w-0">
+            <p className="font-display truncate text-lg font-semibold leading-none tracking-[-0.02em]">
+              Clash Deck Advisor
+            </p>
+            <p className="mt-1 text-[11px] font-bold text-[#6d7a8b]">
+              Personal advisor for #VGURQ0QQ2
+            </p>
+          </div>
         </div>
+        <a
+          href="https://joaog.space"
+          className="royal-focus inline-flex min-h-10 shrink-0 items-center rounded-xl border border-[#cdd8e8] bg-white px-3 py-1.5 text-xs font-extrabold text-[#0b1f3a] shadow-sm transition-colors hover:bg-[#f8faff]"
+        >
+          ← joaog.space
+        </a>
       </div>
     </header>
   );
@@ -389,6 +397,9 @@ export function DeckDashboard() {
                   cardsByName={cardsByName}
                   lockedCards={ledger.lockedCards}
                   excludedCards={ledger.excludedCards}
+                  currentDeckVersion={data.deckVersions.find(
+                    (v) => v.isCurrentActiveDeck,
+                  )}
                   onToggleLock={(name) =>
                     updateLedger(toggleLockedCard(ledger, name))
                   }
@@ -396,6 +407,7 @@ export function DeckDashboard() {
                     updateLedger(toggleExcludedCard(ledger, name))
                   }
                   onClearRules={() => updateLedger(clearCardConstraints(ledger))}
+                  onSwitchToBestMode={() => switchMode("best")}
                 />
               </div>
               <div className="lg:col-start-2 lg:row-start-2">
@@ -421,7 +433,15 @@ export function DeckDashboard() {
             <ServerCog aria-hidden="true" className="size-4 text-[#164fc9]" />
             Clash Royale and AI keys stay on the server.
           </p>
-          <p>Your battle history and card rules are saved only in this browser.</p>
+          <div className="flex items-center gap-4">
+            <p>Battles, deck versions, and card rules are persisted in Postgres.</p>
+            <a
+              href="https://joaog.space"
+              className="royal-focus font-extrabold text-[#164fc9] hover:underline"
+            >
+              ← joaog.space
+            </a>
+          </div>
         </footer>
       </main>
     </>

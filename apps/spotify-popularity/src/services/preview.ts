@@ -1,3 +1,5 @@
+import { apiFetch } from "@data-projects/shared"
+
 export interface PreviewResponse {
   preview: string | null
   error?: string
@@ -12,14 +14,7 @@ export async function fetchTrackPreview(
     artist: artistName,
   })
 
-  const response = await fetch(`/api/preview?${params}`)
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch preview")
-  }
-
-  return response.json()
+  return apiFetch<PreviewResponse>(`/api/preview?${params}`, {
+    fallbackError: "Failed to fetch preview",
+  })
 }
-
-
-

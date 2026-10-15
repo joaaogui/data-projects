@@ -32,15 +32,3 @@ export function getTmdbIdCacheKey(imdbId: string): string {
 export function getTmdbSeasonCacheKey(tmdbId: number, season: number): string {
   return `tmdb-season:${tmdbId}:${season}`;
 }
-
-export function clearCache(): void {
-  cache.clear();
-}
-
-export function getCacheStats(): { size: number; maxSize: number } {
-  const stats = cache.stats();
-  return {
-    size: stats.size,
-    maxSize: stats.maxSize,
-  };
-}

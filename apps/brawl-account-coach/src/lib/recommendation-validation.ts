@@ -1,6 +1,10 @@
 import {
   accountCoachSchema,
   type AccountCoachAnalysis,
+  type BuildAdvice,
+  type PlayerPreferences,
+  type PushTarget,
+  type UpgradePriority,
 } from "./schemas";
 import type {
   BrawlerCatalogItem,
@@ -18,7 +22,9 @@ function createItemCatalog(
   select: (brawler: BrawlerCatalogItem) => NamedItem[],
 ): Set<string> {
   return new Set(
-    catalog.flatMap((brawler) => select(brawler).map((item) => nameKey(item.name))),
+    catalog.flatMap((brawler) =>
+      select(brawler).map((item) => nameKey(item.name)),
+    ),
   );
 }
 
@@ -78,10 +84,160 @@ function assertUniqueBrawlers(
   }
 }
 
+export function applyBrawlerPreferences(
+  analysis: AccountCoachAnalysis,
+  player: PlayerProfile,
+  preferences?: PlayerPreferences,
+): AccountCoachAnalysis {
+  if (
+    !preferences ||
+    (preferences.pinnedBrawlers.length === 0 &&
+      preferences.excludedBrawlers.length === 0)
+  ) {
+    return analysis;
+  }
+
+  const ownedByKey = new Map(
+    player.brawlers.map((brawler) => [nameKey(brawler.name), brawler]),
+  );
+
+  const excludedKeys = new Set(
+    preferences.excludedBrawlers.map((name) => nameKey(name)),
+  );
+  const pinnedBrawlers: PlayerBrawler[] = [];
+  const pinnedKeys = new Set<string>();
+
+  for (const rawName of preferences.pinnedBrawlers) {
+    const key = nameKey(rawName);
+    if (excludedKeys.has(key) || pinnedKeys.has(key)) {
+      continue;
+    }
+    const owned = ownedByKey.get(key);
+    if (owned) {
+      pinnedKeys.add(key);
+      pinnedBrawlers.push(owned);
+    }
+  }
+
+  const filteredUpgrades = analysis.upgradePriorities.filter(
+    (item) => !excludedKeys.has(nameKey(item.brawlerName)),
+  );
+  const existingUpgradeByKey = new Map(
+    filteredUpgrades.map((item) => [nameKey(item.brawlerName), item]),
+  );
+
+  const boostedUpgrades: UpgradePriority[] = [];
+  for (const brawler of pinnedBrawlers) {
+    const key = nameKey(brawler.name);
+    const existing = existingUpgradeByKey.get(key);
+    if (existing) {
+      boostedUpgrades.push({
+        ...existing,
+        accountImpact: "high",
+      });
+    } else if (brawler.power < 11) {
+      boostedUpgrades.push({
+        brawlerName: brawler.name,
+        currentPower: brawler.power,
+        currentTrophies: brawler.trophies,
+        accountImpact: "high",
+        reason: `Pinned focus brawler at Power ${brawler.power} — prioritize power breakpoints and core build pieces.`,
+      });
+    }
+  }
+  for (const item of filteredUpgrades) {
+    if (!pinnedKeys.has(nameKey(item.brawlerName))) {
+      boostedUpgrades.push(item);
+    }
+  }
+
+  const filteredPushes = analysis.pushTargets.filter(
+    (item) => !excludedKeys.has(nameKey(item.brawlerName)),
+  );
+  const existingPushByKey = new Map(
+    filteredPushes.map((item) => [nameKey(item.brawlerName), item]),
+  );
+
+  const boostedPushes: PushTarget[] = [];
+  for (const brawler of pinnedBrawlers) {
+    const key = nameKey(brawler.name);
+    const existing = existingPushByKey.get(key);
+    if (existing) {
+      boostedPushes.push(existing);
+    } else {
+      const targetTrophies = Math.max(
+        brawler.highestTrophies,
+        brawler.trophies + 75,
+      );
+      boostedPushes.push({
+        brawlerName: brawler.name,
+        currentTrophies: brawler.trophies,
+        targetTrophies:
+          targetTrophies > brawler.trophies
+            ? targetTrophies
+            : brawler.trophies + 75,
+        reason: `Pinned focus brawler — target steady trophy gains on favored rotation maps.`,
+      });
+    }
+  }
+  for (const item of filteredPushes) {
+    if (!pinnedKeys.has(nameKey(item.brawlerName))) {
+      boostedPushes.push(item);
+    }
+  }
+
+  const filteredBuilds = analysis.buildAdvice.filter(
+    (item) => !excludedKeys.has(nameKey(item.brawlerName)),
+  );
+  const existingBuildByKey = new Map(
+    filteredBuilds.map((item) => [nameKey(item.brawlerName), item]),
+  );
+  const boostedBuilds: BuildAdvice[] = [];
+
+  for (const brawler of pinnedBrawlers) {
+    const key = nameKey(brawler.name);
+    const existing = existingBuildByKey.get(key);
+    if (existing) {
+      boostedBuilds.push(existing);
+    } else if (
+      brawler.gadgets.length > 0 ||
+      brawler.starPowers.length > 0 ||
+      brawler.gears.length > 0 ||
+      brawler.hyperCharges.length > 0
+    ) {
+      boostedBuilds.push({
+        brawlerName: brawler.name,
+        gadget: brawler.gadgets[0]?.name ?? null,
+        starPower: brawler.starPowers[0]?.name ?? null,
+        gears: brawler.gears.slice(0, 2).map((gear) => gear.name),
+        hypercharge: brawler.hyperCharges[0]?.name ?? null,
+        reason:
+          "Equipped from your owned loadout pieces for your pinned focus brawler.",
+      });
+    }
+  }
+  for (const item of filteredBuilds) {
+    if (!pinnedKeys.has(nameKey(item.brawlerName))) {
+      boostedBuilds.push(item);
+    }
+  }
+
+  return {
+    ...analysis,
+    upgradePriorities: boostedUpgrades.slice(0, 5),
+    pushTargets: boostedPushes.slice(0, 5),
+    buildAdvice: boostedBuilds.slice(0, 5),
+    avoidForNow: analysis.avoidForNow.filter(
+      (item) => !pinnedKeys.has(nameKey(item.brawlerName)),
+    ),
+  };
+}
+
 export function validateRecommendations(
   input: unknown,
   player: PlayerProfile,
   catalog: BrawlerCatalogItem[],
+  preferences?: PlayerPreferences,
 ): AccountCoachAnalysis {
   const analysis = accountCoachSchema.parse(input);
   const catalogNames = new Set(catalog.map((brawler) => nameKey(brawler.name)));
@@ -188,5 +344,5 @@ export function validateRecommendations(
   assertUniqueBrawlers(validated.buildAdvice, "Build advice");
   assertUniqueBrawlers(validated.avoidForNow, "Avoid-for-now list");
 
-  return validated;
+  return applyBrawlerPreferences(validated, player, preferences);
 }

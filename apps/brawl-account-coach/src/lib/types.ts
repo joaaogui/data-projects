@@ -120,7 +120,6 @@ export interface PushCandidate {
   trophies: number;
   highestTrophies: number;
   gapToPeak: number;
-  portraitUrl: string;
 }
 
 export type BattleOutcome = "victory" | "defeat" | "draw";

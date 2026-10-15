@@ -1,7 +1,18 @@
 import { SiteNav } from "@/components/site-nav";
 import { Providers } from "@data-projects/ui";
 import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://lastfm.joaog.space";
 
@@ -34,8 +45,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased min-h-dvh">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased min-h-dvh`}>
         <Providers posthogApiKey={process.env.NEXT_PUBLIC_POSTHOG_KEY}>
           <a
             href="#main-content"

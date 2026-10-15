@@ -1,0 +1,29 @@
+export class AppError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+    public readonly status: number = 500,
+  ) {
+    super(message);
+    this.name = "AppError";
+    Object.setPrototypeOf(this, AppError.prototype);
+  }
+}
+
+export function isAppError(error: unknown): error is AppError {
+  return (
+    error instanceof AppError ||
+    (error instanceof Error && error.name === "AppError")
+  );
+}
+
+export function toErrorResponse(error: unknown): {
+  message: string;
+  status: number;
+} {
+  if (isAppError(error)) {
+    return { message: error.message, status: error.status };
+  }
+  // Never leak raw Error.message to clients — it may include internals.
+  return { message: "Internal server error", status: 500 };
+}

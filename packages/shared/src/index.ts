@@ -35,3 +35,7 @@ export {
   getSafeErrorMessage,
   type ValidationResult,
 } from "./validation";
+
+export { AppError, isAppError, toErrorResponse } from "./errors";
+
+export { formatCompact, formatNumber } from "./format";

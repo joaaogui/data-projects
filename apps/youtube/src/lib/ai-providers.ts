@@ -4,19 +4,21 @@ import type { LanguageModel } from "ai";
 import { env } from "./env";
 
 export function getModel(): LanguageModel {
-  if (env.GOOGLE_AI_API_KEY) {
+  const googleApiKey =
+    env.GOOGLE_GENERATIVE_AI_API_KEY || env.GOOGLE_AI_API_KEY;
+  if (googleApiKey) {
     const google = createGoogleGenerativeAI({
-      apiKey: env.GOOGLE_AI_API_KEY,
+      apiKey: googleApiKey,
     });
-    return google("gemini-2.0-flash");
+    return google("gemini-3.5-flash-lite");
   }
 
   if (env.GROQ_API_KEY) {
     const groq = createGroq({ apiKey: env.GROQ_API_KEY });
-    return groq("llama-3.1-8b-instant");
+    return groq("openai/gpt-oss-120b");
   }
 
   throw new Error(
-    "No AI provider configured. Set GOOGLE_AI_API_KEY or GROQ_API_KEY."
+    "No AI provider configured. Set GOOGLE_GENERATIVE_AI_API_KEY, GOOGLE_AI_API_KEY, or GROQ_API_KEY."
   );
 }

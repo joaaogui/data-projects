@@ -199,18 +199,17 @@ function HistoryDisclosure({
 
         <div className="rounded-xl bg-[#f5f8ff] p-4 text-xs leading-5 text-[#33445c]">
           <p>
-            Clash Royale only shares your last 25 or so battles.{" "}
+            Clash Royale only shares your last 25 or so battles per fetch.{" "}
             {historyStats.fromBrowser > 0
-              ? `This browser has saved ${plural(historyStats.fromBrowser, "older battle")}, so these numbers cover ${plural(historyStats.battlesTracked, "battle")}${since ? ` since ${since}` : ""}.`
-              : "This browser saves them on each visit (up to 300), so the history grows every time you check in."}{" "}
-            Nothing is kept on the server.
+              ? `Saved history adds ${plural(historyStats.fromBrowser, "older battle")}, so these numbers cover ${plural(historyStats.battlesTracked, "battle")}${since ? ` since ${since}` : ""}.`
+              : `Every check-in saves new battles to the advisor database (${plural(historyStats.battlesTracked, "battle")} tracked so far).`}
           </p>
           <button
             type="button"
             onClick={onClearHistory}
             className="royal-focus mt-3 inline-flex min-h-11 items-center rounded-xl border border-[#d9e1ec] bg-white px-4 text-sm font-extrabold text-[#33445c] transition-colors hover:border-[#b42318] hover:text-[#b42318]"
           >
-            Clear saved history
+            Clear browser cache
           </button>
         </div>
       </div>

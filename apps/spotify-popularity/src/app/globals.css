@@ -82,21 +82,6 @@
   background: hsl(var(--muted-foreground));
 }
 
-                               
-.spotify-glow {
-  box-shadow: 0 0 30px -5px hsl(var(--spotify) / 0.3);
-}
-
-                               
-.table-row-hover {
-  transition: all 0.2s ease;
-}
-
-.table-row-hover:hover {
-  background: hsl(var(--accent) / 0.5);
-  transform: scale(1.005);
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

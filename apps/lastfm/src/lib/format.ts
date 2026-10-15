@@ -1,9 +1,4 @@
-const numberFormatter = new Intl.NumberFormat("en-US");
-
-const compactFormatter = new Intl.NumberFormat("en-US", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
+export { formatCompact, formatNumber } from "@data-projects/shared";
 
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -17,16 +12,6 @@ const monthFormatter = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
   timeZone: "UTC",
 });
-
-export function formatNumber(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return "-";
-  return numberFormatter.format(value);
-}
-
-export function formatCompact(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return "-";
-  return compactFormatter.format(value);
-}
 
 export function formatPercent(value: number | null | undefined, digits = 1): string {
   if (value == null || Number.isNaN(value)) return "-";

@@ -2,7 +2,6 @@
 
 import { PageHeader, Section } from "@/components/section";
 import { QueryError } from "@/components/query-state";
-import { sortableHeader } from "@/components/sortable-header";
 import { useLibrary } from "@/hooks/use-stats";
 import type {
   LibraryArtistRow,
@@ -16,6 +15,7 @@ import {
   DataTable,
   Input,
   Skeleton,
+  sortableHeader,
   type ColumnDef,
 } from "@data-projects/ui";
 import { Search } from "lucide-react";

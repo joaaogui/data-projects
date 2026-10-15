@@ -32,22 +32,12 @@ import {
   mapInBatches,
   seasonNumbersUpTo,
 } from "@/lib/ratings";
+import { fetchFromOMDB } from "@/lib/omdb";
 
-const OMDB_BASE_URL = "https://www.omdbapi.com";
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 export async function OPTIONS() {
   return optionsResponse(corsHeaders);
-}
-
-async function fetchFromOMDB(params: string): Promise<Response> {
-  const apiKey = process.env.OMDB_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "OMDB API key not configured. Get your free key at https://www.omdbapi.com/apikey.aspx"
-    );
-  }
-  return fetch(`${OMDB_BASE_URL}/?${params}&apikey=${apiKey}`);
 }
 
 async function getTmdbShowData(imdbId: string): Promise<TMDBShowData | null> {

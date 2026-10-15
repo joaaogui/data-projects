@@ -64,16 +64,20 @@ async function fetchDiscoverAI<T>(endpoint: string, channelId: string): Promise<
   return res.json();
 }
 
-export function useDiscoverEvolution(channelId: string) {
+export function useDiscoverSection<T>(
+  endpoint: string,
+  queryKeyName: string,
+  channelId: string,
+) {
   const queryClient = useQueryClient();
-  const queryKey = ["discover-evolution", channelId];
+  const queryKey = [queryKeyName, channelId];
 
-  const [data, setData] = useState<EvolutionData | null>(
-    () => queryClient.getQueryData<EvolutionData>(queryKey) ?? null,
+  const [data, setData] = useState<T | null>(
+    () => queryClient.getQueryData<T>(queryKey) ?? null,
   );
 
   const mutation = useMutation({
-    mutationFn: () => fetchDiscoverAI<EvolutionData>("evolution", channelId),
+    mutationFn: () => fetchDiscoverAI<T>(endpoint, channelId),
     onSuccess: (result) => {
       setData(result);
       queryClient.setQueryData(queryKey, result);
@@ -86,76 +90,20 @@ export function useDiscoverEvolution(channelId: string) {
     isLoading: mutation.isPending,
     error: mutation.error?.message ?? null,
   };
+}
+
+export function useDiscoverEvolution(channelId: string) {
+  return useDiscoverSection<EvolutionData>("evolution", "discover-evolution", channelId);
 }
 
 export function useDiscoverDna(channelId: string) {
-  const queryClient = useQueryClient();
-  const queryKey = ["discover-dna", channelId];
-
-  const [data, setData] = useState<DnaData | null>(
-    () => queryClient.getQueryData<DnaData>(queryKey) ?? null,
-  );
-
-  const mutation = useMutation({
-    mutationFn: () => fetchDiscoverAI<DnaData>("dna", channelId),
-    onSuccess: (result) => {
-      setData(result);
-      queryClient.setQueryData(queryKey, result);
-    },
-  });
-
-  return {
-    data,
-    generate: mutation.mutate,
-    isLoading: mutation.isPending,
-    error: mutation.error?.message ?? null,
-  };
+  return useDiscoverSection<DnaData>("dna", "discover-dna", channelId);
 }
 
 export function useDiscoverStarterPack(channelId: string) {
-  const queryClient = useQueryClient();
-  const queryKey = ["discover-starter-pack", channelId];
-
-  const [data, setData] = useState<StarterPackData | null>(
-    () => queryClient.getQueryData<StarterPackData>(queryKey) ?? null,
-  );
-
-  const mutation = useMutation({
-    mutationFn: () => fetchDiscoverAI<StarterPackData>("starter-pack", channelId),
-    onSuccess: (result) => {
-      setData(result);
-      queryClient.setQueryData(queryKey, result);
-    },
-  });
-
-  return {
-    data,
-    generate: mutation.mutate,
-    isLoading: mutation.isPending,
-    error: mutation.error?.message ?? null,
-  };
+  return useDiscoverSection<StarterPackData>("starter-pack", "discover-starter-pack", channelId);
 }
 
 export function useDiscoverRabbitHole(channelId: string) {
-  const queryClient = useQueryClient();
-  const queryKey = ["discover-rabbit-hole", channelId];
-
-  const [data, setData] = useState<RabbitHoleData | null>(
-    () => queryClient.getQueryData<RabbitHoleData>(queryKey) ?? null,
-  );
-
-  const mutation = useMutation({
-    mutationFn: () => fetchDiscoverAI<RabbitHoleData>("rabbit-hole", channelId),
-    onSuccess: (result) => {
-      setData(result);
-      queryClient.setQueryData(queryKey, result);
-    },
-  });
-
-  return {
-    data,
-    generate: mutation.mutate,
-    isLoading: mutation.isPending,
-    error: mutation.error?.message ?? null,
-  };
+  return useDiscoverSection<RabbitHoleData>("rabbit-hole", "discover-rabbit-hole", channelId);
 }

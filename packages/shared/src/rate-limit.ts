@@ -1,25 +1,3 @@
-interface LegacyRateLimitEntry {
-  count: number;
-  resetTime: number;
-}
-
-const rateLimitStore = new Map<string, LegacyRateLimitEntry>();
-
-const CLEANUP_INTERVAL = 60 * 1000;
-let lastCleanup = Date.now();
-
-function cleanupExpiredEntries() {
-  const now = Date.now();
-  if (now - lastCleanup < CLEANUP_INTERVAL) return;
-
-  lastCleanup = now;
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (now > entry.resetTime) {
-      rateLimitStore.delete(key);
-    }
-  }
-}
-
 export interface RateLimitConfig {
   maxRequests: number;
   windowMs: number;
@@ -55,6 +33,32 @@ interface BoundedRateLimitEntry {
 
 const MAX_TRACKED_CLIENTS = 10_000;
 
+const rateLimitStore = new Map<string, BoundedRateLimitEntry>();
+
+function evictIfAtCapacity(
+  entries: Map<string, BoundedRateLimitEntry>,
+  now: number,
+) {
+  if (entries.size < MAX_TRACKED_CLIENTS) {
+    return;
+  }
+
+  for (const [identifier, entry] of entries) {
+    if (now >= entry.resetAt) {
+      entries.delete(identifier);
+    }
+  }
+
+  if (entries.size >= MAX_TRACKED_CLIENTS) {
+    const oldestIdentifier = entries.keys().next().value as
+      | string
+      | undefined;
+    if (oldestIdentifier) {
+      entries.delete(oldestIdentifier);
+    }
+  }
+}
+
 export const RATE_LIMIT_PRESETS = {
   search: { maxRequests: 30, windowMs: 60 * 1000 },
   suggest: { maxRequests: 60, windowMs: 60 * 1000 },
@@ -72,34 +76,13 @@ export function createRateLimiter({
 
   const entries = new Map<string, BoundedRateLimitEntry>();
 
-  function makeRoom(now: number) {
-    if (entries.size < MAX_TRACKED_CLIENTS) {
-      return;
-    }
-
-    for (const [identifier, entry] of entries) {
-      if (now >= entry.resetAt) {
-        entries.delete(identifier);
-      }
-    }
-
-    if (entries.size >= MAX_TRACKED_CLIENTS) {
-      const oldestIdentifier = entries.keys().next().value as
-        | string
-        | undefined;
-      if (oldestIdentifier) {
-        entries.delete(oldestIdentifier);
-      }
-    }
-  }
-
   return {
     check(identifier: string, now = Date.now()): RateLimitDecision {
       const key = identifier.trim() || "anonymous";
       const existing = entries.get(key);
 
       if (!existing || now >= existing.resetAt) {
-        makeRoom(now);
+        evictIfAtCapacity(entries, now);
         const resetAt = now + windowMs;
         entries.set(key, { count: 1, resetAt });
         return {
@@ -135,21 +118,22 @@ export function checkRateLimit(
   identifier: string,
   config: RateLimitConfig
 ): RateLimitResult {
-  cleanupExpiredEntries();
-
   const now = Date.now();
-  const entry = rateLimitStore.get(identifier);
+  const key = identifier.trim() || "anonymous";
+  const entry = rateLimitStore.get(key);
 
-  if (!entry || now > entry.resetTime) {
-    rateLimitStore.set(identifier, {
+  if (!entry || now >= entry.resetAt) {
+    evictIfAtCapacity(rateLimitStore, now);
+    const resetTime = now + config.windowMs;
+    rateLimitStore.set(key, {
       count: 1,
-      resetTime: now + config.windowMs,
+      resetAt: resetTime,
     });
 
     return {
       success: true,
       remaining: config.maxRequests - 1,
-      resetTime: now + config.windowMs,
+      resetTime,
     };
   }
 
@@ -157,17 +141,17 @@ export function checkRateLimit(
     return {
       success: false,
       remaining: 0,
-      resetTime: entry.resetTime,
-      retryAfter: Math.ceil((entry.resetTime - now) / 1000),
+      resetTime: entry.resetAt,
+      retryAfter: Math.max(1, Math.ceil((entry.resetAt - now) / 1_000)),
     };
   }
 
-  entry.count++;
+  entry.count += 1;
 
   return {
     success: true,
     remaining: config.maxRequests - entry.count,
-    resetTime: entry.resetTime,
+    resetTime: entry.resetAt,
   };
 }
 

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { AppError, toErrorResponse } from "../errors";
+import { AppError, isAppError, toErrorResponse } from "./errors";
 
-describe("toErrorResponse", () => {
+describe("AppError & toErrorResponse", () => {
+  it("identifies AppError instances with isAppError", () => {
+    const error = new AppError("NOT_FOUND", "Resource not found", 404);
+    expect(isAppError(error)).toBe(true);
+    expect(isAppError(new Error("plain"))).toBe(false);
+    expect(isAppError("boom")).toBe(false);
+  });
+
   it("returns AppError message and status", () => {
     const error = new AppError("NOT_FOUND", "Resource not found", 404);
     expect(toErrorResponse(error)).toEqual({

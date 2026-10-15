@@ -1,4 +1,4 @@
-import type { ChannelInfo, ChannelSuggestion, PlaylistInfo, VideoData } from "@/types/youtube";
+import type { ChannelInfo, ChannelSuggestion, VideoData } from "@/types/youtube";
 
 export type { ChannelInfo, ChannelSuggestion } from "@/types/youtube";
 
@@ -81,15 +81,6 @@ export async function fetchChannelSuggestions(
     `/api/youtube/suggest/${encodeURIComponent(query)}`,
     { signal },
     "Failed to fetch suggestions"
-  );
-  return response.json();
-}
-
-export async function fetchChannelPlaylists(channelId: string): Promise<PlaylistInfo[]> {
-  const response = await apiFetch(
-    `/api/youtube/playlists/${channelId}`,
-    undefined,
-    "Failed to fetch playlists"
   );
   return response.json();
 }

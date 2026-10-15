@@ -110,8 +110,12 @@ function apiErrorDetails(status: number): ApiErrorDetails {
   };
 }
 
-function encodedTag(tag: string): string {
-  return encodeURIComponent(`#${tag.replace(/^#/, "")}`);
+export function normalizePlayerTag(tag: string): string {
+  return `#${tag.trim().replace(/^#+/, "").toUpperCase()}`;
+}
+
+export function encodedTag(tag: string): string {
+  return encodeURIComponent(normalizePlayerTag(tag));
 }
 
 export async function brawlFetch<T>(

@@ -25,7 +25,10 @@ export function LossReasons({
   changes,
   cardsByName,
 }: LossReasonsProps) {
-  const battles = lossAutopsy.totalBattlesAnalyzed;
+  const deckBattles =
+    lossAutopsy.currentDeckBattles ?? lossAutopsy.totalBattlesAnalyzed;
+  const deckLosses =
+    lossAutopsy.currentDeckLosses ?? lossAutopsy.recentLosses;
   const threats = lossAutopsy.topThreatCards.slice(0, 3);
 
   return (
@@ -42,14 +45,17 @@ export function LossReasons({
 
       {threats.length === 0 ? (
         <p className="mt-3 text-sm leading-6 text-[#5c6b7f]">
-          {battles > 0
-            ? `No losses in your last ${battles} battles. Keep it up.`
-            : "No recent battles to learn from yet."}
+          {deckBattles === 0
+            ? "No recorded battles with your current 8-card deck yet. Play matches with this deck to track which opposing cards beat it."
+            : deckLosses === 0
+              ? `No losses in your ${deckBattles} recorded ${deckBattles === 1 ? "battle" : "battles"} with this deck. Keep it up.`
+              : "No recurring threat cards spotted against this deck yet."}
         </p>
       ) : (
         <>
           <p className="mt-1 text-sm text-[#5c6b7f]">
-            The cards that beat you most in your last {battles} battles.
+            The cards that beat your current deck most across {deckBattles} recorded{" "}
+            {deckBattles === 1 ? "battle" : "battles"}.
           </p>
           <ol className="mt-4 space-y-4">
             {threats.map((threat) => {
@@ -76,7 +82,7 @@ export function LossReasons({
                     </p>
                     <p className="mt-0.5 text-sm text-[#5c6b7f]">
                       You lost {threat.lossesAgainst} of {threat.totalSeen}{" "}
-                      {threat.totalSeen === 1 ? "game" : "games"} against it
+                      {threat.totalSeen === 1 ? "game" : "games"} against it with this deck
                     </p>
                     {answers.length > 0 ? (
                       <p className="mt-1 flex items-center gap-1 text-xs font-bold text-[#087454]">

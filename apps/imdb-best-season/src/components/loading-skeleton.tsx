@@ -8,12 +8,6 @@ const SKELETON_ROWS = [
   { id: "row-5" },
 ] as const;
 
-const BOUNCE_DOTS = [
-  { id: "dot-1", delay: 0 },
-  { id: "dot-2", delay: 150 },
-  { id: "dot-3", delay: 300 },
-] as const;
-
 export function LoadingSkeleton() {
   return (
     <div className="space-y-8 animate-fade-in">
@@ -50,25 +44,6 @@ export function LoadingSkeleton() {
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-export function HomeLoadingSkeleton() {
-  return (
-    <div className="flex flex-col items-center justify-center gap-4">
-      <div className="flex gap-1">
-        {BOUNCE_DOTS.map((dot) => (
-          <div
-            key={dot.id}
-            className="w-3 h-3 rounded-full bg-gold animate-bounce"
-            style={{ animationDelay: `${dot.delay}ms` }}
-          />
-        ))}
-      </div>
-      <p className="text-muted-foreground animate-pulse">
-        Searching for your show...
-      </p>
     </div>
   );
 }

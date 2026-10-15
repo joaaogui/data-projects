@@ -32,135 +32,132 @@ export function BattleDiagnosis({
   );
 
   return (
-    <section aria-labelledby="battle-diagnosis-title">
-      <div className="mb-5">
-        <p className="flex items-center gap-2 text-sm font-extrabold text-[#f42f8c]">
-          <Activity aria-hidden="true" className="size-4" />
-          Battle tape
-        </p>
-        <h2
-          id="battle-diagnosis-title"
-          className="font-display mt-2 text-2xl leading-tight sm:text-3xl"
-        >
-          What the recent matches say
-        </h2>
-      </div>
-
-      <div className="arcade-panel overflow-hidden rounded-[1.15rem_0.35rem_1.15rem_0.35rem]">
-        <div className="grid bg-[#101631] text-white sm:grid-cols-[1fr_auto] sm:items-center">
-          <div className="p-5 sm:p-6">
-            <p className="text-sm font-extrabold text-[#aeb9d8]">
-              Latest {recentTrend.battles} recorded battles
-            </p>
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-5 gap-y-2">
-              <span className="font-display text-4xl text-[#ffcb2f]">
-                {recentTrend.winRate}%
-              </span>
-              <span className="text-sm font-bold">
-                {recentTrend.wins}W / {recentTrend.losses}L /{" "}
-                {recentTrend.draws}D
-              </span>
-              <span
-                className={`inline-flex items-center gap-1 text-sm font-black ${
-                  recentTrend.netTrophies >= 0
-                    ? "text-[#75e1bd]"
-                    : "text-[#ff8fc2]"
-                }`}
-              >
-                {recentTrend.netTrophies >= 0 ? (
-                  <TrendingUp aria-hidden="true" className="size-4" />
-                ) : (
-                  <TrendingDown aria-hidden="true" className="size-4" />
-                )}
-                {recentTrend.netTrophies > 0 ? "+" : ""}
-                {recentTrend.netTrophies} trophies
-              </span>
-            </div>
-          </div>
-          <div className="dossier-stripe h-3 sm:h-full sm:w-5" />
+    <section
+      aria-labelledby="battle-diagnosis-title"
+      className="arcade-panel overflow-hidden rounded-[1.15rem_0.35rem_1.15rem_0.35rem]"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#101631] bg-[#101631] px-5 py-4 text-white sm:px-6">
+        <div>
+          <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-[#ff8fc2]">
+            <Activity aria-hidden="true" className="size-3.5" />
+            Section 4 · Recent battle tape
+          </p>
+          <h2
+            id="battle-diagnosis-title"
+            className="font-display mt-1 text-xl leading-tight sm:text-2xl"
+          >
+            What the recent matches say
+          </h2>
         </div>
 
-        {recentTrend.byMode.length > 0 ? (
-          <div className="flex snap-x gap-3 overflow-x-auto border-b-2 border-[#101631] bg-[#eaf1ff] p-4">
-            {recentTrend.byMode.map((trend) => (
-              <div
-                key={trend.mode}
-                className="min-w-40 snap-start border-2 border-[#101631] bg-white px-3 py-2 shadow-[3px_3px_0_rgba(16,22,49,0.12)]"
-              >
-                <p className="text-xs font-black text-[#155eef]">
-                  {formatMode(trend.mode)}
-                </p>
-                <p className="mt-1 text-sm font-extrabold">
-                  {trend.wins}-{trend.losses}-{trend.draws} · {trend.winRate}%
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {diagnoses.length > 0 ? (
-          <div className="divide-y-2 divide-[#101631]">
-            {diagnoses.map((diagnosis, index) => {
-              const brawler = brawlersByName.get(diagnosis.brawlerName);
-              return (
-                <article
-                  key={`${diagnosis.brawlerName}-${diagnosis.mode}-${index}`}
-                  className="p-5 sm:p-6"
-                >
-                  <div className="flex items-start gap-3">
-                    {brawler ? (
-                      <div className="portrait-stage relative size-14 shrink-0 overflow-hidden rounded-full border-2 border-[#101631]">
-                        <Image
-                          src={`https://cdn.brawlify.com/brawlers/borderless/${brawler.id}.png`}
-                          alt=""
-                          width={68}
-                          height={68}
-                          className="absolute bottom-0 left-1/2 w-16 max-w-none -translate-x-1/2"
-                        />
-                      </div>
-                    ) : (
-                      <span className="flex size-14 shrink-0 items-center justify-center rounded-full border-2 border-[#101631] bg-[#eaf1ff]">
-                        <Swords aria-hidden="true" className="size-5" />
-                      </span>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-display text-base">
-                          {diagnosis.brawlerName}
-                        </h3>
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${outcomeStyles[diagnosis.outcome]}`}
-                        >
-                          {diagnosis.outcome}
-                        </span>
-                      </div>
-                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-[#5d6681]">
-                        <span>{formatMode(diagnosis.mode)}</span>
-                        {diagnosis.map ? (
-                          <span className="inline-flex items-center gap-1">
-                            <MapPin aria-hidden="true" className="size-3" />
-                            {diagnosis.map}
-                          </span>
-                        ) : null}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="mt-4 text-sm font-semibold leading-6 text-[#3d4663]">
-                    {diagnosis.summary}
-                  </p>
-                  <p className="mt-3 border-l-4 border-[#155eef] pl-3 text-sm leading-6 text-[#3d4663]">
-                    {diagnosis.adjustment}
-                  </p>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="p-6 text-sm leading-6 text-[#5d6681]">
-            There is not enough recent battle evidence for a diagnosis yet.
-          </p>
-        )}
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <span className="font-display text-2xl text-[#ffcb2f] sm:text-3xl">
+            {recentTrend.winRate}% WR
+          </span>
+          <span className="text-xs font-extrabold text-[#aeb9d8]">
+            {recentTrend.wins}W–{recentTrend.losses}L
+            {recentTrend.draws > 0 ? `–${recentTrend.draws}D` : ""} (
+            {recentTrend.battles})
+          </span>
+          <span
+            className={`inline-flex items-center gap-1 text-xs font-black ${
+              recentTrend.netTrophies >= 0
+                ? "text-[#75e1bd]"
+                : "text-[#ff8fc2]"
+            }`}
+          >
+            {recentTrend.netTrophies >= 0 ? (
+              <TrendingUp aria-hidden="true" className="size-3.5" />
+            ) : (
+              <TrendingDown aria-hidden="true" className="size-3.5" />
+            )}
+            {recentTrend.netTrophies > 0 ? "+" : ""}
+            {recentTrend.netTrophies} trophies
+          </span>
+        </div>
       </div>
+
+      {recentTrend.byMode.length > 0 ? (
+        <div className="flex snap-x gap-2.5 overflow-x-auto border-b-2 border-[#101631] bg-[#eaf1ff] px-4 py-3 sm:px-6">
+          {recentTrend.byMode.map((trend) => (
+            <div
+              key={trend.mode}
+              className="min-w-36 snap-start border-2 border-[#101631] bg-white px-3 py-2 shadow-[2px_2px_0_rgba(16,22,49,0.12)]"
+            >
+              <p className="text-xs font-black text-[#155eef]">
+                {formatMode(trend.mode)}
+              </p>
+              <p className="mt-0.5 text-xs font-extrabold text-[#101631]">
+                {trend.wins}-{trend.losses}
+                {trend.draws > 0 ? `-${trend.draws}` : ""} · {trend.winRate}%
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {diagnoses.length > 0 ? (
+        <div className="grid divide-y-2 divide-[#101631] md:grid-cols-2 md:divide-x-2 md:divide-y-0">
+          {diagnoses.slice(0, 4).map((diagnosis, index) => {
+            const brawler = brawlersByName.get(diagnosis.brawlerName);
+            return (
+              <article
+                key={`${diagnosis.brawlerName}-${diagnosis.mode}-${index}`}
+                className="p-4 sm:p-5 [&:nth-child(n+3)]:border-t-2 [&:nth-child(n+3)]:border-[#101631]"
+              >
+                <div className="flex items-start gap-3">
+                  {brawler ? (
+                    <div className="portrait-stage relative size-12 shrink-0 overflow-hidden rounded-full border-2 border-[#101631]">
+                      <Image
+                        src={`https://cdn.brawlify.com/brawlers/borderless/${brawler.id}.png`}
+                        alt=""
+                        width={60}
+                        height={60}
+                        className="absolute bottom-0 left-1/2 w-14 max-w-none -translate-x-1/2"
+                      />
+                    </div>
+                  ) : (
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-full border-2 border-[#101631] bg-[#eaf1ff]">
+                      <Swords aria-hidden="true" className="size-4" />
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-display text-sm sm:text-base">
+                        {diagnosis.brawlerName}
+                      </h3>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${outcomeStyles[diagnosis.outcome]}`}
+                      >
+                        {diagnosis.outcome}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-bold text-[#5d6681]">
+                      <span>{formatMode(diagnosis.mode)}</span>
+                      {diagnosis.map ? (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin aria-hidden="true" className="size-3" />
+                          {diagnosis.map}
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm font-semibold leading-6 text-[#3d4663]">
+                  {diagnosis.summary}
+                </p>
+                <p className="mt-2 border-l-4 border-[#155eef] pl-3 text-xs font-bold leading-5 text-[#3d4663]">
+                  {diagnosis.adjustment}
+                </p>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="p-5 text-sm leading-6 text-[#5d6681]">
+          There is not enough recent battle evidence for a diagnosis yet.
+        </p>
+      )}
     </section>
   );
 }

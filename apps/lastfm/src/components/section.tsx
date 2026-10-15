@@ -45,9 +45,3 @@ export function PageHeader({
     </header>
   );
 }
-
-export function EmptyState({ message }: Readonly<{ message: string }>) {
-  return (
-    <p className="py-8 text-center text-sm text-muted-foreground">{message}</p>
-  );
-}

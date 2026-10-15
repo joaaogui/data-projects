@@ -1,4 +1,4 @@
-import { PulseDashboard } from "@/components/pulse/pulse-dashboard";
+import { ChannelPulse } from "@/components/pulse/channel-pulse";
 import { RecentChannels } from "@/components/recent-channels";
 import { SearchChannel } from "@/components/search-channel";
 import { YouTubeIcon } from "@/components/youtube-icon";
@@ -101,7 +101,7 @@ export default async function HomePage() {
               </div>
             </div>
 
-            <PulseDashboard />
+            <ChannelPulse />
 
             <RecentChannels />
 

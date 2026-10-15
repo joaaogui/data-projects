@@ -1,11 +1,27 @@
 import { getArtistDetail } from "@/lib/analytics/artists";
 import { withErrorHandling } from "@/lib/route-handler";
+import {
+  checkRateLimit,
+  getClientIp,
+  mergeHeaders,
+  RATE_LIMIT_PRESETS,
+  rateLimitExceededResponse,
+  withRateLimitHeaders,
+} from "@data-projects/shared";
 
 export const maxDuration = 60;
 
 export const GET = withErrorHandling<{ params: Promise<{ name: string }> }>(
   "artist-detail",
-  async (_request, { params }) => {
+  async (request, { params }) => {
+    const rateLimit = checkRateLimit(
+      `artist-detail:${getClientIp(request)}`,
+      RATE_LIMIT_PRESETS.search,
+    );
+    if (!rateLimit.success) {
+      return rateLimitExceededResponse(rateLimit);
+    }
+
     const { name } = await params;
     const artist = decodeURIComponent(name).trim();
 
@@ -19,7 +35,9 @@ export const GET = withErrorHandling<{ params: Promise<{ name: string }> }>(
     }
 
     return Response.json(detail, {
-      headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" },
+      headers: mergeHeaders(withRateLimitHeaders(rateLimit), {
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+      }),
     });
   }
 );

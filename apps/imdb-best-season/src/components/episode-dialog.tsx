@@ -15,7 +15,6 @@ import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-  TooltipProvider,
 } from "@data-projects/ui";
 import { Star, ExternalLink, AlertCircle } from "lucide-react";
 import type { EpisodeRating } from "@/types/omdb";
@@ -106,57 +105,53 @@ export function EpisodeDialog({
                   </TableCell>
                   <TableCell className="text-right">
                     {episode.rating === null ? (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex items-center gap-1 text-muted-foreground cursor-help">
-                              <AlertCircle className="h-3 w-3" />
-                              N/A
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="left" className="max-w-[220px] text-center">
-                            <p className="text-xs mb-2">
-                              Rating unavailable from APIs.
-                            </p>
-                            {episode.imdbID && (
-                              <a
-                                href={getIMDbUrl(episode.imdbID)!}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-xs text-gold hover:underline"
-                              >
-                                View on IMDb
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    ) : (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span
-                              className={`inline-flex items-center gap-1 cursor-help ${getRatingColorClass(episode.rating)}`}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex items-center gap-1 text-muted-foreground cursor-help">
+                            <AlertCircle className="h-3 w-3" />
+                            N/A
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-[220px] text-center">
+                          <p className="text-xs mb-2">
+                            Rating unavailable from APIs.
+                          </p>
+                          {episode.imdbID && (
+                            <a
+                              href={getIMDbUrl(episode.imdbID)!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-gold hover:underline"
                             >
-                              <Star className="h-3 w-3 fill-current" />
-                              {formatRating(episode.rating)}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="left" className="text-xs">
-                            <div className="space-y-1">
-                              <div className="flex justify-between gap-3">
-                                <span className="text-muted-foreground">IMDb:</span>
-                                <span>{formatRating(episode.imdbRating)}</span>
-                              </div>
-                              <div className="flex justify-between gap-3">
-                                <span className="text-muted-foreground">TMDB:</span>
-                                <span>{formatRating(episode.tmdbRating)}</span>
-                              </div>
+                              View on IMDb
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span
+                            className={`inline-flex items-center gap-1 cursor-help ${getRatingColorClass(episode.rating)}`}
+                          >
+                            <Star className="h-3 w-3 fill-current" />
+                            {formatRating(episode.rating)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="text-xs">
+                          <div className="space-y-1">
+                            <div className="flex justify-between gap-3">
+                              <span className="text-muted-foreground">IMDb:</span>
+                              <span>{formatRating(episode.imdbRating)}</span>
                             </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                            <div className="flex justify-between gap-3">
+                              <span className="text-muted-foreground">TMDB:</span>
+                              <span>{formatRating(episode.tmdbRating)}</span>
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                   </TableCell>
                 </TableRow>

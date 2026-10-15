@@ -1,27 +1,30 @@
 "use client";
 
-import {
-  BadgeCheck,
-  Clock3,
-  Gamepad2,
-  LockKeyhole,
-  RefreshCw,
-  ShieldAlert,
-  Sparkles,
-  Target,
-  Trophy,
-  Users,
-  Zap,
-} from "lucide-react";
+import { Ban, LockKeyhole, Pin, Sparkles, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
-import type { AnalysisResponse, PowerDistributionEntry } from "@/lib/types";
+import {
+  clearBrawlerRules,
+  computeProgressionSummary,
+  createSnapshotFromAnalysis,
+  emptyProgressionLedger,
+  hasPreferences,
+  loadProgressionLedger,
+  recordAnalysisInLedger,
+  saveProgressionLedger,
+  toggleExcludedBrawler,
+  togglePinnedBrawler,
+  type ProgressionLedger,
+} from "@/lib/progression-store";
+import type { AnalysisResponse } from "@/lib/types";
 
 import { AnalysisError } from "./analysis-error";
 import { BattleDiagnosis } from "./battle-diagnosis";
-import { BuildAdvice } from "./build-advice";
+import { ProgressionCard } from "./progression-card";
 import { PushTargets } from "./push-targets";
+import { RosterLabDetails } from "./roster-lab-details";
+import { StatusStrip } from "./status-strip";
 import { UpgradePriorities } from "./upgrade-priorities";
 
 type DashboardState =
@@ -36,25 +39,21 @@ interface ErrorPayload {
   };
 }
 
-const numberFormatter = new Intl.NumberFormat("en-US");
+function nameKey(name: string): string {
+  return name.trim().toLocaleUpperCase().replace(/[^A-Z0-9]/g, "");
+}
 
-function CoachHeader({
-  onRefresh,
-  isRefreshing = false,
-}: {
-  onRefresh?: () => void;
-  isRefreshing?: boolean;
-}) {
+function CoachHeader() {
   return (
     <header className="border-b-2 border-[#101631] bg-white">
-      <div className="mx-auto flex w-full max-w-[1460px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-10">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <Image
             src="/brawl-mark.svg"
             alt=""
-            width={46}
-            height={46}
-            className="size-11 shrink-0"
+            width={40}
+            height={40}
+            className="size-10 shrink-0"
             priority
           />
           <div className="min-w-0">
@@ -62,33 +61,16 @@ function CoachHeader({
               Brawl Account Coach
             </p>
             <p className="mt-0.5 text-xs font-extrabold text-[#3d4663]">
-              Personal sample for #Y0GLCU0GL · not a public lookup
+              Personal dossier for #Y0GLCU0GL
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden items-center gap-2 border-2 border-[#101631] bg-[#fff8db] px-3 py-1.5 text-xs font-black shadow-[3px_3px_0_#101631] sm:flex">
-            <Clock3 aria-hidden="true" className="size-3.5 text-[#a36f00]" />
-            Refreshes every 30 minutes
-          </div>
-          {onRefresh ? (
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className="arcade-focus inline-flex min-h-10 items-center justify-center gap-2 border-2 border-[#101631] bg-white px-3.5 py-1.5 text-xs font-black text-[#101631] shadow-[3px_3px_0_#101631] transition-transform hover:bg-[#f7f9ff] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#101631] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <RefreshCw
-                aria-hidden="true"
-                className={[
-                  "size-3.5 text-[#155eef]",
-                  isRefreshing ? "animate-spin" : "",
-                ].join(" ")}
-              />
-              {isRefreshing ? "Refreshing" : "Refresh dossier"}
-            </button>
-          ) : null}
-        </div>
+        <a
+          href="https://joaog.space"
+          className="arcade-focus inline-flex min-h-10 shrink-0 items-center border-2 border-[#101631] bg-[#f7f9ff] px-3 py-1.5 text-xs font-black text-[#101631] transition-colors hover:bg-[#eaf1ff]"
+        >
+          ← joaog.space
+        </a>
       </div>
     </header>
   );
@@ -98,163 +80,136 @@ function LoadingDashboard() {
   return (
     <>
       <CoachHeader />
-      <main id="main-content" className="mx-auto w-full max-w-[1460px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+      <main
+        id="main-content"
+        className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
+      >
         <section
           aria-live="polite"
           aria-busy="true"
-          className="arcade-panel overflow-hidden rounded-[1.4rem_0.4rem_1.4rem_0.4rem]"
+          className="arcade-panel overflow-hidden rounded-[1.2rem_0.35rem_1.2rem_0.35rem] p-5 sm:p-6"
         >
-          <div className="dossier-stripe h-4" />
-          <div className="grid lg:grid-cols-[minmax(0,1.35fr)_minmax(21rem,0.65fr)]">
-            <div className="p-6 sm:p-10 lg:p-12">
-              <span className="flex size-12 items-center justify-center border-2 border-[#101631] bg-[#eaf1ff] shadow-[3px_3px_0_#101631]">
-                <Sparkles
-                  aria-hidden="true"
-                  className="size-6 text-[#155eef]"
-                />
-              </span>
-              <p className="mt-7 text-sm font-black text-[#155eef]">
-                Building the account dossier
+          <div className="flex items-center gap-3.5">
+            <span className="flex size-11 shrink-0 items-center justify-center border-2 border-[#101631] bg-[#eaf1ff] shadow-[2px_2px_0_#101631]">
+              <Sparkles aria-hidden="true" className="size-5 text-[#155eef]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-black uppercase tracking-wide text-[#155eef]">
+                Building account dossier
               </p>
-              <h1 className="font-display mt-3 max-w-3xl text-3xl leading-tight sm:text-5xl">
-                Reading the roster, builds, and recent battles.
+              <h1 className="font-display mt-1 text-lg leading-tight sm:text-2xl">
+                Reading roster, owned builds, and recent battles…
               </h1>
-              <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
-                {["Roster power", "Trophy value", "Battle trends"].map(
-                  (label) => (
-                    <div
-                      key={label}
-                      className="border-2 border-[#d7def0] bg-white p-3"
-                    >
-                      <div className="loading-block h-3 w-3/5" />
-                      <p className="mt-3 text-xs font-extrabold text-[#5d6681]">
-                        {label}
-                      </p>
-                    </div>
-                  ),
-                )}
-              </div>
-            </div>
-            <div className="blueprint-panel flex min-h-80 items-center justify-center border-t-2 border-[#101631] p-8 lg:border-l-2 lg:border-t-0">
-              <div className="score-burst loading-block size-52" />
             </div>
           </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-4">
+            {["Trophies", "Recent form", "Roster unlock", "Coach score"].map(
+              (label) => (
+                <div
+                  key={label}
+                  className="border-2 border-[#d7def0] bg-white p-3"
+                >
+                  <div className="loading-block h-4 w-3/5" />
+                  <p className="mt-2 text-xs font-extrabold text-[#5d6681]">
+                    {label}
+                  </p>
+                </div>
+              ),
+            )}
+          </div>
         </section>
-        <div className="mt-10 grid gap-5 md:grid-cols-2">
-          {Array.from({ length: 4 }, (_, index) => (
-            <div
-              key={index}
-              className="arcade-panel grid grid-cols-[7rem_1fr] overflow-hidden p-4"
-            >
-              <div className="loading-block h-28" />
-              <div className="space-y-3 p-3">
-                <div className="loading-block h-4 w-2/3" />
-                <div className="loading-block h-3 w-full" />
-                <div className="loading-block h-3 w-4/5" />
-              </div>
-            </div>
-          ))}
-        </div>
       </main>
     </>
   );
 }
 
-interface StatProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}
-
-function Stat({ icon, label, value }: StatProps) {
-  return (
-    <div className="px-4 py-4 sm:px-5">
-      <dt className="flex items-center gap-1.5 text-xs font-extrabold text-[#3d4663]">
-        {icon}
-        {label}
-      </dt>
-      <dd className="mt-1 text-lg font-black tabular-nums text-[#101631] sm:text-xl">
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-function PowerDistribution({
-  distribution,
+function RuleChip({
+  kind,
+  brawlerName,
+  onRemove,
 }: {
-  distribution: PowerDistributionEntry[];
+  kind: "pin" | "skip";
+  brawlerName: string;
+  onRemove: (brawlerName: string) => void;
 }) {
-  const maxCount = Math.max(...distribution.map((entry) => entry.count), 1);
+  const isPin = kind === "pin";
+  const Icon = isPin ? Pin : Ban;
 
   return (
-    <section aria-labelledby="power-distribution-title" className="p-5 sm:p-7">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm font-extrabold text-[#155eef]">Roster lab</p>
-          <h2
-            id="power-distribution-title"
-            className="font-display mt-1 text-xl sm:text-2xl"
-          >
-            Power distribution
-          </h2>
-        </div>
-        <p className="text-xs font-bold text-[#5d6681]">
-          Owned brawlers by power level
-        </p>
-      </div>
-      <div className="mt-5 space-y-2.5">
-        {[...distribution].reverse().map((entry) => (
-          <div
-            key={entry.power}
-            className="grid grid-cols-[3rem_minmax(0,1fr)_3.5rem] items-center gap-3"
-          >
-            <span className="font-display text-xs">P{entry.power}</span>
-            <div className="h-4 overflow-hidden border-2 border-[#101631] bg-white">
-              <div
-                className={
-                  entry.power === 11
-                    ? "h-full bg-[#f42f8c]"
-                    : entry.power >= 9
-                      ? "h-full bg-[#155eef]"
-                      : "h-full bg-[#ffcb2f]"
-                }
-                style={{ width: `${(entry.count / maxCount) * 100}%` }}
-              />
-            </div>
-            <span className="text-right text-xs font-black">
-              {entry.count}{" "}
-              <span className="text-[#707a97]">({entry.percentage}%)</span>
-            </span>
-          </div>
-        ))}
-      </div>
-    </section>
+    <li>
+      <button
+        type="button"
+        onClick={() => onRemove(brawlerName)}
+        aria-label={`Remove ${isPin ? "focus" : "hide"} rule for ${brawlerName}`}
+        className={[
+          "arcade-focus inline-flex min-h-11 items-center gap-1.5 border-2 border-[#101631] px-3 text-xs font-black transition-colors",
+          isPin
+            ? "bg-[#eaf1ff] text-[#155eef] hover:bg-[#dbe7ff]"
+            : "bg-[#fff0f7] text-[#a51458] hover:bg-[#ffe0ee]",
+        ].join(" ")}
+      >
+        <Icon aria-hidden="true" className="size-3.5" />
+        {isPin ? "Focused:" : "Hidden:"} {brawlerName}
+        <X aria-hidden="true" className="size-3.5 opacity-75" />
+      </button>
+    </li>
   );
 }
 
 export function AccountDashboard() {
-  const [requestKey, setRequestKey] = useState(0);
+  const [request, setRequest] = useState({ id: 0, refresh: false });
+  const [ledger, setLedger] = useState<ProgressionLedger>(() =>
+    loadProgressionLedger(),
+  );
   const [state, setState] = useState<DashboardState>({ status: "loading" });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    setState({ status: "loading" });
 
     async function loadAnalysis() {
+      if (request.refresh) {
+        setIsRefreshing(true);
+        setRefreshNotice(null);
+      }
+
       try {
-        const response = await fetch("/api/analysis", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
+        const saved = loadProgressionLedger();
+        const usePost = request.refresh || hasPreferences(saved);
+        const response = usePost
+          ? await fetch(
+              request.refresh ? "/api/analysis?refresh=1" : "/api/analysis",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  refresh: request.refresh,
+                  pinnedBrawlers: saved.pinnedBrawlers,
+                  excludedBrawlers: saved.excludedBrawlers,
+                }),
+                cache: "no-store",
+                signal: controller.signal,
+              },
+            )
+          : await fetch("/api/analysis", {
+              cache: "no-store",
+              signal: controller.signal,
+            });
+
         const payload = (await response.json()) as
           | AnalysisResponse
           | ErrorPayload;
 
         if (!response.ok) {
           const error = (payload as ErrorPayload).error;
+          if (request.refresh && response.status === 429) {
+            setRefreshNotice(
+              error?.message ??
+                "Too many refreshes. A fresh dossier is available every few minutes.",
+            );
+            return;
+          }
           setState({
             status: "error",
             code: error?.code ?? "ANALYSIS_FAILED",
@@ -265,76 +220,53 @@ export function AccountDashboard() {
           return;
         }
 
-        setState({
-          status: "ready",
-          data: payload as AnalysisResponse,
-        });
+        const data = payload as AnalysisResponse;
+        const updatedLedger = recordAnalysisInLedger(
+          loadProgressionLedger(),
+          data,
+        );
+        saveProgressionLedger(updatedLedger);
+        setLedger(updatedLedger);
+        setState({ status: "ready", data });
       } catch (error) {
         if (controller.signal.aborted) {
           return;
         }
-        setState({
-          status: "error",
-          code: "NETWORK_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : "The account analysis could not be loaded.",
-        });
+        const message =
+          error instanceof Error
+            ? error.message
+            : "The account analysis could not be loaded.";
+        if (request.refresh) {
+          setRefreshNotice(message);
+        } else {
+          setState({ status: "error", code: "NETWORK_ERROR", message });
+        }
+      } finally {
+        if (request.refresh) {
+          setIsRefreshing(false);
+        }
       }
     }
 
     void loadAnalysis();
     return () => controller.abort();
-  }, [requestKey]);
+  }, [request]);
 
-  async function refreshDossier() {
-    if (isRefreshing) {
+  function applyUpdatedLedger(nextLedger: ProgressionLedger) {
+    saveProgressionLedger(nextLedger);
+    setLedger(nextLedger);
+    setRequest((current) => ({ id: current.id + 1, refresh: false }));
+  }
+
+  function handleClearHistory() {
+    if (
+      !window.confirm(
+        "Clear saved progression snapshots and brawler rules from this browser?",
+      )
+    ) {
       return;
     }
-    setIsRefreshing(true);
-    setRefreshNotice(null);
-
-    try {
-      const response = await fetch("/api/analysis?refresh=1", {
-        cache: "no-store",
-      });
-      const payload = (await response.json()) as
-        | AnalysisResponse
-        | ErrorPayload;
-
-      if (!response.ok) {
-        const error = (payload as ErrorPayload).error;
-        if (response.status === 429) {
-          setRefreshNotice(
-            error?.message ??
-              "Too many refreshes. A fresh dossier is available every few minutes.",
-          );
-          return;
-        }
-        setState({
-          status: "error",
-          code: error?.code ?? "ANALYSIS_FAILED",
-          message:
-            error?.message ??
-            "The server could not complete the account analysis.",
-        });
-        return;
-      }
-
-      setState({
-        status: "ready",
-        data: payload as AnalysisResponse,
-      });
-    } catch (error) {
-      setRefreshNotice(
-        error instanceof Error
-          ? error.message
-          : "Could not refresh the dossier right now.",
-      );
-    } finally {
-      setIsRefreshing(false);
-    }
+    applyUpdatedLedger(emptyProgressionLedger());
   }
 
   if (state.status === "loading") {
@@ -348,325 +280,227 @@ export function AccountDashboard() {
         <AnalysisError
           code={state.code}
           message={state.message}
-          onRetry={() => setRequestKey((value) => value + 1)}
+          onRetry={() => {
+            setState({ status: "loading" });
+            setRequest((current) => ({ id: current.id + 1, refresh: false }));
+          }}
         />
       </>
     );
   }
 
   const { analysis, generatedAt, metrics, player } = state.data;
-  const heroBrawlers = [...player.brawlers]
-    .sort((left, right) => right.trophies - left.trophies)
-    .slice(0, 3);
-  const refreshedAt = new Date(generatedAt).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const totalVictories =
-    player["3vs3Victories"] + player.soloVictories + player.duoVictories;
+  const currentSnapshot = createSnapshotFromAnalysis(state.data);
+  const progressionSummary = computeProgressionSummary(
+    ledger.snapshots,
+    currentSnapshot,
+  );
+
+  const upgradeKeys = new Set(
+    analysis.upgradePriorities.map((item) => nameKey(item.brawlerName)),
+  );
+  const standalonePushTargets = analysis.pushTargets.filter(
+    (target) => !upgradeKeys.has(nameKey(target.brawlerName)),
+  );
+  const shownBuildKeys = new Set([
+    ...upgradeKeys,
+    ...analysis.pushTargets.map((item) => nameKey(item.brawlerName)),
+  ]);
+  const remainingBuilds = analysis.buildAdvice.filter(
+    (build) => !shownBuildKeys.has(nameKey(build.brawlerName)),
+  );
+  const hasActiveRules = hasPreferences(ledger);
 
   return (
     <>
-      <CoachHeader onRefresh={refreshDossier} isRefreshing={isRefreshing} />
+      <CoachHeader />
       <main
         id="main-content"
-        className="mx-auto w-full max-w-[1460px] px-4 pb-16 pt-7 sm:px-6 lg:px-10 lg:pb-24 lg:pt-10"
+        className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-14 pt-6 sm:px-6 lg:space-y-8 lg:px-8 lg:pt-8"
       >
         {refreshNotice ? (
           <div
             role="status"
             aria-live="polite"
-            className="mb-6 border-2 border-[#101631] bg-[#fff8db] px-4 py-3 text-xs font-extrabold text-[#101631] shadow-[3px_3px_0_#101631]"
+            className="border-2 border-[#101631] bg-[#fff8db] px-4 py-3 text-xs font-extrabold text-[#101631] shadow-[3px_3px_0_#101631]"
           >
             {refreshNotice}
           </div>
         ) : null}
-        <div className="space-y-12 lg:space-y-16">
-          <section className="arcade-panel overflow-hidden rounded-[1.4rem_0.4rem_1.4rem_0.4rem]">
-            <div className="dossier-stripe h-4" />
-            <div className="grid lg:grid-cols-[minmax(0,1.35fr)_minmax(21rem,0.65fr)]">
-              <div>
-                <div className="relative overflow-hidden p-6 sm:p-9 lg:p-11">
-                  <div
-                    aria-hidden="true"
-                    className="absolute -right-16 -top-20 size-64 rounded-full border-[34px] border-[#155eef]/5"
-                  />
-                  <div className="relative">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="border-2 border-[#101631] bg-[#155eef] px-3 py-1 text-xs font-black text-white">
-                        {player.tag}
-                      </span>
-                      <span className="border-2 border-[#101631] bg-[#ffcb2f] px-3 py-1 text-xs font-black">
-                        {player.club?.name ?? "No club"}
-                      </span>
-                      <span className="border-2 border-[#101631] bg-white px-3 py-1 text-xs font-black text-[#101631]">
-                        Personal sample
-                      </span>
-                    </div>
-                    <h1 className="font-display mt-6 max-w-4xl text-[clamp(2.5rem,7vw,5.6rem)] leading-[0.98] tracking-[-0.03em]">
-                      {player.name}
-                    </h1>
-                    <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-[#3d4663] sm:text-lg">
-                      A live progression brief built from the full roster,
-                      owned loadouts, and the latest battle log.
-                    </p>
-                  </div>
-                </div>
 
-                <dl className="grid grid-cols-2 border-t-2 border-[#101631] [&>div:nth-child(even)]:border-l-2 [&>div:nth-child(even)]:border-[#101631] [&>div:nth-child(n+3)]:border-t-2 [&>div:nth-child(n+3)]:border-[#101631] sm:grid-cols-4 sm:[&>div:nth-child(n+2)]:border-l-2 sm:[&>div:nth-child(n+3)]:border-t-0">
-                  <Stat
-                    icon={<Trophy aria-hidden="true" className="size-3.5" />}
-                    label="Trophies"
-                    value={numberFormatter.format(player.trophies)}
-                  />
-                  <Stat
-                    icon={<Target aria-hidden="true" className="size-3.5" />}
-                    label="Highest"
-                    value={numberFormatter.format(player.highestTrophies)}
-                  />
-                  <Stat
-                    icon={<Gamepad2 aria-hidden="true" className="size-3.5" />}
-                    label="Victories"
-                    value={numberFormatter.format(totalVictories)}
-                  />
-                  <Stat
-                    icon={<Users aria-hidden="true" className="size-3.5" />}
-                    label="3v3 wins"
-                    value={numberFormatter.format(player["3vs3Victories"])}
-                  />
-                </dl>
-              </div>
+        {/* Section 1 — Compact Status Strip */}
+        <StatusStrip
+          player={player}
+          metrics={metrics}
+          health={analysis.health}
+          generatedAt={generatedAt}
+          isRefreshing={isRefreshing}
+          onRefresh={() =>
+            setRequest((current) => ({ id: current.id + 1, refresh: true }))
+          }
+        />
 
-              <aside className="blueprint-panel relative flex flex-col justify-between overflow-hidden border-t-2 border-[#101631] p-6 sm:p-8 lg:border-l-2 lg:border-t-0">
-                <div className="relative z-10 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-black text-[#155eef]">
-                      Account health
-                    </p>
-                    <p className="font-display mt-1 text-xl">Coach score</p>
-                  </div>
-                  <BadgeCheck
-                    aria-hidden="true"
-                    className="size-7 text-[#155eef]"
-                  />
-                </div>
-                <div className="relative z-10 my-5 flex justify-center">
-                  <div className="score-burst flex size-52 flex-col items-center justify-center bg-[#ffcb2f] text-center drop-shadow-[7px_8px_0_rgba(16,22,49,0.18)] sm:size-60">
-                    <span className="font-display text-7xl leading-none sm:text-8xl">
-                      {analysis.health.score}
-                    </span>
-                    <span className="mt-1 text-xs font-black">out of 100</span>
-                  </div>
-                </div>
-                <p className="relative z-10 border-l-4 border-[#f42f8c] bg-white/90 p-3 text-sm font-bold leading-6 text-[#3d4663]">
-                  {analysis.health.verdict}
-                </p>
-                <dl className="relative z-10 mt-4 grid grid-cols-2 gap-2">
-                  <div className="border-2 border-[#101631] bg-white/95 p-2.5">
-                    <dt className="text-[11px] font-extrabold uppercase tracking-wide text-[#3d4663]">
-                      Roster power
-                    </dt>
-                    <dd className="mt-1 font-display text-lg tabular-nums text-[#101631]">
-                      {
-                        metrics.powerDistribution.find(
-                          (entry) => entry.power === 11,
-                        )?.percentage ?? 0
-                      }
-                      % at P11
-                    </dd>
-                  </div>
-                  <div className="border-2 border-[#101631] bg-white/95 p-2.5">
-                    <dt className="text-[11px] font-extrabold uppercase tracking-wide text-[#3d4663]">
-                      Trophy keep
-                    </dt>
-                    <dd className="mt-1 font-display text-lg tabular-nums text-[#101631]">
-                      {metrics.trophyEfficiency.peakRetentionPercentage}%
-                    </dd>
-                  </div>
-                  <div className="border-2 border-[#101631] bg-white/95 p-2.5">
-                    <dt className="text-[11px] font-extrabold uppercase tracking-wide text-[#3d4663]">
-                      Recent form
-                    </dt>
-                    <dd className="mt-1 font-display text-lg tabular-nums text-[#101631]">
-                      {metrics.recentTrend.winRate}% WR
-                    </dd>
-                  </div>
-                  <div className="border-2 border-[#101631] bg-white/95 p-2.5">
-                    <dt className="text-[11px] font-extrabold uppercase tracking-wide text-[#3d4663]">
-                      Roster unlock
-                    </dt>
-                    <dd className="mt-1 font-display text-lg tabular-nums text-[#101631]">
-                      {metrics.rosterCompletion.percentage}%
-                    </dd>
-                  </div>
-                </dl>
-                <p className="relative z-10 mt-3 text-xs font-bold leading-5 text-[#3d4663]">
-                  Live signals that feed the coach score — a heuristic, not a
-                  predicted win rate.
-                </p>
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-32 items-end justify-center overflow-hidden opacity-25">
-                  {heroBrawlers.map((brawler, index) => (
-                    <Image
-                      key={brawler.id}
-                      src={`https://cdn.brawlify.com/brawlers/borderless/${brawler.id}.png`}
-                      alt=""
-                      width={130}
-                      height={130}
-                      className="-mx-4 w-28"
-                      style={{ zIndex: heroBrawlers.length - index }}
-                    />
-                  ))}
-                </div>
-              </aside>
-            </div>
+        {/* Section 2 — Progress Since Last Check-In */}
+        <ProgressionCard
+          summary={progressionSummary}
+          snapshotCount={ledger.snapshots.length}
+          currentTrophies={player.trophies}
+          ownedCount={metrics.rosterCompletion.owned}
+          onClearHistory={handleClearHistory}
+        />
 
-            <div className="grid border-t-2 border-[#101631] lg:grid-cols-[minmax(0,1fr)_18rem]">
-              <PowerDistribution distribution={metrics.powerDistribution} />
-              <div className="flex flex-col justify-center border-t-2 border-[#101631] bg-[#101631] p-5 text-white lg:border-l-2 lg:border-t-0">
-                <p className="text-xs font-extrabold text-[#aeb9d8]">
-                  Roster coverage
-                </p>
-                <p className="font-display mt-2 text-4xl text-[#ffcb2f]">
-                  {metrics.rosterCompletion.owned}/
-                  {metrics.rosterCompletion.total}
-                </p>
-                <p className="mt-1 text-sm font-bold">
-                  {metrics.rosterCompletion.percentage}% unlocked
-                </p>
-                <div className="mt-4 h-3 overflow-hidden border-2 border-white bg-[#343d5b]">
-                  <div
-                    className="h-full bg-[#f42f8c]"
-                    style={{
-                      width: `${metrics.rosterCompletion.percentage}%`,
-                    }}
-                  />
-                </div>
-                <p className="mt-5 text-xs leading-5 text-[#aeb9d8]">
-                  {metrics.trophyEfficiency.peakRetentionPercentage}% of
-                  combined brawler peak trophies retained.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <div className="flex flex-col gap-3 border-2 border-[#101631] bg-white p-3 shadow-[4px_4px_0_rgba(16,22,49,0.1)] sm:flex-row sm:items-center sm:justify-between">
-            <p className="flex items-center gap-2 text-sm font-black text-[#3d4663]">
-              <Clock3
-                aria-hidden="true"
-                className="size-4 text-[#155eef]"
-              />
-              Snapshot generated at {refreshedAt}
+        {/* Section 3 — What to Do Next */}
+        <section
+          aria-labelledby="next-steps-title"
+          className="arcade-panel overflow-hidden rounded-[1.2rem_0.35rem_1.2rem_0.35rem]"
+        >
+          <div className="border-b-2 border-[#101631] bg-[#155eef] px-5 py-4 text-white sm:px-6">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-[#cbdcff]">
+              Section 3 · Actionable priorities
             </p>
-            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#3d4663]">
-              <Zap aria-hidden="true" className="size-3.5 text-[#f42f8c]" />
-              Complete analysis cached for 30 minutes
-            </span>
+            <h2
+              id="next-steps-title"
+              className="font-display mt-1 text-xl sm:text-2xl"
+            >
+              What to do next
+            </h2>
           </div>
 
-          <section
-            aria-labelledby="action-plan-title"
-            className="arcade-panel overflow-hidden rounded-[1.2rem_0.35rem_1.2rem_0.35rem]"
-          >
-            <div className="border-b-2 border-[#101631] bg-[#155eef] p-5 text-white sm:p-6">
-              <p className="text-sm font-extrabold text-[#cbdcff]">
-                Next session
-              </p>
-              <h2
-                id="action-plan-title"
-                className="font-display mt-2 text-2xl"
-              >
-                Three-step action plan
-              </h2>
-            </div>
-            <ol className="grid divide-y-2 divide-[#101631] md:grid-cols-3 md:divide-x-2 md:divide-y-0">
-              {analysis.actionPlan.map((step, index) => (
-                <li key={step.title} className="p-5 sm:p-6">
-                  <span className="font-display flex size-10 items-center justify-center rounded-full border-2 border-[#101631] bg-[#ffcb2f] text-lg shadow-[3px_3px_0_#101631]">
+          <ol className="grid divide-y-2 divide-[#101631] border-b-2 border-[#101631] bg-[#f7f9ff] md:grid-cols-3 md:divide-x-2 md:divide-y-0">
+            {analysis.actionPlan.map((step, index) => (
+              <li key={step.title} className="p-4 sm:p-5">
+                <div className="flex items-center gap-2.5">
+                  <span className="font-display flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-[#101631] bg-[#ffcb2f] text-sm text-[#101631] shadow-[2px_2px_0_#101631]">
                     {index + 1}
                   </span>
-                  <h3 className="font-display mt-5 text-base leading-snug text-[#101631]">
+                  <h3 className="font-display text-sm leading-snug text-[#101631] sm:text-base">
                     {step.title}
                   </h3>
-                  <p className="mt-2 text-sm leading-6 text-[#3d4663]">
-                    {step.detail}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          </section>
+                </div>
+                <p className="mt-2 text-xs font-semibold leading-5 text-[#3d4663] sm:text-sm">
+                  {step.detail}
+                </p>
+              </li>
+            ))}
+          </ol>
 
-          <UpgradePriorities
-            priorities={analysis.upgradePriorities}
-            brawlers={player.brawlers}
-          />
+          {hasActiveRules ? (
+            <div className="border-b-2 border-[#101631] bg-white px-5 py-3.5 sm:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-black uppercase tracking-wide text-[#5d6681]">
+                  Active brawler rules
+                </p>
+                <button
+                  type="button"
+                  onClick={() => applyUpdatedLedger(clearBrawlerRules(ledger))}
+                  className="arcade-focus inline-flex min-h-11 items-center px-2 text-xs font-black text-[#155eef] hover:underline"
+                >
+                  Clear all rules
+                </button>
+              </div>
+              <ul
+                aria-label="Pinned and hidden brawlers"
+                className="mt-2 flex flex-wrap gap-2.5"
+              >
+                {ledger.pinnedBrawlers.map((name) => (
+                  <RuleChip
+                    key={`pin-${name}`}
+                    kind="pin"
+                    brawlerName={name}
+                    onRemove={(brawlerName) =>
+                      applyUpdatedLedger(
+                        togglePinnedBrawler(ledger, brawlerName),
+                      )
+                    }
+                  />
+                ))}
+                {ledger.excludedBrawlers.map((name) => (
+                  <RuleChip
+                    key={`skip-${name}`}
+                    kind="skip"
+                    brawlerName={name}
+                    onRemove={(brawlerName) =>
+                      applyUpdatedLedger(
+                        toggleExcludedBrawler(ledger, brawlerName),
+                      )
+                    }
+                  />
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
-          <PushTargets
-            targets={analysis.pushTargets}
-            brawlers={player.brawlers}
-          />
+          <div className="space-y-8 p-5 sm:p-6">
+            <UpgradePriorities
+              priorities={analysis.upgradePriorities}
+              brawlers={player.brawlers}
+              builds={analysis.buildAdvice}
+              pushTargets={analysis.pushTargets}
+              pinnedBrawlers={ledger.pinnedBrawlers}
+              excludedBrawlers={ledger.excludedBrawlers}
+              onTogglePin={(brawlerName) =>
+                applyUpdatedLedger(togglePinnedBrawler(ledger, brawlerName))
+              }
+              onToggleExclude={(brawlerName) =>
+                applyUpdatedLedger(toggleExcludedBrawler(ledger, brawlerName))
+              }
+            />
 
-          <BuildAdvice
-            builds={analysis.buildAdvice}
-            brawlers={player.brawlers}
-          />
+            {standalonePushTargets.length > 0 ||
+            analysis.pushTargets.length === 0 ? (
+              <PushTargets
+                targets={standalonePushTargets}
+                brawlers={player.brawlers}
+                builds={analysis.buildAdvice}
+                pinnedBrawlers={ledger.pinnedBrawlers}
+                excludedBrawlers={ledger.excludedBrawlers}
+                onTogglePin={(brawlerName) =>
+                  applyUpdatedLedger(togglePinnedBrawler(ledger, brawlerName))
+                }
+                onToggleExclude={(brawlerName) =>
+                  applyUpdatedLedger(toggleExcludedBrawler(ledger, brawlerName))
+                }
+              />
+            ) : null}
+          </div>
+        </section>
 
+        {/* Section 4 — Recent Battle Tape + Collapsed Details Drawer */}
+        <div className="space-y-4">
           <BattleDiagnosis
             diagnoses={analysis.battleDiagnosis}
             recentTrend={metrics.recentTrend}
             brawlers={player.brawlers}
           />
 
-          <section
-            aria-labelledby="avoid-title"
-            className="arcade-panel overflow-hidden rounded-[1.2rem_0.35rem_1.2rem_0.35rem]"
-          >
-            <div className="border-b-2 border-[#101631] bg-[#fff0f7] p-5 sm:p-6">
-              <p className="flex items-center gap-2 text-sm font-extrabold text-[#a51458]">
-                <ShieldAlert aria-hidden="true" className="size-4" />
-                Resource guardrail
-              </p>
-              <h2 id="avoid-title" className="font-display mt-2 text-2xl">
-                Avoid for now
-              </h2>
-            </div>
-            {analysis.avoidForNow.length > 0 ? (
-              <ul className="divide-y-2 divide-[#101631]">
-                {analysis.avoidForNow.map((investment) => (
-                  <li
-                    key={investment.brawlerName}
-                    className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 p-5"
-                  >
-                    <span className="flex size-9 items-center justify-center rounded-full border-2 border-[#101631] bg-[#f42f8c] font-black text-white">
-                      !
-                    </span>
-                    <div>
-                      <h3 className="font-display text-base text-[#101631]">
-                        {investment.brawlerName}
-                      </h3>
-                      <p className="mt-1 text-sm leading-6 text-[#3d4663]">
-                        {investment.reason}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="p-6 text-sm leading-6 text-[#3d4663]">
-                No low-value investment stands out in this snapshot.
-              </p>
-            )}
-          </section>
+          <RosterLabDetails
+            powerDistribution={metrics.powerDistribution}
+            rosterCompletion={metrics.rosterCompletion}
+            trophyEfficiency={metrics.trophyEfficiency}
+            remainingBuilds={remainingBuilds}
+            avoidForNow={analysis.avoidForNow}
+            brawlers={player.brawlers}
+          />
         </div>
 
-        <footer className="mt-16 flex flex-col gap-3 border-t-2 border-[#101631] py-6 text-xs font-bold text-[#3d4663] sm:flex-row sm:items-center sm:justify-between">
+        <footer className="mt-10 flex flex-col gap-3 border-t-2 border-[#101631] pt-6 text-xs font-bold text-[#3d4663] sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-center gap-2">
             <LockKeyhole
               aria-hidden="true"
               className="size-4 text-[#155eef]"
             />
-            Brawl Stars and AI provider credentials stay server-only.
+            Brawl Stars and AI credentials stay server-only; progression history
+            is stored locally in your browser.
           </span>
-          <span>Personal sample for {player.tag}</span>
+          <div className="flex items-center gap-4">
+            <span>Personal sample for {player.tag}</span>
+            <a
+              href="https://joaog.space"
+              className="arcade-focus font-black text-[#155eef] hover:underline"
+            >
+              ← joaog.space
+            </a>
+          </div>
         </footer>
       </main>
     </>

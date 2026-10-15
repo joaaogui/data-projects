@@ -1,12 +1,6 @@
-export function formatCompact(num: number): string {
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-  return num.toLocaleString("en-US");
-}
+import { formatCompact, formatNumber } from "@data-projects/shared";
 
-export function formatNumber(num: number): string {
-  return num.toLocaleString("en-US");
-}
+export { formatCompact, formatNumber };
 
 export function getAgeLabel(days: number): string {
   if (days === 0) return "Today";

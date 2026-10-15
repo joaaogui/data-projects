@@ -1,4 +1,3 @@
-import type { fetchChannelPlaylists } from "@/services/channel-client";
 import type { Saga, VideoData } from "@/types/youtube";
 
 export const BATCH_SIZE = 30;
@@ -66,39 +65,6 @@ export function buildRunContext(
     }
   }
   return { overlapContext, batchVideos };
-}
-
-export function buildPlaylistSagas(
-  playlists: Awaited<ReturnType<typeof fetchChannelPlaylists>>,
-  videos: VideoData[]
-): Saga[] {
-  const videoMap = new Map(videos.map((v) => [v.videoId, v]));
-  const sagas: Saga[] = [];
-
-  for (const pl of playlists) {
-    const matchedIds = pl.videoIds.filter((id) => videoMap.has(id));
-    if (matchedIds.length === 0) continue;
-
-    const dates = matchedIds
-      .map((id) => videoMap.get(id)!.publishedAt)
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
-
-    sagas.push({
-      id: `playlist-${pl.playlistId}`,
-      name: pl.title,
-      source: "playlist",
-      playlistId: pl.playlistId,
-      videoIds: matchedIds,
-      videoCount: matchedIds.length,
-      dateRange: {
-        first: dates[0] ?? "",
-        last: dates.at(-1) ?? "",
-      },
-    });
-  }
-
-  return sagas;
 }
 
 export function createBatches(videos: VideoData[]): VideoData[][] {
