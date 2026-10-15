@@ -1,153 +1,155 @@
-import { ArrowRight, Ban, Crosshair, Lock, Wrench } from "lucide-react";
+import { ArrowRight, Ban, Crosshair, Lock } from "lucide-react";
 import Image from "next/image";
 
-import type { DeckAnalysis } from "@/lib/schemas";
-import type { ClashCard, Player } from "@/lib/types";
+import type { CardSwap } from "@/lib/schemas";
+import type { ClashCard } from "@/lib/types";
 
 interface SwapListProps {
-  changes: DeckAnalysis["changes"];
-  player: Player;
-  onKeepOutgoing?: (cardName: string) => void;
-  onRejectIncoming?: (cardName: string) => void;
+  changes: CardSwap[];
+  cardsByName: Map<string, ClashCard>;
+  lockedCards: string[];
+  excludedCards: string[];
+  onToggleLock: (cardName: string) => void;
+  onToggleExclude: (cardName: string) => void;
 }
 
-function MiniCard({
+function SwapCard({
+  name,
   card,
   direction,
 }: {
-  card: ClashCard;
+  name: string;
+  card?: ClashCard;
   direction: "out" | "in";
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2.5">
       <div
         className={[
-          "relative size-14 shrink-0 overflow-hidden rounded-xl border bg-white",
-          direction === "in" ? "border-[#d6a11f]" : "border-[#d9e1ec]",
+          "relative size-12 shrink-0 overflow-hidden rounded-xl bg-white ring-1 sm:size-14",
+          direction === "in" ? "ring-2 ring-[#d6a11f]" : "ring-[#d9e1ec]",
         ].join(" ")}
       >
-        <Image
-          src={card.iconUrls.medium}
-          alt=""
-          fill
-          sizes="56px"
-          className="object-contain p-1"
-        />
+        {card ? (
+          <Image
+            src={card.iconUrls.medium}
+            alt=""
+            fill
+            sizes="56px"
+            className="object-contain p-0.5"
+          />
+        ) : null}
       </div>
       <div className="min-w-0">
-        <span className="block text-[11px] font-bold text-[#7a8798]">
+        <span className="block text-[11px] font-bold text-[#6d7a8b]">
           {direction === "in" ? "Bring in" : "Take out"}
         </span>
-        <span className="block truncate text-sm font-extrabold text-[#0b1f3a]">
-          {card.name}
+        <span className="block break-words text-sm font-extrabold leading-tight text-[#0b1f3a]">
+          {name}
         </span>
       </div>
     </div>
   );
 }
 
-export function SwapList({
-  changes,
-  player,
-  onKeepOutgoing,
-  onRejectIncoming,
-}: SwapListProps) {
-  if (changes.length === 0) {
-    return null;
-  }
-
-  const cardsByName = new Map(
-    [...player.cards, ...player.currentDeck].map((card) => [card.name, card]),
-  );
+function ConstraintButton({
+  kind,
+  cardName,
+  active,
+  onToggle,
+}: {
+  kind: "keep" | "avoid";
+  cardName: string;
+  active: boolean;
+  onToggle: (cardName: string) => void;
+}) {
+  const isKeep = kind === "keep";
+  const Icon = isKeep ? Lock : Ban;
 
   return (
-    <section aria-labelledby="swap-list-title">
-      <div className="mb-5 flex items-end justify-between gap-3">
-        <div>
-          <p className="flex items-center gap-2 text-sm font-bold text-[#164fc9]">
-            <Wrench aria-hidden="true" className="size-4" />
-            Workshop orders
-          </p>
-          <h2
-            id="swap-list-title"
-            className="font-display mt-1 text-3xl font-semibold tracking-[-0.035em]"
-          >
-            {changes.length === 1
-              ? "One clear swap"
-              : `${changes.length} clear swaps`}
-          </h2>
-        </div>
-      </div>
+    <button
+      type="button"
+      aria-pressed={active}
+      aria-label={`${isKeep ? "Keep" : "Avoid"} ${cardName}`}
+      title={
+        isKeep
+          ? `Keep ${cardName}: never swap it out`
+          : `Avoid ${cardName}: stop suggesting it`
+      }
+      onClick={() => onToggle(cardName)}
+      className={[
+        "royal-focus inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 px-3 text-sm font-extrabold transition-colors",
+        active
+          ? isKeep
+            ? "border-[#164fc9] bg-[#164fc9] text-white"
+            : "border-[#b42318] bg-[#b42318] text-white"
+          : isKeep
+            ? "border-[#c9d6ec] bg-white text-[#164fc9] hover:border-[#164fc9] hover:bg-[#f2f6ff]"
+            : "border-[#efcdc9] bg-white text-[#b42318] hover:border-[#b42318] hover:bg-[#fff6f5]",
+      ].join(" ")}
+    >
+      <Icon aria-hidden="true" className="size-4 shrink-0" />
+      {isKeep ? "Keep" : "Avoid"}
+    </button>
+  );
+}
 
-      <div className="overflow-hidden rounded-[1.4rem] border border-[#d9e1ec] bg-white">
-        {changes.map((change, index) => {
-          const outgoingCard = cardsByName.get(change.out);
-          const incomingCard = cardsByName.get(change.in);
-          if (!outgoingCard || !incomingCard) {
-            return null;
-          }
+export function SwapList({
+  changes,
+  cardsByName,
+  lockedCards,
+  excludedCards,
+  onToggleLock,
+  onToggleExclude,
+}: SwapListProps) {
+  return (
+    <ol aria-label="Recommended swaps" className="divide-y divide-[#e2e7ee]">
+      {changes.map((change) => (
+        <li
+          key={`${change.out}-${change.in}`}
+          className="grid gap-4 py-5 first:pt-0 last:pb-0 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] md:gap-6"
+        >
+          <div className="grid grid-cols-[minmax(0,1fr)_1.5rem_minmax(0,1fr)] items-start gap-x-2 gap-y-3">
+            <SwapCard
+              name={change.out}
+              card={cardsByName.get(change.out)}
+              direction="out"
+            />
+            <ArrowRight
+              aria-hidden="true"
+              className="mt-4 size-5 justify-self-center text-[#6d7a8b]"
+            />
+            <SwapCard
+              name={change.in}
+              card={cardsByName.get(change.in)}
+              direction="in"
+            />
+            <ConstraintButton
+              kind="keep"
+              cardName={change.out}
+              active={lockedCards.includes(change.out)}
+              onToggle={onToggleLock}
+            />
+            <span aria-hidden="true" />
+            <ConstraintButton
+              kind="avoid"
+              cardName={change.in}
+              active={excludedCards.includes(change.in)}
+              onToggle={onToggleExclude}
+            />
+          </div>
 
-          return (
-            <article
-              key={`${change.out}-${change.in}`}
-              className={[
-                "grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(15rem,1.25fr)] sm:items-center sm:p-5",
-                index > 0 ? "border-t border-[#d9e1ec]" : "",
-              ].join(" ")}
-            >
-              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)] items-center gap-2">
-                <MiniCard card={outgoingCard} direction="out" />
-                <span className="flex size-8 items-center justify-center rounded-full bg-[#eaf1ff] text-[#164fc9]">
-                  <ArrowRight aria-hidden="true" className="size-4" />
-                </span>
-                <MiniCard card={incomingCard} direction="in" />
-              </div>
-
-              <div className="border-l-2 border-[#e5c45e] pl-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-bold text-[#0b1f3a]">
-                    Why this earns a slot
-                  </p>
-                  {change.counterTargets && change.counterTargets.length > 0 ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#e8f6f0] px-2.5 py-0.5 text-[11px] font-extrabold text-[#087454]">
-                      <Crosshair aria-hidden="true" className="size-3" />
-                      Counters: {change.counterTargets.join(", ")}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-sm leading-6 text-[#5c6b7f]">
-                  {change.reason}
-                </p>
-
-                {onKeepOutgoing || onRejectIncoming ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {onKeepOutgoing ? (
-                      <button
-                        type="button"
-                        onClick={() => onKeepOutgoing(change.out)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-[#cdd8e8] bg-[#f8faff] px-2.5 py-1 text-xs font-extrabold text-[#33445c] transition-colors hover:border-[#164fc9] hover:text-[#164fc9]"
-                      >
-                        <Lock aria-hidden="true" className="size-3" />
-                        Keep {change.out}
-                      </button>
-                    ) : null}
-                    {onRejectIncoming ? (
-                      <button
-                        type="button"
-                        onClick={() => onRejectIncoming(change.in)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-[#e4a09b] bg-[#fff9f8] px-2.5 py-1 text-xs font-extrabold text-[#b42318] transition-colors hover:bg-[#fff0ef]"
-                      >
-                        <Ban aria-hidden="true" className="size-3" />
-                        Reject {change.in}
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            </article>
-          );
-        })}
-      </div>
-    </section>
+          <div className="min-w-0 md:pt-1">
+            <p className="text-sm leading-6 text-[#33445c]">{change.reason}</p>
+            {change.counterTargets && change.counterTargets.length > 0 ? (
+              <p className="mt-2 flex items-start gap-1.5 text-xs font-bold leading-5 text-[#087454]">
+                <Crosshair aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+                Counters {change.counterTargets.join(", ")} from your losses
+              </p>
+            ) : null}
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }

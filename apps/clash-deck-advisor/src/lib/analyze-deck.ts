@@ -2,90 +2,76 @@ import "server-only";
 
 import { unstable_cache } from "next/cache";
 
+import { toStoredBattle } from "./battle-history";
 import { getAnalysisContext, PLAYER_TAG } from "./clash-royale";
 import { runDeckEngine } from "./deck-engine";
 import { buildEngineContext, type AnalysisMode } from "./engine-context";
 import { mergeSuggestionHistories } from "./feedback-store";
-import { deckKeyOf, evaluateDeckChangeImpacts } from "./learning-engine";
 import { getLevelWarnings } from "./level-warnings";
-import type {
-  AnalysisResponse,
-  PlayerFeedbackInput,
-  StoredSuggestionEntry,
-} from "./types";
+import type { StoredBattle } from "./schemas";
+import type { AnalysisResponse, PlayerFeedbackInput } from "./types";
 
 const ANALYSIS_CACHE_SECONDS = 30 * 60;
 
 export const ANALYSIS_CACHE_TAG = "clash-deck-advisor-analysis";
 
-const serverSuggestionLedger = new Map<string, StoredSuggestionEntry[]>();
+/**
+ * Everything the advisor has learned arrives with the request. The server
+ * keeps no ledger of its own: serverless instances do not share memory and
+ * lose it on cold starts, so the browser's saved history is the only record.
+ */
+export interface AnalysisInput {
+  feedback?: PlayerFeedbackInput;
+  battleHistory?: StoredBattle[];
+}
 
-function getMergedServerSuggestions(
-  playerTag: string,
-  incoming: StoredSuggestionEntry[] = [],
-): StoredSuggestionEntry[] {
-  const existing = serverSuggestionLedger.get(playerTag) ?? [];
-  const merged = mergeSuggestionHistories(existing, incoming);
-  serverSuggestionLedger.set(playerTag, merged);
-  return merged;
+export function hasPersonalInput(input: AnalysisInput): boolean {
+  return Boolean(
+    input.feedback?.lockedCards.length ||
+      input.feedback?.excludedCards.length ||
+      input.feedback?.suggestionHistory.length ||
+      input.battleHistory?.length,
+  );
 }
 
 export async function generateDeckAnalysis(
   mode: AnalysisMode = "improve",
-  feedback?: PlayerFeedbackInput,
+  input: AnalysisInput = {},
 ): Promise<AnalysisResponse> {
   const startedAt = Date.now();
-  const mergedHistory = getMergedServerSuggestions(
-    PLAYER_TAG,
-    feedback?.suggestionHistory,
-  );
-  const normalizedFeedback: PlayerFeedbackInput = {
-    lockedCards: [...new Set(feedback?.lockedCards ?? [])],
-    excludedCards: [...new Set(feedback?.excludedCards ?? [])],
-    suggestionHistory: mergedHistory,
+  const feedback: PlayerFeedbackInput = {
+    lockedCards: [...new Set(input.feedback?.lockedCards ?? [])],
+    excludedCards: [...new Set(input.feedback?.excludedCards ?? [])],
+    suggestionHistory: mergeSuggestionHistories(
+      input.feedback?.suggestionHistory ?? [],
+      [],
+    ),
   };
 
-  const context = await getAnalysisContext(mergedHistory);
-  const engine = buildEngineContext(context, mode, normalizedFeedback);
+  const context = await getAnalysisContext({
+    suggestionHistory: feedback.suggestionHistory,
+    storedBattles: input.battleHistory,
+  });
+  const engine = buildEngineContext(context, mode, feedback);
   const { analysis, penalizedDecks, diagnostics } = await runDeckEngine(engine);
 
-  const generatedAt = new Date().toISOString();
-
-  if (analysis.changes.length > 0) {
-    const activeVer = context.deckVersions.find((v) => v.isCurrentActiveDeck);
-    const baselineWinRate =
-      activeVer && activeVer.battles > 0
-        ? activeVer.winRate
-        : context.lossAutopsy.recentWinRate;
-
-    const entry: StoredSuggestionEntry = {
-      id: `sug-${mode}-${deckKeyOf(analysis.improvedDeck).slice(0, 24)}`,
-      createdAt: generatedAt,
-      mode,
-      baselineDeck: analysis.originalDeck,
-      baselineWinRate,
-      recommendedDeck: analysis.improvedDeck,
-      recommendedSwaps: analysis.changes.map((c) => ({
-        out: c.out,
-        in: c.in,
-      })),
-      archetypeName: analysis.metaTier.archetype,
-    };
-    const updatedHistory = getMergedServerSuggestions(PLAYER_TAG, [entry]);
-    context.changeImpacts = evaluateDeckChangeImpacts(
-      context.deckVersions,
-      updatedHistory,
-      context.player.currentDeck.map((c) => c.name),
-    );
-  }
+  const historyStats = context.historyStats ?? {
+    battlesTracked: 0,
+    fromBattleLog: 0,
+    fromBrowser: 0,
+    oldestBattleTime: null,
+  };
 
   console.info("[clash-deck-advisor] generated analysis", {
     mode,
     durationMs: Date.now() - startedAt,
     recentLossCount: context.recentLosses.length,
     metaDeckCount: context.metaDecks.length,
-    lockedCount: normalizedFeedback.lockedCards.length,
-    excludedCount: normalizedFeedback.excludedCards.length,
+    lockedCount: feedback.lockedCards.length,
+    excludedCount: feedback.excludedCards.length,
+    suggestionCount: feedback.suggestionHistory.length,
+    battlesTracked: historyStats.battlesTracked,
+    battlesFromBrowser: historyStats.fromBrowser,
     ...diagnostics,
   });
 
@@ -100,45 +86,42 @@ export async function generateDeckAnalysis(
     analysis,
     player: context.player,
     levelWarnings: getLevelWarnings(recommendedCards),
-    generatedAt,
+    generatedAt: new Date().toISOString(),
     metaAvailable: context.metaAvailable,
     mode,
     lossAutopsy: context.lossAutopsy,
     deckVersions: context.deckVersions,
     changeImpacts: context.changeImpacts,
     appliedFeedback: {
-      lockedCards: normalizedFeedback.lockedCards,
-      excludedCards: normalizedFeedback.excludedCards,
+      lockedCards: feedback.lockedCards,
+      excludedCards: feedback.excludedCards,
       penalizedDecks,
     },
+    battleLog: (context.freshBattles ?? []).map(toStoredBattle),
+    historyStats,
   };
 }
 
 const cachedByMode: Record<AnalysisMode, () => Promise<AnalysisResponse>> = {
   improve: unstable_cache(
     () => generateDeckAnalysis("improve"),
-    ["clash-deck-advisor", PLAYER_TAG, "analysis-v6", "improve"],
+    ["clash-deck-advisor", PLAYER_TAG, "analysis-v7", "improve"],
     { revalidate: ANALYSIS_CACHE_SECONDS, tags: [ANALYSIS_CACHE_TAG] },
   ),
   best: unstable_cache(
     () => generateDeckAnalysis("best"),
-    ["clash-deck-advisor", PLAYER_TAG, "analysis-v6", "best"],
+    ["clash-deck-advisor", PLAYER_TAG, "analysis-v7", "best"],
     { revalidate: ANALYSIS_CACHE_SECONDS, tags: [ANALYSIS_CACHE_TAG] },
   ),
 };
 
+/** Only a first visit, with nothing saved in the browser yet, can share the cache. */
 export function getCachedDeckAnalysis(
   mode: AnalysisMode = "improve",
-  feedback?: PlayerFeedbackInput,
+  input: AnalysisInput = {},
 ): Promise<AnalysisResponse> {
-  const hasCustomFeedback =
-    feedback !== undefined &&
-    (feedback.lockedCards.length > 0 ||
-      feedback.excludedCards.length > 0 ||
-      feedback.suggestionHistory.length > 0);
-
-  if (hasCustomFeedback) {
-    return generateDeckAnalysis(mode, feedback);
+  if (hasPersonalInput(input)) {
+    return generateDeckAnalysis(mode, input);
   }
 
   return cachedByMode[mode]();

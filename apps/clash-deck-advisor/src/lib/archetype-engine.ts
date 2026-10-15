@@ -1025,14 +1025,10 @@ function buildAnalysis(
       const incoming = added[index] ?? "";
       const counterTargets =
         candidate.counterTargetsByCard?.get(incoming)?.slice(0, 4) ?? [];
-      const counterClause =
-        counterTargets.length > 0
-          ? ` and directly answers ${counterTargets.slice(0, 3).join(", ")} from recent losses`
-          : "";
       return {
         out,
         in: incoming,
-        reason: `${incoming} fills the ${slotLabel(candidate.template, incoming)} in ${candidate.template.name}${counterClause}. ${out} does not.`,
+        reason: `${incoming} fills the ${slotLabel(candidate.template, incoming)} in ${candidate.template.name}. ${out} does not.`,
         ...(counterTargets.length > 0 ? { counterTargets } : {}),
       };
     }),

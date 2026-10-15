@@ -107,6 +107,40 @@ export const playerFeedbackInputSchema = z.object({
   suggestionHistory: z.array(storedSuggestionEntrySchema).max(25).default([]),
 });
 
+/** Roughly 300 x 450 bytes: about 135 KB in localStorage and on the wire. */
+export const MAX_STORED_BATTLES = 300;
+
+const cardName = nonEmptyText.max(40);
+
+/**
+ * The compact battle record the browser keeps between visits. Outcome, deck
+ * key, archetype, and timestamp are recomputed on the server rather than
+ * trusted from the client.
+ */
+export const storedBattleSchema = z.object({
+  battleTime: nonEmptyText.max(32),
+  type: z.string().max(64),
+  gameModeName: z.string().max(64),
+  playerCrowns: z.number().int().min(0).max(10),
+  opponentCrowns: z.number().int().min(0).max(10),
+  trophyChange: z.number().int().min(-1000).max(1000),
+  playerDeck: z.array(cardName).length(8),
+  opponentName: z.string().max(64),
+  opponentTag: z.string().max(24),
+  opponentDeck: z.array(cardName).length(8),
+});
+
+export const battleHistorySchema = z
+  .array(storedBattleSchema)
+  .max(MAX_STORED_BATTLES);
+
+export const analysisRequestSchema = z.object({
+  mode: z.enum(["improve", "best"]).default("improve"),
+  refresh: z.boolean().default(false),
+  feedback: playerFeedbackInputSchema.optional(),
+  battleHistory: battleHistorySchema.default([]),
+});
+
 export const deckAnalysisSchema = z.object({
   originalDeck: z.array(nonEmptyText).length(8),
   improvedDeck: z.array(nonEmptyText).length(8),
@@ -133,3 +167,5 @@ export type MetaTier = z.infer<typeof metaTierSchema>;
 export type Matchup = z.infer<typeof matchupSchema>;
 export type ReplayAdvice = z.infer<typeof replayAdviceSchema>;
 export type WeaknessScores = z.infer<typeof weaknessScoresSchema>;
+export type StoredBattle = z.infer<typeof storedBattleSchema>;
+export type AnalysisRequest = z.infer<typeof analysisRequestSchema>;

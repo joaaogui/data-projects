@@ -1,4 +1,3 @@
-import { Ban, Crown, Lock, Sparkles } from "lucide-react";
 import Image from "next/image";
 
 import { normalizeCardLevel } from "@/lib/level-warnings";
@@ -6,156 +5,50 @@ import type { ClashCard } from "@/lib/types";
 
 interface CardTileProps {
   card: ClashCard;
-  change?: "added" | "removed";
+  isNew?: boolean;
   priority?: boolean;
-  isLocked?: boolean;
-  isExcluded?: boolean;
-  onToggleLock?: (cardName: string) => void;
-  onToggleExclude?: (cardName: string) => void;
 }
 
-export function CardTile({
-  card,
-  change,
-  priority = false,
-  isLocked = false,
-  isExcluded = false,
-  onToggleLock,
-  onToggleExclude,
-}: CardTileProps) {
+export function CardTile({ card, isNew = false, priority = false }: CardTileProps) {
   const evolved = (card.evolutionLevel ?? 0) > 0;
-  const champion = card.rarity.toLowerCase() === "champion";
   const imageUrl =
     evolved && card.iconUrls.evolutionMedium
       ? card.iconUrls.evolutionMedium
       : card.iconUrls.medium;
-
-  const hasControls = Boolean(onToggleLock || onToggleExclude);
+  const level = normalizeCardLevel(card);
 
   return (
-    <article
+    <div
+      title={card.name}
       className={[
-        "group relative min-w-0 overflow-hidden rounded-[0.9rem] border bg-white p-1.5 shadow-[0_6px_16px_rgba(11,31,58,0.07)] sm:p-2",
-        isLocked
-          ? "border-[#164fc9] ring-2 ring-[#164fc9]/30"
-          : isExcluded
-            ? "border-[#b42318] opacity-65 ring-2 ring-[#b42318]/25"
-            : change === "added"
-              ? "border-[#d6a11f] ring-2 ring-[#f3c95e]/35"
-              : change === "removed"
-                ? "border-[#e4a09b] opacity-75"
-                : "border-[#d9e1ec]",
+        "relative min-w-0 rounded-xl bg-white p-1 shadow-[0_4px_12px_rgba(11,31,58,0.06)]",
+        isNew ? "ring-2 ring-[#d6a11f]" : "ring-1 ring-[#d9e1ec]",
       ].join(" ")}
     >
-      {isLocked ? (
-        <span className="absolute left-1.5 top-1.5 z-20 inline-flex items-center gap-0.5 rounded-full bg-[#164fc9] px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.06em] text-white sm:text-[9px]">
-          <Lock aria-hidden="true" className="size-2.5" />
-          Kept
-        </span>
-      ) : isExcluded ? (
-        <span className="absolute left-1.5 top-1.5 z-20 inline-flex items-center gap-0.5 rounded-full bg-[#b42318] px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.06em] text-white sm:text-[9px]">
-          <Ban aria-hidden="true" className="size-2.5" />
-          Banned
-        </span>
-      ) : change ? (
-        <span
-          className={[
-            "absolute left-1.5 top-1.5 z-20 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.08em] sm:text-[9px]",
-            change === "added"
-              ? "bg-[#fff5d6] text-[#76530a]"
-              : "bg-[#fff0ef] text-[#9b2c24]",
-          ].join(" ")}
-        >
-          {change === "added" ? "New" : "Out"}
-        </span>
-      ) : null}
-
-      <div className="blueprint-grid relative aspect-[4/5] overflow-hidden rounded-[0.65rem]">
+      <div className="blueprint-grid relative aspect-[4/5] overflow-hidden rounded-lg">
         <Image
           src={imageUrl}
-          alt={`${card.name} card art`}
+          alt={`${card.name}, level ${level}${isNew ? ", new in this deck" : ""}`}
           fill
           priority={priority}
-          sizes="(max-width: 767px) 22vw, (max-width: 1279px) 11vw, 120px"
-          className="object-contain px-0.5 pt-1"
+          sizes="(max-width: 639px) 22vw, 96px"
+          className="object-contain p-0.5"
         />
-
-        <div className="absolute bottom-1 left-1 z-10 flex min-w-6 items-center justify-center rounded-full border border-white/80 bg-[#0b1f3a] px-1.5 py-0.5 text-[9px] font-extrabold text-white shadow-sm sm:text-[10px]">
-          L{normalizeCardLevel(card)}
-        </div>
-
-        <div className="absolute bottom-1 right-1 z-10 flex gap-0.5">
-          {evolved ? (
-            <span
-              title="Evolution unlocked"
-              className="flex size-5 items-center justify-center rounded-full border border-white/80 bg-[#6f42c1] text-white shadow-sm"
-            >
-              <Sparkles aria-hidden="true" className="size-3" />
-              <span className="sr-only">Evolution unlocked</span>
-            </span>
-          ) : null}
-          {champion ? (
-            <span
-              title="Champion"
-              className="flex size-5 items-center justify-center rounded-full border border-white/80 bg-[#d6a11f] text-[#0b1f3a] shadow-sm"
-            >
-              <Crown aria-hidden="true" className="size-3" />
-              <span className="sr-only">Champion</span>
-            </span>
-          ) : null}
-        </div>
+        <span
+          aria-hidden="true"
+          className="absolute bottom-1 left-1 rounded-full bg-[#0b1f3a] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white"
+        >
+          L{level}
+        </span>
+        {isNew ? (
+          <span
+            aria-hidden="true"
+            className="absolute right-1 top-1 rounded-full bg-[#fff5d6] px-1.5 py-0.5 text-[9px] font-extrabold uppercase leading-none tracking-wide text-[#76530a]"
+          >
+            New
+          </span>
+        ) : null}
       </div>
-
-      <h3 className="mt-1.5 truncate text-center text-xs font-extrabold leading-tight text-[#0b1f3a]">
-        {card.name}
-      </h3>
-
-      {hasControls ? (
-        <div className="mt-1.5 grid grid-cols-2 gap-1">
-          {onToggleLock ? (
-            <button
-              type="button"
-              onClick={() => onToggleLock(card.name)}
-              aria-pressed={isLocked}
-              title={
-                isLocked
-                  ? `Unlock ${card.name}`
-                  : `Lock ${card.name} in recommended deck`
-              }
-              className={[
-                "inline-flex items-center justify-center gap-0.5 rounded-md border px-1 py-1 text-[9px] font-extrabold transition-colors",
-                isLocked
-                  ? "border-[#164fc9] bg-[#164fc9] text-white"
-                  : "border-[#d9e1ec] bg-[#f8faff] text-[#33445c] hover:border-[#164fc9] hover:text-[#164fc9]",
-              ].join(" ")}
-            >
-              <Lock aria-hidden="true" className="size-2.5" />
-              Keep
-            </button>
-          ) : null}
-          {onToggleExclude ? (
-            <button
-              type="button"
-              onClick={() => onToggleExclude(card.name)}
-              aria-pressed={isExcluded}
-              title={
-                isExcluded
-                  ? `Allow ${card.name} again`
-                  : `Avoid ${card.name} and recalculate`
-              }
-              className={[
-                "inline-flex items-center justify-center gap-0.5 rounded-md border px-1 py-1 text-[9px] font-extrabold transition-colors",
-                isExcluded
-                  ? "border-[#b42318] bg-[#b42318] text-white"
-                  : "border-[#d9e1ec] bg-[#f8faff] text-[#526175] hover:border-[#b42318] hover:text-[#b42318]",
-              ].join(" ")}
-            >
-              <Ban aria-hidden="true" className="size-2.5" />
-              Avoid
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </article>
+    </div>
   );
 }

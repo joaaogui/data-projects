@@ -213,12 +213,26 @@ export interface AppliedFeedback {
   penalizedDecks: string[];
 }
 
+export interface BattleHistoryStats {
+  /** Battles behind deck versions and before/after change impacts. */
+  battlesTracked: number;
+  /** Of those, how many came from the live battle log (about 25 at most). */
+  fromBattleLog: number;
+  /** Older battles only this browser remembered. */
+  fromBrowser: number;
+  oldestBattleTime: string | null;
+}
+
 export interface AnalysisContext {
   player: Player;
   recentLosses: RecentLoss[];
   metaDecks: MetaDeckReference[];
   metaAvailable: boolean;
+  /** The live battle log merged with the browser's saved history, newest first. */
   normalizedBattles?: NormalizedBattle[];
+  /** Only what the live battle log returned on this request. */
+  freshBattles?: NormalizedBattle[];
+  historyStats?: BattleHistoryStats;
   lossAutopsy: LossAutopsy;
   deckVersions: DeckVersionSummary[];
   changeImpacts: DeckChangeImpact[];
@@ -235,4 +249,7 @@ export interface AnalysisResponse {
   deckVersions: DeckVersionSummary[];
   changeImpacts: DeckChangeImpact[];
   appliedFeedback: AppliedFeedback;
+  /** The live battle log in stored form, so the browser can extend its history. */
+  battleLog: import("./schemas").StoredBattle[];
+  historyStats: BattleHistoryStats;
 }

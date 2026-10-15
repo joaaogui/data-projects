@@ -39,7 +39,7 @@ export default function RootLayout({
       <body>
         <a
           href="#main-content"
-          className="royal-focus fixed left-3 top-3 z-[100] -translate-y-16 rounded-lg bg-[#164fc9] px-3 py-2 text-sm font-extrabold text-white transition-transform focus:translate-y-0"
+          className="royal-focus fixed left-3 top-3 z-[100] inline-flex min-h-11 -translate-y-16 items-center rounded-lg bg-[#164fc9] px-4 text-sm font-extrabold text-white transition-transform focus:translate-y-0 motion-reduce:transition-none"
         >
           Skip to content
         </a>

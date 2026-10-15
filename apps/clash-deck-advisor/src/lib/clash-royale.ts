@@ -1,5 +1,11 @@
 import "server-only";
 
+import {
+  battleIdentity,
+  fromStoredBattle,
+  mergeBattleHistory,
+  RECENT_BATTLE_WINDOW,
+} from "./battle-history";
 import { buildCardProfiles } from "./card-knowledge";
 import { selectViableCards } from "./engine-context";
 import {
@@ -9,6 +15,7 @@ import {
   lossesFromNormalized,
   normalizeBattles,
 } from "./learning-engine";
+import type { StoredBattle } from "./schemas";
 import type {
   AnalysisContext,
   Battle,
@@ -300,9 +307,18 @@ export async function getTopLadderMeta(
   );
 }
 
-export async function getAnalysisContext(
-  suggestionHistory: StoredSuggestionEntry[] = [],
-): Promise<AnalysisContext> {
+/**
+ * The live battle log only reaches back about 25 battles, so the browser's
+ * saved history is merged in to let deck versions and before/after impacts
+ * see further back. Form and loss analysis stay on the newest battles.
+ */
+export async function getAnalysisContext({
+  suggestionHistory = [],
+  storedBattles = [],
+}: {
+  suggestionHistory?: StoredSuggestionEntry[];
+  storedBattles?: StoredBattle[];
+} = {}): Promise<AnalysisContext> {
   const [player, battles] = await Promise.all([getPlayer(), getBattleLog()]);
 
   let metaDecks: MetaDeckReference[] = [];
@@ -317,10 +333,15 @@ export async function getAnalysisContext(
   const viableProfiles = selectViableCards(ownedProfiles, currentDeckProfiles);
   const currentDeckNames = player.currentDeck.map((card) => card.name);
 
-  const normalizedBattles = normalizeBattles(battles, player.tag);
-  const recentLosses = lossesFromNormalized(normalizedBattles, 6);
+  const freshBattles = normalizeBattles(battles, player.tag);
+  const normalizedBattles = mergeBattleHistory([
+    freshBattles,
+    storedBattles.map(fromStoredBattle),
+  ]);
+  const recentBattles = normalizedBattles.slice(0, RECENT_BATTLE_WINDOW);
+  const recentLosses = lossesFromNormalized(recentBattles, 6);
   const lossAutopsy = buildLossAutopsy(
-    normalizedBattles,
+    recentBattles,
     currentDeckProfiles,
     viableProfiles,
   );
@@ -331,12 +352,24 @@ export async function getAnalysisContext(
     currentDeckNames,
   );
 
+  const freshIdentities = new Set(freshBattles.map(battleIdentity));
+  const fromBattleLog = normalizedBattles.filter((battle) =>
+    freshIdentities.has(battleIdentity(battle)),
+  ).length;
+
   return {
     player,
     recentLosses,
     metaDecks,
     metaAvailable: metaDecks.length > 0,
     normalizedBattles,
+    freshBattles,
+    historyStats: {
+      battlesTracked: normalizedBattles.length,
+      fromBattleLog,
+      fromBrowser: normalizedBattles.length - fromBattleLog,
+      oldestBattleTime: normalizedBattles.at(-1)?.battleTime ?? null,
+    },
     lossAutopsy,
     deckVersions,
     changeImpacts,

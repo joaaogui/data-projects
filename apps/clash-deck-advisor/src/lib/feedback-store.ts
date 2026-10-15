@@ -1,56 +1,102 @@
+import { mergeBattleHistory } from "./battle-history";
 import { deckKeyOf } from "./learning-engine";
-import { playerFeedbackInputSchema } from "./schemas";
+import {
+  battleHistorySchema,
+  playerFeedbackInputSchema,
+  type StoredBattle,
+} from "./schemas";
 import type {
   AnalysisResponse,
   PlayerFeedbackInput,
   StoredSuggestionEntry,
 } from "./types";
 
+/**
+ * The browser is the advisor's only durable memory. Serverless instances keep
+ * nothing between requests, so this ledger is sent with every analysis.
+ */
 export const LEARNING_LEDGER_STORAGE_KEY =
   "clash-deck-advisor:learning-ledger:v1";
 
 const MAX_SUGGESTION_HISTORY = 20;
 
-export function emptyFeedbackState(): PlayerFeedbackInput {
+export interface LearningLedger extends PlayerFeedbackInput {
+  battleHistory: StoredBattle[];
+}
+
+export function emptyLedger(): LearningLedger {
   return {
     lockedCards: [],
     excludedCards: [],
     suggestionHistory: [],
+    battleHistory: [],
   };
 }
 
-export function loadFeedbackState(): PlayerFeedbackInput {
+/**
+ * Reads each half on its own so one malformed battle cannot wipe the saved
+ * suggestions and card rules, or the other way round.
+ */
+export function parseLedger(raw: unknown): LearningLedger {
+  const feedback = playerFeedbackInputSchema.safeParse(raw);
+  const battles = battleHistorySchema.safeParse(
+    raw && typeof raw === "object"
+      ? (raw as { battleHistory?: unknown }).battleHistory
+      : undefined,
+  );
+  return {
+    ...(feedback.success ? feedback.data : emptyLedger()),
+    battleHistory: battles.success ? battles.data : [],
+  };
+}
+
+export function loadLedger(): LearningLedger {
   if (typeof window === "undefined") {
-    return emptyFeedbackState();
+    return emptyLedger();
   }
   try {
     const raw = window.localStorage.getItem(LEARNING_LEDGER_STORAGE_KEY);
-    if (!raw) return emptyFeedbackState();
-    const parsed = playerFeedbackInputSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : emptyFeedbackState();
+    return raw ? parseLedger(JSON.parse(raw)) : emptyLedger();
   } catch {
-    return emptyFeedbackState();
+    return emptyLedger();
   }
 }
 
-export function saveFeedbackState(state: PlayerFeedbackInput): void {
+export function saveLedger(ledger: LearningLedger): void {
   if (typeof window === "undefined") {
     return;
   }
   try {
     window.localStorage.setItem(
       LEARNING_LEDGER_STORAGE_KEY,
-      JSON.stringify(state),
+      JSON.stringify(ledger),
     );
   } catch {
     // Ignore storage quota or private-browsing failures.
   }
 }
 
-export function toggleLockedCard(
-  state: PlayerFeedbackInput,
+export function hasLedgerData(ledger: LearningLedger): boolean {
+  return (
+    ledger.lockedCards.length > 0 ||
+    ledger.excludedCards.length > 0 ||
+    ledger.suggestionHistory.length > 0 ||
+    ledger.battleHistory.length > 0
+  );
+}
+
+export function toFeedbackInput(ledger: LearningLedger): PlayerFeedbackInput {
+  return {
+    lockedCards: ledger.lockedCards,
+    excludedCards: ledger.excludedCards,
+    suggestionHistory: ledger.suggestionHistory,
+  };
+}
+
+export function toggleLockedCard<T extends PlayerFeedbackInput>(
+  state: T,
   cardName: string,
-): PlayerFeedbackInput {
+): T {
   const isLocked = state.lockedCards.includes(cardName);
   const lockedCards = isLocked
     ? state.lockedCards.filter((name) => name !== cardName)
@@ -64,10 +110,10 @@ export function toggleLockedCard(
   };
 }
 
-export function toggleExcludedCard(
-  state: PlayerFeedbackInput,
+export function toggleExcludedCard<T extends PlayerFeedbackInput>(
+  state: T,
   cardName: string,
-): PlayerFeedbackInput {
+): T {
   const isExcluded = state.excludedCards.includes(cardName);
   const excludedCards = isExcluded
     ? state.excludedCards.filter((name) => name !== cardName)
@@ -81,9 +127,9 @@ export function toggleExcludedCard(
   };
 }
 
-export function clearCardConstraints(
-  state: PlayerFeedbackInput,
-): PlayerFeedbackInput {
+export function clearCardConstraints<T extends PlayerFeedbackInput>(
+  state: T,
+): T {
   return {
     ...state,
     lockedCards: [],
@@ -108,12 +154,11 @@ export function mergeSuggestionHistories(
     .slice(0, MAX_SUGGESTION_HISTORY);
 }
 
-export function recordSuggestion(
-  state: PlayerFeedbackInput,
+export function buildSuggestionEntry(
   response: AnalysisResponse,
-): PlayerFeedbackInput {
+): StoredSuggestionEntry | null {
   if (response.analysis.changes.length === 0) {
-    return state;
+    return null;
   }
 
   const activeVersion = response.deckVersions.find(
@@ -124,7 +169,7 @@ export function recordSuggestion(
       ? activeVersion.winRate
       : response.lossAutopsy.recentWinRate;
 
-  const newEntry: StoredSuggestionEntry = {
+  return {
     id: `sug-${response.mode}-${deckKeyOf(response.analysis.improvedDeck).slice(0, 24)}`,
     createdAt: response.generatedAt,
     mode: response.mode,
@@ -137,11 +182,22 @@ export function recordSuggestion(
     })),
     archetypeName: response.analysis.metaTier.archetype,
   };
+}
 
+/** Folds one analysis into the ledger: its suggestion and its fresh battles. */
+export function recordAnalysis(
+  ledger: LearningLedger,
+  response: AnalysisResponse,
+): LearningLedger {
+  const entry = buildSuggestionEntry(response);
   return {
-    ...state,
-    suggestionHistory: mergeSuggestionHistories(state.suggestionHistory, [
-      newEntry,
+    ...ledger,
+    suggestionHistory: entry
+      ? mergeSuggestionHistories(ledger.suggestionHistory, [entry])
+      : ledger.suggestionHistory,
+    battleHistory: mergeBattleHistory([
+      response.battleLog ?? [],
+      ledger.battleHistory,
     ]),
   };
 }

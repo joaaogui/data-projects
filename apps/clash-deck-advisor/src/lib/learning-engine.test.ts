@@ -438,6 +438,48 @@ describe("learning-engine", () => {
     expect(hurtImpact?.winRateDelta).toBe(-100);
   });
 
+  it("returns change impacts newest first even when an old version matched a saved suggestion", () => {
+    const deckV3 = DECK_V2.map((c) => (c === "Minions" ? "Bats" : c));
+    const decks = [DECK_V1, DECK_V2, deckV3];
+    const battles: Battle[] = decks.flatMap((deck, deckIndex) =>
+      [0, 1, 2].map((game) =>
+        makeBattle({
+          battleTime: `2026091${deckIndex + 1}T10${game}000.000Z`,
+          playerDeck: deck,
+          opponentDeck: OPP_HOG_CYCLE,
+          playerCrowns: 1,
+          opponentCrowns: game === 0 ? 2 : 0,
+          trophyChange: game === 0 ? -30 : 30,
+        }),
+      ),
+    );
+    const suggestions: StoredSuggestionEntry[] = [
+      {
+        id: "sug-old",
+        createdAt: "2026-09-10T10:00:00.000Z",
+        mode: "improve",
+        baselineDeck: DECK_V1.map((c) => (c === "P.E.K.K.A" ? "Golem" : c)),
+        baselineWinRate: 40,
+        recommendedDeck: DECK_V1,
+        recommendedSwaps: [{ out: "Golem", in: "P.E.K.K.A" }],
+        archetypeName: "Bait",
+      },
+    ];
+
+    const versions = buildDeckVersions(
+      normalizeBattles(battles, "#VGURQ0QQ2"),
+      deckV3,
+    );
+    const impacts = evaluateDeckChangeImpacts(versions, suggestions, deckV3);
+
+    expect(impacts.map((impact) => impact.toVersionLabel)).toEqual([
+      "v3",
+      "v2",
+      "v1",
+    ]);
+    expect(impacts[0]?.swaps).toEqual([{ out: "Minions", in: "Bats" }]);
+  });
+
   it("builds loss autopsy identifying recurring threat cards and blind spots", () => {
     const battles: Battle[] = [
       makeBattle({

@@ -8,6 +8,7 @@ import {
 } from "./card-mechanics";
 import type {
   Battle,
+  BattleOutcome,
   BattleParticipant,
   BlindSpotDiagnostic,
   DeckChangeImpact,
@@ -142,6 +143,28 @@ const NON_THREAT_UTILITY_CARDS = new Set([
   "Skeletons",
   "Ice Golem",
 ]);
+
+/** Battles a deck version needs before its win rate earns a verdict. */
+export const MIN_BATTLES_FOR_VERDICT = 3;
+
+export function battleOutcome(
+  playerCrowns: number,
+  opponentCrowns: number,
+): BattleOutcome {
+  if (playerCrowns > opponentCrowns) return "win";
+  if (playerCrowns < opponentCrowns) return "loss";
+  return "draw";
+}
+
+export function isLadderOrRankedMode(
+  type: string,
+  gameModeName: string,
+): boolean {
+  return (
+    /pvp|ladder|pathoflegend|ranked|trophy/i.test(type) ||
+    /ladder|ranked|league|trophy|path/i.test(gameModeName)
+  );
+}
 
 export function deckKeyOf(cards: string[]): string {
   return [...cards].sort((left, right) => left.localeCompare(right)).join("|");
@@ -310,12 +333,7 @@ export function normalizeBattles(
         return [];
       }
 
-      const outcome =
-        player.crowns > opponent.crowns
-          ? "win"
-          : player.crowns < opponent.crowns
-            ? "loss"
-            : "draw";
+      const outcome = battleOutcome(player.crowns, opponent.crowns);
 
       let trophyChange = 0;
       if (typeof player.trophyChange === "number") {
@@ -329,9 +347,7 @@ export function normalizeBattles(
       }
 
       const gameModeName = battle.gameMode?.name ?? battle.type ?? "Ladder";
-      const isLadderOrRanked =
-        /pvp|ladder|pathoflegend|ranked|trophy/i.test(battle.type) ||
-        /ladder|ranked|league|trophy|path/i.test(gameModeName);
+      const isLadderOrRanked = isLadderOrRankedMode(battle.type, gameModeName);
 
       return [
         {
@@ -775,7 +791,7 @@ function versionVerdict(
   winRate: number,
 ): DeckVersionSummary["verdict"] {
   if (battles === 0) return "untested";
-  if (battles < 3) return "testing";
+  if (battles < MIN_BATTLES_FOR_VERDICT) return "testing";
   if (winRate >= 52) return "working";
   if (winRate < 50) return "underperforming";
   return "testing";
@@ -995,12 +1011,12 @@ function buildImpactVerdictAndSummary(input: {
   if (input.afterBattles === 0) {
     return {
       verdict: "pending",
-      summary: `Swapped ${swapDesc} in ${input.toVersionLabel}. Play 3 battles to measure win-rate impact vs ${input.fromVersionLabel} (${input.beforeWinRate.toFixed(1)}% WR).`,
+      summary: `Swapped ${swapDesc} in ${input.toVersionLabel}. Play ${MIN_BATTLES_FOR_VERDICT} battles to measure win-rate impact vs ${input.fromVersionLabel} (${input.beforeWinRate.toFixed(1)}% WR).`,
     };
   }
 
-  if (input.afterBattles < 3) {
-    const remaining = 3 - input.afterBattles;
+  if (input.afterBattles < MIN_BATTLES_FOR_VERDICT) {
+    const remaining = MIN_BATTLES_FOR_VERDICT - input.afterBattles;
     return {
       verdict: "inconclusive",
       summary: `${input.toVersionLabel} (${swapDesc}) is at ${input.afterWinRate.toFixed(1)}% WR across ${input.afterBattles} battle${input.afterBattles === 1 ? "" : "s"}. Play ${remaining} more battle${remaining === 1 ? "" : "s"} for a reliable verdict.`,
@@ -1039,6 +1055,7 @@ function buildImpactVerdictAndSummary(input: {
 /**
  * Evaluates before/after win-rate and trophy impacts across deck version transitions
  * and cross-references them against stored advisor recommendations.
+ * Returned newest first, so the change behind the most recent deck leads.
  */
 export function evaluateDeckChangeImpacts(
   deckVersions: DeckVersionSummary[],
@@ -1048,11 +1065,10 @@ export function evaluateDeckChangeImpacts(
   if (deckVersions.length === 0) return [];
 
   // Order chronologically from oldest version (v1) to newest version (vN)
-  const chronological = [...deckVersions].sort((left, right) => {
-    const leftNum = Number.parseInt(left.versionLabel.replace(/\D/g, ""), 10) || 0;
-    const rightNum = Number.parseInt(right.versionLabel.replace(/\D/g, ""), 10) || 0;
-    return leftNum - rightNum;
-  });
+  const chronological = [...deckVersions].sort(
+    (left, right) =>
+      versionRank(left.versionLabel) - versionRank(right.versionLabel),
+  );
 
   const impacts: DeckChangeImpact[] = [];
   const coveredTargetKeys = new Set<string>();
@@ -1230,5 +1246,18 @@ export function evaluateDeckChangeImpacts(
     }
   }
 
-  return impacts.reverse();
+  return impacts
+    .map((impact, index) => ({ impact, index }))
+    .sort(
+      (left, right) =>
+        versionRank(right.impact.toVersionLabel) -
+          versionRank(left.impact.toVersionLabel) || right.index - left.index,
+    )
+    .map(({ impact }) => impact);
+}
+
+/** "Active" is the equipped deck, so it outranks every played version. */
+function versionRank(label: string): number {
+  if (label === "Active") return Number.MAX_SAFE_INTEGER;
+  return Number.parseInt(label.replace(/\D/g, ""), 10) || 0;
 }

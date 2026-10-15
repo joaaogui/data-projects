@@ -3,9 +3,17 @@ import { NextResponse } from "next/server";
 
 import { MissingAiConfigurationError } from "@/lib/ai-provider";
 import {
+  MAX_ANALYSIS_REQUEST_BYTES,
+  parseAnalysisRequestBody,
+  tooLarge,
+  type AnalysisRequestRejection,
+} from "@/lib/analysis-request";
+import {
   ANALYSIS_CACHE_TAG,
   generateDeckAnalysis,
   getCachedDeckAnalysis,
+  hasPersonalInput,
+  type AnalysisInput,
 } from "@/lib/analyze-deck";
 import {
   ClashRoyaleApiError,
@@ -15,7 +23,6 @@ import {
 import type { AnalysisMode } from "@/lib/engine-context";
 import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
 import { playerFeedbackInputSchema } from "@/lib/schemas";
-import type { PlayerFeedbackInput } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -78,15 +85,26 @@ function upstreamStatus(error: ClashRoyaleApiError): number {
   return 502;
 }
 
+function invalidRequest(result: AnalysisRequestRejection) {
+  console.warn("[clash-deck-advisor] rejected analysis request", {
+    code: result.code,
+    issues: result.issues,
+  });
+  return NextResponse.json(
+    { error: { code: result.code, message: result.message } },
+    { status: result.status, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
 async function handleAnalysisRequest(
   request: Request,
   options: {
     mode: AnalysisMode;
     wantsRefresh: boolean;
-    feedback?: PlayerFeedbackInput;
+    input: AnalysisInput;
   },
 ) {
-  const { mode, wantsRefresh, feedback } = options;
+  const { mode, wantsRefresh, input } = options;
   const clientIp = getClientIp(request);
 
   const rateLimit = analysisRateLimit.check(clientIp);
@@ -115,24 +133,19 @@ async function handleAnalysisRequest(
     "X-RateLimit-Reset": String(rateLimit.resetAt),
   };
 
-  const hasCustomConstraints =
-    Boolean(feedback?.lockedCards.length) ||
-    Boolean(feedback?.excludedCards.length);
+  const bypassCache = wantsRefresh || hasPersonalInput(input);
 
   try {
-    const result =
-      wantsRefresh || hasCustomConstraints
-        ? await generateDeckAnalysis(mode, feedback)
-        : await getCachedDeckAnalysis(mode, feedback);
+    const result = bypassCache
+      ? await generateDeckAnalysis(mode, input)
+      : await getCachedDeckAnalysis(mode, input);
 
     return NextResponse.json(result, {
       headers: {
-        "Cache-Control":
-          wantsRefresh || hasCustomConstraints
-            ? "no-store"
-            : "public, s-maxage=1800, stale-while-revalidate=60",
-        "X-Analysis-Cache":
-          wantsRefresh || hasCustomConstraints ? "refreshed" : "cached",
+        "Cache-Control": bypassCache
+          ? "no-store"
+          : "public, s-maxage=1800, stale-while-revalidate=60",
+        "X-Analysis-Cache": bypassCache ? "refreshed" : "cached",
         ...rateHeaders,
       },
     });
@@ -228,21 +241,29 @@ export async function GET(request: Request) {
         })
       : undefined;
 
-  return handleAnalysisRequest(request, { mode, wantsRefresh, feedback });
+  return handleAnalysisRequest(request, {
+    mode,
+    wantsRefresh,
+    input: { feedback },
+  });
 }
 
+/** The browser posts its saved suggestions, card rules, and battle history here. */
 export async function POST(request: Request) {
-  let body: Record<string, unknown> = {};
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    body = {};
+  const declaredLength = Number(request.headers.get("content-length") ?? 0);
+  if (declaredLength > MAX_ANALYSIS_REQUEST_BYTES) {
+    return invalidRequest(tooLarge());
   }
 
-  const mode = parseMode(body.mode);
-  const wantsRefresh = body.refresh === true || body.refresh === "1";
-  const parsedFeedback = playerFeedbackInputSchema.safeParse(body.feedback);
-  const feedback = parsedFeedback.success ? parsedFeedback.data : undefined;
+  const parsed = parseAnalysisRequestBody(await request.text());
+  if (!parsed.ok) {
+    return invalidRequest(parsed);
+  }
 
-  return handleAnalysisRequest(request, { mode, wantsRefresh, feedback });
+  const { mode, refresh, feedback, battleHistory } = parsed.value;
+  return handleAnalysisRequest(request, {
+    mode,
+    wantsRefresh: refresh,
+    input: { feedback, battleHistory },
+  });
 }

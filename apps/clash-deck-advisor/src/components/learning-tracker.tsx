@@ -1,374 +1,302 @@
 import {
-  Activity,
   ArrowRight,
-  CheckCircle2,
+  ChevronDown,
   Clock,
-  GitBranch,
-  History,
-  ShieldAlert,
+  Scale,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
 
-import type { DeckEvidence } from "@/lib/schemas";
+import {
+  MIN_BATTLES_FOR_VERDICT,
+  parseClashBattleTime,
+} from "@/lib/learning-engine";
 import type {
-  AppliedFeedback,
+  BattleHistoryStats,
   DeckChangeImpact,
   DeckVersionSummary,
 } from "@/lib/types";
 
-interface LearningTrackerProps {
-  deckVersions: DeckVersionSummary[];
+interface LastChangeCardProps {
   changeImpacts: DeckChangeImpact[];
-  appliedFeedback: AppliedFeedback;
-  evidence?: DeckEvidence;
+  deckVersions: DeckVersionSummary[];
+  historyStats: BattleHistoryStats;
+  avoidedCards: string[];
+  onClearHistory: () => void;
 }
 
-const SOURCE_LABELS: Record<
-  DeckChangeImpact["source"],
-  { label: string; className: string }
-> = {
-  "advisor-full": {
-    label: "Followed Advisor",
-    className: "border-[#164fc9]/30 bg-[#eaf1ff] text-[#164fc9]",
+const VERDICTS = {
+  helped: {
+    title: "Yes, it helped",
+    className: "bg-[#e8f6f0] text-[#087454]",
+    Icon: TrendingUp,
   },
-  "advisor-partial": {
-    label: "Partial Advisor Swap",
-    className: "border-[#164fc9]/25 bg-[#f2f6ff] text-[#164fc9]",
+  hurt: {
+    title: "No, it hurt",
+    className: "bg-[#fff0ef] text-[#b42318]",
+    Icon: TrendingDown,
   },
-  "player-custom": {
-    label: "Your Custom Tweak",
-    className: "border-[#cdb254] bg-[#fff5d6] text-[#76530a]",
+  testing: {
+    title: "Still testing",
+    className: "bg-[#fff5d6] text-[#76530a]",
+    Icon: Clock,
   },
-  "battle-log-transition": {
-    label: "Deck Transition",
-    className: "border-[#cdd8e8] bg-[#f8faff] text-[#33445c]",
+  even: {
+    title: "Too close to call",
+    className: "bg-[#eef1f5] text-[#33445c]",
+    Icon: Scale,
   },
+} as const;
+
+const SOURCE_TEXT: Record<DeckChangeImpact["source"], string> = {
+  "advisor-full": "You followed the advisor's suggestion.",
+  "advisor-partial": "You took part of the advisor's suggestion.",
+  "player-custom": "This was your own change.",
+  "battle-log-transition": "Spotted in your battle log.",
 };
 
-function ImpactVerdictBadge({ impact }: { impact: DeckChangeImpact }) {
+const percent = (value: number) => `${value.toFixed(0)}%`;
+
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function verdictFor(impact: DeckChangeImpact): {
+  key: keyof typeof VERDICTS;
+  detail: string;
+} {
+  const before = percent(impact.beforeWinRate);
+  const after = percent(impact.afterWinRate);
   if (impact.verdict === "helped") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e8f6f0] px-3 py-1 text-xs font-extrabold text-[#087454]">
-        <TrendingUp aria-hidden="true" className="size-3.5" />
-        Change Helped
-      </span>
-    );
+    return { key: "helped", detail: `Win rate went from ${before} to ${after}.` };
   }
   if (impact.verdict === "hurt") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fff0ef] px-3 py-1 text-xs font-extrabold text-[#b42318]">
-        <TrendingDown aria-hidden="true" className="size-3.5" />
-        Change Hurt — Advisor Adjusting
-      </span>
-    );
+    return { key: "hurt", detail: `Win rate fell from ${before} to ${after}.` };
   }
-  if (impact.verdict === "pending") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fff5d6] px-3 py-1 text-xs font-extrabold text-[#76530a]">
-        <Clock aria-hidden="true" className="size-3.5" />
-        Active Build — Play 3 Battles
-      </span>
-    );
+  const remaining = MIN_BATTLES_FOR_VERDICT - impact.afterBattles;
+  if (remaining > 0) {
+    return {
+      key: "testing",
+      detail:
+        impact.afterBattles === 0
+          ? `Play ${plural(MIN_BATTLES_FOR_VERDICT, "battle")} with it to find out.`
+          : `Play ${plural(remaining, "more battle")} with it for a verdict.`,
+    };
   }
-  const remaining = Math.max(1, 3 - impact.afterBattles);
+  return {
+    key: "even",
+    detail: `Win rate moved from ${before} to ${after}, not enough to call.`,
+  };
+}
+
+function SwapPills({ swaps }: { swaps: DeckChangeImpact["swaps"] }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef4ff] px-3 py-1 text-xs font-extrabold text-[#164fc9]">
-      <Activity aria-hidden="true" className="size-3.5" />
-      {impact.afterBattles < 3
-        ? `Testing — Play ${remaining} More Battle${remaining === 1 ? "" : "s"}`
-        : "Neutral Impact"}
-    </span>
+    <ul aria-label="Cards changed" className="flex flex-wrap gap-2">
+      {swaps.map((swap) => (
+        <li
+          key={`${swap.out}-${swap.in}`}
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#f2f5fa] px-3 py-1.5 text-sm font-bold"
+        >
+          <span className="text-[#9b2c24]">{swap.out}</span>
+          <ArrowRight aria-hidden="true" className="size-3.5 text-[#6d7a8b]" />
+          <span className="sr-only">replaced by</span>
+          <span className="text-[#087454]">{swap.in}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-function VersionVerdictBadge({
-  verdict,
+function HistoryDisclosure({
+  olderImpacts,
+  deckVersions,
+  historyStats,
+  onClearHistory,
 }: {
-  verdict: DeckVersionSummary["verdict"];
+  olderImpacts: DeckChangeImpact[];
+  deckVersions: DeckVersionSummary[];
+  historyStats: BattleHistoryStats;
+  onClearHistory: () => void;
 }) {
-  switch (verdict) {
-    case "working":
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#e8f6f0] px-2.5 py-0.5 text-[11px] font-extrabold text-[#087454]">
-          <CheckCircle2 aria-hidden="true" className="size-3" />
-          Working
+  const shownVersions = deckVersions.slice(0, 8);
+  const oldestMs = historyStats.oldestBattleTime
+    ? parseClashBattleTime(historyStats.oldestBattleTime)
+    : 0;
+  const since =
+    oldestMs > 0
+      ? new Date(oldestMs).toLocaleDateString([], {
+          month: "short",
+          day: "numeric",
+        })
+      : null;
+
+  return (
+    <details className="disclosure group mt-5 border-t border-[#e2e7ee]">
+      <summary className="royal-focus flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg pt-3 text-sm font-extrabold text-[#0b1f3a]">
+        History
+        <span className="flex items-center gap-2 text-xs font-bold text-[#5c6b7f]">
+          {plural(deckVersions.length, "deck version")}
+          <ChevronDown
+            aria-hidden="true"
+            className="size-4 motion-safe:transition-transform group-open:rotate-180"
+          />
         </span>
-      );
-    case "underperforming":
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#fff0ef] px-2.5 py-0.5 text-[11px] font-extrabold text-[#b42318]">
-          <ShieldAlert aria-hidden="true" className="size-3" />
-          Underperforming
-        </span>
-      );
-    case "testing":
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#fff5d6] px-2.5 py-0.5 text-[11px] font-extrabold text-[#76530a]">
-          <Clock aria-hidden="true" className="size-3" />
-          Testing
-        </span>
-      );
-    case "untested":
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#eef1f5] px-2.5 py-0.5 text-[11px] font-extrabold text-[#526175]">
-          Untested
-        </span>
-      );
-  }
+      </summary>
+
+      <div className="space-y-6 pt-4">
+        {olderImpacts.length > 0 ? (
+          <div>
+            <h3 className="text-xs font-extrabold uppercase tracking-wide text-[#5c6b7f]">
+              Earlier changes
+            </h3>
+            <ul className="mt-2 divide-y divide-[#eef1f5]">
+              {olderImpacts.map((impact) => (
+                <li
+                  key={`${impact.fromVersionLabel}-${impact.toVersionLabel}`}
+                  className="py-3"
+                >
+                  <SwapPills swaps={impact.swaps} />
+                  <p className="mt-2 text-xs font-bold text-[#5c6b7f]">
+                    {impact.toVersionLabel}: {VERDICTS[verdictFor(impact).key].title}
+                    {impact.afterBattles > 0
+                      ? ` · ${percent(impact.beforeWinRate)} → ${percent(impact.afterWinRate)}`
+                      : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div>
+          <h3 className="text-xs font-extrabold uppercase tracking-wide text-[#5c6b7f]">
+            Deck versions
+          </h3>
+          <ul className="mt-2 divide-y divide-[#eef1f5]">
+            {shownVersions.map((version) => (
+              <li key={version.deckKey} className="py-3">
+                <p className="text-sm font-extrabold text-[#0b1f3a]">
+                  {version.versionLabel}
+                  {version.isCurrentActiveDeck ? " · current deck" : ""}
+                  <span className="ml-2 font-bold text-[#5c6b7f]">
+                    {version.battles > 0
+                      ? `${version.wins}W–${version.losses}L · ${percent(version.winRate)}`
+                      : "not played yet"}
+                  </span>
+                </p>
+                <p className="mt-1 text-xs leading-5 text-[#5c6b7f]">
+                  {version.cards.join(" · ")}
+                </p>
+              </li>
+            ))}
+          </ul>
+          {deckVersions.length > shownVersions.length ? (
+            <p className="mt-1 text-xs text-[#6d7a8b]">
+              +{deckVersions.length - shownVersions.length} older versions
+            </p>
+          ) : null}
+        </div>
+
+        <div className="rounded-xl bg-[#f5f8ff] p-4 text-xs leading-5 text-[#33445c]">
+          <p>
+            Clash Royale only shares your last 25 or so battles.{" "}
+            {historyStats.fromBrowser > 0
+              ? `This browser has saved ${plural(historyStats.fromBrowser, "older battle")}, so these numbers cover ${plural(historyStats.battlesTracked, "battle")}${since ? ` since ${since}` : ""}.`
+              : "This browser saves them on each visit (up to 300), so the history grows every time you check in."}{" "}
+            Nothing is kept on the server.
+          </p>
+          <button
+            type="button"
+            onClick={onClearHistory}
+            className="royal-focus mt-3 inline-flex min-h-11 items-center rounded-xl border border-[#d9e1ec] bg-white px-4 text-sm font-extrabold text-[#33445c] transition-colors hover:border-[#b42318] hover:text-[#b42318]"
+          >
+            Clear saved history
+          </button>
+        </div>
+      </div>
+    </details>
+  );
 }
 
-export function LearningTracker({
-  deckVersions,
+export function LastChangeCard({
   changeImpacts,
-  appliedFeedback,
-  evidence,
-}: LearningTrackerProps) {
-  const avoidedSwaps = evidence?.avoidedFailedSwaps ?? [];
-  const hasClosedLoopAdjustment =
-    appliedFeedback.penalizedDecks.length > 0 || avoidedSwaps.length > 0;
+  deckVersions,
+  historyStats,
+  avoidedCards,
+  onClearHistory,
+}: LastChangeCardProps) {
+  const [latest, ...older] = changeImpacts;
+  const verdict = latest ? verdictFor(latest) : null;
+  const badge = verdict ? VERDICTS[verdict.key] : null;
 
   return (
     <section
-      aria-labelledby="learning-tracker-title"
-      className="paper-panel overflow-hidden rounded-[1.5rem] border border-[#cdd8e8]"
+      aria-labelledby="last-change-title"
+      className="paper-panel rounded-2xl p-5 sm:p-6"
     >
-      <div className="border-b border-[#d9e1ec] bg-[#f8faff] px-5 py-5 sm:px-7">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-[#164fc9] text-white shadow-sm">
-              <GitBranch aria-hidden="true" className="size-5" />
-            </span>
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-wider text-[#164fc9]">
-                Closed-Loop Learning Ledger
-              </p>
-              <h2
-                id="learning-tracker-title"
-                className="font-display text-2xl font-semibold tracking-[-0.03em] text-[#0b1f3a] sm:text-3xl"
-              >
-                Deck Evolution &amp; Win-Rate Impact
-              </h2>
+      <h2
+        id="last-change-title"
+        className="font-display text-xl font-semibold tracking-[-0.02em] sm:text-2xl"
+      >
+        Did your last change work?
+      </h2>
+
+      {latest && verdict && badge ? (
+        <div className="mt-4 space-y-4">
+          <p
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-extrabold ${badge.className}`}
+          >
+            <badge.Icon aria-hidden="true" className="size-4" />
+            {badge.title}
+          </p>
+
+          <SwapPills swaps={latest.swaps} />
+
+          <dl className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-[#f5f8ff] px-4 py-3">
+              <dt className="text-xs font-bold text-[#5c6b7f]">
+                Before
+                {latest.fromVersionLabel === "Baseline"
+                  ? ""
+                  : ` · ${plural(latest.beforeBattles, "battle")}`}
+              </dt>
+              <dd className="mt-0.5 text-2xl font-extrabold tabular-nums">
+                {percent(latest.beforeWinRate)}
+              </dd>
             </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#33445c]">
-            <span className="rounded-full border border-[#cdd8e8] bg-white px-3 py-1.5">
-              {deckVersions.length} deck version
-              {deckVersions.length === 1 ? "" : "s"} tracked
-            </span>
-            {changeImpacts.length > 0 ? (
-              <span className="rounded-full border border-[#cdd8e8] bg-white px-3 py-1.5">
-                {changeImpacts.length} change impact
-                {changeImpacts.length === 1 ? "" : "s"} measured
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        {hasClosedLoopAdjustment ? (
-          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[#e5c45e] bg-[#fff8df] px-4 py-3 text-xs font-bold text-[#76530a]">
-            <ShieldAlert aria-hidden="true" className="size-4 shrink-0" />
-            <span>
-              Closed-loop adaptation active:
-              {appliedFeedback.penalizedDecks.length > 0
-                ? ` Penalized underperforming version (${appliedFeedback.penalizedDecks.join(", ")}) so the advisor pivots instead of repeating a losing build.`
-                : ""}
-              {avoidedSwaps.length > 0
-                ? ` Avoided previously failed swap cards (${avoidedSwaps.join(", ")}).`
-                : ""}
-            </span>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="p-5 sm:p-7">
-        {changeImpacts.length > 0 ? (
-          <div className="mb-8">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-[#526175]">
-              Before vs. After Change Attribution
-            </h3>
-            <div className="mt-3 grid gap-4 lg:grid-cols-2">
-              {changeImpacts.map((impact) => {
-                const sourceStyle = SOURCE_LABELS[impact.source];
-                const deltaPositive = impact.winRateDelta > 0;
-                const deltaNegative = impact.winRateDelta < 0;
-
-                return (
-                  <article
-                    key={`${impact.fromVersionLabel}-${impact.toVersionLabel}`}
-                    className="rounded-2xl border border-[#d9e1ec] bg-white p-4 shadow-sm sm:p-5"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-lg bg-[#0b1f3a] px-2.5 py-1 text-xs font-extrabold text-white">
-                          {impact.fromVersionLabel} → {impact.toVersionLabel}
-                        </span>
-                        <span
-                          className={`rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold ${sourceStyle.className}`}
-                        >
-                          {sourceStyle.label}
-                        </span>
-                      </div>
-                      <ImpactVerdictBadge impact={impact} />
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {impact.swaps.map((swap) => (
-                        <span
-                          key={`${swap.out}-${swap.in}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#d9e1ec] bg-[#f8faff] px-2.5 py-1 text-xs font-bold"
-                        >
-                          <span className="text-[#b42318]">−{swap.out}</span>
-                          <ArrowRight
-                            aria-hidden="true"
-                            className="size-3 text-[#6d7a8b]"
-                          />
-                          <span className="text-[#087454]">+{swap.in}</span>
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-[#f5f8ff] p-3 text-center">
-                      <div>
-                        <p className="text-[11px] font-bold text-[#6d7a8b]">
-                          Before ({impact.beforeBattles}g)
-                        </p>
-                        <p className="mt-0.5 text-lg font-extrabold tabular-nums text-[#0b1f3a]">
-                          {impact.beforeWinRate.toFixed(1)}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-bold text-[#6d7a8b]">
-                          After ({impact.afterBattles}g)
-                        </p>
-                        <p className="mt-0.5 text-lg font-extrabold tabular-nums text-[#0b1f3a]">
-                          {impact.afterBattles > 0
-                            ? `${impact.afterWinRate.toFixed(1)}%`
-                            : "Pending"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-bold text-[#6d7a8b]">
-                          WR Delta
-                        </p>
-                        <p
-                          className={[
-                            "mt-0.5 text-lg font-extrabold tabular-nums",
-                            impact.afterBattles === 0
-                              ? "text-[#6d7a8b]"
-                              : deltaPositive
-                                ? "text-[#087454]"
-                                : deltaNegative
-                                  ? "text-[#b42318]"
-                                  : "text-[#33445c]",
-                          ].join(" ")}
-                        >
-                          {impact.afterBattles === 0
-                            ? "—"
-                            : `${deltaPositive ? "+" : ""}${impact.winRateDelta.toFixed(1)}%`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="mt-3 text-xs leading-5 text-[#526175]">
-                      {impact.summary}
-                    </p>
-                  </article>
-                );
-              })}
+            <div className="rounded-xl bg-[#f5f8ff] px-4 py-3">
+              <dt className="text-xs font-bold text-[#5c6b7f]">
+                After · {plural(latest.afterBattles, "battle")}
+              </dt>
+              <dd className="mt-0.5 text-2xl font-extrabold tabular-nums">
+                {latest.afterBattles > 0 ? percent(latest.afterWinRate) : "—"}
+              </dd>
             </div>
-          </div>
-        ) : (
-          <div className="mb-6 rounded-xl border border-[#d9e1ec] bg-[#f8faff] px-4 py-3 text-sm text-[#526175]">
-            <p className="font-bold text-[#0b1f3a]">
-              Single deck version in recent battle log
-            </p>
-            <p className="mt-0.5 text-xs leading-5">
-              When you swap 1–4 cards and play ladder matches, the advisor
-              automatically tracks your before vs. after win-rate delta here and
-              adjusts future recommendations if a change underperforms.
-            </p>
-          </div>
-        )}
+          </dl>
 
-        <div>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h3 className="flex items-center gap-1.5 text-sm font-extrabold uppercase tracking-wider text-[#526175]">
-              <History aria-hidden="true" className="size-4 text-[#164fc9]" />
-              Battle-Log Deck Versions
-            </h3>
-          </div>
-
-          <div className="divide-y divide-[#e2e7ee] overflow-hidden rounded-2xl border border-[#d9e1ec] bg-white">
-            {deckVersions.map((version) => (
-              <article
-                key={version.deckKey}
-                className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-lg bg-[#0b1f3a] px-2.5 py-0.5 text-xs font-extrabold text-white">
-                      {version.versionLabel}
-                    </span>
-                    {version.isCurrentActiveDeck ? (
-                      <span className="rounded-full bg-[#eaf1ff] px-2.5 py-0.5 text-[11px] font-extrabold text-[#164fc9]">
-                        Active Equipped Deck
-                      </span>
-                    ) : null}
-                    <VersionVerdictBadge verdict={version.verdict} />
-                    <span className="text-xs font-bold text-[#526175]">
-                      {version.battles > 0
-                        ? `${version.wins}W–${version.losses}L${version.draws > 0 ? `–${version.draws}D` : ""} (${version.winRate.toFixed(1)}% WR)`
-                        : "0 recent battles played"}
-                    </span>
-                    {version.netTrophies !== 0 ? (
-                      <span
-                        className={[
-                          "text-xs font-extrabold tabular-nums",
-                          version.netTrophies > 0
-                            ? "text-[#087454]"
-                            : "text-[#b42318]",
-                        ].join(" ")}
-                      >
-                        {version.netTrophies > 0 ? "+" : ""}
-                        {version.netTrophies} trophies
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <p className="mt-2 text-xs font-bold text-[#33445c]">
-                    {version.cards.join(" · ")}
-                  </p>
-
-                  {version.swapsFromPrevious.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-                      <span className="font-bold text-[#6d7a8b]">
-                        Swaps from prior version:
-                      </span>
-                      {version.swapsFromPrevious.map((swap) => (
-                        <span
-                          key={`${swap.out}-${swap.in}`}
-                          className="rounded-md bg-[#f5f8ff] px-2 py-0.5 font-bold text-[#33445c]"
-                        >
-                          −{swap.out} / +{swap.in}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {version.topLossesAgainst.length > 0 ? (
-                    <p className="mt-1.5 text-[11px] text-[#b42318]">
-                      <span className="font-extrabold">Lost against:</span>{" "}
-                      {version.topLossesAgainst.join(", ")}
-                    </p>
-                  ) : null}
-                </div>
-              </article>
-            ))}
-          </div>
+          <p className="text-sm leading-6 text-[#33445c]">
+            {verdict.detail}
+            {verdict.key === "hurt" && avoidedCards.length > 0
+              ? ` The advisor is steering away from ${avoidedCards.join(", ")}.`
+              : ""}
+            <span className="mt-1 block text-xs text-[#6d7a8b]">
+              {SOURCE_TEXT[latest.source]}
+            </span>
+          </p>
         </div>
-      </div>
+      ) : (
+        <p className="mt-3 text-sm leading-6 text-[#5c6b7f]">
+          No deck change spotted yet. Swap a card, play a few battles, and the
+          result shows up here.
+        </p>
+      )}
+
+      <HistoryDisclosure
+        olderImpacts={older}
+        deckVersions={deckVersions}
+        historyStats={historyStats}
+        onClearHistory={onClearHistory}
+      />
     </section>
   );
 }

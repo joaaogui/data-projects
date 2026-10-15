@@ -48,13 +48,16 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-button,
-a {
-  -webkit-tap-highlight-color: transparent;
-}
+/* Layered so Tailwind utilities can still set button font size and weight. */
+@layer base {
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
 
-button {
-  font: inherit;
+  button {
+    font: inherit;
+  }
 }
 
 ::selection {
@@ -80,6 +83,14 @@ button {
     linear-gradient(rgba(22, 79, 201, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(22, 79, 201, 0.04) 1px, transparent 1px);
   background-size: 20px 20px;
+}
+
+.disclosure > summary {
+  list-style: none;
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
 }
 
 .royal-focus:focus-visible {

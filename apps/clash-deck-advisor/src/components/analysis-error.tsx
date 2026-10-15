@@ -6,6 +6,7 @@ interface AnalysisErrorProps {
   code?: string;
   message: string;
   onRetry: () => void;
+  onClearHistory?: () => void;
 }
 
 const guidance: Record<string, { title: string; detail: string }> = {
@@ -42,12 +43,23 @@ const guidance: Record<string, { title: string; detail: string }> = {
     detail:
       "This recommendation refreshes every 30 minutes, so another request is not needed yet.",
   },
+  INVALID_REQUEST: {
+    title: "Saved history could not be read",
+    detail:
+      "The battle history saved in this browser did not pass validation. Clearing it starts a fresh one.",
+  },
+  PAYLOAD_TOO_LARGE: {
+    title: "Saved history is too large",
+    detail:
+      "The battle history saved in this browser is bigger than the server accepts. Clearing it starts a fresh one.",
+  },
 };
 
 export function AnalysisError({
   code = "ANALYSIS_FAILED",
   message,
   onRetry,
+  onClearHistory,
 }: AnalysisErrorProps) {
   const copy = guidance[code] ?? {
     title: "The workshop lost its live feed",
@@ -78,14 +90,25 @@ export function AnalysisError({
           <p className="mt-2 max-w-xl text-sm leading-6 text-[#7a8798]">
             {copy.detail}
           </p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="royal-focus mt-7 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#164fc9] px-5 py-2.5 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(22,79,201,0.18)] transition-colors hover:bg-[#103fa5]"
-          >
-            <RotateCcw aria-hidden="true" className="size-4" />
-            Run analysis again
-          </button>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={onRetry}
+              className="royal-focus inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#164fc9] px-5 py-2.5 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(22,79,201,0.18)] transition-colors hover:bg-[#103fa5]"
+            >
+              <RotateCcw aria-hidden="true" className="size-4" />
+              Run analysis again
+            </button>
+            {onClearHistory ? (
+              <button
+                type="button"
+                onClick={onClearHistory}
+                className="royal-focus inline-flex min-h-11 items-center justify-center rounded-xl border border-[#cdd8e8] bg-white px-5 py-2.5 text-sm font-extrabold text-[#33445c] transition-colors hover:border-[#b42318] hover:text-[#b42318]"
+              >
+                Clear saved history
+              </button>
+            ) : null}
+          </div>
         </div>
       </section>
     </main>
