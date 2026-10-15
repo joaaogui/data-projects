@@ -14,10 +14,13 @@ import { accountCoachSchema } from "./schemas";
 import type { AnalysisResponse } from "./types";
 
 const ANALYSIS_CACHE_SECONDS = 30 * 60;
+export const ANALYSIS_CACHE_TAG = "brawl-account-coach-analysis";
 
-async function generateAccountAnalysis(): Promise<AnalysisResponse> {
+export async function generateAccountAnalysis(
+  tag = PLAYER_TAG,
+): Promise<AnalysisResponse> {
   const startedAt = Date.now();
-  const context = await getAnalysisContext();
+  const context = await getAnalysisContext(tag);
   const catalogById = new Map(
     context.catalog.map((brawler) => [brawler.id, brawler]),
   );
@@ -135,10 +138,10 @@ async function generateAccountAnalysis(): Promise<AnalysisResponse> {
 }
 
 export const getCachedAccountAnalysis = unstable_cache(
-  generateAccountAnalysis,
+  () => generateAccountAnalysis(PLAYER_TAG),
   ["brawl-account-coach", PLAYER_TAG, "analysis-v3"],
   {
     revalidate: ANALYSIS_CACHE_SECONDS,
-    tags: ["brawl-account-coach-analysis"],
+    tags: [ANALYSIS_CACHE_TAG],
   },
 );

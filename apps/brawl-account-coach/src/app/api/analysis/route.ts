@@ -1,11 +1,17 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { MissingAiConfigurationError } from "@/lib/ai-provider";
-import { getCachedAccountAnalysis } from "@/lib/analyze-account";
+import {
+  ANALYSIS_CACHE_TAG,
+  generateAccountAnalysis,
+  getCachedAccountAnalysis,
+} from "@/lib/analyze-account";
 import {
   BrawlStarsApiError,
   BrawlStarsNetworkError,
   MissingConfigurationError,
+  PLAYER_TAG,
 } from "@/lib/brawl-stars";
 import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
 
@@ -16,6 +22,11 @@ export const dynamic = "force-dynamic";
 const analysisRateLimit = createRateLimiter({
   limit: 10,
   windowMs: 5 * 60 * 1_000,
+});
+
+const refreshRateLimiter = createRateLimiter({
+  limit: 4,
+  windowMs: 10 * 60_000,
 });
 
 function rateLimitHeaders(remaining: number, resetAt: number) {
@@ -44,7 +55,11 @@ function upstreamStatus(error: BrawlStarsApiError): number {
 }
 
 export async function GET(request: Request) {
-  const rateLimit = analysisRateLimit.check(getClientIp(request));
+  const url = new URL(request.url);
+  const wantsRefresh = url.searchParams.get("refresh") === "1";
+  const clientIp = getClientIp(request);
+
+  const rateLimit = analysisRateLimit.check(clientIp);
   const headers = rateLimitHeaders(rateLimit.remaining, rateLimit.resetAt);
 
   if (!rateLimit.success) {
@@ -65,11 +80,38 @@ export async function GET(request: Request) {
     );
   }
 
+  if (wantsRefresh) {
+    const refreshLimit = refreshRateLimiter.check(clientIp);
+    if (!refreshLimit.success) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "RATE_LIMITED",
+            message:
+              "Too many refreshes. A fresh dossier is available every few minutes.",
+          },
+        },
+        {
+          status: 429,
+          headers: {
+            ...rateLimitHeaders(refreshLimit.remaining, refreshLimit.resetAt),
+            "Retry-After": String(refreshLimit.retryAfter ?? 60),
+          },
+        },
+      );
+    }
+    revalidateTag(ANALYSIS_CACHE_TAG, { expire: 0 });
+  }
+
   try {
-    const result = await getCachedAccountAnalysis();
+    const result = wantsRefresh
+      ? await generateAccountAnalysis(PLAYER_TAG)
+      : await getCachedAccountAnalysis();
+
     return NextResponse.json(result, {
       headers: {
         ...headers,
+        "X-Analysis-Cache": wantsRefresh ? "refreshed" : "cached",
         "X-Analysis-Cache-Seconds": "1800",
       },
     });

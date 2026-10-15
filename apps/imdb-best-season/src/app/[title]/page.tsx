@@ -19,7 +19,7 @@ export default function SeasonsPage() {
     return (
       <div className="h-screen flex flex-col overflow-hidden">
         <ShowHeader searchQuery={title} />
-        <main className="flex-1 min-h-0 container mx-auto px-4 py-8">
+        <main id="main-content" className="flex-1 min-h-0 container mx-auto px-4 py-8">
           <LoadingSkeleton />
         </main>
       </div>
@@ -30,7 +30,7 @@ export default function SeasonsPage() {
     return (
       <div className="h-screen flex flex-col overflow-hidden">
         <ShowHeader searchQuery={title} />
-        <main className="flex-1 min-h-0 container mx-auto px-4 py-8">
+        <main id="main-content" className="flex-1 min-h-0 container mx-auto px-4 py-8">
           <div
             role="alert"
             aria-live="assertive"
@@ -60,7 +60,7 @@ export default function SeasonsPage() {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       <ShowHeader searchQuery={title} />
-      <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
+      <main id="main-content" className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
         <div className="flex-shrink-0">
           <ShowInfo show={data.show} />
         </div>

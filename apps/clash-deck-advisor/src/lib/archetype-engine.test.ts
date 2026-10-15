@@ -3,12 +3,26 @@ import { describe, expect, it } from "vitest";
 import {
   classifyArchetype,
   gateFailures,
+  lockedNames,
   rankArchetypes,
   recommendArchetype,
+  scoreHistoryFeedback,
+  scoreLossCounters,
 } from "./archetype-engine";
 import { buildCardProfiles } from "./card-knowledge";
 import snapshot from "./fixtures/player-snapshot.json";
-import type { ClashCard, MetaDeckReference } from "./types";
+import {
+  buildLossAutopsy,
+  deckKeyOf,
+  normalizeBattles,
+} from "./learning-engine";
+import type {
+  Battle,
+  ClashCard,
+  DeckChangeImpact,
+  DeckVersionSummary,
+  MetaDeckReference,
+} from "./types";
 
 const cards = snapshot.cards as ClashCard[];
 const current = snapshot.currentDeck as ClashCard[];
@@ -242,5 +256,251 @@ describe("archetype recommendation", () => {
 
     expect(result.analysis.evidence?.liveMetaOverlap).toBeGreaterThan(0);
     expect(result.analysis.evidence?.confidence).toBe("high");
+  });
+
+  it("does not lock non-core slot options in improve mode so counter swaps can happen", () => {
+    const template = classifyArchetype(current.map((card) => card.name));
+    const locked = lockedNames(template, currentProfiles);
+
+    // Core cards stay locked
+    expect(locked.has("Skeleton Barrel")).toBe(true);
+    expect(locked.has("Goblin Gang")).toBe(true);
+    expect(locked.has("Skeleton Army")).toBe(true);
+
+    // Non-core slot options are no longer forcibly locked
+    expect(locked.has("Golden Knight")).toBe(false);
+    expect(locked.has("Fireball")).toBe(false);
+    expect(locked.has("P.E.K.K.A")).toBe(false);
+  });
+
+  it("boosts swaps that counter recurring threats in lossAutopsy and attaches counterTargets", () => {
+    const lossBattles: Battle[] = [1, 2, 3].map((idx) => ({
+      type: "PvP",
+      battleTime: `20260919T120${idx}00.000Z`,
+      team: [
+        {
+          tag: "#VGURQ0QQ2",
+          name: "Player",
+          crowns: 0,
+          trophyChange: -30,
+          cards: current,
+        },
+      ],
+      opponent: [
+        {
+          tag: `#OPP${idx}`,
+          name: `AirRival${idx}`,
+          crowns: 3,
+          cards: [
+            "Lava Hound",
+            "Balloon",
+            "Goblin Barrel",
+            "Princess",
+            "Goblin Gang",
+            "Skeleton Army",
+            "Arrows",
+            "Zap",
+          ].map((name, i) => ({
+            id: i + 1,
+            name,
+            level: 14,
+            maxLevel: 16,
+            rarity: "common",
+            elixirCost: 4,
+            iconUrls: { medium: "" },
+          })),
+        },
+      ],
+    }));
+
+    const normalized = normalizeBattles(lossBattles, "#VGURQ0QQ2");
+    const lossAutopsy = buildLossAutopsy(normalized, currentProfiles, owned);
+
+    const rec = recommendArchetype({
+      owned,
+      current: currentProfiles,
+      metaDecks: [],
+      losses: [],
+      lossAutopsy,
+      mode: "improve",
+    });
+
+    const counterEval = scoreLossCounters(
+      deckNamed(rec.analysis.improvedDeck),
+      currentProfiles,
+      lossAutopsy,
+    );
+
+    expect(counterEval.bonus).toBeGreaterThan(0);
+    expect(counterEval.counteredThreats.length).toBeGreaterThan(0);
+    expect(rec.analysis.evidence?.counteredThreats?.length).toBeGreaterThan(0);
+    expect(
+      rec.analysis.changes.some(
+        (change) => (change.counterTargets?.length ?? 0) > 0,
+      ),
+    ).toBe(true);
+  });
+
+  it("overrides keep verdict when the current deck is losing (<45% WR over >=3 battles)", () => {
+    // Start with the canonical skeleton-barrel-bait 8-card deck so without
+    // history feedback it would have 0 swaps ("keep").
+    const canonicalBaitNames = [
+      "Skeleton Barrel",
+      "Goblin Gang",
+      "Skeleton Army",
+      "Minions",
+      "Golden Knight",
+      "Fireball",
+      "Royal Delivery",
+      "P.E.K.K.A",
+    ];
+    const canonicalBaitDeck = deckNamed(canonicalBaitNames);
+
+    // Without battle history, the advisor keeps this deck
+    const withoutHistory = recommendArchetype({
+      owned,
+      current: canonicalBaitDeck,
+      metaDecks: [],
+      losses: [],
+      mode: "improve",
+    });
+    expect(withoutHistory.analysis.verdict).toBe("keep");
+
+    // With 0W-4L battle history on this exact deck, keeping it is penalized (-30)
+    // and the advisor recommends a targeted counter swap instead of "keep".
+    const failingVersion: DeckVersionSummary = {
+      deckKey: deckKeyOf(canonicalBaitNames),
+      versionLabel: "v1",
+      cards: canonicalBaitNames,
+      isCurrentActiveDeck: true,
+      battles: 4,
+      wins: 0,
+      losses: 4,
+      draws: 0,
+      winRate: 0,
+      netTrophies: -120,
+      avgCrownDiff: -2,
+      firstSeen: "20260919T100000.000Z",
+      lastSeen: "20260919T104000.000Z",
+      swapsFromPrevious: [],
+      swapsToCurrent: [],
+      topLossesAgainst: ["Balloon", "Lava Hound"],
+      verdict: "underperforming",
+    };
+
+    const withFailingHistory = recommendArchetype({
+      owned,
+      current: canonicalBaitDeck,
+      metaDecks: [],
+      losses: [
+        {
+          battleTime: "20260919T104000.000Z",
+          opponentName: "LoonPlayer",
+          opponentCrowns: 3,
+          playerCrowns: 0,
+          opponentDeck: [
+            "Lava Hound",
+            "Balloon",
+            "Mega Minion",
+            "Baby Dragon",
+            "Skeleton Dragons",
+            "Tombstone",
+            "Arrows",
+            "Zap",
+          ],
+        },
+      ],
+      deckVersions: [failingVersion],
+      mode: "improve",
+    });
+
+    expect(withFailingHistory.keptCurrentDeck).toBe(false);
+    expect(withFailingHistory.analysis.verdict).toBe("improve");
+    expect(withFailingHistory.analysis.changes.length).toBeGreaterThan(0);
+    expect(withFailingHistory.penalizedDecks).toContain("v1");
+  });
+
+  it("penalizes and avoids incoming swaps that produced a hurt verdict in changeImpacts", () => {
+    const hurtImpacts: DeckChangeImpact[] = [
+      {
+        fromVersionLabel: "v1",
+        toVersionLabel: "v2",
+        fromDeck: current.map((c) => c.name),
+        toDeck: [
+          "Skeleton Barrel",
+          "Goblin Gang",
+          "Skeleton Army",
+          "Minions",
+          "Golden Knight",
+          "Fireball",
+          "Royal Delivery",
+          "P.E.K.K.A",
+        ],
+        swaps: [
+          { out: "Minion Horde", in: "Minions" },
+          { out: "Wizard", in: "Royal Delivery" },
+        ],
+        source: "advisor-full",
+        beforeBattles: 4,
+        beforeWinRate: 50,
+        afterBattles: 4,
+        afterWinRate: 25,
+        winRateDelta: -25,
+        trophyDelta: -60,
+        verdict: "hurt",
+        summary: "Dropped WR from 50% to 25%",
+      },
+    ];
+
+    const feedbackEval = scoreHistoryFeedback(
+      deckNamed([
+        "Skeleton Barrel",
+        "Goblin Gang",
+        "Skeleton Army",
+        "Minions",
+        "Golden Knight",
+        "Fireball",
+        "Royal Delivery",
+        "P.E.K.K.A",
+      ]),
+      currentProfiles,
+      [],
+      hurtImpacts,
+    );
+
+    expect(feedbackEval.delta).toBeLessThan(0);
+
+    const rec = recommendArchetype({
+      owned,
+      current: currentProfiles,
+      metaDecks: [],
+      losses: [],
+      changeImpacts: hurtImpacts,
+      mode: "improve",
+    });
+
+    // Should pivot away from at least one of the hurt incoming cards (e.g. choosing Archers or Arrows)
+    expect(rec.analysis.evidence?.avoidedFailedSwaps?.length).toBeGreaterThan(
+      0,
+    );
+  });
+
+  it("respects lockedCards and excludedCards from player feedback", () => {
+    const result = recommendArchetype({
+      owned,
+      current: currentProfiles,
+      metaDecks: [],
+      losses: [],
+      feedback: {
+        lockedCards: ["Wizard"],
+        excludedCards: ["Minions", "Royal Delivery"],
+        suggestionHistory: [],
+      },
+      mode: "improve",
+    });
+
+    expect(result.analysis.improvedDeck).toContain("Wizard");
+    expect(result.analysis.improvedDeck).not.toContain("Minions");
+    expect(result.analysis.improvedDeck).not.toContain("Royal Delivery");
   });
 });

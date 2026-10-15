@@ -79,11 +79,149 @@ export interface LevelWarning {
   message: string;
 }
 
+export type BattleOutcome = "win" | "loss" | "draw";
+
+export interface NormalizedBattle {
+  battleTime: string;
+  timestampMs: number;
+  type: string;
+  gameModeName: string;
+  isLadderOrRanked: boolean;
+  outcome: BattleOutcome;
+  playerCrowns: number;
+  opponentCrowns: number;
+  crownDiff: number;
+  trophyChange: number;
+  playerDeck: string[];
+  deckKey: string;
+  opponentName: string;
+  opponentTag: string;
+  opponentDeck: string[];
+  opponentArchetype: string;
+}
+
+export type ThreatCategory =
+  | "heavyTank"
+  | "fastCycleWinCon"
+  | "spellBait"
+  | "airBeatdown"
+  | "splashSupport"
+  | "buildingSiege"
+  | "other";
+
+export interface ThreatCardStat {
+  cardName: string;
+  lossesAgainst: number;
+  winsAgainst: number;
+  totalSeen: number;
+  lossRateAgainst: number;
+  threatCategory: ThreatCategory;
+  recommendedCounters: string[];
+}
+
+export interface BlindSpotDiagnostic {
+  category: ThreatCardStat["threatCategory"];
+  label: string;
+  severity: "high" | "medium" | "low";
+  evidence: string;
+  neededRole: string;
+  counterCards: string[];
+}
+
+export interface LossAutopsy {
+  totalBattlesAnalyzed: number;
+  recentWins: number;
+  recentLosses: number;
+  recentDraws: number;
+  recentWinRate: number;
+  netTrophies: number;
+  currentStreak: { type: "win" | "loss" | "none"; count: number };
+  threeCrownLosses: number;
+  oneCrownLosses: number;
+  topThreatCards: ThreatCardStat[];
+  topThreatArchetypes: {
+    archetype: string;
+    losses: number;
+    wins: number;
+    lossRate: number;
+  }[];
+  dominantBlindSpots: BlindSpotDiagnostic[];
+}
+
+export interface DeckVersionSummary {
+  deckKey: string;
+  versionLabel: string;
+  cards: string[];
+  isCurrentActiveDeck: boolean;
+  battles: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number;
+  netTrophies: number;
+  avgCrownDiff: number;
+  firstSeen: string;
+  lastSeen: string;
+  swapsFromPrevious: { out: string; in: string }[];
+  swapsToCurrent: { out: string; in: string }[];
+  topLossesAgainst: string[];
+  verdict: "working" | "underperforming" | "testing" | "untested";
+}
+
+export interface DeckChangeImpact {
+  fromVersionLabel: string;
+  toVersionLabel: string;
+  fromDeck: string[];
+  toDeck: string[];
+  swaps: { out: string; in: string }[];
+  source:
+    | "advisor-full"
+    | "advisor-partial"
+    | "player-custom"
+    | "battle-log-transition";
+  matchedSuggestionId?: string;
+  beforeBattles: number;
+  beforeWinRate: number;
+  afterBattles: number;
+  afterWinRate: number;
+  winRateDelta: number;
+  trophyDelta: number;
+  verdict: "helped" | "hurt" | "inconclusive" | "pending";
+  summary: string;
+}
+
+export interface StoredSuggestionEntry {
+  id: string;
+  createdAt: string;
+  mode: import("./engine-context").AnalysisMode;
+  baselineDeck: string[];
+  baselineWinRate: number;
+  recommendedDeck: string[];
+  recommendedSwaps: { out: string; in: string }[];
+  archetypeName: string;
+}
+
+export interface PlayerFeedbackInput {
+  lockedCards: string[];
+  excludedCards: string[];
+  suggestionHistory: StoredSuggestionEntry[];
+}
+
+export interface AppliedFeedback {
+  lockedCards: string[];
+  excludedCards: string[];
+  penalizedDecks: string[];
+}
+
 export interface AnalysisContext {
   player: Player;
   recentLosses: RecentLoss[];
   metaDecks: MetaDeckReference[];
   metaAvailable: boolean;
+  normalizedBattles?: NormalizedBattle[];
+  lossAutopsy: LossAutopsy;
+  deckVersions: DeckVersionSummary[];
+  changeImpacts: DeckChangeImpact[];
 }
 
 export interface AnalysisResponse {
@@ -93,4 +231,8 @@ export interface AnalysisResponse {
   generatedAt: string;
   metaAvailable: boolean;
   mode: import("./engine-context").AnalysisMode;
+  lossAutopsy: LossAutopsy;
+  deckVersions: DeckVersionSummary[];
+  changeImpacts: DeckChangeImpact[];
+  appliedFeedback: AppliedFeedback;
 }

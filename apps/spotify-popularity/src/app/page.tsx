@@ -7,7 +7,7 @@ const SUGGESTIONS = ["KATSEYE", "Dj Xablau", "Red Hot Chili Peppers"]
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col">
+    <main id="main-content" className="min-h-screen flex flex-col">
       <div className="absolute top-4 right-4">
         <ThemeToggle iconClassName="text-spotify" />
       </div>

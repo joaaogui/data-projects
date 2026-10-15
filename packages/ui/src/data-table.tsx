@@ -110,6 +110,28 @@ export function SortButton({ children, sorted, onClick, className }: Readonly<So
   );
 }
 
+/**
+ * `SortButton` wants the sort state and a toggle rather than the column object,
+ * which makes every header a three-line expression. This packages the wiring so
+ * a column definition can just say `header: sortableHeader("Plays")`.
+ */
+export function sortableHeader<TData extends RowData, TValue extends CellData = CellData>(
+  label: React.ReactNode,
+  className?: string
+) {
+  return function SortableHeader({ column }: HeaderContext<TData, TValue>) {
+    return (
+      <SortButton
+        sorted={column.getIsSorted()}
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className={className}
+      >
+        {label}
+      </SortButton>
+    );
+  };
+}
+
 export function DataTable<TData extends RowData>({
   columns,
   data,

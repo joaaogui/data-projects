@@ -1,6 +1,8 @@
 import type { CardProfile } from "./card-knowledge";
 import { checkDeckLegality, DECK_SIZE } from "./deck-rules";
-import { scoreDeck, type DeckScore } from "./deck-score";
+import { scoreDeck, type DeckScore, type ScoreDeckOptions } from "./deck-score";
+import { cardCountersThreatCategory } from "./learning-engine";
+import type { DeckVersionSummary, LossAutopsy } from "./types";
 
 /**
  * Deterministic local search over a deck.
@@ -19,6 +21,12 @@ export interface RefineOptions {
   maxSwaps?: number;
   /** Cards that must stay, such as the archetype's win condition. */
   lockedCards?: Set<string>;
+  /** Cards the player explicitly banned or that failed in recent iterations. */
+  excludedCards?: Iterable<string>;
+  /** Recent loss autopsy used to prioritize threat counters. */
+  lossAutopsy?: LossAutopsy;
+  /** Historical deck versions used to avoid known-bad configurations. */
+  deckVersions?: DeckVersionSummary[];
 }
 
 export interface RefineResult {
@@ -77,9 +85,19 @@ export function refineDeck(
 ): RefineResult {
   const maxSwaps = options.maxSwaps ?? DECK_SIZE;
   const locked = options.lockedCards ?? new Set<string>();
+  const excluded = new Set(options.excludedCards ?? []);
+  const scoreOptions: ScoreDeckOptions = {
+    lossAutopsy: options.lossAutopsy,
+    deckVersions: options.deckVersions,
+    excludedCards: excluded.size > 0 ? excluded : undefined,
+  };
+  const hasContextFeedback =
+    excluded.size > 0 ||
+    Boolean(options.lossAutopsy && options.lossAutopsy.recentLosses > 0) ||
+    Boolean(options.deckVersions && options.deckVersions.length > 0);
 
   let deck = [...startingDeck];
-  let score = scoreDeck(deck);
+  let score = scoreDeck(deck, scoreOptions);
   let structural = structuralTotal(score);
   const threats = countThreats(startingDeck);
   let swapsApplied = 0;
@@ -93,12 +111,13 @@ export function refineDeck(
     } | null = null;
 
     for (let position = 0; position < deck.length; position += 1) {
-      if (locked.has(deck[position].name)) {
+      const outgoing = deck[position]!;
+      if (locked.has(outgoing.name) && !excluded.has(outgoing.name)) {
         continue;
       }
 
       for (const replacement of pool) {
-        if (inDeck.has(replacement.name)) {
+        if (inDeck.has(replacement.name) || excluded.has(replacement.name)) {
           continue;
         }
 
@@ -113,11 +132,23 @@ export function refineDeck(
           continue;
         }
 
-        const candidateScore = scoreDeck(candidate);
+        const candidateScore = scoreDeck(candidate, scoreOptions);
         const candidateStructural = structuralTotal(candidateScore);
 
-        // Must close a structural gap, and must not be an overall downgrade.
-        if (candidateStructural <= structural) {
+        const countersRecentBlindSpot =
+          hasContextFeedback &&
+          (excluded.has(outgoing.name) ||
+            (options.lossAutopsy?.dominantBlindSpots.some((spot) =>
+              cardCountersThreatCategory(replacement, spot.category),
+            ) ??
+              false));
+
+        // Must close a structural gap (or replace a banned card / answer a blind spot without losing structure),
+        // and must not be an overall downgrade.
+        if (
+          candidateStructural < structural ||
+          (candidateStructural === structural && !countersRecentBlindSpot)
+        ) {
           continue;
         }
         if (candidateScore.total < score.total + MIN_GAIN) {

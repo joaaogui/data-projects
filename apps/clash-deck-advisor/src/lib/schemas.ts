@@ -13,6 +13,7 @@ export const cardSwapSchema = z.object({
   out: nonEmptyText,
   in: nonEmptyText,
   reason: nonEmptyText,
+  counterTargets: z.array(nonEmptyText).max(4).optional(),
 });
 
 export const metaTierSchema = z.object({
@@ -78,6 +79,32 @@ export const deckEvidenceSchema = z.object({
   strengths: z.array(nonEmptyText).max(4),
   weaknesses: z.array(nonEmptyText).max(4),
   liveMetaOverlap: z.number().int().min(0),
+  counteredThreats: z.array(nonEmptyText).max(5).optional(),
+  avoidedFailedSwaps: z.array(nonEmptyText).max(4).optional(),
+});
+
+export const storedSuggestionEntrySchema = z.object({
+  id: nonEmptyText,
+  createdAt: nonEmptyText,
+  mode: z.enum(["improve", "best"]),
+  baselineDeck: z.array(nonEmptyText).max(8),
+  baselineWinRate: z.number().min(0).max(100),
+  recommendedDeck: z.array(nonEmptyText).max(8),
+  recommendedSwaps: z
+    .array(
+      z.object({
+        out: nonEmptyText,
+        in: nonEmptyText,
+      }),
+    )
+    .max(8),
+  archetypeName: nonEmptyText,
+});
+
+export const playerFeedbackInputSchema = z.object({
+  lockedCards: z.array(nonEmptyText).max(8).default([]),
+  excludedCards: z.array(nonEmptyText).max(20).default([]),
+  suggestionHistory: z.array(storedSuggestionEntrySchema).max(25).default([]),
 });
 
 export const deckAnalysisSchema = z.object({

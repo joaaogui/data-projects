@@ -49,7 +49,7 @@ export function AnalysisError({
   };
 
   return (
-    <main className="mx-auto flex min-h-[72vh] w-full max-w-5xl items-center px-4 py-12 sm:px-6">
+    <main id="main-content" className="mx-auto flex min-h-[72vh] w-full max-w-5xl items-center px-4 py-12 sm:px-6">
       <section
         aria-live="polite"
         className="arcade-panel w-full overflow-hidden rounded-[1.4rem_0.4rem_1.4rem_0.4rem]"

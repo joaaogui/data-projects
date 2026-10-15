@@ -5,6 +5,7 @@ import {
   Clock3,
   Gamepad2,
   LockKeyhole,
+  RefreshCw,
   ShieldAlert,
   Sparkles,
   Target,
@@ -37,7 +38,13 @@ interface ErrorPayload {
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 
-function CoachHeader() {
+function CoachHeader({
+  onRefresh,
+  isRefreshing = false,
+}: {
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
+}) {
   return (
     <header className="border-b-2 border-[#101631] bg-white">
       <div className="mx-auto flex w-full max-w-[1460px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-10">
@@ -59,9 +66,28 @@ function CoachHeader() {
             </p>
           </div>
         </div>
-        <div className="hidden items-center gap-2 border-2 border-[#101631] bg-[#fff8db] px-3 py-1.5 text-xs font-black shadow-[3px_3px_0_#101631] sm:flex">
-          <Clock3 aria-hidden="true" className="size-3.5 text-[#a36f00]" />
-          Refreshes every 30 minutes
+        <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-2 border-2 border-[#101631] bg-[#fff8db] px-3 py-1.5 text-xs font-black shadow-[3px_3px_0_#101631] sm:flex">
+            <Clock3 aria-hidden="true" className="size-3.5 text-[#a36f00]" />
+            Refreshes every 30 minutes
+          </div>
+          {onRefresh ? (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="arcade-focus inline-flex min-h-10 items-center justify-center gap-2 border-2 border-[#101631] bg-white px-3.5 py-1.5 text-xs font-black text-[#101631] shadow-[3px_3px_0_#101631] transition-transform hover:bg-[#f7f9ff] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_#101631] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw
+                aria-hidden="true"
+                className={[
+                  "size-3.5 text-[#155eef]",
+                  isRefreshing ? "animate-spin" : "",
+                ].join(" ")}
+              />
+              {isRefreshing ? "Refreshing" : "Refresh dossier"}
+            </button>
+          ) : null}
         </div>
       </div>
     </header>
@@ -72,7 +98,7 @@ function LoadingDashboard() {
   return (
     <>
       <CoachHeader />
-      <main className="mx-auto w-full max-w-[1460px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+      <main id="main-content" className="mx-auto w-full max-w-[1460px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
         <section
           aria-live="polite"
           aria-busy="true"
@@ -210,6 +236,8 @@ function PowerDistribution({
 export function AccountDashboard() {
   const [requestKey, setRequestKey] = useState(0);
   const [state, setState] = useState<DashboardState>({ status: "loading" });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -260,6 +288,55 @@ export function AccountDashboard() {
     return () => controller.abort();
   }, [requestKey]);
 
+  async function refreshDossier() {
+    if (isRefreshing) {
+      return;
+    }
+    setIsRefreshing(true);
+    setRefreshNotice(null);
+
+    try {
+      const response = await fetch("/api/analysis?refresh=1", {
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as
+        | AnalysisResponse
+        | ErrorPayload;
+
+      if (!response.ok) {
+        const error = (payload as ErrorPayload).error;
+        if (response.status === 429) {
+          setRefreshNotice(
+            error?.message ??
+              "Too many refreshes. A fresh dossier is available every few minutes.",
+          );
+          return;
+        }
+        setState({
+          status: "error",
+          code: error?.code ?? "ANALYSIS_FAILED",
+          message:
+            error?.message ??
+            "The server could not complete the account analysis.",
+        });
+        return;
+      }
+
+      setState({
+        status: "ready",
+        data: payload as AnalysisResponse,
+      });
+    } catch (error) {
+      setRefreshNotice(
+        error instanceof Error
+          ? error.message
+          : "Could not refresh the dossier right now.",
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
   if (state.status === "loading") {
     return <LoadingDashboard />;
   }
@@ -290,8 +367,20 @@ export function AccountDashboard() {
 
   return (
     <>
-      <CoachHeader />
-      <main className="mx-auto w-full max-w-[1460px] px-4 pb-16 pt-7 sm:px-6 lg:px-10 lg:pb-24 lg:pt-10">
+      <CoachHeader onRefresh={refreshDossier} isRefreshing={isRefreshing} />
+      <main
+        id="main-content"
+        className="mx-auto w-full max-w-[1460px] px-4 pb-16 pt-7 sm:px-6 lg:px-10 lg:pb-24 lg:pt-10"
+      >
+        {refreshNotice ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-6 border-2 border-[#101631] bg-[#fff8db] px-4 py-3 text-xs font-extrabold text-[#101631] shadow-[3px_3px_0_#101631]"
+          >
+            {refreshNotice}
+          </div>
+        ) : null}
         <div className="space-y-12 lg:space-y-16">
           <section className="arcade-panel overflow-hidden rounded-[1.4rem_0.4rem_1.4rem_0.4rem]">
             <div className="dossier-stripe h-4" />

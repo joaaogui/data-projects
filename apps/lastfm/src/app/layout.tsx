@@ -36,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased min-h-dvh">
-        <Providers>
+        <Providers posthogApiKey={process.env.NEXT_PUBLIC_POSTHOG_KEY}>
           <a
             href="#main-content"
             className="fixed left-3 top-3 z-[100] -translate-y-16 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-transform focus:translate-y-0"

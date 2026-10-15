@@ -6,7 +6,7 @@ const SUGGESTIONS = ["Breaking Bad", "The Wire", "The Office"];
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen flex flex-col">
+    <main id="main-content" className="min-h-screen flex flex-col">
       <div className="absolute top-4 right-4">
         <ThemeToggle iconClassName="text-gold" />
       </div>

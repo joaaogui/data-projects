@@ -1,6 +1,6 @@
 "use client"
 
-import { SortButton, type CellContext, type ColumnDef, type HeaderContext } from "@data-projects/ui"
+import { SortButton, sortableHeader, type CellContext, type ColumnDef, type HeaderContext } from "@data-projects/ui"
 import { SpotifyTrack } from "@/lib/spotify"
 import { ExternalLink } from "lucide-react"
 import { TrackCover } from "@/components/track-cover"
@@ -34,14 +34,7 @@ export const columns: ColumnDef<SpotifyTrack>[] = [
   },
   {
     accessorKey: "name",
-    header: ({ column }: HeaderContext<SpotifyTrack, unknown>) => (
-      <SortButton
-        sorted={column.getIsSorted()}
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Track
-      </SortButton>
-    ),
+    header: sortableHeader("Track"),
     cell: ({ row }: CellContext<SpotifyTrack, unknown>) => (
       <div className="flex flex-col gap-0.5">
         <a
@@ -62,15 +55,7 @@ export const columns: ColumnDef<SpotifyTrack>[] = [
   {
     id: "year",
     accessorFn: (row: SpotifyTrack) => row.album.release_date.substring(0, 4),
-    header: ({ column }: HeaderContext<SpotifyTrack, unknown>) => (
-      <SortButton
-        sorted={column.getIsSorted()}
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        className="hidden sm:flex"
-      >
-        <span className="hidden sm:inline">Year</span>
-      </SortButton>
-    ),
+    header: sortableHeader(<span className="hidden sm:inline">Year</span>, "hidden sm:flex"),
     cell: ({ row }: CellContext<SpotifyTrack, unknown>) => (
       <span className="hidden sm:inline text-muted-foreground">
         {row.original.album.release_date.substring(0, 4)}

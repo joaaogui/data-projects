@@ -1,10 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+  AiProvidersExhaustedError,
   getAiModelChain,
   getAiProviderConfig,
   getCandidateModels,
+  runWithAiFallback,
 } from "./ai-provider";
+
+const bothProviders = {
+  GOOGLE_GENERATIVE_AI_API_KEY: "google-key",
+  GROQ_API_KEY: "groq-key",
+};
 
 describe("getAiProviderConfig", () => {
   it("prefers Gemini when both providers are configured", () => {
@@ -89,5 +96,51 @@ describe("getCandidateModels", () => {
         (entry) => entry.provider,
       ),
     ).toEqual(["groq"]);
+  });
+});
+
+describe("runWithAiFallback", () => {
+  it("returns the primary result without calling a fallback", async () => {
+    const attempt = vi.fn(async (model: { label: string }) => model.label);
+
+    await expect(runWithAiFallback(attempt, bothProviders)).resolves.toBe(
+      "gemini-3.5-flash-lite",
+    );
+    expect(attempt).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls through provider failures in chain order", async () => {
+    const attempted: string[] = [];
+
+    const result = await runWithAiFallback(async (model) => {
+      attempted.push(model.label);
+      if (model.label === "gemini-3.5-flash-lite") {
+        throw Object.assign(new Error("overloaded"), {
+          statusCode: 503,
+          isRetryable: true,
+        });
+      }
+      if (model.provider === "groq") {
+        throw new Error("ungrounded output");
+      }
+      return "polished";
+    }, bothProviders);
+
+    expect(result).toBe("polished");
+    expect(attempted).toEqual([
+      "gemini-3.5-flash-lite",
+      "openai/gpt-oss-120b",
+      "gemini-3.6-flash",
+    ]);
+  });
+
+  it("throws AiProvidersExhaustedError after every model fails", async () => {
+    const attempt = vi.fn(async () => {
+      throw new Error("provider failure");
+    });
+
+    await expect(runWithAiFallback(attempt, bothProviders)).rejects.toBeInstanceOf(
+      AiProvidersExhaustedError,
+    );
   });
 });

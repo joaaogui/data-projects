@@ -40,7 +40,7 @@
     "react-dom": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
-    "vitest": "^5.0.1"
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "@tanstack/react-table": "^9.0.0",

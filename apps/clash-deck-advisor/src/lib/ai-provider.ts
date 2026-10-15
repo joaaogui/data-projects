@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import type { LanguageModel } from "ai";
@@ -17,12 +19,32 @@ export interface AiModelConfig {
   label: string;
 }
 
+export type AiProviderConfig = AiModelConfig;
+
+export interface AiAttemptFailure {
+  provider: AiProviderName;
+  model: string;
+  errorType: string;
+  statusCode?: number;
+  retryable?: boolean;
+}
+
 export class MissingAiConfigurationError extends Error {
   constructor() {
     super(
       "Missing required server configuration: GOOGLE_GENERATIVE_AI_API_KEY or GROQ_API_KEY",
     );
     this.name = "MissingAiConfigurationError";
+  }
+}
+
+export class AiProvidersExhaustedError extends Error {
+  readonly attempts: readonly AiAttemptFailure[];
+
+  constructor(attempts: readonly AiAttemptFailure[], cause: unknown) {
+    super("All configured AI providers failed", { cause });
+    this.name = "AiProvidersExhaustedError";
+    this.attempts = attempts;
   }
 }
 
@@ -126,11 +148,78 @@ export function getAiProviderConfig(
   return getAiModelChain(environment)[0];
 }
 
+export function getAiProviderOptions(config: AiModelConfig) {
+  if (config.provider !== "google") {
+    return undefined;
+  }
+
+  return {
+    google: {
+      thinkingConfig: {
+        thinkingLevel: "minimal" as const,
+      },
+    },
+  };
+}
+
 export function instantiateModel(config: AiModelConfig): LanguageModel {
   if (config.provider === "google") {
     return createGoogleGenerativeAI({ apiKey: config.apiKey })(config.model);
   }
   return createGroq({ apiKey: config.apiKey })(config.model);
+}
+
+function failureFor(
+  config: AiModelConfig,
+  error: unknown,
+): AiAttemptFailure {
+  const candidate =
+    typeof error === "object" && error !== null
+      ? (error as {
+          name?: unknown;
+          statusCode?: unknown;
+          isRetryable?: unknown;
+        })
+      : undefined;
+
+  return {
+    provider: config.provider,
+    model: config.model,
+    errorType:
+      typeof candidate?.name === "string"
+        ? candidate.name
+        : error instanceof Error
+          ? error.name
+          : "UnknownError",
+    ...(typeof candidate?.statusCode === "number"
+      ? { statusCode: candidate.statusCode }
+      : {}),
+    ...(typeof candidate?.isRetryable === "boolean"
+      ? { retryable: candidate.isRetryable }
+      : {}),
+  };
+}
+
+export async function runWithAiFallback<T>(
+  attempt: (config: AiModelConfig) => Promise<T>,
+  environment: AiEnvironment = processEnvironment(),
+  onFailure?: (failure: AiAttemptFailure) => void,
+): Promise<T> {
+  const failures: AiAttemptFailure[] = [];
+  let lastError: unknown;
+
+  for (const config of getAiModelChain(environment)) {
+    try {
+      return await attempt(config);
+    } catch (error) {
+      lastError = error;
+      const failure = failureFor(config, error);
+      failures.push(failure);
+      onFailure?.(failure);
+    }
+  }
+
+  throw new AiProvidersExhaustedError(failures, lastError);
 }
 
 export function createAiModel(

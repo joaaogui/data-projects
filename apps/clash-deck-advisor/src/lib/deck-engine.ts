@@ -3,13 +3,14 @@ import "server-only";
 import { generateText } from "ai";
 
 import { recommendArchetype } from "./archetype-engine";
-import { getAiModelChain, instantiateModel } from "./ai-provider";
+import { instantiateModel, runWithAiFallback } from "./ai-provider";
 import { groundedClaims } from "./claim-check";
 import type { EngineContext } from "./engine-context";
 import type { DeckAnalysis } from "./schemas";
 
 export interface EngineResult {
   analysis: DeckAnalysis;
+  penalizedDecks: string[];
   diagnostics: {
     candidatesRequested: number;
     candidatesAccepted: number;
@@ -46,49 +47,51 @@ async function polishCopy(
   const facts = {
     archetype: analysis.metaTier.archetype,
     deck: analysis.improvedDeck,
-    changes: analysis.changes,
-    strengths: analysis.evidence?.strengths ?? [],
+    changes: analysis.changes.map((change) => ({
+      out: change.out,
+      in: change.in,
+    })),
+    strengths: analysis.metaTier.summary,
     weaknesses: analysis.evidence?.weaknesses ?? [],
     strategy: analysis.strategy,
-    verdictReason: analysis.verdictReason,
   };
 
   try {
-    const config = getAiModelChain()[0];
-    if (!config) return { analysis, modelLabel: "deterministic" };
+    return await runWithAiFallback(async (config) => {
+      const result = await Promise.race([
+        generateText({
+          model: instantiateModel(config),
+          temperature: 0.2,
+          maxOutputTokens: 400,
+          system: [
+            "Rewrite the supplied Clash Royale coaching in two short sentences.",
+            "Use only the facts in the prompt.",
+            "Do not name a card that is not in the supplied deck or changes.",
+            "Do not mention replays, placements, or elixir trades you were not given.",
+            "Return plain text, not JSON.",
+          ].join(" "),
+          prompt: JSON.stringify(facts),
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("explanation timed out")), 12_000),
+        ),
+      ]);
 
-    const result = await Promise.race([
-      generateText({
-        model: instantiateModel(config),
-        temperature: 0.2,
-        maxOutputTokens: 400,
-        system: [
-          "Rewrite the supplied Clash Royale coaching in two short sentences.",
-          "Use only the facts in the prompt.",
-          "Do not name a card that is not in the supplied deck or changes.",
-          "Do not mention replays, placements, or elixir trades you were not given.",
-          "Return plain text, not JSON.",
-        ].join(" "),
-        prompt: JSON.stringify(facts),
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("explanation timed out")), 12_000),
-      ),
-    ]);
+      const text = result.text.trim();
+      const problems = groundedClaims({
+        text,
+        allowedCards: allowed,
+        knownCards,
+      });
+      if (problems.length > 0 || text.length < 40) {
+        throw new Error("ungrounded or insufficient explanation");
+      }
 
-    const problems = groundedClaims({
-      text: result.text,
-      allowedCards: allowed,
-      knownCards,
+      return {
+        analysis: { ...analysis, strategy: text },
+        modelLabel: config.label,
+      };
     });
-    if (problems.length > 0 || result.text.trim().length < 40) {
-      return { analysis, modelLabel: "deterministic" };
-    }
-
-    return {
-      analysis: { ...analysis, strategy: result.text.trim() },
-      modelLabel: config.label,
-    };
   } catch {
     return { analysis, modelLabel: "deterministic" };
   }
@@ -103,6 +106,10 @@ export async function runDeckEngine(
     metaDecks: engine.context.metaDecks,
     losses: engine.context.recentLosses,
     mode: engine.mode,
+    lossAutopsy: engine.context.lossAutopsy,
+    deckVersions: engine.context.deckVersions,
+    changeImpacts: engine.context.changeImpacts,
+    feedback: engine.feedback,
   });
   const polished = await polishCopy(
     recommendation.analysis,
@@ -111,6 +118,7 @@ export async function runDeckEngine(
 
   return {
     analysis: polished.analysis,
+    penalizedDecks: recommendation.penalizedDecks,
     diagnostics: {
       candidatesRequested: 4,
       candidatesAccepted: recommendation.keptCurrentDeck ? 1 : 2,

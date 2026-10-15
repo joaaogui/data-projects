@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import {
   DataTable,
-  SortButton,
+  sortableHeader,
   Button,
   type ColumnDef,
   type Row,
@@ -48,14 +48,7 @@ function createColumns(meta: TableMeta): ColumnDef<RankedSeason>[] {
     },
     {
       accessorKey: "seasonNumber",
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Season
-        </SortButton>
-      ),
+      header: sortableHeader("Season"),
       cell: ({ row }) => (
         <span data-testid={`season-number-${row.original.seasonNumber}`} className="font-semibold">
           Season {row.original.seasonNumber}
@@ -64,14 +57,7 @@ function createColumns(meta: TableMeta): ColumnDef<RankedSeason>[] {
     },
     {
       accessorKey: "rating",
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Rating
-        </SortButton>
-      ),
+      header: sortableHeader("Rating"),
       cell: ({ row }) => {
         const { rating, seasonNumber } = row.original;
         const originalIndex = meta.seasons.findIndex((s) => s.seasonNumber === seasonNumber);
@@ -93,14 +79,7 @@ function createColumns(meta: TableMeta): ColumnDef<RankedSeason>[] {
     {
       id: "episodes",
       accessorFn: (row) => row.episodes.length,
-      header: ({ column }) => (
-        <SortButton
-          sorted={column.getIsSorted()}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Episodes
-        </SortButton>
-      ),
+      header: sortableHeader("Episodes"),
       cell: ({ row }) => (
         <span className="text-muted-foreground">{row.original.episodes.length} episodes</span>
       ),

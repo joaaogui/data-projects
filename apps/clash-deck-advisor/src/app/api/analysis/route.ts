@@ -7,15 +7,21 @@ import {
   generateDeckAnalysis,
   getCachedDeckAnalysis,
 } from "@/lib/analyze-deck";
-import { MissingConfigurationError } from "@/lib/clash-royale";
+import {
+  ClashRoyaleApiError,
+  ClashRoyaleNetworkError,
+  MissingConfigurationError,
+} from "@/lib/clash-royale";
 import type { AnalysisMode } from "@/lib/engine-context";
 import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
+import { playerFeedbackInputSchema } from "@/lib/schemas";
+import type { PlayerFeedbackInput } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const analysisRateLimit = createRateLimiter({
-  limit: 12,
+  limit: 20,
   windowMs: 5 * 60 * 1000,
 });
 
@@ -24,12 +30,20 @@ const analysisRateLimit = createRateLimiter({
  * budget than ordinary page loads.
  */
 const refreshRateLimit = createRateLimiter({
-  limit: 4,
+  limit: 8,
   windowMs: 10 * 60 * 1000,
 });
 
-function parseMode(value: string | null): AnalysisMode {
+function parseMode(value: unknown): AnalysisMode {
   return value === "best" ? "best" : "improve";
+}
+
+function parseCommaList(value: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function rateLimited(retryAfter: number, resetAt: number, message: string) {
@@ -47,10 +61,32 @@ function rateLimited(retryAfter: number, resetAt: number, message: string) {
   );
 }
 
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const mode = parseMode(url.searchParams.get("mode"));
-  const wantsRefresh = url.searchParams.get("refresh") === "1";
+function upstreamStatus(error: ClashRoyaleApiError): number {
+  if (error.code === "PLAYER_NOT_FOUND") {
+    return 404;
+  }
+  if (error.code === "UPSTREAM_RATE_LIMITED") {
+    return 429;
+  }
+  if (
+    error.code === "AUTHORIZATION_FAILED" ||
+    error.code === "UPSTREAM_MAINTENANCE" ||
+    error.code === "UPSTREAM_UNAVAILABLE"
+  ) {
+    return 503;
+  }
+  return 502;
+}
+
+async function handleAnalysisRequest(
+  request: Request,
+  options: {
+    mode: AnalysisMode;
+    wantsRefresh: boolean;
+    feedback?: PlayerFeedbackInput;
+  },
+) {
+  const { mode, wantsRefresh, feedback } = options;
   const clientIp = getClientIp(request);
 
   const rateLimit = analysisRateLimit.check(clientIp);
@@ -74,21 +110,30 @@ export async function GET(request: Request) {
     revalidateTag(ANALYSIS_CACHE_TAG, { expire: 0 });
   }
 
+  const rateHeaders = {
+    "X-RateLimit-Remaining": String(rateLimit.remaining),
+    "X-RateLimit-Reset": String(rateLimit.resetAt),
+  };
+
+  const hasCustomConstraints =
+    Boolean(feedback?.lockedCards.length) ||
+    Boolean(feedback?.excludedCards.length);
+
   try {
-    // A refresh skips the cache outright. revalidateTag only marks the entry
-    // stale, which is not enough to guarantee the caller sees a new analysis
-    // within this same request.
-    const result = wantsRefresh
-      ? await generateDeckAnalysis(mode)
-      : await getCachedDeckAnalysis(mode);
+    const result =
+      wantsRefresh || hasCustomConstraints
+        ? await generateDeckAnalysis(mode, feedback)
+        : await getCachedDeckAnalysis(mode, feedback);
 
     return NextResponse.json(result, {
       headers: {
-        "Cache-Control": wantsRefresh
-          ? "no-store"
-          : "public, s-maxage=1800, stale-while-revalidate=60",
-        "X-RateLimit-Remaining": String(rateLimit.remaining),
-        "X-RateLimit-Reset": String(rateLimit.resetAt),
+        "Cache-Control":
+          wantsRefresh || hasCustomConstraints
+            ? "no-store"
+            : "public, s-maxage=1800, stale-while-revalidate=60",
+        "X-Analysis-Cache":
+          wantsRefresh || hasCustomConstraints ? "refreshed" : "cached",
+        ...rateHeaders,
       },
     });
   } catch (error) {
@@ -104,7 +149,47 @@ export async function GET(request: Request) {
               "The advisor is not configured yet. Add the required server environment variables.",
           },
         },
-        { status: 503 },
+        { status: 503, headers: rateHeaders },
+      );
+    }
+
+    if (error instanceof ClashRoyaleApiError) {
+      console.error("[clash-deck-advisor] upstream API request failed", {
+        mode,
+        errorType: error.name,
+        status: error.status,
+        code: error.code,
+      });
+      return NextResponse.json(
+        {
+          error: {
+            code: error.code,
+            message: error.publicMessage,
+          },
+        },
+        {
+          status: upstreamStatus(error),
+          headers:
+            error.code === "UPSTREAM_RATE_LIMITED"
+              ? { ...rateHeaders, "Retry-After": "300" }
+              : rateHeaders,
+        },
+      );
+    }
+
+    if (error instanceof ClashRoyaleNetworkError) {
+      console.error("[clash-deck-advisor] upstream network request failed", {
+        mode,
+        errorType: error.name,
+      });
+      return NextResponse.json(
+        {
+          error: {
+            code: "UPSTREAM_UNAVAILABLE",
+            message: error.publicMessage,
+          },
+        },
+        { status: 503, headers: rateHeaders },
       );
     }
 
@@ -122,7 +207,42 @@ export async function GET(request: Request) {
             "The live deck analysis could not be completed. Try again shortly.",
         },
       },
-      { status: 500 },
+      { status: 500, headers: rateHeaders },
     );
   }
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const mode = parseMode(url.searchParams.get("mode"));
+  const wantsRefresh = url.searchParams.get("refresh") === "1";
+  const lockedCards = parseCommaList(url.searchParams.get("locked"));
+  const excludedCards = parseCommaList(url.searchParams.get("excluded"));
+
+  const feedback =
+    lockedCards.length > 0 || excludedCards.length > 0
+      ? playerFeedbackInputSchema.parse({
+          lockedCards,
+          excludedCards,
+          suggestionHistory: [],
+        })
+      : undefined;
+
+  return handleAnalysisRequest(request, { mode, wantsRefresh, feedback });
+}
+
+export async function POST(request: Request) {
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    body = {};
+  }
+
+  const mode = parseMode(body.mode);
+  const wantsRefresh = body.refresh === true || body.refresh === "1";
+  const parsedFeedback = playerFeedbackInputSchema.safeParse(body.feedback);
+  const feedback = parsedFeedback.success ? parsedFeedback.data : undefined;
+
+  return handleAnalysisRequest(request, { mode, wantsRefresh, feedback });
 }

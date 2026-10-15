@@ -1,5 +1,14 @@
 import "server-only";
 
+import { buildCardProfiles } from "./card-knowledge";
+import { selectViableCards } from "./engine-context";
+import {
+  buildDeckVersions,
+  buildLossAutopsy,
+  evaluateDeckChangeImpacts,
+  lossesFromNormalized,
+  normalizeBattles,
+} from "./learning-engine";
 import type {
   AnalysisContext,
   Battle,
@@ -7,6 +16,7 @@ import type {
   MetaDeckReference,
   Player,
   RecentLoss,
+  StoredSuggestionEntry,
 } from "./types";
 
 export const API_BASE = "https://proxy.royaleapi.dev/v1";
@@ -31,20 +41,90 @@ interface RankedPlayersResponse {
   items: RankedPlayer[];
 }
 
+export type ClashRoyaleErrorCode =
+  | "AUTHORIZATION_FAILED"
+  | "PLAYER_NOT_FOUND"
+  | "UPSTREAM_RATE_LIMITED"
+  | "UPSTREAM_MAINTENANCE"
+  | "UPSTREAM_UNAVAILABLE"
+  | "UPSTREAM_REQUEST_FAILED";
+
 export class MissingConfigurationError extends Error {
+  readonly variableName: string;
+
   constructor(variableName: string) {
     super(`Missing required server configuration: ${variableName}`);
     this.name = "MissingConfigurationError";
+    this.variableName = variableName;
   }
+}
+
+interface ApiErrorDetails {
+  code: ClashRoyaleErrorCode;
+  message: string;
+}
+
+function apiErrorDetails(status: number): ApiErrorDetails {
+  if (status === 401 || status === 403) {
+    return {
+      code: "AUTHORIZATION_FAILED",
+      message:
+        "Clash Royale access was rejected. Check the API token and proxy IP allowlist.",
+    };
+  }
+  if (status === 404) {
+    return {
+      code: "PLAYER_NOT_FOUND",
+      message: "The configured Clash Royale player could not be found.",
+    };
+  }
+  if (status === 429) {
+    return {
+      code: "UPSTREAM_RATE_LIMITED",
+      message:
+        "Clash Royale is temporarily limiting requests. Try again in a few minutes.",
+    };
+  }
+  if (status === 503) {
+    return {
+      code: "UPSTREAM_MAINTENANCE",
+      message: "Clash Royale is under maintenance. Try again later.",
+    };
+  }
+  if (status >= 500) {
+    return {
+      code: "UPSTREAM_UNAVAILABLE",
+      message: "Clash Royale is temporarily unavailable. Try again shortly.",
+    };
+  }
+  return {
+    code: "UPSTREAM_REQUEST_FAILED",
+    message: "Clash Royale rejected the request. Try again shortly.",
+  };
 }
 
 export class ClashRoyaleApiError extends Error {
   readonly status: number;
+  readonly code: ClashRoyaleErrorCode;
+  readonly publicMessage: string;
 
   constructor(status: number) {
+    const details = apiErrorDetails(status);
     super(`Clash Royale API request failed with status ${status}`);
     this.name = "ClashRoyaleApiError";
     this.status = status;
+    this.code = details.code;
+    this.publicMessage = details.message;
+  }
+}
+
+export class ClashRoyaleNetworkError extends Error {
+  readonly publicMessage =
+    "The Clash Royale service could not be reached. Try again shortly.";
+
+  constructor() {
+    super("Clash Royale API network request failed");
+    this.name = "ClashRoyaleNetworkError";
   }
 }
 
@@ -65,10 +145,15 @@ export async function clashFetch<T>(
   headers.set("Accept", "application/json");
   headers.set("Authorization", `Bearer ${apiKey}`);
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch {
+    throw new ClashRoyaleNetworkError();
+  }
 
   if (!response.ok) {
     throw new ClashRoyaleApiError(response.status);
@@ -215,7 +300,9 @@ export async function getTopLadderMeta(
   );
 }
 
-export async function getAnalysisContext(): Promise<AnalysisContext> {
+export async function getAnalysisContext(
+  suggestionHistory: StoredSuggestionEntry[] = [],
+): Promise<AnalysisContext> {
   const [player, battles] = await Promise.all([getPlayer(), getBattleLog()]);
 
   let metaDecks: MetaDeckReference[] = [];
@@ -225,10 +312,33 @@ export async function getAnalysisContext(): Promise<AnalysisContext> {
     // Meta is supporting evidence. Player data remains useful if this fails.
   }
 
+  const currentDeckProfiles = buildCardProfiles(player.currentDeck);
+  const ownedProfiles = buildCardProfiles(player.cards);
+  const viableProfiles = selectViableCards(ownedProfiles, currentDeckProfiles);
+  const currentDeckNames = player.currentDeck.map((card) => card.name);
+
+  const normalizedBattles = normalizeBattles(battles, player.tag);
+  const recentLosses = lossesFromNormalized(normalizedBattles, 6);
+  const lossAutopsy = buildLossAutopsy(
+    normalizedBattles,
+    currentDeckProfiles,
+    viableProfiles,
+  );
+  const deckVersions = buildDeckVersions(normalizedBattles, currentDeckNames);
+  const changeImpacts = evaluateDeckChangeImpacts(
+    deckVersions,
+    suggestionHistory,
+    currentDeckNames,
+  );
+
   return {
     player,
-    recentLosses: compactRecentLosses(battles, player.tag),
+    recentLosses,
     metaDecks,
     metaAvailable: metaDecks.length > 0,
+    normalizedBattles,
+    lossAutopsy,
+    deckVersions,
+    changeImpacts,
   };
 }

@@ -16,6 +16,30 @@ export function EvidencePanel({ evidence }: { evidence: DeckEvidence }) {
       <p className="mt-3 max-w-3xl text-sm leading-6 text-[#5c6b7f]">
         {evidence.source}
       </p>
+
+      {(evidence.counteredThreats && evidence.counteredThreats.length > 0) ||
+      (evidence.avoidedFailedSwaps &&
+        evidence.avoidedFailedSwaps.length > 0) ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {evidence.counteredThreats?.map((threat) => (
+            <span
+              key={threat}
+              className="rounded-full bg-[#e8f6f0] px-3 py-1 text-xs font-extrabold text-[#087454]"
+            >
+              Counters recent loss threat: {threat}
+            </span>
+          ))}
+          {evidence.avoidedFailedSwaps?.map((failed) => (
+            <span
+              key={failed}
+              className="rounded-full bg-[#fff0ef] px-3 py-1 text-xs font-extrabold text-[#b42318]"
+            >
+              Avoided failed swap: {failed}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       <dl className="mt-6 grid gap-4 sm:grid-cols-3">
         <div>
           <dt className="text-xs font-bold text-[#6d7a8b]">Confidence</dt>

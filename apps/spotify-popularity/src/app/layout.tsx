@@ -22,6 +22,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased`}>
         <Providers posthogApiKey={process.env.NEXT_PUBLIC_POSTHOG_KEY}>
+          <a
+            href="#main-content"
+            className="fixed left-3 top-3 z-[100] -translate-y-16 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-transform focus:translate-y-0"
+          >
+            Skip to content
+          </a>
           <AudioPlayerProvider>
             <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
               <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-spotify/5 via-transparent to-transparent pointer-events-none" />

@@ -10,5 +10,6 @@ export {
 export const RATE_LIMITS = {
   artist: { maxRequests: 30, windowMs: 60 * 1000 },
   suggest: { maxRequests: 60, windowMs: 60 * 1000 },
+  preview: { maxRequests: 60, windowMs: 60 * 1000 },
 } as const;
 

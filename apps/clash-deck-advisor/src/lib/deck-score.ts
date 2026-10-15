@@ -8,6 +8,8 @@ import {
   type CardProfile,
 } from "./card-knowledge";
 import { assignSlots } from "./deck-rules";
+import { cardCountersThreatCategory, deckKeyOf } from "./learning-engine";
+import type { DeckVersionSummary, LossAutopsy } from "./types";
 
 /**
  * Deterministic deck quality model.
@@ -15,6 +17,12 @@ import { assignSlots } from "./deck-rules";
  * Scoring locally means two candidate decks can be compared without asking a
  * model to grade its own work, and means quality is testable.
  */
+
+export interface ScoreDeckOptions {
+  lossAutopsy?: LossAutopsy;
+  deckVersions?: DeckVersionSummary[];
+  excludedCards?: Iterable<string>;
+}
 
 export interface ScoreComponents {
   winCondition: number;
@@ -137,7 +145,10 @@ function scoreSpecialSlots(deck: CardProfile[]): number {
   return clamp01(used / 3);
 }
 
-export function scoreDeck(deck: CardProfile[]): DeckScore {
+export function scoreDeck(
+  deck: CardProfile[],
+  options: ScoreDeckOptions = {},
+): DeckScore {
   const components: ScoreComponents = {
     winCondition: hasRole(deck, "winCondition") ? 1 : 0,
     airDefense: scoreAirDefense(deck),
@@ -150,7 +161,7 @@ export function scoreDeck(deck: CardProfile[]): DeckScore {
     specialSlots: scoreSpecialSlots(deck),
   };
 
-  const total = (
+  let total = (
     Object.keys(WEIGHTS) as (keyof ScoreComponents)[]
   ).reduce((sum, key) => sum + components[key] * WEIGHTS[key], 0);
 
@@ -189,8 +200,51 @@ export function scoreDeck(deck: CardProfile[]): DeckScore {
     weaknesses.push("Too few cheap cards, so the deck is easy to out-cycle");
   }
 
+  if (options.excludedCards) {
+    const excluded = new Set(options.excludedCards);
+    const bannedInDeck = deck.filter((card) => excluded.has(card.name));
+    if (bannedInDeck.length > 0) {
+      total -= bannedInDeck.length * 40;
+      weaknesses.push(
+        `Contains excluded card${bannedInDeck.length === 1 ? "" : "s"}: ${bannedInDeck.map((c) => c.name).join(", ")}`,
+      );
+    }
+  }
+
+  if (options.lossAutopsy && options.lossAutopsy.recentLosses > 0) {
+    let counterBonus = 0;
+    for (const threat of options.lossAutopsy.topThreatCards.slice(0, 4)) {
+      const hasCounter = deck.some((card) =>
+        cardCountersThreatCategory(
+          card,
+          threat.threatCategory,
+          threat.cardName,
+        ),
+      );
+      if (hasCounter) {
+        counterBonus += Math.min(3, threat.lossesAgainst * 1.5);
+      }
+    }
+    total += Math.min(10, counterBonus);
+  }
+
+  if (options.deckVersions && options.deckVersions.length > 0) {
+    const key = deckKeyOf(deck.map((card) => card.name));
+    const version = options.deckVersions.find((v) => v.deckKey === key);
+    if (version && version.battles >= 3) {
+      if (version.winRate < 45) {
+        total -= 20;
+        weaknesses.push(
+          `This exact 8-card build went ${version.wins}-${version.losses} (${version.winRate}% WR) in recent battles`,
+        );
+      } else if (version.winRate >= 60) {
+        total += 8;
+      }
+    }
+  }
+
   return {
-    total: Math.round(total),
+    total: Math.max(0, Math.min(100, Math.round(total))),
     components,
     weaknesses,
     averageElixir: averageElixir(deck),

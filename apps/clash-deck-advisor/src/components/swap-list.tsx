@@ -1,4 +1,4 @@
-import { ArrowRight, Wrench } from "lucide-react";
+import { ArrowRight, Ban, Crosshair, Lock, Wrench } from "lucide-react";
 import Image from "next/image";
 
 import type { DeckAnalysis } from "@/lib/schemas";
@@ -7,6 +7,8 @@ import type { ClashCard, Player } from "@/lib/types";
 interface SwapListProps {
   changes: DeckAnalysis["changes"];
   player: Player;
+  onKeepOutgoing?: (cardName: string) => void;
+  onRejectIncoming?: (cardName: string) => void;
 }
 
 function MiniCard({
@@ -44,7 +46,12 @@ function MiniCard({
   );
 }
 
-export function SwapList({ changes, player }: SwapListProps) {
+export function SwapList({
+  changes,
+  player,
+  onKeepOutgoing,
+  onRejectIncoming,
+}: SwapListProps) {
   if (changes.length === 0) {
     return null;
   }
@@ -97,12 +104,45 @@ export function SwapList({ changes, player }: SwapListProps) {
               </div>
 
               <div className="border-l-2 border-[#e5c45e] pl-4">
-                <p className="text-sm font-bold text-[#0b1f3a]">
-                  Why this earns a slot
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-bold text-[#0b1f3a]">
+                    Why this earns a slot
+                  </p>
+                  {change.counterTargets && change.counterTargets.length > 0 ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#e8f6f0] px-2.5 py-0.5 text-[11px] font-extrabold text-[#087454]">
+                      <Crosshair aria-hidden="true" className="size-3" />
+                      Counters: {change.counterTargets.join(", ")}
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-sm leading-6 text-[#5c6b7f]">
                   {change.reason}
                 </p>
+
+                {onKeepOutgoing || onRejectIncoming ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {onKeepOutgoing ? (
+                      <button
+                        type="button"
+                        onClick={() => onKeepOutgoing(change.out)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-[#cdd8e8] bg-[#f8faff] px-2.5 py-1 text-xs font-extrabold text-[#33445c] transition-colors hover:border-[#164fc9] hover:text-[#164fc9]"
+                      >
+                        <Lock aria-hidden="true" className="size-3" />
+                        Keep {change.out}
+                      </button>
+                    ) : null}
+                    {onRejectIncoming ? (
+                      <button
+                        type="button"
+                        onClick={() => onRejectIncoming(change.in)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-[#e4a09b] bg-[#fff9f8] px-2.5 py-1 text-xs font-extrabold text-[#b42318] transition-colors hover:bg-[#fff0ef]"
+                      >
+                        <Ban aria-hidden="true" className="size-3" />
+                        Reject {change.in}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </article>
           );

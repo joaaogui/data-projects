@@ -5,7 +5,7 @@ import {
   META_LAST_REVIEWED,
 } from "./meta-archetypes.data";
 import { scoreDeck, type DeckScore } from "./deck-score";
-import type { AnalysisContext } from "./types";
+import type { AnalysisContext, PlayerFeedbackInput } from "./types";
 
 export type AnalysisMode = "improve" | "best";
 
@@ -18,6 +18,7 @@ export interface EngineContext {
   /** The subset worth offering to a model, used to build prompts. */
   viableCards: CardProfile[];
   context: AnalysisContext;
+  feedback?: PlayerFeedbackInput;
 }
 
 /** How far below the current deck's level a card can be and still be worth offering. */
@@ -55,6 +56,7 @@ export function selectViableCards(
 export function buildEngineContext(
   context: AnalysisContext,
   mode: AnalysisMode,
+  feedback?: PlayerFeedbackInput,
 ): EngineContext {
   const currentDeck = buildCardProfiles(context.player.currentDeck);
   const ownedCards = buildCardProfiles(context.player.cards);
@@ -62,10 +64,15 @@ export function buildEngineContext(
   return {
     mode,
     currentDeck,
-    currentScore: scoreDeck(currentDeck),
+    currentScore: scoreDeck(currentDeck, {
+      lossAutopsy: context.lossAutopsy,
+      deckVersions: context.deckVersions,
+      excludedCards: feedback?.excludedCards,
+    }),
     ownedCards,
     viableCards: selectViableCards(ownedCards, currentDeck),
     context,
+    feedback,
   };
 }
 

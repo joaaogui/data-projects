@@ -1,4 +1,11 @@
-import { corsHeaders, mergeHeaders, optionsResponse } from "@data-projects/shared"
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit"
+import {
+  corsHeaders,
+  mergeHeaders,
+  optionsResponse,
+  rateLimitExceededResponse,
+  withRateLimitHeaders,
+} from "@data-projects/shared"
 
 const DEEZER_API_BASE = "https://api.deezer.com"
 
@@ -22,6 +29,20 @@ export async function OPTIONS() {
 
 export async function GET(request: Request) {
   try {
+    const clientIp = getClientIp(request)
+    const rateLimitResult = checkRateLimit(
+      `preview:${clientIp}`,
+      RATE_LIMITS.preview
+    )
+
+    if (!rateLimitResult.success) {
+      return rateLimitExceededResponse(
+        rateLimitResult,
+        "Too many requests. Please try again later.",
+        corsHeaders
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const track = searchParams.get("track")
     const artist = searchParams.get("artist")
@@ -71,9 +92,13 @@ export async function GET(request: Request) {
     return Response.json(
       { preview: withPreview?.preview || null },
       {
-        headers: mergeHeaders(corsHeaders, {
-          "Cache-Control": "public, s-maxage=604800, stale-while-revalidate=86400",
-        }),
+        headers: mergeHeaders(
+          corsHeaders,
+          withRateLimitHeaders(rateLimitResult),
+          {
+            "Cache-Control": "public, s-maxage=604800, stale-while-revalidate=86400",
+          }
+        ),
       }
     )
   } catch (error) {

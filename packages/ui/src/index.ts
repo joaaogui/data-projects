@@ -18,6 +18,7 @@ export {
 export {
   DataTable,
   SortButton,
+  sortableHeader,
   type DataTableProps,
   type CellContext,
   type ColumnDef,

@@ -170,9 +170,11 @@ function normalizeCatalogBrawler(
   };
 }
 
-export async function getPlayerProfile(): Promise<PlayerProfile> {
+export async function getPlayerProfile(
+  tag = PLAYER_TAG,
+): Promise<PlayerProfile> {
   const player = await brawlFetch<PlayerProfile>(
-    `/players/${encodedTag(PLAYER_TAG)}`,
+    `/players/${encodedTag(tag)}`,
     {
       next: {
         revalidate: API_REVALIDATE_SECONDS,
@@ -186,9 +188,9 @@ export async function getPlayerProfile(): Promise<PlayerProfile> {
   };
 }
 
-export async function getBattleLog(): Promise<BattleLog> {
+export async function getBattleLog(tag = PLAYER_TAG): Promise<BattleLog> {
   const battleLog = await brawlFetch<BattleLog>(
-    `/players/${encodedTag(PLAYER_TAG)}/battlelog`,
+    `/players/${encodedTag(tag)}/battlelog`,
     {
       next: {
         revalidate: API_REVALIDATE_SECONDS,
@@ -211,11 +213,13 @@ export async function getBrawlerCatalog(): Promise<BrawlerCatalogItem[]> {
   return (catalog.items ?? []).map(normalizeCatalogBrawler);
 }
 
-export async function getAnalysisContext(): Promise<AnalysisContext> {
+export async function getAnalysisContext(
+  tag = PLAYER_TAG,
+): Promise<AnalysisContext> {
   const startedAt = Date.now();
   const [player, battleLog, catalog] = await Promise.all([
-    getPlayerProfile(),
-    getBattleLog(),
+    getPlayerProfile(tag),
+    getBattleLog(tag),
     getBrawlerCatalog(),
   ]);
   const metrics = deriveAccountMetrics(player, battleLog, catalog);

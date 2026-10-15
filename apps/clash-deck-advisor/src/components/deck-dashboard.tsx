@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Ban,
   BrainCircuit,
   Check,
   Clock3,
@@ -9,25 +10,43 @@ import {
   ExternalLink,
   Gauge,
   History,
+  Lock,
   MapPinned,
   RefreshCw,
+  RotateCcw,
   ServerCog,
   ShieldCheck,
   Sparkles,
   Target,
   Trophy,
   WandSparkles,
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { buildDeckLink } from "@/lib/deck-link";
 import type { AnalysisMode } from "@/lib/engine-context";
-import type { AnalysisResponse, ClashCard } from "@/lib/types";
+import {
+  clearCardConstraints,
+  emptyFeedbackState,
+  loadFeedbackState,
+  recordSuggestion,
+  saveFeedbackState,
+  toggleExcludedCard,
+  toggleLockedCard,
+} from "@/lib/feedback-store";
+import type {
+  AnalysisResponse,
+  ClashCard,
+  PlayerFeedbackInput,
+} from "@/lib/types";
 
 import { AnalysisError } from "./analysis-error";
 import { DeckComparison } from "./deck-comparison";
 import { EvidencePanel } from "./evidence-panel";
+import { LearningTracker } from "./learning-tracker";
+import { LossAutopsyPanel } from "./loss-autopsy";
 import { Matchups } from "./matchups";
 import { StrengthBars } from "./strength-bars";
 import { SwapList } from "./swap-list";
@@ -35,10 +54,11 @@ import { SwapList } from "./swap-list";
 type DashboardState =
   | { status: "loading" }
   | { status: "ready"; data: AnalysisResponse }
-  | { status: "error"; message: string };
+  | { status: "error"; code: string; message: string };
 
 interface ErrorPayload {
   error?: {
+    code?: string;
     message?: string;
   };
 }
@@ -63,13 +83,13 @@ function WorkshopHeader() {
               Clash Deck Advisor
             </p>
             <p className="mt-1 text-[11px] font-bold text-[#6d7a8b]">
-              Personal demo for #VGURQ0QQ2 · not a public lookup
+              Personal demo for #VGURQ0QQ2 · Closed-loop battle learning
             </p>
           </div>
         </div>
         <div className="hidden items-center gap-2 rounded-full border border-[#cdd8e8] bg-[#f8faff] px-3 py-1.5 text-xs font-bold text-[#33445c] sm:flex">
           <span className="size-2 rounded-full bg-[#087454]" />
-          30-minute live snapshot
+          Live battle-log tracking
         </div>
       </div>
     </header>
@@ -150,18 +170,21 @@ function LoadingDashboard({
       ? [
           "Reading the full collection",
           "Building candidate decks",
-          "Scoring them against the meta",
+          "Scoring them against recent threats and meta",
         ]
       : [
-          "Reading the current deck",
-          "Reviewing recent battles",
-          "Comparing the ladder meta",
+          "Tracking deck versions across battle log",
+          "Running loss autopsy on recent defeats",
+          "Scoring counter-swaps and win-rate deltas",
         ];
 
   return (
     <>
       <WorkshopHeader />
-      <main className="mx-auto w-full max-w-[1480px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+      <main
+        id="main-content"
+        className="mx-auto w-full max-w-[1480px] px-4 py-8 sm:px-6 lg:px-10 lg:py-12"
+      >
         <div className="mb-7">{controls}</div>
         <section
           aria-live="polite"
@@ -180,8 +203,8 @@ function LoadingDashboard({
                 The workshop is inspecting all eight cards.
               </h1>
               <p className="mt-4 max-w-xl text-base leading-7 text-[#5c6b7f]">
-                The advisor makes one evidence-based pass and keeps the deck
-                intact unless a change is clearly better.
+                The advisor audits your recent battle log, measures deck version
+                win rates, and adapts swaps to counter the cards beating you.
               </p>
               <ol className="mt-8 space-y-3">
                 {stages.map((stage, index) => (
@@ -240,6 +263,9 @@ export function DeckDashboard() {
   const [requestKey, setRequestKey] = useState(0);
   const [mode, setMode] = useState<AnalysisMode>("improve");
   const [forceRefresh, setForceRefresh] = useState(false);
+  const [feedback, setFeedback] = useState<PlayerFeedbackInput>(() =>
+    loadFeedbackState(),
+  );
   const [state, setState] = useState<DashboardState>({ status: "loading" });
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
     "idle",
@@ -251,28 +277,59 @@ export function DeckDashboard() {
 
     async function loadAnalysis() {
       try {
-        const query = new URLSearchParams({ mode });
-        if (forceRefresh) {
-          query.set("refresh", "1");
+        const currentFeedback = loadFeedbackState();
+        const hasConstraintsOrHistory =
+          currentFeedback.lockedCards.length > 0 ||
+          currentFeedback.excludedCards.length > 0 ||
+          currentFeedback.suggestionHistory.length > 0;
+
+        let response: Response;
+        if (hasConstraintsOrHistory) {
+          response = await fetch("/api/analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mode,
+              refresh: forceRefresh,
+              feedback: currentFeedback,
+            }),
+            cache: "no-store",
+            signal: controller.signal,
+          });
+        } else {
+          const query = new URLSearchParams({ mode });
+          if (forceRefresh) {
+            query.set("refresh", "1");
+          }
+          response = await fetch(`/api/analysis?${query}`, {
+            cache: "no-store",
+            signal: controller.signal,
+          });
         }
-        const response = await fetch(`/api/analysis?${query}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
+
         const payload = (await response.json()) as
           | AnalysisResponse
           | ErrorPayload;
 
         if (!response.ok) {
-          const message =
-            (payload as ErrorPayload).error?.message ??
-            "The server could not complete the analysis.";
-          throw new Error(message);
+          const error = (payload as ErrorPayload).error;
+          setState({
+            status: "error",
+            code: error?.code ?? "ANALYSIS_FAILED",
+            message:
+              error?.message ?? "The server could not complete the analysis.",
+          });
+          return;
         }
+
+        const analysisData = payload as AnalysisResponse;
+        const updatedFeedback = recordSuggestion(currentFeedback, analysisData);
+        saveFeedbackState(updatedFeedback);
+        setFeedback(updatedFeedback);
 
         setState({
           status: "ready",
-          data: payload as AnalysisResponse,
+          data: analysisData,
         });
       } catch (error) {
         if (controller.signal.aborted) {
@@ -280,6 +337,7 @@ export function DeckDashboard() {
         }
         setState({
           status: "error",
+          code: "NETWORK_ERROR",
           message:
             error instanceof Error
               ? error.message
@@ -305,6 +363,38 @@ export function DeckDashboard() {
     setRequestKey((value) => value + 1);
   }
 
+  function handleToggleLock(cardName: string) {
+    const next = toggleLockedCard(feedback, cardName);
+    saveFeedbackState(next);
+    setFeedback(next);
+    setForceRefresh(true);
+    setRequestKey((value) => value + 1);
+  }
+
+  function handleToggleExclude(cardName: string) {
+    const next = toggleExcludedCard(feedback, cardName);
+    saveFeedbackState(next);
+    setFeedback(next);
+    setForceRefresh(true);
+    setRequestKey((value) => value + 1);
+  }
+
+  function handleResetConstraints() {
+    const next = clearCardConstraints(feedback);
+    saveFeedbackState(next);
+    setFeedback(next);
+    setForceRefresh(true);
+    setRequestKey((value) => value + 1);
+  }
+
+  function handleClearFullLedger() {
+    const next = emptyFeedbackState();
+    saveFeedbackState(next);
+    setFeedback(next);
+    setForceRefresh(true);
+    setRequestKey((value) => value + 1);
+  }
+
   const modeControls = (
     <ModeControls
       mode={mode}
@@ -323,6 +413,7 @@ export function DeckDashboard() {
       <>
         <WorkshopHeader />
         <AnalysisError
+          code={state.code}
           message={state.message}
           onRetry={() => setRequestKey((value) => value + 1)}
         />
@@ -330,8 +421,18 @@ export function DeckDashboard() {
     );
   }
 
-  const { analysis, player, generatedAt, levelWarnings, metaAvailable } =
-    state.data;
+  const {
+    analysis,
+    player,
+    generatedAt,
+    levelWarnings,
+    metaAvailable,
+    lossAutopsy,
+    deckVersions,
+    changeImpacts,
+    appliedFeedback,
+  } = state.data;
+
   const cardsByName = new Map(
     [...player.cards, ...player.currentDeck].map((card) => [card.name, card]),
   );
@@ -339,12 +440,19 @@ export function DeckDashboard() {
     .map((name) => cardsByName.get(name))
     .filter((card): card is ClashCard => Boolean(card));
   const deckLink = buildDeckLink(improvedCards);
-  const winRate =
+  const careerWinRate =
     player.wins + player.losses > 0
       ? (player.wins / (player.wins + player.losses)) * 100
       : 0;
+  const recentWinRate =
+    lossAutopsy.totalBattlesAnalyzed > 0
+      ? lossAutopsy.recentWinRate
+      : careerWinRate;
   const verdictKeepsDeck = analysis.verdict === "keep";
   const VerdictIcon = verdictKeepsDeck ? ShieldCheck : WandSparkles;
+
+  const hasActiveConstraints =
+    feedback.lockedCards.length > 0 || feedback.excludedCards.length > 0;
 
   async function copyDeckLink() {
     if (!deckLink) {
@@ -368,7 +476,10 @@ export function DeckDashboard() {
   return (
     <>
       <WorkshopHeader />
-      <main className="mx-auto w-full max-w-[1480px] px-4 pb-14 pt-7 sm:px-6 lg:px-10 lg:pb-20 lg:pt-10">
+      <main
+        id="main-content"
+        className="mx-auto w-full max-w-[1480px] px-4 pb-14 pt-7 sm:px-6 lg:px-10 lg:pb-20 lg:pt-10"
+      >
         <div className="mb-8">{modeControls}</div>
         <div className="space-y-12 lg:space-y-16">
           <section className="paper-panel relative overflow-hidden rounded-[1.6rem]">
@@ -408,8 +519,8 @@ export function DeckDashboard() {
                         </p>
                         <p className="mt-1 text-xs text-[#d0d9e6]">
                           {metaAvailable
-                            ? "Live ladder evidence included"
-                            : "Recent battles only"}
+                            ? "Live ladder evidence + battle log"
+                            : "Recent battle-log evidence"}
                         </p>
                       </div>
                       <span className="font-display text-6xl font-semibold leading-none text-[#f3c95e]">
@@ -429,7 +540,7 @@ export function DeckDashboard() {
                     {player.arena.name}
                   </span>
                   <span className="rounded-full border border-[#cdd8e8] bg-white px-3 py-1 text-xs font-extrabold text-[#33445c]">
-                    Personal demo
+                    Closed-loop advisor
                   </span>
                 </div>
                 <h1 className="font-display mt-6 max-w-4xl text-[clamp(2.65rem,7vw,5.5rem)] font-semibold leading-[0.96] tracking-[-0.052em]">
@@ -439,8 +550,8 @@ export function DeckDashboard() {
                 </h1>
                 <p className="mt-5 max-w-2xl text-base leading-7 text-[#3d4d63] sm:text-lg sm:leading-8">
                   {mode === "best"
-                    ? "Every card you own, scored against the live ladder meta to find the strongest legal deck you can field today."
-                    : "One current deck, recent battle evidence, and a live ladder sample—reviewed without chasing changes for their own sake."}
+                    ? "Every card you own, scored against recent threats and the live ladder meta to find the strongest legal deck you can field today."
+                    : "Tracks every deck version you play, attributes before/after win-rate changes, and targets swaps at the exact cards beating you."}
                 </p>
 
                 <dl className="mt-8 grid grid-cols-2 gap-x-5 gap-y-6 border-t border-[#d9e1ec] pt-6 sm:grid-cols-4">
@@ -456,10 +567,15 @@ export function DeckDashboard() {
                   <div>
                     <dt className="flex items-center gap-1.5 text-xs font-bold text-[#526175]">
                       <Target aria-hidden="true" className="size-3.5" />
-                      Win rate
+                      Recent win rate
                     </dt>
                     <dd className="mt-1 text-xl font-extrabold tabular-nums">
-                      {winRate.toFixed(1)}%
+                      {recentWinRate.toFixed(1)}%
+                      <span className="block text-[11px] font-bold text-[#6d7a8b]">
+                        {lossAutopsy.totalBattlesAnalyzed > 0
+                          ? `${lossAutopsy.recentWins}W–${lossAutopsy.recentLosses}L (${careerWinRate.toFixed(1)}% career)`
+                          : `${careerWinRate.toFixed(1)}% career`}
+                      </span>
                     </dd>
                   </div>
                   <div>
@@ -487,6 +603,59 @@ export function DeckDashboard() {
               </div>
             </div>
           </section>
+
+          {hasActiveConstraints ? (
+            <div className="flex flex-col gap-3 rounded-[1.25rem] border border-[#164fc9]/30 bg-[#f2f6ff] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-[#164fc9]">
+                  Active feedback constraints:
+                </span>
+                {feedback.lockedCards.map((name) => (
+                  <button
+                    key={`lock-${name}`}
+                    type="button"
+                    onClick={() => handleToggleLock(name)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#164fc9] px-3 py-1 text-xs font-extrabold text-white"
+                  >
+                    <Lock aria-hidden="true" className="size-3" />
+                    Keep: {name}
+                    <X aria-hidden="true" className="size-3" />
+                  </button>
+                ))}
+                {feedback.excludedCards.map((name) => (
+                  <button
+                    key={`ban-${name}`}
+                    type="button"
+                    onClick={() => handleToggleExclude(name)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#b42318] px-3 py-1 text-xs font-extrabold text-white"
+                  >
+                    <Ban aria-hidden="true" className="size-3" />
+                    Avoid: {name}
+                    <X aria-hidden="true" className="size-3" />
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleResetConstraints}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#bdcbe0] bg-white px-3 py-1.5 text-xs font-extrabold text-[#0b1f3a] hover:bg-[#f8faff]"
+                >
+                  <RotateCcw aria-hidden="true" className="size-3.5" />
+                  Reset constraints
+                </button>
+                {feedback.suggestionHistory.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={handleClearFullLedger}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#d9e1ec] bg-white px-3 py-1.5 text-xs font-bold text-[#6d7a8b] hover:text-[#b42318]"
+                  >
+                    Clear ledger
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-3 rounded-[1.25rem] border border-[#cdd8e8] bg-[#eef4ff] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
             <p className="px-1 text-sm font-bold text-[#33445c]">
@@ -528,13 +697,37 @@ export function DeckDashboard() {
             </div>
           </div>
 
-          <DeckComparison analysis={analysis} player={player} />
+          <DeckComparison
+            analysis={analysis}
+            player={player}
+            lockedCards={feedback.lockedCards}
+            excludedCards={feedback.excludedCards}
+            onToggleLock={handleToggleLock}
+            onToggleExclude={handleToggleExclude}
+          />
+
+          <SwapList
+            changes={analysis.changes}
+            player={player}
+            onKeepOutgoing={handleToggleLock}
+            onRejectIncoming={handleToggleExclude}
+          />
+
+          <LossAutopsyPanel
+            lossAutopsy={lossAutopsy}
+            changes={analysis.changes}
+          />
+
+          <LearningTracker
+            deckVersions={deckVersions}
+            changeImpacts={changeImpacts}
+            appliedFeedback={appliedFeedback}
+            evidence={analysis.evidence}
+          />
 
           {analysis.evidence ? (
             <EvidencePanel evidence={analysis.evidence} />
           ) : null}
-
-          <SwapList changes={analysis.changes} player={player} />
 
           {analysis.problems.length > 0 ? (
             <section aria-labelledby="problems-title">

@@ -8,6 +8,10 @@ import { CardTile } from "./card-tile";
 interface DeckComparisonProps {
   analysis: DeckAnalysis;
   player: Player;
+  lockedCards?: string[];
+  excludedCards?: string[];
+  onToggleLock?: (cardName: string) => void;
+  onToggleExclude?: (cardName: string) => void;
 }
 
 function averageElixir(cards: ClashCard[]): number {
@@ -25,7 +29,14 @@ function averageElixir(cards: ClashCard[]): number {
   );
 }
 
-export function DeckComparison({ analysis, player }: DeckComparisonProps) {
+export function DeckComparison({
+  analysis,
+  player,
+  lockedCards = [],
+  excludedCards = [],
+  onToggleLock,
+  onToggleExclude,
+}: DeckComparisonProps) {
   const cardsByName = new Map(
     [...player.cards, ...player.currentDeck].map((card) => [card.name, card]),
   );
@@ -37,6 +48,8 @@ export function DeckComparison({ analysis, player }: DeckComparisonProps) {
     .filter((card): card is ClashCard => Boolean(card));
   const improvedNames = new Set(analysis.improvedDeck);
   const originalNames = new Set(analysis.originalDeck);
+  const lockedSet = new Set(lockedCards);
+  const excludedSet = new Set(excludedCards);
 
   return (
     <section id="deck-comparison" aria-labelledby="deck-comparison-title">
@@ -53,8 +66,9 @@ export function DeckComparison({ analysis, player }: DeckComparisonProps) {
           </h2>
         </div>
         <p className="max-w-md text-sm leading-6 text-[#5c6b7f]">
-          Gold-framed cards are the recommended additions. Faded cards leave the
-          deck.
+          Use <strong>Keep</strong> to lock any card in your deck or{" "}
+          <strong>Avoid</strong> to ban a card and immediately compute the next
+          best option.
         </p>
       </div>
 
@@ -85,6 +99,10 @@ export function DeckComparison({ analysis, player }: DeckComparisonProps) {
                 card={card}
                 change={improvedNames.has(card.name) ? undefined : "removed"}
                 priority={index < 4}
+                isLocked={lockedSet.has(card.name)}
+                isExcluded={excludedSet.has(card.name)}
+                onToggleLock={onToggleLock}
+                onToggleExclude={onToggleExclude}
               />
             ))}
           </div>
@@ -128,6 +146,10 @@ export function DeckComparison({ analysis, player }: DeckComparisonProps) {
                 key={card.id}
                 card={card}
                 change={originalNames.has(card.name) ? undefined : "added"}
+                isLocked={lockedSet.has(card.name)}
+                isExcluded={excludedSet.has(card.name)}
+                onToggleLock={onToggleLock}
+                onToggleExclude={onToggleExclude}
               />
             ))}
           </div>

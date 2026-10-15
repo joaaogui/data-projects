@@ -10,6 +10,7 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  reactCompiler: true,
   transpilePackages: ["@data-projects/ui", "@data-projects/shared"],
   images: {
     remotePatterns: [

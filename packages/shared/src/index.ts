@@ -2,10 +2,15 @@ export { cn } from "./utils";
 
 export {
   checkRateLimit,
+  createRateLimiter,
   getClientIp,
   createRateLimitConfig,
+  RATE_LIMIT_PRESETS,
   type RateLimitConfig,
   type RateLimitResult,
+  type RateLimiter,
+  type RateLimiterOptions,
+  type RateLimitDecision,
 } from "./rate-limit";
 
 export { createCache, type CacheOptions, type CacheStats } from "./cache";

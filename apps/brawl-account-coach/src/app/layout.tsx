@@ -37,7 +37,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${bungee.variable} ${nunito.variable}`}>
-      <body>{children}</body>
+      <body>
+        <a
+          href="#main-content"
+          className="arcade-focus fixed left-3 top-3 z-[100] -translate-y-16 border-2 border-[#101631] bg-[#155eef] px-3 py-2 text-sm font-black text-white shadow-[3px_3px_0_#101631] transition-transform focus:translate-y-0"
+        >
+          Skip to content
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

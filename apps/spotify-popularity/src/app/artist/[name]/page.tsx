@@ -32,7 +32,7 @@ export default function ArtistPage() {
       />
 
 
-      <main className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
+      <main id="main-content" className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
         {error && (
           <div
             role="alert"
