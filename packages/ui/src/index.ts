@@ -19,11 +19,13 @@ export {
   DataTable,
   SortButton,
   type DataTableProps,
+  type CellContext,
   type ColumnDef,
+  type HeaderContext,
   type SortingState,
   type VisibilityState,
-  type TableMeta,
   type Row,
+  type RowData,
   type FilterFn,
 } from "./data-table";
 

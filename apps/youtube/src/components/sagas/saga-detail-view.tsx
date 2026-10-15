@@ -16,17 +16,17 @@ function SagaVideoRow({ video, index, evidence }: Readonly<{ video: VideoData; i
       href={video.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-start gap-3 rounded-lg p-2 -mx-2 transition-colors hover:bg-muted/60"
+      className="group flex min-w-0 items-start gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60 sm:-mx-2"
     >
       <span className="text-xs text-muted-foreground/50 font-medium tabular-nums pt-1 w-5 text-right shrink-0">
         {index + 1}
       </span>
-      <div className="relative shrink-0 w-[168px] aspect-video">
+      <div className="relative w-28 shrink-0 aspect-video sm:w-[168px]">
         <Image
           src={video.thumbnail}
           alt=""
           fill
-          sizes="168px"
+          sizes="(min-width: 640px) 168px, 112px"
           className="rounded-md object-cover"
         />
         <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded tabular-nums font-medium">
@@ -41,7 +41,7 @@ function SagaVideoRow({ video, index, evidence }: Readonly<{ video: VideoData; i
           {dayjs(video.publishedAt).format("MMM D, YYYY")}
           {video.days > 0 && <span className="ml-1 text-muted-foreground/60">({video.days}d ago)</span>}
         </p>
-        <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Eye className="h-3 w-3" />
             {formatCompact(video.views)}

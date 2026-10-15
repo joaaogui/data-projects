@@ -2,18 +2,29 @@
 
 import { cn } from "@data-projects/shared";
 import {
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  createSortedRowModel,
   flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type ColumnDef,
-  type FilterFn,
-  type Row,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_datetime,
+  sortFn_text,
+  tableFeatures,
+  useTable,
+  type CellContext as TanstackCellContext,
+  type ColumnDef as TanstackColumnDef,
+  type ColumnVisibilityState,
+  type FilterFn as TanstackFilterFn,
+  type HeaderContext as TanstackHeaderContext,
+  type Row as TanstackRow,
+  type CellData,
+  type RowData,
   type SortingState,
-  type TableMeta,
-  type VisibilityState,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import * as React from "react";
@@ -27,10 +38,32 @@ import {
   TableRow,
 } from "./table";
 
-export interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
+// The sortFns are the ones v8's "auto" sorting picked from; without them string columns fall back to basic sorting.
+const features = tableFeatures({
+  columnFilteringFeature,
+  columnVisibilityFeature,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSortingFeature,
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortedRowModel: createSortedRowModel(),
+  sortFns: { alphanumeric: sortFn_alphanumeric, datetime: sortFn_datetime, text: sortFn_text },
+});
+
+type Features = typeof features;
+
+export type ColumnDef<TData extends RowData, TValue extends CellData = CellData> = TanstackColumnDef<Features, TData, TValue>;
+export type CellContext<TData extends RowData, TValue extends CellData = CellData> = TanstackCellContext<Features, TData, TValue>;
+export type HeaderContext<TData extends RowData, TValue extends CellData = CellData> = TanstackHeaderContext<Features, TData, TValue>;
+export type FilterFn<TData extends RowData> = TanstackFilterFn<Features, TData>;
+export type Row<TData extends RowData> = TanstackRow<Features, TData>;
+export type VisibilityState = ColumnVisibilityState;
+export type { RowData, SortingState };
+
+export interface DataTableProps<TData extends RowData> {
+  columns: ColumnDef<TData>[];
   data: TData[];
-  meta?: TableMeta<TData>;
   defaultSorting?: SortingState;
   columnVisibility?: VisibilityState;
   onColumnVisibilityChange?: (visibility: VisibilityState) => void;
@@ -77,10 +110,9 @@ export function SortButton({ children, sorted, onClick, className }: Readonly<So
   );
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData>({
   columns,
   data,
-  meta,
   defaultSorting = [],
   columnVisibility: controlledVisibility,
   onColumnVisibilityChange,
@@ -95,7 +127,7 @@ export function DataTable<TData, TValue>({
   renderExpandedRow,
   onRowClick,
   getRowAriaLabel,
-}: Readonly<DataTableProps<TData, TValue>>) {
+}: Readonly<DataTableProps<TData>>) {
   const [sorting, setSorting] = React.useState<SortingState>(defaultSorting);
   const [expandedRowId, setExpandedRowId] = React.useState<string | null>(null);
   const [internalVisibility, setInternalVisibility] = React.useState<VisibilityState>({});
@@ -110,14 +142,11 @@ export function DataTable<TData, TValue>({
     }
   };
 
-  const table = useReactTable({
+  const table = useTable({
+    features,
     data,
     columns,
-    meta,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    ...(pagination && { getPaginationRowModel: getPaginationRowModel() }),
+    manualPagination: !pagination,
     onSortingChange: setSorting,
     onColumnVisibilityChange: handleVisibilityChange,
     onGlobalFilterChange,
@@ -130,6 +159,7 @@ export function DataTable<TData, TValue>({
     ...(pagination && {
       initialState: {
         pagination: {
+          pageIndex: 0,
           pageSize: pagination.pageSize ?? 25,
         },
       },
@@ -180,7 +210,6 @@ export function DataTable<TData, TValue>({
                 return (
                   <React.Fragment key={row.id}>
                     <TableRow
-                      data-state={row.getIsSelected() && "selected"}
                       className={cn(
                         "border-border/30 transition-colors hover:bg-muted/30",
                         (renderExpandedRow || onRowClick) && "cursor-pointer",
@@ -243,9 +272,9 @@ export function DataTable<TData, TValue>({
         <div className="flex-shrink-0 flex items-center justify-between px-2 py-4">
           {pagination?.showInfo !== false && (
             <p className="hidden sm:block text-sm text-muted-foreground">
-              Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+              Showing {table.state.pagination.pageIndex * table.state.pagination.pageSize + 1} to{" "}
               {Math.min(
-                (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                (table.state.pagination.pageIndex + 1) * table.state.pagination.pageSize,
                 filteredRowCount
               )}{" "}
               of {filteredRowCount} {pagination?.itemName ?? "items"}
@@ -281,6 +310,3 @@ export function DataTable<TData, TValue>({
     </div>
   );
 }
-
-export { type ColumnDef, type FilterFn, type Row, type SortingState, type TableMeta, type VisibilityState } from "@tanstack/react-table";
-

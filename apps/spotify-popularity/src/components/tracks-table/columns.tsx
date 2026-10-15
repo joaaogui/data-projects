@@ -1,7 +1,6 @@
 "use client"
 
-import { SortButton, type ColumnDef } from "@data-projects/ui"
-import type { CellContext, HeaderContext } from "@tanstack/react-table"
+import { SortButton, type CellContext, type ColumnDef, type HeaderContext } from "@data-projects/ui"
 import { SpotifyTrack } from "@/lib/spotify"
 import { ExternalLink } from "lucide-react"
 import { TrackCover } from "@/components/track-cover"

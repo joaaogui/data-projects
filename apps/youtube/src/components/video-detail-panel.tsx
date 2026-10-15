@@ -224,23 +224,23 @@ export function VideoDetailPanel({
 
               <div className="flex items-start gap-3 sm:gap-4">
                 <ScoreRing score={video.score} scoreComponents={video.scoreComponents} weights={weights} size={64} />
-                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 flex-1">
-                  <div className="rounded-lg border border-border p-2.5 text-center">
+                <div className="grid flex-1 grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2">
+                  <div className="rounded-lg border border-border p-2 text-center sm:p-2.5">
                     <Eye className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.views)}</p>
                     <p className="text-[10px] text-muted-foreground">views</p>
                   </div>
-                  <div className="rounded-lg border border-border p-2.5 text-center">
+                  <div className="rounded-lg border border-border p-2 text-center sm:p-2.5">
                     <ThumbsUp className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.likes)}</p>
                     <p className="text-[10px] text-muted-foreground">likes</p>
                   </div>
-                  <div className="rounded-lg border border-border p-2.5 text-center">
+                  <div className="rounded-lg border border-border p-2 text-center sm:p-2.5">
                     <MessageSquare className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.comments)}</p>
                     <p className="text-[10px] text-muted-foreground">comments</p>
                   </div>
-                  <div className="rounded-lg border border-border p-2.5 text-center">
+                  <div className="rounded-lg border border-border p-2 text-center sm:p-2.5">
                     <Star className="h-3.5 w-3.5 mx-auto mb-0.5 text-muted-foreground" />
                     <p className="text-sm font-semibold tabular-nums">{formatCompact(video.favorites)}</p>
                     <p className="text-[10px] text-muted-foreground">favorites</p>

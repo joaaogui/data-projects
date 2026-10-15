@@ -1,16 +1,16 @@
 "use client"
 
-import { DataTable as SharedDataTable, type ColumnDef } from "@data-projects/ui"
+import { DataTable as SharedDataTable, type ColumnDef, type RowData } from "@data-projects/ui"
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
+interface DataTableProps<TData extends RowData> {
+  columns: ColumnDef<TData>[]
   data: TData[]
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData>({
   columns,
   data,
-}: Readonly<DataTableProps<TData, TValue>>) {
+}: Readonly<DataTableProps<TData>>) {
   return (
     <SharedDataTable
       columns={columns}

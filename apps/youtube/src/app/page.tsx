@@ -84,7 +84,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD_APP) }}
       />
-      <div className="fixed left-4 top-4 z-60">
+      <div className="fixed left-4 top-4 z-[60]">
         <ThemeToggle iconClassName="text-muted-foreground" />
       </div>
 

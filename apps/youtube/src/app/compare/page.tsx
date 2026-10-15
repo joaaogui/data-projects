@@ -463,26 +463,31 @@ function CompareContent() {
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
           Average Score
         </h3>
-        <div className="flex items-end gap-4 justify-center h-40">
-          {data.map((ch) => (
-            <div
-              key={ch.channelId}
-              className="flex flex-col items-center gap-2 flex-1 max-w-[120px]"
-            >
-              <span
-                className={`text-lg font-bold ${getScoreColorClass(ch.avgScore)} px-2 py-0.5 rounded-lg`}
-              >
-                {ch.avgScore.toFixed(0)}
-              </span>
+        <div className="overflow-x-auto pb-1">
+          <div
+            className="flex h-40 items-end justify-center gap-3"
+            style={{ minWidth: `${Math.max(280, data.length * 72)}px` }}
+          >
+            {data.map((ch) => (
               <div
-                className="w-full rounded-t-lg bg-primary/60"
-                style={{ height: `${Math.max(8, (ch.avgScore / 100) * 100)}px` }}
-              />
-              <span className="text-[10px] text-muted-foreground text-center leading-tight truncate w-full">
-                {ch.title}
-              </span>
-            </div>
-          ))}
+                key={ch.channelId}
+                className="flex min-w-0 max-w-[120px] flex-1 flex-col items-center gap-2"
+              >
+                <span
+                  className={`rounded-lg px-2 py-0.5 text-base font-bold sm:text-lg ${getScoreColorClass(ch.avgScore)}`}
+                >
+                  {ch.avgScore.toFixed(0)}
+                </span>
+                <div
+                  className="w-full rounded-t-lg bg-primary/60"
+                  style={{ height: `${Math.max(8, (ch.avgScore / 100) * 100)}px` }}
+                />
+                <span className="w-full truncate text-center text-[10px] leading-tight text-muted-foreground">
+                  {ch.title}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

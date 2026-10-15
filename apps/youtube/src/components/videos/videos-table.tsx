@@ -440,7 +440,6 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
       },
       header: LikedHeader,
       enableHiding: false,
-      size: 40,
       cell: LikedCell,
     } satisfies ColumnDef<VideoData>,
     { accessorKey: "title", header: "Title", enableHiding: false, cell: TitleCell },

@@ -346,7 +346,7 @@ export function SagasView({ channelId, videos }: Readonly<SagasViewProps>) {
         ) : isLoadingSagas ? (
           <Skeleton className="h-8 w-32 rounded-md" />
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {isActive && (
               <Button
                 variant="outline"
