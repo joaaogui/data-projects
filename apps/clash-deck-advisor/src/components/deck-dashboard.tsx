@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@data-projects/ui";
 import { RefreshCw, ServerCog, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -163,26 +164,26 @@ function LoadingSkeleton() {
           <p className="text-sm font-extrabold text-[#0b1f3a]" aria-live="polite">
             Reading your recent battles and scoring swaps…
           </p>
-          <div className="loading-shimmer mt-2 h-3 w-2/3 rounded-full" />
+          <Skeleton className="mt-2 h-3 w-2/3 rounded-full" />
         </div>
       </div>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="paper-panel space-y-3 rounded-2xl p-5 sm:p-6">
-          <div className="loading-shimmer h-6 w-1/2 rounded-full" />
-          <div className="loading-shimmer h-4 w-3/4 rounded-full" />
-          <div className="loading-shimmer h-28 rounded-xl" />
+          <Skeleton className="h-6 w-1/2 rounded-full" />
+          <Skeleton className="h-4 w-3/4 rounded-full" />
+          <Skeleton className="h-28 rounded-xl" />
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
             {Array.from({ length: 8 }, (_, index) => (
-              <div key={index} className="loading-shimmer aspect-[4/5] rounded-xl" />
+              <Skeleton key={index} className="aspect-[4/5] rounded-xl" />
             ))}
           </div>
         </div>
         <div className="space-y-5">
           <div className="paper-panel h-44 rounded-2xl p-5 sm:p-6">
-            <div className="loading-shimmer h-6 w-2/3 rounded-full" />
+            <Skeleton className="h-6 w-2/3 rounded-full" />
           </div>
           <div className="paper-panel h-40 rounded-2xl p-5 sm:p-6">
-            <div className="loading-shimmer h-6 w-1/2 rounded-full" />
+            <Skeleton className="h-6 w-1/2 rounded-full" />
           </div>
         </div>
       </div>

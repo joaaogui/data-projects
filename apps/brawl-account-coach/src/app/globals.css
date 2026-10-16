@@ -18,6 +18,32 @@
   --mint: #16a779;
 }
 
+/* HSL token vars required by @data-projects/tailwind-config / @data-projects/ui,
+   derived from the hex palette above (see --muted-foreground for the former
+   --muted text tone; --muted here is the light muted surface tone). */
+:root {
+  --background: 225 100% 98.4%;
+  --foreground: 229.1 50.8% 12.7%;
+  --card: 0 0% 100%;
+  --card-foreground: 229.1 50.8% 12.7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 229.1 50.8% 12.7%;
+  --primary: 219.9 87.2% 51%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 100% 95.9%;
+  --secondary-foreground: 222.8 87% 39.2%;
+  --muted: 221.3 42.1% 92.5%;
+  --muted-foreground: 225 16.2% 43.5%;
+  --accent: 332 100% 97.1%;
+  --accent-foreground: 229.1 50.8% 12.7%;
+  --destructive: 331.7 90% 57.1%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 223.2 45.5% 89.2%;
+  --input: 223.2 45.5% 89.2%;
+  --ring: 219.9 87.2% 51%;
+  --radius: 0.5rem;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -116,44 +142,14 @@ button {
   outline-offset: 3px;
 }
 
-.loading-block {
-  position: relative;
-  overflow: hidden;
-  background: #e4e9f4;
-}
-
-.loading-block::after {
-  position: absolute;
-  inset: 0;
-  content: "";
-  transform: translateX(-100%);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.9),
-    transparent
-  );
-  animation: dossier-scan 1.45s ease-in-out infinite;
-}
-
 .portrait-stage {
   background:
     radial-gradient(circle at 50% 72%, #ffffff 0 26%, transparent 27%),
     linear-gradient(145deg, #ffcb2f 0 50%, #f42f8c 50% 100%);
 }
 
-@keyframes dossier-scan {
-  100% {
-    transform: translateX(100%);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-
-  .loading-block::after {
-    animation: none;
   }
 }

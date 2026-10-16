@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@data-projects/ui";
 import { Ban, LockKeyhole, Pin, Sparkles, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -109,7 +110,7 @@ function LoadingDashboard() {
                   key={label}
                   className="border-2 border-[#d7def0] bg-white p-3"
                 >
-                  <div className="loading-block h-4 w-3/5" />
+                  <Skeleton className="h-4 w-3/5" />
                   <p className="mt-2 text-xs font-extrabold text-[#5d6681]">
                     {label}
                   </p>

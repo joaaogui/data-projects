@@ -8,6 +8,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./ai-provider": {
+      "types": "./src/ai-provider.ts",
+      "default": "./src/ai-provider.ts"
     }
   },
   "scripts": {
@@ -16,8 +20,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.76",
+    "@ai-sdk/groq": "^4.0.46",
     "@tanstack/react-query": "catalog:",
+    "ai": "^7.0.107",
     "clsx": "catalog:",
+    "server-only": "catalog:",
     "tailwind-merge": "catalog:"
   },
   "devDependencies": {

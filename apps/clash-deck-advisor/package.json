@@ -21,16 +21,16 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@ai-sdk/google": "catalog:",
-    "@ai-sdk/groq": "catalog:",
     "@data-projects/shared": "workspace:*",
+    "@data-projects/tailwind-config": "workspace:*",
+    "@data-projects/ui": "workspace:*",
     "@neondatabase/serverless": "catalog:",
-    "ai": "catalog:",
+    "ai": "^7.0.107",
     "drizzle-orm": "catalog:",
     "lucide-react": "catalog:",
-    "next": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:",
+    "next": "^16.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "server-only": "catalog:",
     "zod": "catalog:"
   },

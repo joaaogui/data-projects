@@ -16,14 +16,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/google": "catalog:",
-    "@ai-sdk/groq": "catalog:",
     "@data-projects/shared": "workspace:*",
-    "ai": "catalog:",
+    "@data-projects/tailwind-config": "workspace:*",
+    "@data-projects/ui": "workspace:*",
+    "ai": "^7.0.107",
     "lucide-react": "catalog:",
-    "next": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:",
+    "next": "^16.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "server-only": "catalog:",
     "zod": "catalog:"
   },

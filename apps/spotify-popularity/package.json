@@ -23,9 +23,9 @@
     "@tanstack/react-table": "catalog:",
     "geist": "^1.7.2",
     "lucide-react": "catalog:",
-    "next": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:"
+    "next": "^16.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

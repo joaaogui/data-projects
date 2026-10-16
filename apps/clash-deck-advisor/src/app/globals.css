@@ -17,6 +17,32 @@
   --danger: #b42318;
 }
 
+/* HSL token vars required by @data-projects/tailwind-config / @data-projects/ui,
+   derived from the hex palette above (see --muted-foreground for the former
+   --muted text tone; --muted here is the light muted surface tone). */
+:root {
+  --background: 75 20% 96.1%;
+  --foreground: 214.5 68.1% 13.5%;
+  --card: 0 0% 100%;
+  --card-foreground: 214.5 68.1% 13.5%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 214.5 68.1% 13.5%;
+  --primary: 220.9 80.3% 43.7%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 100% 95.9%;
+  --secondary-foreground: 214.5 68.1% 13.5%;
+  --muted: 216 26.3% 92.5%;
+  --muted-foreground: 214.3 16% 42.9%;
+  --accent: 45.4 100% 92%;
+  --accent-foreground: 214.5 68.1% 13.5%;
+  --destructive: 4.2 76.5% 40%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214.7 33.3% 88.8%;
+  --input: 214.7 33.3% 88.8%;
+  --ring: 220.9 80.3% 43.7%;
+  --radius: 0.5rem;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -98,34 +124,8 @@ body {
   outline-offset: 3px;
 }
 
-.loading-shimmer {
-  position: relative;
-  overflow: hidden;
-  background: #e7ebf1;
-}
-
-.loading-shimmer::after {
-  position: absolute;
-  inset: 0;
-  content: "";
-  transform: translateX(-100%);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.72),
-    transparent
-  );
-  animation: workshop-shimmer 1.7s infinite;
-}
-
 .workshop-pulse {
   animation: workshop-pulse 1.8s ease-in-out infinite;
-}
-
-@keyframes workshop-shimmer {
-  100% {
-    transform: translateX(100%);
-  }
 }
 
 @keyframes workshop-pulse {
@@ -145,7 +145,6 @@ body {
     scroll-behavior: auto;
   }
 
-  .loading-shimmer::after,
   .workshop-pulse {
     animation: none;
   }

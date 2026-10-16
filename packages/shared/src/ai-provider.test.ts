@@ -5,6 +5,7 @@ import {
   getAiModelChain,
   getAiProviderOptions,
   getAiProviderConfig,
+  getCandidateModels,
   runWithAiFallback,
 } from "./ai-provider";
 
@@ -31,6 +32,12 @@ describe("getAiProviderConfig", () => {
       label: "openai/gpt-oss-120b",
     });
   });
+
+  it("rejects an environment with no configured provider", () => {
+    expect(() => getAiProviderConfig({})).toThrow(
+      "Missing required server configuration: GOOGLE_GENERATIVE_AI_API_KEY or GROQ_API_KEY",
+    );
+  });
 });
 
 describe("getAiModelChain", () => {
@@ -50,10 +57,38 @@ describe("getAiModelChain", () => {
     ).toEqual(["gemini-3.5-flash-lite", "gemini-3.6-flash"]);
   });
 
+  it("offers only Groq when Google is unavailable", () => {
+    expect(
+      getAiModelChain({ GROQ_API_KEY: "groq-key" }).map(
+        (model) => model.label,
+      ),
+    ).toEqual(["openai/gpt-oss-120b"]);
+  });
+
   it("rejects an environment with no configured provider", () => {
     expect(() => getAiModelChain({})).toThrow(
       "GOOGLE_GENERATIVE_AI_API_KEY or GROQ_API_KEY",
     );
+  });
+});
+
+describe("getCandidateModels", () => {
+  it("uses one model per provider so proposals differ", () => {
+    const models = getCandidateModels(bothProviders);
+
+    expect(models.map((entry) => entry.provider)).toEqual(["google", "groq"]);
+    expect(models.map((entry) => entry.label)).toEqual([
+      "gemini-3.5-flash-lite",
+      "openai/gpt-oss-120b",
+    ]);
+  });
+
+  it("degrades to a single model when only one provider is configured", () => {
+    expect(
+      getCandidateModels({ GROQ_API_KEY: "groq-key" }).map(
+        (entry) => entry.provider,
+      ),
+    ).toEqual(["groq"]);
   });
 });
 
