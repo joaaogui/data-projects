@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BUILTIN_PRESETS,
   categorizePropertyFeatures,
+  classifyFurnitureTier,
   computeDynamicNeighborhoods,
   computeDynamicProperties,
   DEFAULT_WEIGHTS,
@@ -9,6 +10,7 @@ import {
 import {
   DEFAULT_EXPLORER_FILTERS,
   filterAndSortProperties,
+  isStrictlyInTop20Neighborhoods,
   matchesFloorFilter,
   matchesPropertyFeature,
   parseExplorerFiltersObject,
@@ -257,7 +259,7 @@ describe("Moradia Dynamic Scoring Engine", () => {
       rarity: "epic",
     });
     expect(top.cardTags.greenTags).not.toContain("Andar alto (17º andar)");
-    expect(top.cardTags.greenTags).toContain("Vista livre · Sol da manhã");
+    expect(top.cardTags.greenTags).toContain("Vista livre");
     expect(top.cardTags.greenTags).toContain("Prédio Novo (2019)");
 
     expect(dated.eligible).toBe(false);
@@ -777,7 +779,7 @@ describe("Moradia Dynamic Scoring Engine", () => {
     expect(spRes.shortJustification).toMatch(/exige maior atenção na rua no período noturno/i);
     expect(spRes.shortJustification).toContain("penalizado pelo trânsito, custo de vida e caos urbano de São Paulo Capital");
     expect(spRes.shortJustification).toContain("fica no térreo (maior exposição a ruído de calçada e menor privacidade)");
-    expect(spRes.shortJustification).toContain("já mobiliado (exige negociar retirada de itens ou adaptar sua mudança de Brasília)");
+    expect(spRes.shortJustification).toContain("já mobiliado com cama/sofá (exige negociar retirada ou adaptar sua mudança de Brasília)");
 
     const sionRes = extraEval.find((p) => p.id === "sion-no-balcony")!;
     expect(sionRes.shortJustification).not.toContain("Por outro lado,");
@@ -1230,6 +1232,7 @@ describe("Moradia Dynamic Scoring Engine", () => {
       showIneligible: false,
       providerFilter: "quintoandar",
       onlyFavorites: true,
+      onlyTop20Neighborhoods: true,
       deactivatedFilter: "ACTIVE_ONLY",
       showAdvancedFilters: true,
       viewMode: "split",
@@ -1259,7 +1262,468 @@ describe("Moradia Dynamic Scoring Engine", () => {
     expect(parsed.hideForSale).toBe(true);
     expect(parsed.providerFilter).toBe("quintoandar");
     expect(parsed.onlyFavorites).toBe(true);
+    expect(parsed.onlyTop20Neighborhoods).toBe(true);
     expect(parsed.showAdvancedFilters).toBe(true);
     expect(parsed.viewMode).toBe("split");
+  });
+
+  it("strictly filters units inside the Top 20 catalog neighborhoods when onlyTop20Neighborhoods is true", () => {
+    const { ranked: nbs } = computeDynamicNeighborhoods(
+      SAMPLE_NEIGHBORHOODS,
+      DEFAULT_WEIGHTS,
+    );
+    const baseProp: SlimPropertyRecord = {
+      ...SAMPLE_PROPERTIES[0]!,
+      samplePhotos: [{ room: "Sala", url: "https://example.com/1.jpg" }],
+    };
+
+    const props: SlimPropertyRecord[] = [
+      {
+        ...baseProp,
+        id: "top20-bh-funcionarios",
+        cityCode: "BH",
+        city: "Belo Horizonte",
+        neighborhood: "Funcionários",
+      },
+      {
+        ...baseProp,
+        id: "top20-bh-lourdes",
+        cityCode: "BH",
+        city: "Belo Horizonte",
+        neighborhood: "Lourdes",
+      },
+      {
+        ...baseProp,
+        id: "top20-cp-taquaral",
+        cityCode: "CP",
+        city: "Campinas",
+        neighborhood: "Taquaral",
+      },
+      {
+        ...baseProp,
+        id: "top20-rj-flamengo",
+        cityCode: "RJ",
+        city: "Rio de Janeiro",
+        neighborhood: "Flamengo",
+      },
+      {
+        ...baseProp,
+        id: "top20-rj-jd-oceanico",
+        cityCode: "RJ",
+        city: "Rio de Janeiro",
+        neighborhood: "Barra da Tijuca",
+        street: "Avenida Lúcio Costa",
+      },
+      {
+        ...baseProp,
+        id: "non-top20-bh-savassi",
+        cityCode: "BH",
+        city: "Belo Horizonte",
+        neighborhood: "Savassi",
+      },
+      {
+        ...baseProp,
+        id: "non-top20-rj-catete",
+        cityCode: "RJ",
+        city: "Rio de Janeiro",
+        neighborhood: "Catete",
+      },
+      {
+        ...baseProp,
+        id: "non-top20-cp-cambui",
+        cityCode: "CP",
+        city: "Campinas",
+        neighborhood: "Cambuí",
+      },
+      {
+        ...baseProp,
+        id: "non-top20-cp-botafogo",
+        cityCode: "CP",
+        city: "Campinas",
+        neighborhood: "Botafogo",
+      },
+      {
+        ...baseProp,
+        id: "non-top20-rj-barra-olimpica",
+        cityCode: "RJ",
+        city: "Rio de Janeiro",
+        neighborhood: "Barra da Tijuca",
+        street: "Avenida Embaixador Abelardo Bueno",
+        description: "Apartamento na Barra Olímpica próximo ao Parque Olímpico.",
+      },
+    ];
+
+    const evaluated = computeDynamicProperties(props, nbs, DEFAULT_WEIGHTS);
+
+    const strictTop20 = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      onlyTop20Neighborhoods: true,
+    });
+
+    const keptIds = strictTop20.map((p) => p.id);
+    expect(keptIds).toContain("top20-bh-funcionarios");
+    expect(keptIds).toContain("top20-bh-lourdes");
+    expect(keptIds).toContain("top20-cp-taquaral");
+    expect(keptIds).toContain("top20-rj-flamengo");
+    expect(keptIds).toContain("top20-rj-jd-oceanico");
+
+    expect(keptIds).not.toContain("non-top20-bh-savassi");
+    expect(keptIds).not.toContain("non-top20-rj-catete");
+    expect(keptIds).not.toContain("non-top20-cp-cambui");
+    expect(keptIds).not.toContain("non-top20-cp-botafogo");
+    expect(keptIds).not.toContain("non-top20-rj-barra-olimpica");
+
+    expect(
+      isStrictlyInTop20Neighborhoods(
+        evaluated.find((p) => p.id === "non-top20-rj-barra-olimpica")!,
+      ),
+    ).toBe(false);
+  });
+
+  it("supports multi-select floor filters (floorFilters) combining multiple floor tiers and NO_GROUND", () => {
+    const { ranked: nbs } = computeDynamicNeighborhoods(
+      SAMPLE_NEIGHBORHOODS,
+      DEFAULT_WEIGHTS,
+    );
+    const baseProp: SlimPropertyRecord = {
+      ...SAMPLE_PROPERTIES[0]!,
+      samplePhotos: [{ room: "Sala", url: "https://example.com/1.jpg" }],
+    };
+
+    const legendaryProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "floor-legendary",
+      floor: 15,
+      totalFloors: 15,
+      title: "Cobertura",
+      description: "Cobertura no último andar.",
+    };
+    const epicProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "floor-epic",
+      floor: 10,
+      floorRange: null,
+      totalFloors: 15,
+      title: "Andar alto",
+      description: "Apartamento em andar alto.",
+    };
+    const rareProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "floor-rare",
+      floor: 5,
+      floorRange: null,
+      totalFloors: 12,
+      title: "Andar médio",
+      description: "Apartamento no 5º andar.",
+    };
+    const uncommonProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "floor-uncommon",
+      floor: 2,
+      floorRange: null,
+      totalFloors: 10,
+      title: "Andar baixo",
+      description: "Apartamento no 2º andar.",
+    };
+    const groundProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "floor-ground",
+      floor: 0,
+      floorRange: null,
+      totalFloors: 8,
+      title: "Térreo",
+      description: "Apartamento térreo.",
+    };
+
+    const evaluated = computeDynamicProperties(
+      [legendaryProp, epicProp, rareProp, uncommonProp, groundProp],
+      nbs,
+      DEFAULT_WEIGHTS,
+    );
+
+    // Selecting LEGENDARY + RARE returns both Cobertura and Médio while excluding EPIC, UNCOMMON, and ground
+    const legendaryOrRare = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      floorFilters: ["LEGENDARY", "RARE"],
+    });
+    expect(legendaryOrRare.map((p) => p.id)).toEqual([
+      "floor-legendary",
+      "floor-rare",
+    ]);
+
+    // Selecting LEGENDARY + EPIC + RARE returns Cobertura, Alto (8º+), and Médio (4º–7º)
+    const topHighOrMid = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      floorFilters: ["LEGENDARY", "EPIC", "RARE"],
+    });
+    expect(topHighOrMid.map((p) => p.id)).toEqual([
+      "floor-legendary",
+      "floor-epic",
+      "floor-rare",
+    ]);
+
+    // Parsing multi-select floorFilters from persisted preferences
+    const parsedMulti = parseExplorerFiltersObject({
+      floorFilters: ["LEGENDARY", "EPIC", "RARE", "ALL", "INVALID"],
+    });
+    expect(parsedMulti.floorFilters).toEqual(["LEGENDARY", "EPIC", "RARE"]);
+  });
+
+  it("classifies properties into 3 furniture tiers (UNFURNISHED, SEMI_FURNISHED, FULLY_FURNISHED) and applies 3-tier scoring and filtering", () => {
+    const { ranked: nbs } = computeDynamicNeighborhoods(
+      SAMPLE_NEIGHBORHOODS,
+      DEFAULT_WEIGHTS,
+    );
+    const baseProp: SlimPropertyRecord = {
+      ...SAMPLE_PROPERTIES[0]!,
+      samplePhotos: [{ room: "Sala", url: "https://example.com/1.jpg" }],
+    };
+
+    const unfurnishedProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "furn-unfurnished",
+      furnished: false,
+      comfortCommodities: ["Sol da manhã", "Vista livre"],
+      practicalityCommodities: ["Armários na cozinha", "Box blindex"],
+      description:
+        "Apartamento amplo com armários planejados na cozinha e quarto, sem mobília solta.",
+    };
+
+    const semiAppliancesProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "furn-semi-appliances",
+      furnished: false,
+      comfortCommodities: [],
+      practicalityCommodities: ["Fogão", "Geladeira", "Microondas"],
+      description:
+        "Apartamento com cozinha equipada (fogão, geladeira e micro-ondas), pronto para morar.",
+    };
+
+    const semiExplicitTextProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "furn-semi-text",
+      furnished: true,
+      comfortCommodities: [],
+      practicalityCommodities: [],
+      description:
+        "Excelente apartamento semi-mobiliado com armários e eletrodomésticos na cozinha.",
+    };
+
+    const fullyBedSofaProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "furn-full-bed-sofa",
+      furnished: false,
+      comfortCommodities: ["Sofá", "Cama de casal"],
+      practicalityCommodities: ["Geladeira", "Fogão", "Máquina de lavar"],
+      description:
+        "Apartamento completo com cama de casal, sofá, mesa com cadeiras e eletrodomésticos.",
+    };
+
+    const fullyPhotoDetectedProp: SlimPropertyRecord = {
+      ...baseProp,
+      provider: "zapimoveis",
+      id: "2917412160",
+      furnished: null,
+      comfortCommodities: [],
+      practicalityCommodities: [],
+      description: "Loft moderno.",
+    };
+
+    const fullyHotelFlatProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "furn-full-flat",
+      condominiumName: "Max Savassi Apart Service",
+      furnished: null,
+      comfortCommodities: [],
+      practicalityCommodities: [],
+      description: "Unidade em apart-hotel.",
+    };
+
+    expect(classifyFurnitureTier(unfurnishedProp)).toBe("UNFURNISHED");
+    expect(classifyFurnitureTier(semiAppliancesProp)).toBe("SEMI_FURNISHED");
+    expect(classifyFurnitureTier(semiExplicitTextProp)).toBe("SEMI_FURNISHED");
+    expect(classifyFurnitureTier(fullyBedSofaProp)).toBe("FULLY_FURNISHED");
+    expect(classifyFurnitureTier(fullyPhotoDetectedProp)).toBe(
+      "FULLY_FURNISHED",
+    );
+    expect(classifyFurnitureTier(fullyHotelFlatProp)).toBe("FULLY_FURNISHED");
+
+    const evaluated = computeDynamicProperties(
+      [
+        unfurnishedProp,
+        semiAppliancesProp,
+        semiExplicitTextProp,
+        fullyBedSofaProp,
+      ],
+      nbs,
+      DEFAULT_WEIGHTS,
+    );
+    const byId = new Map(evaluated.map((p) => [p.id, p]));
+
+    const evalUnf = byId.get("furn-unfurnished")!;
+    const evalSemi = byId.get("furn-semi-appliances")!;
+    const evalFull = byId.get("furn-full-bed-sofa")!;
+
+    expect(evalUnf.furnitureTier).toBe("UNFURNISHED");
+    expect(evalUnf.breakdown.furniturePoints).toBe(
+      DEFAULT_WEIGHTS.unfurnishedBonus,
+    );
+
+    expect(evalSemi.furnitureTier).toBe("SEMI_FURNISHED");
+    expect(evalSemi.breakdown.furniturePoints).toBe(
+      Math.round(DEFAULT_WEIGHTS.furnishedPenalty * 0.35),
+    );
+    expect(evalSemi.shortJustification).toMatch(
+      /semi-mobiliado com eletrodomésticos \(verificar se conflita com seus eletros de Brasília\)/i,
+    );
+
+    expect(evalFull.furnitureTier).toBe("FULLY_FURNISHED");
+    expect(evalFull.breakdown.furniturePoints).toBe(
+      DEFAULT_WEIGHTS.furnishedPenalty,
+    );
+    expect(evalFull.shortJustification).toMatch(
+      /já mobiliado com cama\/sofá \(exige negociar retirada ou adaptar sua mudança de Brasília\)/i,
+    );
+
+    // Filter options: UNFURNISHED, UNFURNISHED_OR_SEMI, SEMI_FURNISHED, FURNISHED
+    expect(
+      filterAndSortProperties(evaluated, {
+        ...DEFAULT_EXPLORER_FILTERS,
+        furnishedFilter: "UNFURNISHED",
+      }).map((p) => p.id),
+    ).toEqual(["furn-unfurnished"]);
+
+    expect(
+      filterAndSortProperties(evaluated, {
+        ...DEFAULT_EXPLORER_FILTERS,
+        furnishedFilter: "UNFURNISHED_OR_SEMI",
+      }).map((p) => p.id),
+    ).toEqual([
+      "furn-unfurnished",
+      "furn-semi-appliances",
+      "furn-semi-text",
+    ]);
+
+    expect(
+      filterAndSortProperties(evaluated, {
+        ...DEFAULT_EXPLORER_FILTERS,
+        furnishedFilter: "SEMI_FURNISHED",
+      }).map((p) => p.id),
+    ).toEqual(["furn-semi-appliances", "furn-semi-text"]);
+
+    expect(
+      filterAndSortProperties(evaluated, {
+        ...DEFAULT_EXPLORER_FILTERS,
+        furnishedFilter: "FURNISHED",
+      }).map((p) => p.id),
+    ).toEqual([
+      "furn-semi-appliances",
+      "furn-semi-text",
+      "furn-full-bed-sofa",
+    ]);
+  });
+
+  it("supports multi-select exact counts for bedrooms (selectedBedrooms), bathrooms (selectedBathrooms), and parking (selectedParking)", () => {
+    const { ranked: nbs } = computeDynamicNeighborhoods(
+      SAMPLE_NEIGHBORHOODS,
+      DEFAULT_WEIGHTS,
+    );
+    const baseProp: SlimPropertyRecord = {
+      ...SAMPLE_PROPERTIES[0]!,
+      samplePhotos: [{ room: "Sala", url: "https://example.com/1.jpg" }],
+    };
+
+    const oneBedProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "bed-1",
+      bedrooms: 1,
+      bathrooms: 1,
+      parkingSpaces: 1,
+    };
+    const twoBedProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "bed-2",
+      bedrooms: 2,
+      bathrooms: 2,
+      parkingSpaces: 1,
+    };
+    const threeBedProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "bed-3",
+      bedrooms: 3,
+      bathrooms: 3,
+      parkingSpaces: 2,
+    };
+    const fourBedProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "bed-4",
+      bedrooms: 4,
+      bathrooms: 4,
+      parkingSpaces: 3,
+    };
+
+    const evaluated = computeDynamicProperties(
+      [oneBedProp, twoBedProp, threeBedProp, fourBedProp],
+      nbs,
+      DEFAULT_WEIGHTS,
+    );
+
+    // selectedBedrooms: [1] keeps ONLY 1-bedroom apartments and filters out 2+ bedroom apartments
+    const onlyOneBed = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      selectedBedrooms: [1],
+    });
+    expect(onlyOneBed.map((p) => p.id)).toEqual(["bed-1"]);
+
+    // selectedBedrooms: [1, 2] keeps both 1-bedroom and 2-bedroom apartments while filtering out 3+ bedroom apartments
+    const oneAndTwoBeds = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      selectedBedrooms: [1, 2],
+    });
+    expect(oneAndTwoBeds.map((p) => p.id)).toEqual(["bed-1", "bed-2"]);
+
+    // selectedBedrooms: [3] keeps 3+ bedroom apartments (3 and 4 bedrooms)
+    const threePlusBeds = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      selectedBedrooms: [3],
+    });
+    expect(threePlusBeds.map((p) => p.id)).toEqual(["bed-3", "bed-4"]);
+
+    // selectedBathrooms: [1] keeps ONLY 1-bathroom apartments
+    const onlyOneBath = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      selectedBathrooms: [1],
+    });
+    expect(onlyOneBath.map((p) => p.id)).toEqual(["bed-1"]);
+
+    // selectedBathrooms: [1, 2] keeps 1 and 2 bathroom apartments
+    const oneAndTwoBaths = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      selectedBathrooms: [1, 2],
+    });
+    expect(oneAndTwoBaths.map((p) => p.id)).toEqual(["bed-1", "bed-2"]);
+
+    // selectedParking: [1] keeps ONLY 1-parking apartments, [2] keeps 2+ parking apartments
+    const onlyOnePark = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      selectedParking: [1],
+    });
+    expect(onlyOnePark.map((p) => p.id)).toEqual(["bed-1", "bed-2"]);
+
+    const twoPlusPark = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      selectedParking: [2],
+    });
+    expect(twoPlusPark.map((p) => p.id)).toEqual(["bed-3", "bed-4"]);
+
+    // parseExplorerFiltersObject sanitizes and deduplicates selectedBedrooms, selectedBathrooms, selectedParking
+    const parsedMultiCounts = parseExplorerFiltersObject({
+      selectedBedrooms: [2, 1, 2, 5, "invalid"],
+      selectedBathrooms: [1, 3, 0],
+      selectedParking: [1, 2, 3],
+    });
+    expect(parsedMultiCounts.selectedBedrooms).toEqual([1, 2]);
+    expect(parsedMultiCounts.selectedBathrooms).toEqual([1, 3]);
+    expect(parsedMultiCounts.selectedParking).toEqual([1, 2]);
   });
 });

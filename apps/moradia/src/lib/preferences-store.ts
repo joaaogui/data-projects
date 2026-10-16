@@ -50,10 +50,14 @@ function normalizePreferences(
     raw.filters && typeof raw.filters === "object" && !Array.isArray(raw.filters)
       ? (raw.filters as Record<string, unknown>)
       : base.filters;
-  const weights =
+  const rawWeightsObj =
     raw.weights && typeof raw.weights === "object" && !Array.isArray(raw.weights)
       ? (raw.weights as Partial<ScoringWeights>)
       : base.weights;
+  const weights: Partial<ScoringWeights> = {
+    ...rawWeightsObj,
+    ...(rawWeightsObj.furnishedPenalty === -5 ? { furnishedPenalty: -22 } : {}),
+  };
   const activePresetId =
     typeof raw.activePresetId === "string" && raw.activePresetId.trim()
       ? raw.activePresetId.trim()

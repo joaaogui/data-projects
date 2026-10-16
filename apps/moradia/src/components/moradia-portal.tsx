@@ -10,6 +10,7 @@ import {
 import {
   BUILTIN_PRESETS,
   categorizePropertyFeatures,
+  classifyFurnitureTier,
   computeDynamicNeighborhoods,
   computeDynamicProperties,
   DEFAULT_WEIGHTS,
@@ -79,7 +80,12 @@ export type SortByOption =
   | "price_per_m2_asc"
   | "floor_desc";
 
-export type FurnishedFilterOption = "ALL" | "UNFURNISHED" | "FURNISHED";
+export type FurnishedFilterOption =
+  | "ALL"
+  | "UNFURNISHED"
+  | "UNFURNISHED_OR_SEMI"
+  | "SEMI_FURNISHED"
+  | "FURNISHED";
 
 export type ProviderFilterOption =
   | "ALL"
@@ -109,7 +115,8 @@ export interface PropertyExplorerFilters {
   selectedCity?: CityHubCode | "ALL";
   selectedCities?: CityHubCode[];
   searchQuery: string;
-  floorFilter: FloorFilterOption;
+  floorFilter?: FloorFilterOption;
+  floorFilters?: FloorFilterOption[];
   minTotalMonthly: number | null;
   maxTotalMonthly: number | null;
   minScore: number | null;
@@ -117,9 +124,12 @@ export interface PropertyExplorerFilters {
   selectedNeighborhoods: string[];
   minAreaM2: number | null;
   maxAreaM2: number | null;
-  minBedrooms: number | null;
-  minBathrooms: number | null;
-  minParking: number | null;
+  selectedBedrooms?: number[];
+  selectedBathrooms?: number[];
+  selectedParking?: number[];
+  minBedrooms?: number | null;
+  minBathrooms?: number | null;
+  minParking?: number | null;
   modernityTiers: ModernityTier[];
   minModernityScore: number | null;
   furnishedFilter: FurnishedFilterOption;
@@ -130,6 +140,7 @@ export interface PropertyExplorerFilters {
   showIneligible: boolean;
   providerFilter: ProviderFilterOption;
   onlyFavorites: boolean;
+  onlyTop20Neighborhoods?: boolean;
   deactivatedFilter: DeactivatedFilterOption;
   favoriteKeys?: string[];
 }
@@ -139,6 +150,7 @@ export const DEFAULT_EXPLORER_FILTERS: PropertyExplorerFilters = {
   selectedCities: [],
   searchQuery: "",
   floorFilter: "ALL",
+  floorFilters: [],
   minTotalMonthly: null,
   maxTotalMonthly: null,
   minScore: null,
@@ -146,6 +158,9 @@ export const DEFAULT_EXPLORER_FILTERS: PropertyExplorerFilters = {
   selectedNeighborhoods: [],
   minAreaM2: null,
   maxAreaM2: null,
+  selectedBedrooms: [],
+  selectedBathrooms: [],
+  selectedParking: [],
   minBedrooms: null,
   minBathrooms: null,
   minParking: null,
@@ -159,6 +174,7 @@ export const DEFAULT_EXPLORER_FILTERS: PropertyExplorerFilters = {
   showIneligible: false,
   providerFilter: "ALL",
   onlyFavorites: false,
+  onlyTop20Neighborhoods: false,
   deactivatedFilter: "ACTIVE_ONLY",
   favoriteKeys: [],
 };
@@ -243,9 +259,9 @@ export const PROPERTY_FEATURE_OPTIONS: {
   label: string;
 }[] = [
   { key: "ac", label: "Ar-condicionado" },
-  { key: "free_view_sun", label: "Vista livre / Sol da manhã" },
+  { key: "free_view_sun", label: "Vista livre" },
   { key: "reserved_building", label: "Torre única / Reservado" },
-  { key: "new_building", label: "Prédio Novo (2018+)" },
+  { key: "new_building", label: "Prédio Novo (2010+)" },
   { key: "balcony", label: "Varanda / Sacada" },
   { key: "suite", label: "Suíte" },
   { key: "doorman_24h", label: "Portaria 24h" },
@@ -255,8 +271,20 @@ export const PROPERTY_FEATURE_OPTIONS: {
 
 export function matchesFloorFilter(
   prop: EvaluatedProperty,
-  floorFilter: FloorFilterOption,
+  floorFilter: FloorFilterOption | FloorFilterOption[],
 ): boolean {
+  if (Array.isArray(floorFilter)) {
+    const active = floorFilter.filter((f) => f !== "ALL");
+    if (active.length === 0) return true;
+    if (active.includes("NO_GROUND") && !matchesFloorFilter(prop, "NO_GROUND")) {
+      return false;
+    }
+    const tierSelectors = active.filter((f) => f !== "NO_GROUND");
+    if (tierSelectors.length > 0) {
+      return tierSelectors.some((f) => matchesFloorFilter(prop, f));
+    }
+    return true;
+  }
   if (floorFilter === "ALL") return true;
   const rarity = prop.cardTags.floorTag?.rarity ?? null;
   if (floorFilter === "HIGH_OR_TOP") {
@@ -317,7 +345,7 @@ export function matchesPropertyFeature(
       );
     case "new_building":
       return (
-        (prop.constructionYear !== null && prop.constructionYear >= 2018) ||
+        (prop.constructionYear !== null && prop.constructionYear >= 2010) ||
         prop.cardTags.greenTags.some((t) => t.startsWith("Prédio Novo"))
       );
     case "balcony":
@@ -358,6 +386,92 @@ export function getEffectiveFloorSortValue(prop: EvaluatedProperty): number {
   if (rarity === "uncommon") return 2;
   if (rarity === "common") return 0;
   return -1;
+}
+
+export const STRICT_TOP_20_NEIGHBORHOODS_BY_CITY: Record<
+  CityHubCode,
+  ReadonlySet<string>
+> = {
+  BH: new Set([
+    "funcionários",
+    "funcionarios",
+    "lourdes",
+    "santa efigênia",
+    "santa efigenia",
+    "santo agostinho",
+    "sion",
+    "vila da serra",
+  ]),
+  CP: new Set([
+    "taquaral",
+    "parque taquaral",
+    "bosque",
+    "jd. guanabara",
+    "jardim guanabara",
+    "guanabara",
+    "nova campinas",
+    "jd. chapadão",
+    "jd. chapadao",
+    "jardim chapadão",
+    "jardim chapadao",
+  ]),
+  SP: new Set([
+    "moema",
+    "indianópolis",
+    "indianopolis",
+    "jardim paulista",
+    "alto de pinheiros",
+    "sumaré",
+    "sumare",
+    "vila mariana",
+  ]),
+  RJ: new Set([
+    "flamengo",
+    "leme",
+    "botafogo",
+    "botafogo (orla)",
+    "tijuca",
+    "tijuca (pç uruguai)",
+    "jd. oceânico",
+    "jd. oceanico",
+    "jardim oceânico",
+    "jardim oceanico",
+    "barra da tijuca",
+  ]),
+};
+
+const DEEP_WEST_BARRA_EXCLUSION_RE =
+  /\b(barra ol[ií]mpica|estrada dos bandeirantes|shopping metropolitano|curicica|jacarepagu[aá]|recreio|riocentro|abelardo bueno|salvador allende|ad[ií]lio de oliveira|alfredo ceschiatti|franco zampari|m[aá]rio covas|jos[eé] wilker|besserman vianna|jos[eé] alencar|aroazes|c[eé]sar lattes|paulo moura|paulo viann?a|alfredo balthazar|jaime poggi|clementina de jesus|sylvio da rocha pollis)\b/i;
+
+export function isStrictlyInTop20Neighborhoods(
+  prop: Pick<
+    EvaluatedProperty,
+    "cityCode" | "neighborhood" | "street" | "title" | "description"
+  >,
+): boolean {
+  const allowedSet = STRICT_TOP_20_NEIGHBORHOODS_BY_CITY[prop.cityCode];
+  if (!allowedSet) return false;
+
+  const rawNb = (prop.neighborhood ?? "").trim().toLowerCase();
+  const normNb = normalizeNeighborhoodKey(
+    prop.neighborhood ?? "",
+    prop.cityCode,
+  ).toLowerCase();
+
+  if (!allowedSet.has(rawNb) && !allowedSet.has(normNb)) {
+    return false;
+  }
+
+  // In RJ, if the portal labeled the listing as "Barra da Tijuca" or "Jd. Oceânico",
+  // reject sub-areas that are actually Barra Olímpica, Curicica, Jacarepaguá, or Recreio.
+  if (prop.cityCode === "RJ" && normNb === "jd. oceânico") {
+    const fullLocationText = `${prop.neighborhood ?? ""} ${prop.street ?? ""} ${prop.title ?? ""} ${prop.description ?? ""}`;
+    if (DEEP_WEST_BARRA_EXCLUSION_RE.test(fullLocationText)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export function filterAndSortProperties(
@@ -409,6 +523,12 @@ export function filterAndSortProperties(
       return false;
     }
     if (
+      filters.onlyTop20Neighborhoods &&
+      !isStrictlyInTop20Neighborhoods(p)
+    ) {
+      return false;
+    }
+    if (
       filters.selectedNeighborhoods.length > 0 &&
       !filters.selectedNeighborhoods.some(
         (sel) =>
@@ -422,7 +542,13 @@ export function filterAndSortProperties(
     if (!filters.showIneligible && !onlyFavorites && !p.eligible) {
       return false;
     }
-    if (!matchesFloorFilter(p, filters.floorFilter)) {
+    const activeFloorFilters: FloorFilterOption[] =
+      filters.floorFilters && filters.floorFilters.length > 0
+        ? filters.floorFilters.filter((f) => f !== "ALL")
+        : filters.floorFilter && filters.floorFilter !== "ALL"
+          ? [filters.floorFilter]
+          : [];
+    if (activeFloorFilters.length > 0 && !matchesFloorFilter(p, activeFloorFilters)) {
       return false;
     }
     if (
@@ -446,13 +572,40 @@ export function filterAndSortProperties(
     if (filters.maxAreaM2 !== null && p.areaM2 > filters.maxAreaM2) {
       return false;
     }
-    if (filters.minBedrooms !== null && p.bedrooms < filters.minBedrooms) {
+    if (filters.selectedBedrooms && filters.selectedBedrooms.length > 0) {
+      const matchesBed = filters.selectedBedrooms.some((b) =>
+        b >= 3 ? p.bedrooms >= 3 : p.bedrooms === b,
+      );
+      if (!matchesBed) return false;
+    } else if (
+      filters.minBedrooms !== undefined &&
+      filters.minBedrooms !== null &&
+      p.bedrooms < filters.minBedrooms
+    ) {
       return false;
     }
-    if (filters.minBathrooms !== null && p.bathrooms < filters.minBathrooms) {
+    if (filters.selectedBathrooms && filters.selectedBathrooms.length > 0) {
+      const matchesBath = filters.selectedBathrooms.some((b) =>
+        b >= 3 ? p.bathrooms >= 3 : p.bathrooms === b,
+      );
+      if (!matchesBath) return false;
+    } else if (
+      filters.minBathrooms !== undefined &&
+      filters.minBathrooms !== null &&
+      p.bathrooms < filters.minBathrooms
+    ) {
       return false;
     }
-    if (filters.minParking !== null && p.parkingSpaces < filters.minParking) {
+    if (filters.selectedParking && filters.selectedParking.length > 0) {
+      const matchesPark = filters.selectedParking.some((v) =>
+        v >= 2 ? p.parkingSpaces >= 2 : p.parkingSpaces === v,
+      );
+      if (!matchesPark) return false;
+    } else if (
+      filters.minParking !== undefined &&
+      filters.minParking !== null &&
+      p.parkingSpaces < filters.minParking
+    ) {
       return false;
     }
     if (
@@ -467,10 +620,30 @@ export function filterAndSortProperties(
     ) {
       return false;
     }
-    if (filters.furnishedFilter === "UNFURNISHED" && p.furnished === true) {
+    const furnitureTier = p.furnitureTier ?? classifyFurnitureTier(p);
+    if (
+      filters.furnishedFilter === "UNFURNISHED" &&
+      furnitureTier !== "UNFURNISHED"
+    ) {
       return false;
     }
-    if (filters.furnishedFilter === "FURNISHED" && p.furnished !== true) {
+    if (
+      filters.furnishedFilter === "UNFURNISHED_OR_SEMI" &&
+      furnitureTier === "FULLY_FURNISHED"
+    ) {
+      return false;
+    }
+    if (
+      filters.furnishedFilter === "SEMI_FURNISHED" &&
+      furnitureTier !== "SEMI_FURNISHED"
+    ) {
+      return false;
+    }
+    if (
+      filters.furnishedFilter === "FURNISHED" &&
+      furnitureTier !== "FULLY_FURNISHED" &&
+      furnitureTier !== "SEMI_FURNISHED"
+    ) {
       return false;
     }
     if (filters.providerFilter !== "ALL") {
@@ -716,12 +889,16 @@ export interface ParsedExplorerFiltersState {
   selectedNeighborhoods: string[];
   searchQuery: string;
   floorFilter: FloorFilterOption;
+  floorFilters: FloorFilterOption[];
   minTotalMonthly: number | null;
   maxTotalMonthly: number | null;
   minScore: number | null;
   sortBy: SortByOption;
   minAreaM2: number | null;
   maxAreaM2: number | null;
+  selectedBedrooms: number[];
+  selectedBathrooms: number[];
+  selectedParking: number[];
   minBedrooms: number | null;
   minBathrooms: number | null;
   minParking: number | null;
@@ -735,6 +912,7 @@ export interface ParsedExplorerFiltersState {
   showIneligible: boolean;
   providerFilter: ProviderFilterOption;
   onlyFavorites: boolean;
+  onlyTop20Neighborhoods: boolean;
   deactivatedFilter: DeactivatedFilterOption;
   showAdvancedFilters: boolean;
   viewMode: "split" | "list" | "map";
@@ -767,6 +945,55 @@ export function parseExplorerFiltersObject(
     selectedCities = [parsed.selectedCity];
   }
 
+  let floorFilters: FloorFilterOption[] = [];
+  if (Array.isArray(parsed.floorFilters)) {
+    const validFloors = parsed.floorFilters.filter(
+      (f): f is FloorFilterOption =>
+        typeof f === "string" &&
+        f !== "ALL" &&
+        FLOOR_FILTER_OPTIONS.some((o) => o.value === f),
+    );
+    floorFilters = [...new Set(validFloors)];
+  } else if (
+    typeof parsed.floorFilter === "string" &&
+    parsed.floorFilter !== "ALL" &&
+    FLOOR_FILTER_OPTIONS.some((o) => o.value === parsed.floorFilter)
+  ) {
+    floorFilters = [parsed.floorFilter as FloorFilterOption];
+  }
+
+  const selectedBedrooms = Array.isArray(parsed.selectedBedrooms)
+    ? [
+        ...new Set(
+          parsed.selectedBedrooms.filter(
+            (n): n is number =>
+              typeof n === "number" && (n === 1 || n === 2 || n === 3),
+          ),
+        ),
+      ].sort((a, b) => a - b)
+    : [];
+
+  const selectedBathrooms = Array.isArray(parsed.selectedBathrooms)
+    ? [
+        ...new Set(
+          parsed.selectedBathrooms.filter(
+            (n): n is number =>
+              typeof n === "number" && (n === 1 || n === 2 || n === 3),
+          ),
+        ),
+      ].sort((a, b) => a - b)
+    : [];
+
+  const selectedParking = Array.isArray(parsed.selectedParking)
+    ? [
+        ...new Set(
+          parsed.selectedParking.filter(
+            (n): n is number => typeof n === "number" && (n === 1 || n === 2),
+          ),
+        ),
+      ].sort((a, b) => a - b)
+    : [];
+
   return {
     selectedCities,
     selectedNeighborhoods: Array.isArray(parsed.selectedNeighborhoods)
@@ -775,11 +1002,8 @@ export function parseExplorerFiltersObject(
         )
       : [],
     searchQuery: typeof parsed.searchQuery === "string" ? parsed.searchQuery : "",
-    floorFilter:
-      typeof parsed.floorFilter === "string" &&
-      FLOOR_FILTER_OPTIONS.some((o) => o.value === parsed.floorFilter)
-        ? (parsed.floorFilter as FloorFilterOption)
-        : "ALL",
+    floorFilter: floorFilters.length > 0 ? floorFilters[0]! : "ALL",
+    floorFilters,
     minTotalMonthly:
       typeof parsed.minTotalMonthly === "number" ? parsed.minTotalMonthly : null,
     maxTotalMonthly:
@@ -792,6 +1016,9 @@ export function parseExplorerFiltersObject(
         : "score_desc",
     minAreaM2: typeof parsed.minAreaM2 === "number" ? parsed.minAreaM2 : null,
     maxAreaM2: typeof parsed.maxAreaM2 === "number" ? parsed.maxAreaM2 : null,
+    selectedBedrooms,
+    selectedBathrooms,
+    selectedParking,
     minBedrooms:
       typeof parsed.minBedrooms === "number" ? parsed.minBedrooms : null,
     minBathrooms:
@@ -813,6 +1040,8 @@ export function parseExplorerFiltersObject(
     furnishedFilter:
       parsed.furnishedFilter === "ALL" ||
       parsed.furnishedFilter === "UNFURNISHED" ||
+      parsed.furnishedFilter === "UNFURNISHED_OR_SEMI" ||
+      parsed.furnishedFilter === "SEMI_FURNISHED" ||
       parsed.furnishedFilter === "FURNISHED"
         ? parsed.furnishedFilter
         : "ALL",
@@ -840,6 +1069,10 @@ export function parseExplorerFiltersObject(
         : "ALL",
     onlyFavorites:
       typeof parsed.onlyFavorites === "boolean" ? parsed.onlyFavorites : false,
+    onlyTop20Neighborhoods:
+      typeof parsed.onlyTop20Neighborhoods === "boolean"
+        ? parsed.onlyTop20Neighborhoods
+        : false,
     deactivatedFilter:
       parsed.deactivatedFilter === "ACTIVE_ONLY" ||
       parsed.deactivatedFilter === "ALL" ||
@@ -866,13 +1099,18 @@ function serializeExplorerFilters(state: ParsedExplorerFiltersState) {
       state.selectedCities.length === 1 ? state.selectedCities[0]! : "ALL",
     selectedNeighborhoods: state.selectedNeighborhoods,
     searchQuery: state.searchQuery,
-    floorFilter: state.floorFilter,
+    floorFilter:
+      state.floorFilters.length === 1 ? state.floorFilters[0]! : "ALL",
+    floorFilters: state.floorFilters,
     minTotalMonthly: state.minTotalMonthly,
     maxTotalMonthly: state.maxTotalMonthly,
     minScore: state.minScore,
     sortBy: state.sortBy,
     minAreaM2: state.minAreaM2,
     maxAreaM2: state.maxAreaM2,
+    selectedBedrooms: state.selectedBedrooms,
+    selectedBathrooms: state.selectedBathrooms,
+    selectedParking: state.selectedParking,
     minBedrooms: state.minBedrooms,
     minBathrooms: state.minBathrooms,
     minParking: state.minParking,
@@ -886,6 +1124,7 @@ function serializeExplorerFilters(state: ParsedExplorerFiltersState) {
     showIneligible: state.showIneligible,
     providerFilter: state.providerFilter,
     onlyFavorites: state.onlyFavorites,
+    onlyTop20Neighborhoods: state.onlyTop20Neighborhoods,
     deactivatedFilter: state.deactivatedFilter,
     showAdvancedFilters: state.showAdvancedFilters,
     viewMode: state.viewMode,
@@ -939,9 +1178,11 @@ export function MoradiaPortal({
   const [searchQuery, setSearchQuery] = useState<string>(
     initialParsedFilters.searchQuery,
   );
-  const [floorFilter, setFloorFilter] = useState<FloorFilterOption>(
-    initialParsedFilters.floorFilter,
+  const [floorFilters, setFloorFilters] = useState<FloorFilterOption[]>(
+    initialParsedFilters.floorFilters,
   );
+  const floorFilter: FloorFilterOption =
+    floorFilters.length === 1 ? floorFilters[0]! : "ALL";
   const [minTotalMonthly, setMinTotalMonthly] = useState<number | null>(
     initialParsedFilters.minTotalMonthly,
   );
@@ -959,6 +1200,15 @@ export function MoradiaPortal({
   );
   const [maxAreaM2, setMaxAreaM2] = useState<number | null>(
     initialParsedFilters.maxAreaM2,
+  );
+  const [selectedBedrooms, setSelectedBedrooms] = useState<number[]>(
+    initialParsedFilters.selectedBedrooms,
+  );
+  const [selectedBathrooms, setSelectedBathrooms] = useState<number[]>(
+    initialParsedFilters.selectedBathrooms,
+  );
+  const [selectedParking, setSelectedParking] = useState<number[]>(
+    initialParsedFilters.selectedParking,
   );
   const [minBedrooms, setMinBedrooms] = useState<number | null>(
     initialParsedFilters.minBedrooms,
@@ -996,6 +1246,9 @@ export function MoradiaPortal({
     useState<ProviderFilterOption>(initialParsedFilters.providerFilter);
   const [onlyFavorites, setOnlyFavorites] = useState<boolean>(
     initialParsedFilters.onlyFavorites,
+  );
+  const [onlyTop20Neighborhoods, setOnlyTop20Neighborhoods] = useState<boolean>(
+    initialParsedFilters.onlyTop20Neighborhoods,
   );
   const [deactivatedFilter, setDeactivatedFilter] =
     useState<DeactivatedFilterOption>(initialParsedFilters.deactivatedFilter);
@@ -1079,13 +1332,16 @@ export function MoradiaPortal({
       setSelectedCities(parsed.selectedCities);
       setSelectedNeighborhoods(parsed.selectedNeighborhoods);
       setSearchQuery(parsed.searchQuery);
-      setFloorFilter(parsed.floorFilter);
+      setFloorFilters(parsed.floorFilters);
       setMinTotalMonthly(parsed.minTotalMonthly);
       setMaxTotalMonthly(parsed.maxTotalMonthly);
       setMinScore(parsed.minScore);
       setSortBy(parsed.sortBy);
       setMinAreaM2(parsed.minAreaM2);
       setMaxAreaM2(parsed.maxAreaM2);
+      setSelectedBedrooms(parsed.selectedBedrooms);
+      setSelectedBathrooms(parsed.selectedBathrooms);
+      setSelectedParking(parsed.selectedParking);
       setMinBedrooms(parsed.minBedrooms);
       setMinBathrooms(parsed.minBathrooms);
       setMinParking(parsed.minParking);
@@ -1099,6 +1355,7 @@ export function MoradiaPortal({
       setShowIneligible(parsed.showIneligible);
       setProviderFilter(parsed.providerFilter);
       setOnlyFavorites(parsed.onlyFavorites);
+      setOnlyTop20Neighborhoods(parsed.onlyTop20Neighborhoods);
       setDeactivatedFilter(parsed.deactivatedFilter);
       setShowAdvancedFilters(parsed.showAdvancedFilters);
       setViewMode(parsed.viewMode);
@@ -1217,13 +1474,16 @@ export function MoradiaPortal({
     setSelectedCities([]);
     setSelectedNeighborhoods([]);
     setSearchQuery("");
-    setFloorFilter("ALL");
+    setFloorFilters([]);
     setMinTotalMonthly(null);
     setMaxTotalMonthly(null);
     setMinScore(null);
     setSortBy("score_desc");
     setMinAreaM2(null);
     setMaxAreaM2(null);
+    setSelectedBedrooms([]);
+    setSelectedBathrooms([]);
+    setSelectedParking([]);
     setMinBedrooms(null);
     setMinBathrooms(null);
     setMinParking(null);
@@ -1237,6 +1497,7 @@ export function MoradiaPortal({
     setShowIneligible(false);
     setProviderFilter("ALL");
     setOnlyFavorites(false);
+    setOnlyTop20Neighborhoods(false);
     setDeactivatedFilter("ACTIVE_ONLY");
     setVisibleCount(30);
   };
@@ -1373,12 +1634,16 @@ export function MoradiaPortal({
       selectedNeighborhoods,
       searchQuery,
       floorFilter,
+      floorFilters,
       minTotalMonthly,
       maxTotalMonthly,
       minScore,
       sortBy,
       minAreaM2,
       maxAreaM2,
+      selectedBedrooms,
+      selectedBathrooms,
+      selectedParking,
       minBedrooms,
       minBathrooms,
       minParking,
@@ -1392,6 +1657,7 @@ export function MoradiaPortal({
       showIneligible,
       providerFilter,
       onlyFavorites,
+      onlyTop20Neighborhoods,
       deactivatedFilter,
       showAdvancedFilters,
       viewMode,
@@ -1465,12 +1731,16 @@ export function MoradiaPortal({
     selectedNeighborhoods,
     searchQuery,
     floorFilter,
+    floorFilters,
     minTotalMonthly,
     maxTotalMonthly,
     minScore,
     sortBy,
     minAreaM2,
     maxAreaM2,
+    selectedBedrooms,
+    selectedBathrooms,
+    selectedParking,
     minBedrooms,
     minBathrooms,
     minParking,
@@ -1484,6 +1754,7 @@ export function MoradiaPortal({
     showIneligible,
     providerFilter,
     onlyFavorites,
+    onlyTop20Neighborhoods,
     deactivatedFilter,
     showAdvancedFilters,
     viewMode,
@@ -1813,6 +2084,9 @@ export function MoradiaPortal({
       if (selectedCities.length > 0 && !selectedCities.includes(p.cityCode)) {
         continue;
       }
+      if (onlyTop20Neighborhoods && !isStrictlyInTop20Neighborhoods(p)) {
+        continue;
+      }
       const prev = countMap.get(p.neighborhood);
       if (prev) {
         prev.count += 1;
@@ -1850,6 +2124,7 @@ export function MoradiaPortal({
     evaluatedProperties,
     selectedCities,
     showIneligible,
+    onlyTop20Neighborhoods,
     dynamicNeighborhoods,
   ]);
 
@@ -1859,6 +2134,7 @@ export function MoradiaPortal({
       selectedCities,
       searchQuery,
       floorFilter,
+      floorFilters,
       minTotalMonthly,
       maxTotalMonthly,
       minScore,
@@ -1866,6 +2142,9 @@ export function MoradiaPortal({
       selectedNeighborhoods,
       minAreaM2,
       maxAreaM2,
+      selectedBedrooms,
+      selectedBathrooms,
+      selectedParking,
       minBedrooms,
       minBathrooms,
       minParking,
@@ -1879,6 +2158,7 @@ export function MoradiaPortal({
       showIneligible,
       providerFilter,
       onlyFavorites,
+      onlyTop20Neighborhoods,
       deactivatedFilter,
       favoriteKeys,
     }),
@@ -1886,6 +2166,7 @@ export function MoradiaPortal({
       selectedCities,
       searchQuery,
       floorFilter,
+      floorFilters,
       minTotalMonthly,
       maxTotalMonthly,
       minScore,
@@ -1893,6 +2174,9 @@ export function MoradiaPortal({
       selectedNeighborhoods,
       minAreaM2,
       maxAreaM2,
+      selectedBedrooms,
+      selectedBathrooms,
+      selectedParking,
       minBedrooms,
       minBathrooms,
       minParking,
@@ -1906,6 +2190,7 @@ export function MoradiaPortal({
       showIneligible,
       providerFilter,
       onlyFavorites,
+      onlyTop20Neighborhoods,
       deactivatedFilter,
       favoriteKeys,
     ],
@@ -1943,13 +2228,13 @@ export function MoradiaPortal({
   const activeAdvancedFilterCount = useMemo(() => {
     let count = 0;
     if (selectedNeighborhoods.length > 0) count += selectedNeighborhoods.length;
-    if (floorFilter !== "ALL") count += 1;
+    if (floorFilters.length > 0) count += floorFilters.length;
     if (minTotalMonthly !== null || maxTotalMonthly !== null) count += 1;
     if (minScore !== null) count += 1;
     if (minAreaM2 !== null || maxAreaM2 !== null) count += 1;
-    if (minBedrooms !== null) count += 1;
-    if (minBathrooms !== null) count += 1;
-    if (minParking !== null) count += 1;
+    if (selectedBedrooms.length > 0 || minBedrooms !== null) count += 1;
+    if (selectedBathrooms.length > 0 || minBathrooms !== null) count += 1;
+    if (selectedParking.length > 0 || minParking !== null) count += 1;
     if (modernityTiers.length > 0) count += modernityTiers.length;
     if (minModernityScore !== null) count += 1;
     if (furnishedFilter !== "ALL") count += 1;
@@ -1959,16 +2244,20 @@ export function MoradiaPortal({
     if (onlyNewEntries) count += 1;
     if (showIneligible) count += 1;
     if (providerFilter !== "ALL") count += 1;
+    if (onlyTop20Neighborhoods) count += 1;
     if (deactivatedFilter !== "ACTIVE_ONLY") count += 1;
     return count;
   }, [
     selectedNeighborhoods,
-    floorFilter,
+    floorFilters,
     minTotalMonthly,
     maxTotalMonthly,
     minScore,
     minAreaM2,
     maxAreaM2,
+    selectedBedrooms,
+    selectedBathrooms,
+    selectedParking,
     minBedrooms,
     minBathrooms,
     minParking,
@@ -1981,6 +2270,7 @@ export function MoradiaPortal({
     onlyNewEntries,
     showIneligible,
     providerFilter,
+    onlyTop20Neighborhoods,
     deactivatedFilter,
   ]);
 
@@ -2001,12 +2291,13 @@ export function MoradiaPortal({
         onClear: () => setSearchQuery(""),
       });
     }
-    if (floorFilter !== "ALL") {
-      const opt = FLOOR_FILTER_OPTIONS.find((o) => o.value === floorFilter);
+    for (const ff of floorFilters) {
+      const opt = FLOOR_FILTER_OPTIONS.find((o) => o.value === ff);
       pills.push({
-        id: "floor",
-        label: opt ? opt.label : `Andar: ${floorFilter}`,
-        onClear: () => setFloorFilter("ALL"),
+        id: `floor-${ff}`,
+        label: opt ? opt.label : `Andar: ${ff}`,
+        onClear: () =>
+          setFloorFilters((prev) => prev.filter((item) => item !== ff)),
       });
     }
     if (minTotalMonthly !== null || maxTotalMonthly !== null) {
@@ -2064,21 +2355,60 @@ export function MoradiaPortal({
         },
       });
     }
-    if (minBedrooms !== null) {
+    if (selectedBedrooms.length > 0) {
+      const labelNums = [...selectedBedrooms]
+        .sort((a, b) => a - b)
+        .map((n) => (n >= 3 ? "3+" : String(n)))
+        .join(", ");
+      pills.push({
+        id: "bedrooms",
+        label: `Quartos: ${labelNums}`,
+        onClear: () => {
+          setSelectedBedrooms([]);
+          setMinBedrooms(null);
+        },
+      });
+    } else if (minBedrooms !== null) {
       pills.push({
         id: "bedrooms",
         label: `${minBedrooms}+ quartos`,
         onClear: () => setMinBedrooms(null),
       });
     }
-    if (minBathrooms !== null) {
+    if (selectedBathrooms.length > 0) {
+      const labelNums = [...selectedBathrooms]
+        .sort((a, b) => a - b)
+        .map((n) => (n >= 3 ? "3+" : String(n)))
+        .join(", ");
+      pills.push({
+        id: "bathrooms",
+        label: `Banheiros: ${labelNums}`,
+        onClear: () => {
+          setSelectedBathrooms([]);
+          setMinBathrooms(null);
+        },
+      });
+    } else if (minBathrooms !== null) {
       pills.push({
         id: "bathrooms",
         label: `${minBathrooms}+ banheiros`,
         onClear: () => setMinBathrooms(null),
       });
     }
-    if (minParking !== null) {
+    if (selectedParking.length > 0) {
+      const labelNums = [...selectedParking]
+        .sort((a, b) => a - b)
+        .map((n) => (n >= 2 ? "2+" : String(n)))
+        .join(", ");
+      pills.push({
+        id: "parking",
+        label: `Vagas: ${labelNums}`,
+        onClear: () => {
+          setSelectedParking([]);
+          setMinParking(null);
+        },
+      });
+    } else if (minParking !== null) {
       pills.push({
         id: "parking",
         label: `≥ ${minParking} vaga(s)`,
@@ -2103,12 +2433,18 @@ export function MoradiaPortal({
       });
     }
     if (furnishedFilter !== "ALL") {
+      const furnishedPillLabels: Record<
+        Exclude<FurnishedFilterOption, "ALL">,
+        string
+      > = {
+        UNFURNISHED: "Sem mobília",
+        UNFURNISHED_OR_SEMI: "Sem mobília ou Semi",
+        SEMI_FURNISHED: "Só Semi-mobiliado",
+        FURNISHED: "Mobiliado",
+      };
       pills.push({
         id: "furnished",
-        label:
-          furnishedFilter === "UNFURNISHED"
-            ? "Sem mobília (Mudança BSB)"
-            : "Mobiliado",
+        label: furnishedPillLabels[furnishedFilter],
         onClear: () => setFurnishedFilter("ALL"),
       });
     }
@@ -2163,6 +2499,13 @@ export function MoradiaPortal({
         onClear: () => setOnlyFavorites(false),
       });
     }
+    if (onlyTop20Neighborhoods) {
+      pills.push({
+        id: "only-top-20-neighborhoods",
+        label: "Só Top 20 Bairros",
+        onClear: () => setOnlyTop20Neighborhoods(false),
+      });
+    }
     if (deactivatedFilter !== "ACTIVE_ONLY") {
       pills.push({
         id: "deactivated-filter",
@@ -2179,7 +2522,7 @@ export function MoradiaPortal({
     selectedCities,
     handleCitySelect,
     searchQuery,
-    floorFilter,
+    floorFilters,
     minTotalMonthly,
     maxTotalMonthly,
     minScore,
@@ -2187,6 +2530,9 @@ export function MoradiaPortal({
     selectedNeighborhoods,
     minAreaM2,
     maxAreaM2,
+    selectedBedrooms,
+    selectedBathrooms,
+    selectedParking,
     minBedrooms,
     minBathrooms,
     minParking,
@@ -2200,6 +2546,7 @@ export function MoradiaPortal({
     showIneligible,
     providerFilter,
     onlyFavorites,
+    onlyTop20Neighborhoods,
     favoriteKeys.length,
     deactivatedFilter,
   ]);
@@ -2926,12 +3273,32 @@ export function MoradiaPortal({
                   </div>
                   <input
                     type="range"
-                    min={-5}
-                    max={20}
+                    min={0}
+                    max={25}
                     step={1}
                     value={weights.unfurnishedBonus}
                     onChange={(e) =>
                       updateWeight("unfurnishedBonus", Number(e.target.value))
+                    }
+                    className="w-full accent-primary"
+                  />
+                </label>
+
+                <label className="space-y-1 text-xs">
+                  <div className="flex justify-between font-medium">
+                    <span>Penalidade Imóvel Mobiliado</span>
+                    <span className="font-mono text-rose-600 dark:text-rose-400">
+                      {weights.furnishedPenalty} pts
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={-40}
+                    max={0}
+                    step={1}
+                    value={weights.furnishedPenalty}
+                    onChange={(e) =>
+                      updateWeight("furnishedPenalty", Number(e.target.value))
                     }
                     className="w-full accent-primary"
                   />
@@ -3311,6 +3678,31 @@ export function MoradiaPortal({
                 <span>({favoriteKeys.length})</span>
               </button>
 
+              {/* 1-Click Top 20 Bairros Strict Filter Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  setOnlyTop20Neighborhoods((v) => !v);
+                  setVisibleCount(30);
+                }}
+                aria-pressed={onlyTop20Neighborhoods}
+                title="Apenas estritamente nos 20 Bairros do Ranking (Top 20) — exclui Savassi, Cambuí, Pinheiros, Catete, Copacabana, Barra Olímpica, etc."
+                className={`order-3 sm:order-2 inline-flex shrink-0 items-center gap-1 rounded-lg border px-1.5 py-1 text-xs transition-colors sm:gap-1.5 sm:px-2.5 ${
+                  onlyTop20Neighborhoods
+                    ? "border-primary bg-primary/15 text-primary font-semibold"
+                    : "bg-background font-semibold text-foreground hover:bg-secondary"
+                }`}
+              >
+                <MapPin
+                  className={`h-3.5 w-3.5 shrink-0 ${
+                    onlyTop20Neighborhoods
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                />
+                <span>Top 20 Bairros</span>
+              </button>
+
               {/* Sort By Selector */}
               <div className="relative order-4 sm:order-4 inline-flex min-w-0 flex-1 sm:flex-initial items-center gap-1 rounded-lg border bg-background px-1.5 py-1 text-xs sm:gap-1.5 sm:px-2.5">
                 <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -3648,10 +4040,26 @@ export function MoradiaPortal({
                 {/* Row A: Neighborhoods Multi-Select (Sorted by Rank/Score with Counts) */}
                 <div className="rounded-lg border bg-background/40 p-2.5 space-y-1.5">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                    <span className="font-bold uppercase tracking-wider text-foreground">
-                      Bairros ({availableNeighborhoodOptions.length}{" "}
-                      disponíveis)
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold uppercase tracking-wider text-foreground">
+                        Bairros ({availableNeighborhoodOptions.length}{" "}
+                        disponíveis)
+                      </span>
+                      <label className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2 py-0.5 text-[11px] font-semibold cursor-pointer hover:bg-secondary">
+                        <input
+                          type="checkbox"
+                          checked={onlyTop20Neighborhoods}
+                          onChange={(e) => {
+                            setOnlyTop20Neighborhoods(e.target.checked);
+                            setVisibleCount(30);
+                          }}
+                          className="accent-primary"
+                        />
+                        <span>
+                          Apenas estritamente nos 20 Bairros do Ranking (Top 20)
+                        </span>
+                      </label>
+                    </div>
                     {selectedNeighborhoods.length > 0 && (
                       <button
                         type="button"
@@ -3729,21 +4137,53 @@ export function MoradiaPortal({
                       <span className="font-bold uppercase tracking-wider">
                         Andar / Cobertura
                       </span>
-                      <span className="font-mono text-primary font-semibold">
-                        {FLOOR_FILTER_OPTIONS.find(
-                          (o) => o.value === floorFilter,
-                        )?.label ?? "Qualquer andar"}
+                      <span className="font-mono text-primary font-semibold truncate max-w-[180px]" title={
+                        floorFilters.length === 0
+                          ? "Qualquer andar"
+                          : floorFilters
+                              .map(
+                                (ff) =>
+                                  FLOOR_FILTER_OPTIONS.find((o) => o.value === ff)
+                                    ?.shortLabel ?? ff,
+                              )
+                              .join(" + ")
+                      }>
+                        {floorFilters.length === 0
+                          ? "Qualquer andar"
+                          : floorFilters.length === 1
+                            ? (FLOOR_FILTER_OPTIONS.find(
+                                (o) => o.value === floorFilters[0],
+                              )?.label ?? "Qualquer andar")
+                            : floorFilters
+                                .map(
+                                  (ff) =>
+                                    FLOOR_FILTER_OPTIONS.find(
+                                      (o) => o.value === ff,
+                                    )?.shortLabel ?? ff,
+                                )
+                                .join(" + ")}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {FLOOR_FILTER_OPTIONS.map((opt) => {
-                        const active = floorFilter === opt.value;
+                        const active =
+                          opt.value === "ALL"
+                            ? floorFilters.length === 0
+                            : floorFilters.includes(opt.value);
                         return (
                           <button
                             key={opt.value}
                             type="button"
                             onClick={() => {
-                              setFloorFilter(opt.value);
+                              if (opt.value === "ALL") {
+                                setFloorFilters([]);
+                              } else {
+                                setFloorFilters((prev) =>
+                                  prev.includes(opt.value)
+                                    ? prev.filter((item) => item !== opt.value)
+                                    : [...prev, opt.value],
+                                );
+                              }
                               setVisibleCount(30);
                             }}
                             className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
@@ -3768,26 +4208,42 @@ export function MoradiaPortal({
                       <div className="flex flex-wrap gap-1">
                         {[
                           { label: "Qualquer", val: null },
-                          { label: "1+", val: 1 },
-                          { label: "2+", val: 2 },
+                          { label: "1", val: 1 },
+                          { label: "2", val: 2 },
                           { label: "3+", val: 3 },
-                        ].map((opt) => (
-                          <button
-                            key={`bed-${opt.label}`}
-                            type="button"
-                            onClick={() => {
-                              setMinBedrooms(opt.val);
-                              setVisibleCount(30);
-                            }}
-                            className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
-                              minBedrooms === opt.val
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+                        ].map((opt) => {
+                          const active =
+                            opt.val === null
+                              ? selectedBedrooms.length === 0
+                              : selectedBedrooms.includes(opt.val);
+                          return (
+                            <button
+                              key={`bed-${opt.label}`}
+                              type="button"
+                              onClick={() => {
+                                setMinBedrooms(null);
+                                if (opt.val === null) {
+                                  setSelectedBedrooms([]);
+                                } else {
+                                  const v = opt.val;
+                                  setSelectedBedrooms((prev) =>
+                                    prev.includes(v)
+                                      ? prev.filter((item) => item !== v)
+                                      : [...prev, v].sort((a, b) => a - b),
+                                  );
+                                }
+                                setVisibleCount(30);
+                              }}
+                              className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                                active
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -3799,25 +4255,42 @@ export function MoradiaPortal({
                         <div className="flex flex-wrap gap-1">
                           {[
                             { label: "Qualquer", val: null },
-                            { label: "1+", val: 1 },
-                            { label: "2+", val: 2 },
-                          ].map((opt) => (
-                            <button
-                              key={`bath-${opt.label}`}
-                              type="button"
-                              onClick={() => {
-                                setMinBathrooms(opt.val);
-                                setVisibleCount(30);
-                              }}
-                              className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
-                                minBathrooms === opt.val
-                                  ? "border-primary bg-primary text-primary-foreground"
-                                  : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
+                            { label: "1", val: 1 },
+                            { label: "2", val: 2 },
+                            { label: "3+", val: 3 },
+                          ].map((opt) => {
+                            const active =
+                              opt.val === null
+                                ? selectedBathrooms.length === 0
+                                : selectedBathrooms.includes(opt.val);
+                            return (
+                              <button
+                                key={`bath-${opt.label}`}
+                                type="button"
+                                onClick={() => {
+                                  setMinBathrooms(null);
+                                  if (opt.val === null) {
+                                    setSelectedBathrooms([]);
+                                  } else {
+                                    const v = opt.val;
+                                    setSelectedBathrooms((prev) =>
+                                      prev.includes(v)
+                                        ? prev.filter((item) => item !== v)
+                                        : [...prev, v].sort((a, b) => a - b),
+                                    );
+                                  }
+                                  setVisibleCount(30);
+                                }}
+                                className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                                  active
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
@@ -3828,25 +4301,41 @@ export function MoradiaPortal({
                         <div className="flex flex-wrap gap-1">
                           {[
                             { label: "Qualquer", val: null },
-                            { label: "≥ 1 vaga", val: 1 },
-                            { label: "≥ 2 vagas", val: 2 },
-                          ].map((opt) => (
-                            <button
-                              key={`park-${opt.label}`}
-                              type="button"
-                              onClick={() => {
-                                setMinParking(opt.val);
-                                setVisibleCount(30);
-                              }}
-                              className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
-                                minParking === opt.val
-                                  ? "border-primary bg-primary text-primary-foreground"
-                                  : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
+                            { label: "1 vaga", val: 1 },
+                            { label: "2+ vagas", val: 2 },
+                          ].map((opt) => {
+                            const active =
+                              opt.val === null
+                                ? selectedParking.length === 0
+                                : selectedParking.includes(opt.val);
+                            return (
+                              <button
+                                key={`park-${opt.label}`}
+                                type="button"
+                                onClick={() => {
+                                  setMinParking(null);
+                                  if (opt.val === null) {
+                                    setSelectedParking([]);
+                                  } else {
+                                    const v = opt.val;
+                                    setSelectedParking((prev) =>
+                                      prev.includes(v)
+                                        ? prev.filter((item) => item !== v)
+                                        : [...prev, v].sort((a, b) => a - b),
+                                    );
+                                  }
+                                  setVisibleCount(30);
+                                }}
+                                className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                                  active
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -3940,9 +4429,14 @@ export function MoradiaPortal({
                         {(
                           [
                             { val: "ALL", label: "Todos" },
+                            { val: "UNFURNISHED", label: "Sem mobília" },
                             {
-                              val: "UNFURNISHED",
-                              label: "Sem mobília (Mudança BSB)",
+                              val: "UNFURNISHED_OR_SEMI",
+                              label: "Sem mobília ou Semi",
+                            },
+                            {
+                              val: "SEMI_FURNISHED",
+                              label: "Só Semi-mobiliado",
                             },
                             { val: "FURNISHED", label: "Mobiliado" },
                           ] as const
@@ -4112,6 +4606,20 @@ export function MoradiaPortal({
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-1 text-xs pt-0.5">
+                      <label className="inline-flex items-center gap-2 font-medium cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={onlyTop20Neighborhoods}
+                          onChange={(e) => {
+                            setOnlyTop20Neighborhoods(e.target.checked);
+                            setVisibleCount(30);
+                          }}
+                          className="accent-primary"
+                        />
+                        <span>
+                          Apenas estritamente nos 20 Bairros do Ranking (Top 20)
+                        </span>
+                      </label>
                       <label className="inline-flex items-center gap-2 font-medium cursor-pointer">
                         <input
                           type="checkbox"
@@ -4423,24 +4931,25 @@ export function MoradiaPortal({
                             <span className="sm:hidden">
                               {prop.bedrooms}q
                               {prop.suites > 0 ? ` (${prop.suites}s)` : ""} ·{" "}
-                              {prop.parkingSpaces}v · Mob:{" "}
-                              {prop.furnished === true
+                              {prop.bathrooms}b · {prop.parkingSpaces}v · Mob:{" "}
+                              {prop.furnitureTier === "FULLY_FURNISHED"
                                 ? "Sim"
-                                : prop.furnished === false
-                                  ? "Não"
-                                  : "Semi"}
+                                : prop.furnitureTier === "SEMI_FURNISHED"
+                                  ? "Semi"
+                                  : "Não"}
                             </span>
                             <span className="hidden sm:inline">
                               {prop.bedrooms} quarto(s)
                               {prop.suites > 0
                                 ? ` (${prop.suites} suíte)`
                                 : ""}{" "}
-                              · {prop.parkingSpaces} vaga(s) · Mobiliado:{" "}
-                              {prop.furnished === true
+                              · {prop.bathrooms} banheiro(s) ·{" "}
+                              {prop.parkingSpaces} vaga(s) · Mobiliado:{" "}
+                              {prop.furnitureTier === "FULLY_FURNISHED"
                                 ? "Sim"
-                                : prop.furnished === false
-                                  ? "Não"
-                                  : "Semimob./N.I."}
+                                : prop.furnitureTier === "SEMI_FURNISHED"
+                                  ? "Semi (Eletros)"
+                                  : "Não"}
                             </span>
                           </p>
                         </div>

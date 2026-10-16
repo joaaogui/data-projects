@@ -6,6 +6,11 @@ export type ModernityTier =
   | "STANDARD"
   | "DATED";
 
+export type FurnitureTier =
+  | "UNFURNISHED"
+  | "SEMI_FURNISHED"
+  | "FULLY_FURNISHED";
+
 export type FloorRarity =
   | "legendary"
   | "epic"
@@ -153,6 +158,7 @@ export interface ScoreBreakdown {
 }
 
 export interface EvaluatedProperty extends SlimPropertyRecord {
+  furnitureTier?: FurnitureTier;
   eligible: boolean;
   exclusionReason: string | null;
   finalScore: number;

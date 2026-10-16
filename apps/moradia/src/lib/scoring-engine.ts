@@ -3,6 +3,7 @@ import type {
   ComputedNeighborhood,
   EvaluatedProperty,
   FloorTag,
+  FurnitureTier,
   NeighborhoodEntry,
   ScoringWeights,
   SlimPropertyRecord,
@@ -22,8 +23,8 @@ export const DEFAULT_WEIGHTS: ScoringWeights = {
   budgetMax: 6500,
   budgetHardCap: 6850,
   budgetWeight: 1.0,
-  unfurnishedBonus: 10,
-  furnishedPenalty: -5,
+  unfurnishedBonus: 15,
+  furnishedPenalty: -22,
   parkingBonus1: 5,
   parkingBonus2: 8,
   requireParking: true,
@@ -579,14 +580,22 @@ export function evaluateApartmentNuances(
   let floorTag: FloorTag | null = null;
   let highFloorLabel: string | null = null;
   let lowFloorLabel: string | null = null;
-  const minFloor = prop.floor ?? prop.floorRange?.min ?? null;
-  const maxFloor = prop.floor ?? prop.floorRange?.max ?? null;
+  // On Zap Imóveis & VivaReal, unitFloor=0 is the API default when the agency did not fill in the floor
+  const isOlxZeroFloorPlaceholder =
+    prop.floor === 0 &&
+    (prop.provider === "zapimoveis" ||
+      prop.provider === "vivareal" ||
+      prop.provider === "zap") &&
+    !/\bt[eé]rreo\b/i.test(fullDesc);
+  const effectiveFloor = isOlxZeroFloorPlaceholder ? null : prop.floor;
+  const minFloor = effectiveFloor ?? prop.floorRange?.min ?? null;
+  const maxFloor = effectiveFloor ?? prop.floorRange?.max ?? null;
   const isTopFloor =
     /\b([uú]ltimo andar|andar topo)\b/i.test(fullDesc) ||
-    (prop.floor !== null &&
+    (effectiveFloor !== null &&
       prop.totalFloors !== null &&
       prop.totalFloors >= 3 &&
-      prop.floor === prop.totalFloors);
+      effectiveFloor === prop.totalFloors);
   const isPenthouseOrDuplex =
     amenities.has("apartamento cobertura") ||
     /\b(cobertura|duplex|triplex|loft duplex|p[eé][- ]direito duplo)\b/i.test(fullDesc);
@@ -616,8 +625,8 @@ export function evaluateApartmentNuances(
   if (minFloor !== null) {
     if (minFloor >= 8) {
       pts += 6.0;
-      const floorText = prop.floor
-        ? `Andar alto (${prop.floor}º andar)`
+      const floorText = effectiveFloor
+        ? `Andar alto (${effectiveFloor}º andar)`
         : `Andar alto (${minFloor}º–${maxFloor}º andar)`;
       if (!highFloorLabel) highFloorLabel = floorText;
       if (!floorTag) floorTag = { label: floorText, rarity: "epic" };
@@ -630,8 +639,8 @@ export function evaluateApartmentNuances(
     } else if (minFloor >= 4) {
       pts += 2.5;
       const midFloorText =
-        prop.floor !== null
-          ? `Andar médio (${prop.floor}º andar)`
+        effectiveFloor !== null
+          ? `Andar médio (${effectiveFloor}º andar)`
           : maxFloor && maxFloor !== minFloor
             ? `Andar médio (${minFloor}º–${maxFloor}º andar)`
             : `Andar médio (${minFloor}º andar)`;
@@ -649,9 +658,7 @@ export function evaluateApartmentNuances(
     highlights.push("Andar médio");
   }
 
-  if (hasFreeView && hasMorningSun) {
-    greenTags.push("Vista livre · Sol da manhã");
-  } else if (hasFreeView) {
+  if (hasFreeView) {
     greenTags.push("Vista livre");
   } else if (hasMorningSun) {
     greenTags.push("Sol da manhã");
@@ -659,14 +666,14 @@ export function evaluateApartmentNuances(
 
   if (!isTopFloor && !isPenthouseOrDuplex) {
     const isGroundFloor =
-      prop.floor === 0 ||
+      effectiveFloor === 0 ||
       (minFloor === 0 && (maxFloor === null || maxFloor <= 1));
 
     if (isGroundFloor) {
       lowFloorLabel = "Térreo";
       if (!floorTag) floorTag = { label: "Térreo", rarity: "common" };
-    } else if (prop.floor !== null && prop.floor >= 1 && prop.floor <= 3) {
-      lowFloorLabel = `Andar baixo (${prop.floor}º andar)`;
+    } else if (effectiveFloor !== null && effectiveFloor >= 1 && effectiveFloor <= 3) {
+      lowFloorLabel = `Andar baixo (${effectiveFloor}º andar)`;
       if (!floorTag) floorTag = { label: lowFloorLabel, rarity: "uncommon" };
     } else if (minFloor !== null && minFloor <= 3) {
       lowFloorLabel =
@@ -698,7 +705,7 @@ export function evaluateApartmentNuances(
       warnings.push("Térreo (maior ruído de rua e menor privacidade: -24 pts base)");
     } else if (floorTag?.rarity === "uncommon") {
       const isFirstFloor =
-        prop.floor === 1 ||
+        effectiveFloor === 1 ||
         minFloor === 1 ||
         /\b1[º°]\s*andar\b/i.test(lowFloorLabel ?? "");
       const lowFloorPenalty = isFirstFloor ? 18.0 : 14.0;
@@ -816,7 +823,7 @@ export function evaluateApartmentNuances(
     warnings.push("Perfil megacondomínio familiar (brinquedoteca + playground + quadra + jogos)");
   }
 
-  if (prop.constructionYear && prop.constructionYear >= 2018) {
+  if (prop.constructionYear && prop.constructionYear >= 2010) {
     greenTags.push(`Prédio Novo (${prop.constructionYear})`);
   } else if (
     /\b(primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|rec[eé]m[- ]entregue|pr[eé]dio (super )?novo)\b/i.test(
@@ -1342,6 +1349,7 @@ function extractConservationDrawbacks(prop: SlimPropertyRecord): string[] {
 
 function buildShortJustification(params: {
   prop: SlimPropertyRecord;
+  furnitureTier: FurnitureTier;
   catalogNb: ComputedNeighborhood | undefined;
   nbScore: number;
   nbCommute: string;
@@ -1353,6 +1361,7 @@ function buildShortJustification(params: {
 }): string {
   const {
     prop,
+    furnitureTier,
     catalogNb,
     nbCommute,
     safetyCar,
@@ -1395,11 +1404,11 @@ function buildShortJustification(params: {
   const positiveParts: string[] = [];
   if (topFeatures.length > 0) {
     positiveParts.push(`Com ${formatListPt(topFeatures)}`);
-  } else if (prop.furnished === false && area >= weights.sweetSpotMinM2) {
+  } else if (furnitureTier === "UNFURNISHED" && area >= weights.sweetSpotMinM2) {
     positiveParts.push(
       "Planta bem dimensionada e livre de mobília solta para a mudança de Brasília",
     );
-  } else if (prop.furnished === false) {
+  } else if (furnitureTier === "UNFURNISHED") {
     positiveParts.push(
       "Unidade livre de mobília solta para receber sua mudança de Brasília",
     );
@@ -1418,7 +1427,7 @@ function buildShortJustification(params: {
     positiveTail = ", com folga confortável no orçamento";
   } else if (total > 0 && diffIdeal >= 0) {
     positiveTail = ", enquadrado na meta financeira";
-  } else if (prop.furnished === false && topFeatures.length > 0) {
+  } else if (furnitureTier === "UNFURNISHED" && topFeatures.length > 0) {
     positiveTail = ", livre de mobília solta para a mudança de Brasília";
   } else if (
     area >= weights.sweetSpotMinM2 &&
@@ -1518,9 +1527,13 @@ function buildShortJustification(params: {
     );
   }
 
-  if (prop.furnished === true) {
+  if (furnitureTier === "FULLY_FURNISHED") {
     primaryDrawbacks.push(
-      "já mobiliado (exige negociar retirada de itens ou adaptar sua mudança de Brasília)",
+      "já mobiliado com cama/sofá (exige negociar retirada ou adaptar sua mudança de Brasília)",
+    );
+  } else if (furnitureTier === "SEMI_FURNISHED") {
+    primaryDrawbacks.push(
+      "semi-mobiliado com eletrodomésticos (verificar se conflita com seus eletros de Brasília)",
     );
   }
 
@@ -1614,6 +1627,7 @@ function buildShortJustification(params: {
 
 function buildNarrativeJustification(params: {
   prop: SlimPropertyRecord;
+  furnitureTier: FurnitureTier;
   catalogNb: ComputedNeighborhood | undefined;
   nbCommute: string;
   weights: ScoringWeights;
@@ -1623,6 +1637,7 @@ function buildNarrativeJustification(params: {
 }): string {
   const {
     prop,
+    furnitureTier,
     catalogNb,
     nbCommute,
     weights,
@@ -1670,11 +1685,11 @@ function buildNarrativeJustification(params: {
 
   // 3. Brasília relocation logistics, floorplan & budget trade-off
   let moveClause =
-    "Para a mudança de Brasília, convém confirmar na vistoria quais itens de marcenaria fixa permanecem no imóvel";
-  if (prop.furnished === false) {
+    "Para a mudança de Brasília, a configuração livre de mobília solta permite acomodar seus próprios móveis e eletrodomésticos sem atrito";
+  if (furnitureTier === "SEMI_FURNISHED") {
     moveClause =
-      "Para a mudança de Brasília, a configuração livre de mobília solta permite acomodar seus próprios móveis e eletrodomésticos sem atrito";
-  } else if (prop.furnished === true) {
+      "Para a mudança de Brasília, a unidade é semi-mobiliada com eletrodomésticos de cozinha (sem cama ou sofá), exigindo apenas alinhar eventual sobreposição de eletros";
+  } else if (furnitureTier === "FULLY_FURNISHED") {
     moveClause =
       "Para a mudança de Brasília, a presença de mobília pronta exige negociar a retirada de itens pelo proprietário ou adaptar o frete dos seus móveis";
   }
@@ -1767,6 +1782,181 @@ function buildNarrativeJustification(params: {
   }
 
   return sentences.join(" ");
+}
+
+export const PHOTO_DETECTED_FURNISHED_KEYS = new Set<string>([
+  "zapimoveis:2917412160",
+  "quintoandar:895706010",
+  "quintoandar:895122863",
+  "quintoandar:895777924",
+  "quintoandar:895394820",
+  "quintoandar:895606021",
+  "quintoandar:895695873",
+  "quintoandar:895708434",
+  "quintoandar:895698227",
+  "quintoandar:895649428",
+  "quintoandar:894323737",
+  "quintoandar:151248072",
+  "quintoandar:895727794",
+  "quintoandar:895568360",
+  "quintoandar:894499680",
+  "zapimoveis:2911265476",
+  "quintoandar:130122125",
+  "netimoveis:988658",
+  "quintoandar:895787104",
+  "zapimoveis:2908912416",
+  "quintoandar:895771407",
+  "quintoandar:895524560",
+  "quintoandar:895726012",
+  "quintoandar:895256433",
+  "zapimoveis:2787266715",
+  "quintoandar:894861060",
+  "quintoandar:895020185",
+  "quintoandar:895115686",
+  "quintoandar:893592624",
+]);
+
+export const FULL_FURNITURE_COMMODITY_ITEMS = new Set<string>([
+  "cama de casal",
+  "cama de solteiro",
+  "cama",
+  "cama box",
+  "sofá",
+  "sofá-cama",
+  "poltrona",
+  "mesas e cadeiras de jantar",
+  "mesa com cadeiras",
+  "televisão",
+  "smart tv",
+]);
+
+export const SEMI_FURNISHED_APPLIANCE_ITEMS = new Set<string>([
+  "fogão",
+  "cooktop",
+  "forno",
+  "forno embutido",
+  "geladeira",
+  "refrigerador",
+  "microondas",
+  "micro-ondas",
+  "máquina de lavar",
+  "lava e seca",
+  "utensílios de cozinha",
+]);
+
+export const FURNISHED_COMMODITY_ITEMS = new Set<string>([
+  ...FULL_FURNITURE_COMMODITY_ITEMS,
+  ...SEMI_FURNISHED_APPLIANCE_ITEMS,
+]);
+
+/**
+ * Classifies a property into a 3-tier furniture scale tailored for the user's
+ * Brasília relocation (bringing Queen bed, sofa, large fridge, washing machine,
+ * and countertop dishwasher):
+ * - "UNFURNISHED": No loose furniture (only built-in cabinets / marcenaria / box blindex)
+ * - "SEMI_FURNISHED": Kitchen/laundry appliances or explicit "semi-mobiliado" WITHOUT bed or sofa
+ * - "FULLY_FURNISHED": Has bed, sofa, living/bedroom furniture set, apart-hotel, or full furnished flag
+ */
+export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
+  const propKey = `${prop.provider}:${prop.id}`;
+  if (PHOTO_DETECTED_FURNISHED_KEYS.has(propKey)) {
+    return "FULLY_FURNISHED";
+  }
+
+  if (
+    /\b(monet|max savassi|savassi hotel|radisson|mercure|ibis|trypp|golden tulip|caesar business|manhattan flat|liberty palace|transamerica)\b/i.test(
+      prop.condominiumName ?? "",
+    )
+  ) {
+    return "FULLY_FURNISHED";
+  }
+
+  const structuredCommoditiesLower = [
+    ...(prop.comfortCommodities ?? []),
+    ...(prop.practicalityCommodities ?? []),
+    ...(prop.amenities ?? []),
+  ].map((c) => c.trim().toLowerCase());
+
+  const hasCommodityBedOrSofa = structuredCommoditiesLower.some(
+    (c) =>
+      FULL_FURNITURE_COMMODITY_ITEMS.has(c) ||
+      /\b(cama|sof[aá]|poltrona|mesa com cadeiras|mesas e cadeiras)\b/i.test(c),
+  );
+  const hasCommodityAppliance = structuredCommoditiesLower.some((c) =>
+    SEMI_FURNISHED_APPLIANCE_ITEMS.has(c),
+  );
+
+  const captionsText = (prop.photoCaptions ?? []).join(" ");
+  const hasCaptionBedOrSofa =
+    /\b(quarto com arm[aá]rios e cama|quarto mobiliado|sala de estar mobiliada|cama (de )?(casal|solteiro)|cama box|sof[aá])\b/i.test(
+      captionsText,
+    );
+  const hasCaptionAppliance =
+    /\b(geladeira|micro[- ]?ondas|cozinha mobiliada|cozinha \(arm[aá]rios e fog[aã]o\)|cozinha \(fog[aã]o\))\b/i.test(
+      captionsText,
+    );
+
+  const descText = [
+    prop.title ?? "",
+    prop.description ?? "",
+    prop.generatedDescription ?? "",
+  ].join(" ");
+
+  const hasNegationOrRemoval =
+    /\b(n[aã]o|sem)\s+mobiliad[oa]\b/i.test(descText) ||
+    /\b(ser[aã]o removidos|n[aã]o ficam|retirad[oa]s)\b/i.test(descText);
+
+  const hasPlaceholderOnly =
+    /\b(espa[cç]o|local|ponto|espera|previsto)\s+(para|p\/)\s+(geladeira|m[aá]quina de lavar|lava[- ]?e[- ]?seca|fog[aã]o|micro[- ]?ondas|cama|sof[aá])\b/i.test(
+      descText,
+    );
+
+  const hasTextBedOrSofa =
+    !hasNegationOrRemoval &&
+    /\b(cama (de )?(casal|solteiro)|cama box|cama queen|cama king|\bcama\b|sof[aá][- ]?cama|sof[aá] e cama|\bsof[aá]\b|\bpoltrona\b|mesa com cadeiras|mesas? e cadeiras de jantar|porteira fechada|totalmente mobiliad[oa]|100%\s*mobiliad[oa])\b/i.test(
+      descText,
+    );
+
+  const hasExplicitSemiFurnished = /\bsemi[- ]?mobiliad[oa]\b/i.test(descText);
+
+  const hasTextGeneralFurnished =
+    !hasNegationOrRemoval &&
+    !hasExplicitSemiFurnished &&
+    /\b(apartamento mobiliado|im[oó]vel mobiliado|flat mobiliado|loft mobiliado|studio mobiliado|kitnet mobiliada)\b/i.test(
+      descText,
+    );
+
+  const hasTextAppliance =
+    !hasNegationOrRemoval &&
+    !hasPlaceholderOnly &&
+    /\b(geladeira|refrigerador|m[aá]quina de lavar|lava[- ]?e[- ]?seca|micro[- ]?ondas|fog[aã]o|forno|cooktop|cozinha equipada|cozinha mobiliada|utens[ií]lios de cozinha)\b/i.test(
+      descText,
+    );
+
+  if (hasCommodityBedOrSofa || hasCaptionBedOrSofa || hasTextBedOrSofa) {
+    return "FULLY_FURNISHED";
+  }
+
+  if (hasExplicitSemiFurnished) {
+    return "SEMI_FURNISHED";
+  }
+
+  if (hasTextGeneralFurnished) {
+    return "FULLY_FURNISHED";
+  }
+
+  if (prop.furnished === true) {
+    if (hasCommodityAppliance || hasCaptionAppliance || hasTextAppliance) {
+      return "SEMI_FURNISHED";
+    }
+    return "FULLY_FURNISHED";
+  }
+
+  if (hasCommodityAppliance || hasCaptionAppliance || hasTextAppliance) {
+    return "SEMI_FURNISHED";
+  }
+
+  return "UNFURNISHED";
 }
 
 export function computeDynamicProperties(
@@ -1863,7 +2053,17 @@ export function computeDynamicProperties(
 
     // Direct Commute-Distance Impact (heavily penalize far-away neighborhoods like Barra da Tijuca / Barra Olímpica / Ponte Rio-Niterói)
     const commuteWeightScale = weights.commuteLogisticsWeight / 1.8;
-    const fullLocationText = `${prop.street ?? ""} ${prop.title ?? ""} ${prop.description ?? ""}`;
+    const fullLocationText = [
+      prop.street ?? "",
+      prop.title ?? "",
+      prop.description ?? "",
+      prop.generatedDescription ?? "",
+      ...(prop.comfortCommodities ?? []),
+      ...(prop.practicalityCommodities ?? []),
+      ...(prop.amenities ?? []),
+      ...(prop.installations ?? []),
+      ...(prop.photoCaptions ?? []),
+    ].join(" ");
     const isDeepWestBarra =
       prop.cityCode === "RJ" &&
       /\b(barra ol[ií]mpica|estrada dos bandeirantes|shopping metropolitano|curicica|jacarepagu[aá]|recreio|riocentro|abelardo bueno|salvador allende|ad[ií]lio de oliveira)\b/i.test(
@@ -1933,17 +2133,30 @@ export function computeDynamicProperties(
     const budgetPoints =
       Math.round(rawBudgetPts * weights.budgetWeight * 10) / 10;
 
-    // Furniture points
-    let furniturePoints = 2;
-    let furnitureDesc = "Mobília não informada / marcenaria fixa";
-    if (prop.furnished === false) {
-      furniturePoints = weights.unfurnishedBonus;
+    // 3-tier Furniture classification & points
+    const furnitureTier = classifyFurnitureTier(prop);
+    const effectiveFurnished: boolean | null =
+      furnitureTier === "FULLY_FURNISHED"
+        ? true
+        : furnitureTier === "UNFURNISHED"
+          ? false
+          : prop.furnished;
+    const effectiveProp: SlimPropertyRecord =
+      effectiveFurnished !== prop.furnished
+        ? { ...prop, furnished: effectiveFurnished }
+        : prop;
+
+    let furniturePoints = weights.unfurnishedBonus;
+    let furnitureDesc =
+      "Não mobiliado / só marcenaria fixa (pronto para receber sua mobília de Brasília)";
+    if (furnitureTier === "SEMI_FURNISHED") {
+      furniturePoints = Math.round(weights.furnishedPenalty * 0.35);
       furnitureDesc =
-        "Não mobiliado (pronto para receber sua mobília de Brasília)";
-    } else if (prop.furnished === true) {
+        "Semi-mobiliado — apenas eletros/cozinha sem cama ou sofá (penalidade reduzida)";
+    } else if (furnitureTier === "FULLY_FURNISHED") {
       furniturePoints = weights.furnishedPenalty;
       furnitureDesc =
-        "Mobiliado (requer negociar retirada de mobília solta ou adaptar)";
+        "Totalmente mobiliado com cama/sofá (requer negociar retirada de mobília solta ou adaptar)";
     }
 
     // Area points
@@ -2076,7 +2289,8 @@ export function computeDynamicProperties(
     ];
 
     return {
-      ...prop,
+      ...effectiveProp,
+      furnitureTier,
       eligible,
       exclusionReason,
       finalScore,
@@ -2107,7 +2321,8 @@ export function computeDynamicProperties(
       parksNearby: nuances.parksNearby,
       mallsNearby: nuances.mallsNearby,
       shortJustification: buildShortJustification({
-        prop,
+        prop: effectiveProp,
+        furnitureTier,
         catalogNb,
         nbScore,
         nbCommute,
@@ -2118,7 +2333,8 @@ export function computeDynamicProperties(
         exclusionReason,
       }),
       narrativeJustification: buildNarrativeJustification({
-        prop,
+        prop: effectiveProp,
+        furnitureTier,
         catalogNb,
         nbCommute,
         weights,

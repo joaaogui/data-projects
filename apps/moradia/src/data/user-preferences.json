@@ -1,6 +1,6 @@
 {
   "filters": {
-    "sortBy": "score_desc",
+    "sortBy": "price_asc",
     "minScore": null,
     "viewMode": "list",
     "maxAreaM2": null,
@@ -10,25 +10,34 @@
     "hideForSale": false,
     "minBedrooms": null,
     "searchQuery": "",
+    "floorFilters": [],
     "minBathrooms": null,
-    "selectedCity": "RJ",
+    "selectedCity": "ALL",
     "hideMegaCondo": false,
     "onlyFavorites": false,
     "modernityTiers": [],
     "onlyNewEntries": false,
     "providerFilter": "ALL",
-    "selectedCities": [
-      "RJ"
-    ],
+    "selectedCities": [],
     "showIneligible": false,
-    "furnishedFilter": "ALL",
-    "maxTotalMonthly": null,
+    "furnishedFilter": "UNFURNISHED",
+    "maxTotalMonthly": 4000,
     "minTotalMonthly": null,
+    "selectedParking": [
+      1,
+      2
+    ],
     "requiredFeatures": [],
+    "selectedBedrooms": [
+      1,
+      2
+    ],
     "deactivatedFilter": "ACTIVE_ONLY",
     "minModernityScore": null,
-    "showAdvancedFilters": false,
-    "selectedNeighborhoods": []
+    "selectedBathrooms": [],
+    "showAdvancedFilters": true,
+    "selectedNeighborhoods": [],
+    "onlyTop20Neighborhoods": true
   },
   "weights": {
     "budgetMax": 6500,
@@ -44,27 +53,41 @@
     "sweetSpotMinM2": 48,
     "budgetFitWeight": 1,
     "safetyCarWeight": 2.5,
-    "furnishedPenalty": -5,
-    "unfurnishedBonus": 10,
+    "furnishedPenalty": -22,
+    "unfurnishedBonus": 20,
     "minModernityScore": 60,
     "nuancesMultiplier": 1,
     "penalizeMegaCondo": true,
     "buildingStockWeight": 1,
     "modernityMultiplier": 0.65,
     "urbanBreathingWeight": 1,
-    "commuteLogisticsWeight": 1,
+    "commuteLogisticsWeight": 1.8,
     "neighborhoodMultiplier": 6.5
   },
-  "activePresetId": "balanced-original",
+  "activePresetId": "custom",
   "favorites": [
     "quintoandar:895722432",
     "quintoandar:893127481",
-    "quintoandar:894134659"
+    "quintoandar:894134659",
+    "quintoandar:895741020",
+    "quintoandar:894663476",
+    "quintoandar:894364593",
+    "quintoandar:895627315",
+    "quintoandar:895787104",
+    "quintoandar:895146121",
+    "quintoandar:895394820",
+    "quintoandar:893748910",
+    "quintoandar:895199327",
+    "quintoandar:893271548",
+    "quintoandar:893083464",
+    "quintoandar:895740524",
+    "quintoandar:895706010",
+    "quintoandar:895651295"
   ],
   "compareKeys": [
     "quintoandar:893127481",
     "zapimoveis:2900134401",
     "quintoandar:895394820"
   ],
-  "updatedAt": "2026-10-16T20:45:56.420Z"
+  "updatedAt": "2026-10-16T21:51:37.419Z"
 }
