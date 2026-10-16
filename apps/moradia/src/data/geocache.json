@@ -1,0 +1,102 @@
+{
+  "BH|carmo|rua orenoco|14": {
+    "lat": -19.940533,
+    "lng": -43.929833,
+    "updatedAt": "2026-10-16T18:03:16.592Z"
+  },
+  "BH|funcionários|rua dos timbiras|3172": {
+    "lat": -19.928982,
+    "lng": -43.930558,
+    "updatedAt": "2026-10-16T18:03:19.139Z"
+  },
+  "BH|gutierrez|rua benjamim jacob|327": {
+    "lat": -19.940883,
+    "lng": -43.959002,
+    "updatedAt": "2026-10-16T18:03:22.397Z"
+  },
+  "BH|buritis|rua sílvio menicucci|64": {
+    "lat": -19.979468,
+    "lng": -43.978268,
+    "updatedAt": "2026-10-16T18:03:25.357Z"
+  },
+  "BH|funcionários|rua alagoas|997": {
+    "lat": -19.919421,
+    "lng": -43.881075,
+    "updatedAt": "2026-10-16T18:03:38.060Z"
+  },
+  "BH|lourdes|rua dos aimorés|2700": {
+    "lat": -19.926706,
+    "lng": -43.94499,
+    "updatedAt": "2026-10-16T19:22:46.100Z"
+  },
+  "RJ|barra da tijuca|avenida carlos lima|111": {
+    "lat": -22.996697,
+    "lng": -43.354827,
+    "updatedAt": "2026-10-16T19:22:46.691Z"
+  },
+  "BH|buritis|rua ignácio alves martins|78": {
+    "lat": -19.977114,
+    "lng": -43.977916,
+    "updatedAt": "2026-10-16T19:22:47.748Z"
+  },
+  "BH|vale do sereno|rua do cedro|202": {
+    "lat": -19.986012,
+    "lng": -43.936755,
+    "updatedAt": "2026-10-16T19:22:48.727Z"
+  },
+  "BH|santo antônio|rua congonhas|285": {
+    "lat": -19.943448,
+    "lng": -43.940915,
+    "updatedAt": "2026-10-16T19:22:50.144Z"
+  },
+  "BH|buritis|rua eli seabra filho|100": {
+    "lat": -19.97513,
+    "lng": -43.974925,
+    "updatedAt": "2026-10-16T19:22:50.587Z"
+  },
+  "BH|funcionários|rua alagoas|581": {
+    "lat": -19.930565,
+    "lng": -43.929502,
+    "updatedAt": "2026-10-16T19:23:11.903Z"
+  },
+  "BH|funcionários|rua alagoas|66": {
+    "lat": -19.919421,
+    "lng": -43.881075,
+    "updatedAt": "2026-10-16T19:23:12.725Z"
+  },
+  "BH|são pedro|rua major lopes|47": {
+    "lat": -19.942694,
+    "lng": -43.935454,
+    "updatedAt": "2026-10-16T19:23:13.643Z"
+  },
+  "CP|taquaral|rua alberto cerqueira lima|29": {
+    "lat": -22.885864,
+    "lng": -47.056491,
+    "updatedAt": "2026-10-16T19:23:16.799Z"
+  },
+  "SP|indianópolis|avenida dos carinás|181": {
+    "lat": -23.612282,
+    "lng": -46.667988,
+    "updatedAt": "2026-10-16T19:46:11.717Z"
+  },
+  "SP|vila clementino|avenida professor ascendino reis|965": {
+    "lat": -23.597058,
+    "lng": -46.650531,
+    "updatedAt": "2026-10-16T19:46:14.465Z"
+  },
+  "BH|barro preto|rua dos tupis|1193": {
+    "lat": -19.918613,
+    "lng": -43.951391,
+    "updatedAt": "2026-10-16T19:46:16.277Z"
+  },
+  "SP|perdizes|rua cardoso de almeida|432": {
+    "lat": -23.535077,
+    "lng": -46.666128,
+    "updatedAt": "2026-10-16T19:46:16.752Z"
+  },
+  "CP|bosque|rua josé paulino|159": {
+    "lat": -22.912122,
+    "lng": -47.057828,
+    "updatedAt": "2026-10-16T19:46:38.790Z"
+  }
+}

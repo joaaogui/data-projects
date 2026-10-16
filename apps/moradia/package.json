@@ -1,0 +1,57 @@
+{
+  "name": "moradia-portal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "next dev --turbopack -p 3005",
+    "build": "next build",
+    "start": "next start -p 3005",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@data-projects/shared": "workspace:*",
+    "@data-projects/tailwind-config": "workspace:*",
+    "@data-projects/ui": "workspace:*",
+    "@neondatabase/serverless": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-table": "catalog:",
+    "drizzle-orm": "catalog:",
+    "lucide-react": "catalog:",
+    "next": "^16.4.0",
+    "pino": "catalog:",
+    "pino-pretty": "catalog:",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@next/eslint-plugin-next": "catalog:",
+    "@tailwindcss/postcss": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "babel-plugin-react-compiler": "catalog:",
+    "drizzle-kit": "catalog:",
+    "eslint": "catalog:",
+    "eslint-plugin-react": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "postcss": "catalog:",
+    "tailwindcss": "^4.3.3",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  }
+}

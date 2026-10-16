@@ -86,6 +86,16 @@ Fetches the live player profile, full brawler roster, brawler catalog, and recen
 
 ---
 
+### [Moradia Radar](apps/moradia) -- [housing.joaog.space](https://housing.joaog.space)
+
+Analytical residential rental radar for Belo Horizonte, Campinas, Rio de Janeiro, and São Paulo.
+
+Evaluates 20 curated neighborhoods across the four Nubank hub cities and over 2,400 rental listings from QuintoAndar, Zap Imóveis, Viva Real, Netimóveis, and Imovelweb. Features a real-time weight calibrator across 5 neighborhood criteria and 7 property criteria, mathematical score auditing, an interactive satellite/street map with hub distance lines, and photo showcases.
+
+**Stack:** Next.js 16, Neon Postgres, Drizzle ORM, Leaflet, TanStack Query, Zod 4, Vitest.
+
+---
+
 ## Tech Stack
 
 The four catalog and analytics apps (`youtube`, `imdb-best-season`, `spotify-popularity`, `lastfm`) share UI primitives and utilities through the monorepo's workspace packages, while `clash-deck-advisor` and `brawl-account-coach` are standalone Next.js 16 apps with server-only game API and AI coaching pipelines.
@@ -171,6 +181,7 @@ pnpm dev --filter spotify-popularity  # Spotify only (port 3002)
 pnpm dev --filter lastfm-habits       # Listening Habits only (port 3004)
 pnpm dev --filter clash-deck-advisor  # Clash Deck Advisor only (port 3012)
 pnpm dev --filter brawl-account-coach # Brawl Account Coach only (port 3013)
+pnpm dev --filter moradia-portal      # Moradia Radar only (port 3005)
 ```
 
 ### Build, Lint & Test
@@ -220,10 +231,14 @@ data-projects/
 │   │   ├── src/app/          #   2 API routes, 1 page
 │   │   ├── src/components/   #   8 React components
 │   │   └── src/lib/          #   Archetype engine, scoring, AI, validation
-│   └── brawl-account-coach/  # Brawl Stars account coach      (port 3013)
-│       ├── src/app/          #   2 API routes, 1 page
-│       ├── src/components/   #   7 React components
-│       └── src/lib/          #   Account metrics, AI coaching, validation
+│   ├── brawl-account-coach/  # Brawl Stars account coach      (port 3013)
+│   │   ├── src/app/          #   2 API routes, 1 page
+│   │   ├── src/components/   #   7 React components
+│   │   └── src/lib/          #   Account metrics, AI coaching, validation
+│   └── moradia/              # Residential rental radar       (port 3005)
+│       ├── src/app/          #   6 API routes, 1 page
+│       ├── src/components/   #   Interactive radar, map, and photo showcase
+│       └── src/lib/          #   Multi-criteria scoring engine and geocoding
 ├── packages/
 │   ├── shared/               # Utilities, hooks, API helpers
 │   ├── ui/                   # Shared component library
