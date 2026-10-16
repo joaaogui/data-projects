@@ -1,3 +1,38 @@
 {
-  "items": []
+  "items": [
+    {
+      "id": "qa-1792183327858-22su4",
+      "propertyKey": "zapimoveis:2906609554",
+      "question": "esse imovel deveria estar com a nota mais baixa, é na barra da tijuca , mt longe do escritorio",
+      "status": "answered",
+      "answer": "Você tem toda razão — e esse caso é ainda mais crítico: apesar de anunciado como 'Barra da Tijuca', a Rua Adílio de Oliveira Gonçalves, 160 fica na Barra Olímpica / Curicica (perto do Shopping Metropolitano e da Estrada dos Bandeirantes, a mais de 32 km do escritório do Nubank na Praça Mauá, levando 75 a 100 min por trecho e longe até do metrô do Jardim Oceânico).\n\nPor que estava com 145,4 pts: a nota de logística (2,5/10) antes entrava apenas na média simples do bairro, sem penalidade direta no imóvel pela distância extrema.\n\nO que acabei de corrigir no motor de notas:\n1. Adicionei uma penalidade não-linear severa de distância na nota do bairro (derrubando a Barra da Tijuca de 7,5/10 para ~3,1/10).\n2. Adicionei uma penalidade direta no imóvel de -32 pts para a Barra da Tijuca e de -48 pts para a Barra Olímpica / Estrada dos Bandeirantes / Recreio / Jacarepaguá, além da tag vermelha 'Barra Olímpica / Muito Longe do Nubank (75–100 min)'. Com isso, a nota deste apartamento caiu ~75 pontos (para ~70 pts, lá no fim da lista).",
+      "createdAt": "2026-10-16T20:42:07.858Z",
+      "answeredAt": "2026-10-16T20:44:10.000Z",
+      "propertySnapshot": {
+        "title": "Apartamento para alugar com 50 m², 2 quartos, 1 banheiro, 1 vaga",
+        "neighborhood": "Barra da Tijuca",
+        "cityCode": "RJ",
+        "street": "Rua Adílio de Oliveira Gonçalves",
+        "streetNumber": "160",
+        "condominiumName": null,
+        "totalMonthly": 3300,
+        "rent": 2500,
+        "condoFee": 700,
+        "iptu": 100,
+        "areaM2": 50,
+        "bedrooms": 2,
+        "bathrooms": 1,
+        "parkingSpaces": 1,
+        "floor": 4,
+        "floorLabel": "Andar médio (4º andar)",
+        "furnished": null,
+        "modernityScore": 81,
+        "finalScore": 145.4,
+        "overallRank": 347,
+        "url": "https://www.zapimoveis.com.br/imovel/aluguel-apartamento-2-quartos-com-piscina-barra-da-tijuca-zona-oeste-rio-de-janeiro-rj-50m2-id-2906609554/",
+        "shortJustification": "Com marcenaria/armários planejados, gás encanado, portaria 24h e lazer com piscina e academia — fica a 60-90 min do hub no Porto Maravilha em eixo arborizado de alto respiro urbano, com folga confortável no orçamento.\nSem ar-condicionado instalado, planta sem varanda e inviável no deslocamento diário para o Porto Maravilha (60–90 min por trecho).",
+        "description": "Excelente apto na Barra Olimpica, condomínio Living Park Orquídea, 2 qtos com armários planejados, armários na cozinha e banheiro de excelente qualidade, apto primeira locação, condomínio com lazer total, elevador, portaria 24 horas, excelente localização, 5 minutos do shopping Metropolitano e 5 minutos à pé do BRT na Estrada dos Bandeirantes, agende hoje mesmo uma visita"
+      }
+    }
+  ]
 }

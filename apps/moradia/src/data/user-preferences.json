@@ -1,0 +1,70 @@
+{
+  "filters": {
+    "sortBy": "score_desc",
+    "minScore": null,
+    "viewMode": "list",
+    "maxAreaM2": null,
+    "minAreaM2": null,
+    "minParking": null,
+    "floorFilter": "ALL",
+    "hideForSale": false,
+    "minBedrooms": null,
+    "searchQuery": "",
+    "minBathrooms": null,
+    "selectedCity": "RJ",
+    "hideMegaCondo": false,
+    "onlyFavorites": false,
+    "modernityTiers": [],
+    "onlyNewEntries": false,
+    "providerFilter": "ALL",
+    "selectedCities": [
+      "RJ"
+    ],
+    "showIneligible": false,
+    "furnishedFilter": "ALL",
+    "maxTotalMonthly": null,
+    "minTotalMonthly": null,
+    "requiredFeatures": [],
+    "deactivatedFilter": "ACTIVE_ONLY",
+    "minModernityScore": null,
+    "showAdvancedFilters": false,
+    "selectedNeighborhoods": []
+  },
+  "weights": {
+    "budgetMax": 6500,
+    "maxAreaM2": 95,
+    "minAreaM2": 40,
+    "budgetIdeal": 5500,
+    "budgetWeight": 1,
+    "budgetHardCap": 6850,
+    "parkingBonus1": 5,
+    "parkingBonus2": 8,
+    "requireParking": true,
+    "sweetSpotMaxM2": 68,
+    "sweetSpotMinM2": 48,
+    "budgetFitWeight": 1,
+    "safetyCarWeight": 2.5,
+    "furnishedPenalty": -5,
+    "unfurnishedBonus": 10,
+    "minModernityScore": 60,
+    "nuancesMultiplier": 1,
+    "penalizeMegaCondo": true,
+    "buildingStockWeight": 1,
+    "modernityMultiplier": 0.65,
+    "urbanBreathingWeight": 1,
+    "commuteLogisticsWeight": 1,
+    "neighborhoodMultiplier": 6.5
+  },
+  "activePresetId": "balanced-original",
+  "favorites": [
+    "quintoandar:895722432",
+    "quintoandar:893127481",
+    "quintoandar:894134659"
+  ],
+  "compareKeys": [
+    "quintoandar:893127481",
+    "zapimoveis:2900134401",
+    "quintoandar:895394820"
+  ],
+  "updatedAt": "2026-10-16T20:45:56.420Z"
+}

@@ -179,12 +179,22 @@ export interface EvaluatedProperty extends SlimPropertyRecord {
   detailedJustification: string;
 }
 
+export interface SharedUserPreferences {
+  filters: Record<string, unknown>;
+  weights: Partial<ScoringWeights>;
+  activePresetId: string;
+  favorites: string[];
+  compareKeys: string[];
+  updatedAt: string;
+}
+
 export interface MoradiaDatasetPayload {
   updatedAt: string;
   source: "neon" | "snapshot";
   neighborhoods: NeighborhoodEntry[];
   properties: SlimPropertyRecord[];
   favorites?: string[];
+  preferences?: SharedUserPreferences;
 }
 
 export interface ScrapeJobStatus {

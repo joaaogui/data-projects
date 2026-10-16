@@ -24,6 +24,7 @@ import type {
   PropertyQuestionItem,
   ScoringWeights,
   ScrapeJobStatus,
+  SharedUserPreferences,
 } from "@/types/moradia";
 import { ThemeToggle } from "@data-projects/ui";
 import {
@@ -704,58 +705,304 @@ const FLOOR_RARITY_BADGES: Record<FloorRarity, { className: string }> = {
   },
 };
 
+const DEFAULT_COMPARE_KEYS = [
+  "quintoandar:893127481",
+  "zapimoveis:2900134401",
+  "quintoandar:895394820",
+];
+
+export interface ParsedExplorerFiltersState {
+  selectedCities: CityHubCode[];
+  selectedNeighborhoods: string[];
+  searchQuery: string;
+  floorFilter: FloorFilterOption;
+  minTotalMonthly: number | null;
+  maxTotalMonthly: number | null;
+  minScore: number | null;
+  sortBy: SortByOption;
+  minAreaM2: number | null;
+  maxAreaM2: number | null;
+  minBedrooms: number | null;
+  minBathrooms: number | null;
+  minParking: number | null;
+  modernityTiers: ModernityTier[];
+  minModernityScore: number | null;
+  furnishedFilter: FurnishedFilterOption;
+  requiredFeatures: PropertyFeatureKey[];
+  hideMegaCondo: boolean;
+  hideForSale: boolean;
+  onlyNewEntries: boolean;
+  showIneligible: boolean;
+  providerFilter: ProviderFilterOption;
+  onlyFavorites: boolean;
+  deactivatedFilter: DeactivatedFilterOption;
+  showAdvancedFilters: boolean;
+  viewMode: "split" | "list" | "map";
+}
+
+export function parseExplorerFiltersObject(
+  raw: Record<string, unknown> | null | undefined,
+): ParsedExplorerFiltersState {
+  const parsed = (raw ?? {}) as Partial<
+    PropertyExplorerFilters & {
+      showAdvancedFilters?: boolean;
+      viewMode?: "split" | "list" | "map";
+    }
+  >;
+
+  let selectedCities: CityHubCode[] = [];
+  if (Array.isArray(parsed.selectedCities)) {
+    const validCities = parsed.selectedCities.filter(
+      (c): c is CityHubCode =>
+        c === "BH" || c === "CP" || c === "RJ" || c === "SP",
+    );
+    const uniqueCities = [...new Set(validCities)];
+    selectedCities = uniqueCities.length >= 4 ? [] : uniqueCities;
+  } else if (
+    parsed.selectedCity === "BH" ||
+    parsed.selectedCity === "CP" ||
+    parsed.selectedCity === "RJ" ||
+    parsed.selectedCity === "SP"
+  ) {
+    selectedCities = [parsed.selectedCity];
+  }
+
+  return {
+    selectedCities,
+    selectedNeighborhoods: Array.isArray(parsed.selectedNeighborhoods)
+      ? parsed.selectedNeighborhoods.filter(
+          (x): x is string => typeof x === "string",
+        )
+      : [],
+    searchQuery: typeof parsed.searchQuery === "string" ? parsed.searchQuery : "",
+    floorFilter:
+      typeof parsed.floorFilter === "string" &&
+      FLOOR_FILTER_OPTIONS.some((o) => o.value === parsed.floorFilter)
+        ? (parsed.floorFilter as FloorFilterOption)
+        : "ALL",
+    minTotalMonthly:
+      typeof parsed.minTotalMonthly === "number" ? parsed.minTotalMonthly : null,
+    maxTotalMonthly:
+      typeof parsed.maxTotalMonthly === "number" ? parsed.maxTotalMonthly : null,
+    minScore: typeof parsed.minScore === "number" ? parsed.minScore : null,
+    sortBy:
+      typeof parsed.sortBy === "string" &&
+      SORT_BY_OPTIONS.some((o) => o.value === parsed.sortBy)
+        ? (parsed.sortBy as SortByOption)
+        : "score_desc",
+    minAreaM2: typeof parsed.minAreaM2 === "number" ? parsed.minAreaM2 : null,
+    maxAreaM2: typeof parsed.maxAreaM2 === "number" ? parsed.maxAreaM2 : null,
+    minBedrooms:
+      typeof parsed.minBedrooms === "number" ? parsed.minBedrooms : null,
+    minBathrooms:
+      typeof parsed.minBathrooms === "number" ? parsed.minBathrooms : null,
+    minParking: typeof parsed.minParking === "number" ? parsed.minParking : null,
+    modernityTiers: Array.isArray(parsed.modernityTiers)
+      ? parsed.modernityTiers.filter(
+          (t): t is ModernityTier =>
+            t === "MODERN_OR_RENOVATED" ||
+            t === "WELL_MAINTAINED" ||
+            t === "STANDARD" ||
+            t === "DATED",
+        )
+      : [],
+    minModernityScore:
+      typeof parsed.minModernityScore === "number"
+        ? parsed.minModernityScore
+        : null,
+    furnishedFilter:
+      parsed.furnishedFilter === "ALL" ||
+      parsed.furnishedFilter === "UNFURNISHED" ||
+      parsed.furnishedFilter === "FURNISHED"
+        ? parsed.furnishedFilter
+        : "ALL",
+    requiredFeatures: Array.isArray(parsed.requiredFeatures)
+      ? parsed.requiredFeatures.filter((f): f is PropertyFeatureKey =>
+          PROPERTY_FEATURE_OPTIONS.some((opt) => opt.key === f),
+        )
+      : [],
+    hideMegaCondo:
+      typeof parsed.hideMegaCondo === "boolean" ? parsed.hideMegaCondo : false,
+    hideForSale:
+      typeof parsed.hideForSale === "boolean" ? parsed.hideForSale : false,
+    onlyNewEntries:
+      typeof parsed.onlyNewEntries === "boolean" ? parsed.onlyNewEntries : false,
+    showIneligible:
+      typeof parsed.showIneligible === "boolean" ? parsed.showIneligible : false,
+    providerFilter:
+      parsed.providerFilter === "ALL" ||
+      parsed.providerFilter === "quintoandar" ||
+      parsed.providerFilter === "zapimoveis" ||
+      parsed.providerFilter === "vivareal" ||
+      parsed.providerFilter === "netimoveis" ||
+      parsed.providerFilter === "imovelweb"
+        ? parsed.providerFilter
+        : "ALL",
+    onlyFavorites:
+      typeof parsed.onlyFavorites === "boolean" ? parsed.onlyFavorites : false,
+    deactivatedFilter:
+      parsed.deactivatedFilter === "ACTIVE_ONLY" ||
+      parsed.deactivatedFilter === "ALL" ||
+      parsed.deactivatedFilter === "DEACTIVATED_ONLY"
+        ? parsed.deactivatedFilter
+        : "ACTIVE_ONLY",
+    showAdvancedFilters:
+      typeof parsed.showAdvancedFilters === "boolean"
+        ? parsed.showAdvancedFilters
+        : false,
+    viewMode:
+      parsed.viewMode === "split" ||
+      parsed.viewMode === "list" ||
+      parsed.viewMode === "map"
+        ? parsed.viewMode
+        : "list",
+  };
+}
+
+function serializeExplorerFilters(state: ParsedExplorerFiltersState) {
+  return {
+    selectedCities: state.selectedCities,
+    selectedCity:
+      state.selectedCities.length === 1 ? state.selectedCities[0]! : "ALL",
+    selectedNeighborhoods: state.selectedNeighborhoods,
+    searchQuery: state.searchQuery,
+    floorFilter: state.floorFilter,
+    minTotalMonthly: state.minTotalMonthly,
+    maxTotalMonthly: state.maxTotalMonthly,
+    minScore: state.minScore,
+    sortBy: state.sortBy,
+    minAreaM2: state.minAreaM2,
+    maxAreaM2: state.maxAreaM2,
+    minBedrooms: state.minBedrooms,
+    minBathrooms: state.minBathrooms,
+    minParking: state.minParking,
+    modernityTiers: state.modernityTiers,
+    minModernityScore: state.minModernityScore,
+    furnishedFilter: state.furnishedFilter,
+    requiredFeatures: state.requiredFeatures,
+    hideMegaCondo: state.hideMegaCondo,
+    hideForSale: state.hideForSale,
+    onlyNewEntries: state.onlyNewEntries,
+    showIneligible: state.showIneligible,
+    providerFilter: state.providerFilter,
+    onlyFavorites: state.onlyFavorites,
+    deactivatedFilter: state.deactivatedFilter,
+    showAdvancedFilters: state.showAdvancedFilters,
+    viewMode: state.viewMode,
+  };
+}
+
 export function MoradiaPortal({
   initialDataset,
+  initialPreferences,
 }: {
   initialDataset: MoradiaDatasetPayload;
+  initialPreferences?: SharedUserPreferences;
 }) {
+  const resolvedInitialPrefs = initialPreferences ?? initialDataset.preferences;
+  const initialParsedFilters = useMemo(
+    () => parseExplorerFiltersObject(resolvedInitialPrefs?.filters),
+    [resolvedInitialPrefs],
+  );
+  const initialWeights = useMemo<ScoringWeights>(
+    () => ({ ...DEFAULT_WEIGHTS, ...(resolvedInitialPrefs?.weights ?? {}) }),
+    [resolvedInitialPrefs],
+  );
+  const initialPresetId =
+    resolvedInitialPrefs?.activePresetId || "balanced-original";
+  const initialFavorites = useMemo(
+    () => resolvedInitialPrefs?.favorites ?? initialDataset.favorites ?? [],
+    [resolvedInitialPrefs, initialDataset.favorites],
+  );
+  const initialCompareKeys = useMemo(
+    () =>
+      resolvedInitialPrefs?.compareKeys &&
+      resolvedInitialPrefs.compareKeys.length > 0
+        ? resolvedInitialPrefs.compareKeys
+        : DEFAULT_COMPARE_KEYS,
+    [resolvedInitialPrefs],
+  );
+
   const [dataset, setDataset] = useState<MoradiaDatasetPayload>(initialDataset);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [weights, setWeights] = useState<ScoringWeights>(DEFAULT_WEIGHTS);
-  const [activePresetId, setActivePresetId] = useState<string>(
-    "balanced-original",
-  );
+  const [weights, setWeights] = useState<ScoringWeights>(initialWeights);
+  const [activePresetId, setActivePresetId] = useState<string>(initialPresetId);
   const [activeTab, setActiveTab] = useState<
     "properties" | "neighborhoods" | "compare"
   >("properties");
-  const [selectedCities, setSelectedCities] = useState<CityHubCode[]>([]);
-  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>(
-    [],
+  const [selectedCities, setSelectedCities] = useState<CityHubCode[]>(
+    initialParsedFilters.selectedCities,
   );
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [floorFilter, setFloorFilter] = useState<FloorFilterOption>("ALL");
-  const [minTotalMonthly, setMinTotalMonthly] = useState<number | null>(null);
-  const [maxTotalMonthly, setMaxTotalMonthly] = useState<number | null>(null);
-  const [minScore, setMinScore] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState<SortByOption>("score_desc");
-  const [minAreaM2, setMinAreaM2] = useState<number | null>(null);
-  const [maxAreaM2, setMaxAreaM2] = useState<number | null>(null);
-  const [minBedrooms, setMinBedrooms] = useState<number | null>(null);
-  const [minBathrooms, setMinBathrooms] = useState<number | null>(null);
-  const [minParking, setMinParking] = useState<number | null>(null);
-  const [modernityTiers, setModernityTiers] = useState<ModernityTier[]>([]);
+  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>(
+    initialParsedFilters.selectedNeighborhoods,
+  );
+  const [searchQuery, setSearchQuery] = useState<string>(
+    initialParsedFilters.searchQuery,
+  );
+  const [floorFilter, setFloorFilter] = useState<FloorFilterOption>(
+    initialParsedFilters.floorFilter,
+  );
+  const [minTotalMonthly, setMinTotalMonthly] = useState<number | null>(
+    initialParsedFilters.minTotalMonthly,
+  );
+  const [maxTotalMonthly, setMaxTotalMonthly] = useState<number | null>(
+    initialParsedFilters.maxTotalMonthly,
+  );
+  const [minScore, setMinScore] = useState<number | null>(
+    initialParsedFilters.minScore,
+  );
+  const [sortBy, setSortBy] = useState<SortByOption>(
+    initialParsedFilters.sortBy,
+  );
+  const [minAreaM2, setMinAreaM2] = useState<number | null>(
+    initialParsedFilters.minAreaM2,
+  );
+  const [maxAreaM2, setMaxAreaM2] = useState<number | null>(
+    initialParsedFilters.maxAreaM2,
+  );
+  const [minBedrooms, setMinBedrooms] = useState<number | null>(
+    initialParsedFilters.minBedrooms,
+  );
+  const [minBathrooms, setMinBathrooms] = useState<number | null>(
+    initialParsedFilters.minBathrooms,
+  );
+  const [minParking, setMinParking] = useState<number | null>(
+    initialParsedFilters.minParking,
+  );
+  const [modernityTiers, setModernityTiers] = useState<ModernityTier[]>(
+    initialParsedFilters.modernityTiers,
+  );
   const [minModernityScore, setMinModernityScore] = useState<number | null>(
-    null,
+    initialParsedFilters.minModernityScore,
   );
   const [furnishedFilter, setFurnishedFilter] =
-    useState<FurnishedFilterOption>("ALL");
+    useState<FurnishedFilterOption>(initialParsedFilters.furnishedFilter);
   const [requiredFeatures, setRequiredFeatures] = useState<
     PropertyFeatureKey[]
-  >([]);
-  const [hideMegaCondo, setHideMegaCondo] = useState<boolean>(false);
-  const [hideForSale, setHideForSale] = useState<boolean>(false);
-  const [onlyNewEntries, setOnlyNewEntries] = useState<boolean>(false);
-  const [showIneligible, setShowIneligible] = useState<boolean>(false);
-  const [providerFilter, setProviderFilter] =
-    useState<ProviderFilterOption>("ALL");
-  const [onlyFavorites, setOnlyFavorites] = useState<boolean>(false);
-  const [deactivatedFilter, setDeactivatedFilter] =
-    useState<DeactivatedFilterOption>("ACTIVE_ONLY");
-  const [favoriteKeys, setFavoriteKeys] = useState<string[]>(
-    () => initialDataset.favorites ?? [],
+  >(initialParsedFilters.requiredFeatures);
+  const [hideMegaCondo, setHideMegaCondo] = useState<boolean>(
+    initialParsedFilters.hideMegaCondo,
   );
-  const [showAdvancedFilters, setShowAdvancedFilters] =
-    useState<boolean>(false);
+  const [hideForSale, setHideForSale] = useState<boolean>(
+    initialParsedFilters.hideForSale,
+  );
+  const [onlyNewEntries, setOnlyNewEntries] = useState<boolean>(
+    initialParsedFilters.onlyNewEntries,
+  );
+  const [showIneligible, setShowIneligible] = useState<boolean>(
+    initialParsedFilters.showIneligible,
+  );
+  const [providerFilter, setProviderFilter] =
+    useState<ProviderFilterOption>(initialParsedFilters.providerFilter);
+  const [onlyFavorites, setOnlyFavorites] = useState<boolean>(
+    initialParsedFilters.onlyFavorites,
+  );
+  const [deactivatedFilter, setDeactivatedFilter] =
+    useState<DeactivatedFilterOption>(initialParsedFilters.deactivatedFilter);
+  const [favoriteKeys, setFavoriteKeys] = useState<string[]>(initialFavorites);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(
+    initialParsedFilters.showAdvancedFilters,
+  );
   const [showSlidersDrawer, setShowSlidersDrawer] = useState<boolean>(false);
   const [showScrapeDrawer, setShowScrapeDrawer] = useState<boolean>(false);
   const [scrapeCities, setScrapeCities] = useState<CityHubCode[]>([
@@ -780,13 +1027,11 @@ export function MoradiaPortal({
     Record<string, Array<{ room: string | null; url: string }>>
   >({});
   const fetchedPhotoKeysRef = useRef<Set<string>>(new Set());
-  const [compareKeys, setCompareKeys] = useState<string[]>([
-    "quintoandar:893127481",
-    "zapimoveis:2900134401",
-    "quintoandar:895394820",
-  ]);
+  const [compareKeys, setCompareKeys] = useState<string[]>(initialCompareKeys);
   const [visibleCount, setVisibleCount] = useState<number>(30);
-  const [viewMode, setViewMode] = useState<"split" | "list" | "map">("list");
+  const [viewMode, setViewMode] = useState<"split" | "list" | "map">(
+    initialParsedFilters.viewMode,
+  );
   const [hoveredPropertyKey, setHoveredPropertyKey] = useState<string | null>(
     null,
   );
@@ -815,6 +1060,107 @@ export function MoradiaPortal({
     }, 80);
   }, []);
   const [filtersHydrated, setFiltersHydrated] = useState<boolean>(false);
+  const lastSyncedUpdatedAtRef = useRef<string>(
+    resolvedInitialPrefs?.updatedAt ?? "",
+  );
+  const lastSavedSnapshotJsonRef = useRef<string>(
+    JSON.stringify({
+      filters: serializeExplorerFilters(initialParsedFilters),
+      weights: initialWeights,
+      activePresetId: initialPresetId,
+      favorites: initialFavorites,
+      compareKeys: initialCompareKeys,
+    }),
+  );
+  const isDirtyRef = useRef<boolean>(false);
+
+  const applyFilterStateObject = useCallback(
+    (parsed: ParsedExplorerFiltersState) => {
+      setSelectedCities(parsed.selectedCities);
+      setSelectedNeighborhoods(parsed.selectedNeighborhoods);
+      setSearchQuery(parsed.searchQuery);
+      setFloorFilter(parsed.floorFilter);
+      setMinTotalMonthly(parsed.minTotalMonthly);
+      setMaxTotalMonthly(parsed.maxTotalMonthly);
+      setMinScore(parsed.minScore);
+      setSortBy(parsed.sortBy);
+      setMinAreaM2(parsed.minAreaM2);
+      setMaxAreaM2(parsed.maxAreaM2);
+      setMinBedrooms(parsed.minBedrooms);
+      setMinBathrooms(parsed.minBathrooms);
+      setMinParking(parsed.minParking);
+      setModernityTiers(parsed.modernityTiers);
+      setMinModernityScore(parsed.minModernityScore);
+      setFurnishedFilter(parsed.furnishedFilter);
+      setRequiredFeatures(parsed.requiredFeatures);
+      setHideMegaCondo(parsed.hideMegaCondo);
+      setHideForSale(parsed.hideForSale);
+      setOnlyNewEntries(parsed.onlyNewEntries);
+      setShowIneligible(parsed.showIneligible);
+      setProviderFilter(parsed.providerFilter);
+      setOnlyFavorites(parsed.onlyFavorites);
+      setDeactivatedFilter(parsed.deactivatedFilter);
+      setShowAdvancedFilters(parsed.showAdvancedFilters);
+      setViewMode(parsed.viewMode);
+    },
+    [],
+  );
+
+  const applySharedPreferencesToState = useCallback(
+    (prefs: SharedUserPreferences) => {
+      const parsedFilters = parseExplorerFiltersObject(prefs.filters);
+      const nextWeights: ScoringWeights = {
+        ...DEFAULT_WEIGHTS,
+        ...(prefs.weights ?? {}),
+      };
+      const nextPresetId = prefs.activePresetId || "balanced-original";
+      const nextFavorites = Array.isArray(prefs.favorites)
+        ? prefs.favorites
+        : [];
+      const nextCompareKeys =
+        Array.isArray(prefs.compareKeys) && prefs.compareKeys.length > 0
+          ? prefs.compareKeys
+          : DEFAULT_COMPARE_KEYS;
+
+      const serializedFilters = serializeExplorerFilters(parsedFilters);
+      lastSavedSnapshotJsonRef.current = JSON.stringify({
+        filters: serializedFilters,
+        weights: nextWeights,
+        activePresetId: nextPresetId,
+        favorites: nextFavorites,
+        compareKeys: nextCompareKeys,
+      });
+      lastSyncedUpdatedAtRef.current = prefs.updatedAt;
+
+      applyFilterStateObject(parsedFilters);
+      setWeights(nextWeights);
+      setActivePresetId(nextPresetId);
+      setFavoriteKeys(nextFavorites);
+      setCompareKeys(nextCompareKeys);
+
+      try {
+        localStorage.setItem(
+          "moradia_explorer_filters_v1",
+          JSON.stringify(serializedFilters),
+        );
+        localStorage.setItem(
+          "moradia_weights_v2",
+          JSON.stringify({ presetId: nextPresetId, weights: nextWeights }),
+        );
+        localStorage.setItem(
+          "moradia_favorites_v1",
+          JSON.stringify(nextFavorites),
+        );
+        localStorage.setItem(
+          "moradia_preferences_updated_at_v1",
+          prefs.updatedAt,
+        );
+      } catch {
+        // Ignore storage errors
+      }
+    },
+    [applyFilterStateObject],
+  );
 
   const pruneNeighborhoodsForCities = useCallback(
     (prevNeighborhoods: string[], nextCities: CityHubCode[]) => {
@@ -893,255 +1239,226 @@ export function MoradiaPortal({
     setOnlyFavorites(false);
     setDeactivatedFilter("ACTIVE_ONLY");
     setVisibleCount(30);
-    try {
-      localStorage.removeItem("moradia_explorer_filters_v1");
-    } catch {
-      // Ignore storage errors
-    }
   };
 
   useEffect(() => {
     try {
-      const rawWeights = localStorage.getItem("moradia_weights_v2");
-      if (rawWeights) {
-        const parsedWeights = JSON.parse(rawWeights) as {
-          presetId?: string;
-          weights?: Partial<ScoringWeights>;
-        };
-        if (parsedWeights && typeof parsedWeights === "object") {
-          if (typeof parsedWeights.presetId === "string") {
-            setActivePresetId(parsedWeights.presetId);
-          }
-          if (parsedWeights.weights && typeof parsedWeights.weights === "object") {
-            setWeights({ ...DEFAULT_WEIGHTS, ...parsedWeights.weights });
-          }
-        }
-      }
+      const hasServerSavedFilters = Boolean(
+        resolvedInitialPrefs?.filters &&
+          Object.keys(resolvedInitialPrefs.filters).length > 0,
+      );
+      const serverUpdatedAtMs = resolvedInitialPrefs?.updatedAt
+        ? Date.parse(resolvedInitialPrefs.updatedAt)
+        : 0;
+      const localUpdatedAtRaw = localStorage.getItem(
+        "moradia_preferences_updated_at_v1",
+      );
+      const localUpdatedAtMs = localUpdatedAtRaw
+        ? Date.parse(localUpdatedAtRaw)
+        : 0;
 
-      const rawFilters = localStorage.getItem("moradia_explorer_filters_v1");
-      if (rawFilters) {
-        const parsed = JSON.parse(rawFilters) as Partial<
-          PropertyExplorerFilters & {
-            showAdvancedFilters?: boolean;
-            viewMode?: "split" | "list" | "map";
-          }
-        >;
-        if (parsed && typeof parsed === "object") {
-          if (Array.isArray(parsed.selectedCities)) {
-            const validCities = parsed.selectedCities.filter(
-              (c): c is CityHubCode =>
-                c === "BH" || c === "CP" || c === "RJ" || c === "SP",
-            );
-            const uniqueCities = [...new Set(validCities)];
-            setSelectedCities(uniqueCities.length >= 4 ? [] : uniqueCities);
-          } else if (
-            parsed.selectedCity === "BH" ||
-            parsed.selectedCity === "CP" ||
-            parsed.selectedCity === "RJ" ||
-            parsed.selectedCity === "SP"
-          ) {
-            setSelectedCities([parsed.selectedCity]);
-          } else if (parsed.selectedCity === "ALL") {
-            setSelectedCities([]);
-          }
-          if (Array.isArray(parsed.selectedNeighborhoods)) {
-            setSelectedNeighborhoods(
-              parsed.selectedNeighborhoods.filter(
-                (x): x is string => typeof x === "string",
-              ),
-            );
-          }
-          if (typeof parsed.searchQuery === "string") {
-            setSearchQuery(parsed.searchQuery);
-          }
-          if (
-            typeof parsed.floorFilter === "string" &&
-            FLOOR_FILTER_OPTIONS.some((o) => o.value === parsed.floorFilter)
-          ) {
-            setFloorFilter(parsed.floorFilter as FloorFilterOption);
-          }
-          if (
-            parsed.minTotalMonthly === null ||
-            typeof parsed.minTotalMonthly === "number"
-          ) {
-            setMinTotalMonthly(parsed.minTotalMonthly);
-          }
-          if (
-            parsed.maxTotalMonthly === null ||
-            typeof parsed.maxTotalMonthly === "number"
-          ) {
-            setMaxTotalMonthly(parsed.maxTotalMonthly);
-          }
-          if (parsed.minScore === null || typeof parsed.minScore === "number") {
-            setMinScore(parsed.minScore);
-          }
-          if (
-            typeof parsed.sortBy === "string" &&
-            SORT_BY_OPTIONS.some((o) => o.value === parsed.sortBy)
-          ) {
-            setSortBy(parsed.sortBy as SortByOption);
-          }
-          if (
-            parsed.minAreaM2 === null ||
-            typeof parsed.minAreaM2 === "number"
-          ) {
-            setMinAreaM2(parsed.minAreaM2);
-          }
-          if (
-            parsed.maxAreaM2 === null ||
-            typeof parsed.maxAreaM2 === "number"
-          ) {
-            setMaxAreaM2(parsed.maxAreaM2);
-          }
-          if (
-            parsed.minBedrooms === null ||
-            typeof parsed.minBedrooms === "number"
-          ) {
-            setMinBedrooms(parsed.minBedrooms);
-          }
-          if (
-            parsed.minBathrooms === null ||
-            typeof parsed.minBathrooms === "number"
-          ) {
-            setMinBathrooms(parsed.minBathrooms);
-          }
-          if (
-            parsed.minParking === null ||
-            typeof parsed.minParking === "number"
-          ) {
-            setMinParking(parsed.minParking);
-          }
-          if (Array.isArray(parsed.modernityTiers)) {
-            setModernityTiers(
-              parsed.modernityTiers.filter(
-                (t): t is ModernityTier =>
-                  t === "MODERN_OR_RENOVATED" ||
-                  t === "WELL_MAINTAINED" ||
-                  t === "STANDARD" ||
-                  t === "DATED",
-              ),
-            );
-          }
-          if (
-            parsed.minModernityScore === null ||
-            typeof parsed.minModernityScore === "number"
-          ) {
-            setMinModernityScore(parsed.minModernityScore);
-          }
-          if (
-            parsed.furnishedFilter === "ALL" ||
-            parsed.furnishedFilter === "UNFURNISHED" ||
-            parsed.furnishedFilter === "FURNISHED"
-          ) {
-            setFurnishedFilter(parsed.furnishedFilter);
-          }
-          if (Array.isArray(parsed.requiredFeatures)) {
-            setRequiredFeatures(
-              parsed.requiredFeatures.filter((f): f is PropertyFeatureKey =>
-                PROPERTY_FEATURE_OPTIONS.some((opt) => opt.key === f),
-              ),
-            );
-          }
-          if (typeof parsed.hideMegaCondo === "boolean") {
-            setHideMegaCondo(parsed.hideMegaCondo);
-          }
-          if (typeof parsed.hideForSale === "boolean") {
-            setHideForSale(parsed.hideForSale);
-          }
-          if (typeof parsed.onlyNewEntries === "boolean") {
-            setOnlyNewEntries(parsed.onlyNewEntries);
-          }
-          if (typeof parsed.showIneligible === "boolean") {
-            setShowIneligible(parsed.showIneligible);
-          }
-          if (
-            parsed.providerFilter === "ALL" ||
-            parsed.providerFilter === "quintoandar" ||
-            parsed.providerFilter === "zapimoveis" ||
-            parsed.providerFilter === "vivareal" ||
-            parsed.providerFilter === "netimoveis" ||
-            parsed.providerFilter === "imovelweb"
-          ) {
-            setProviderFilter(parsed.providerFilter);
-          }
-          if (typeof parsed.onlyFavorites === "boolean") {
-            setOnlyFavorites(parsed.onlyFavorites);
-          }
-          if (
-            parsed.deactivatedFilter === "ACTIVE_ONLY" ||
-            parsed.deactivatedFilter === "ALL" ||
-            parsed.deactivatedFilter === "DEACTIVATED_ONLY"
-          ) {
-            setDeactivatedFilter(parsed.deactivatedFilter);
-          }
-          if (typeof parsed.showAdvancedFilters === "boolean") {
-            setShowAdvancedFilters(parsed.showAdvancedFilters);
+      // Only fall back to localStorage if the shared DB has no saved filters yet
+      // or if this browser has an explicit newer timestamp than the SSR snapshot.
+      const shouldHydrateFromLocal =
+        !hasServerSavedFilters ||
+        (localUpdatedAtMs > 0 && localUpdatedAtMs > serverUpdatedAtMs);
+
+      if (shouldHydrateFromLocal) {
+        const rawWeights = localStorage.getItem("moradia_weights_v2");
+        if (rawWeights) {
+          const parsedWeights = JSON.parse(rawWeights) as {
+            presetId?: string;
+            weights?: Partial<ScoringWeights>;
+          };
+          if (parsedWeights && typeof parsedWeights === "object") {
+            if (typeof parsedWeights.presetId === "string") {
+              setActivePresetId(parsedWeights.presetId);
+            }
+            if (
+              parsedWeights.weights &&
+              typeof parsedWeights.weights === "object"
+            ) {
+              setWeights({ ...DEFAULT_WEIGHTS, ...parsedWeights.weights });
+            }
           }
         }
+
+        const rawFilters = localStorage.getItem("moradia_explorer_filters_v1");
+        if (rawFilters) {
+          const parsed = JSON.parse(rawFilters) as Record<string, unknown>;
+          if (parsed && typeof parsed === "object") {
+            applyFilterStateObject(parseExplorerFiltersObject(parsed));
+          }
+        }
+
+        const rawFavs = localStorage.getItem("moradia_favorites_v1");
+        if (rawFavs) {
+          const localFavs = (JSON.parse(rawFavs) as unknown[]).filter(
+            (x): x is string => typeof x === "string" && x.trim().length > 0,
+          );
+          if (localFavs.length > 0) {
+            setFavoriteKeys((prev) => [...new Set([...prev, ...localFavs])]);
+          }
+        }
+      } else if (resolvedInitialPrefs) {
+        applySharedPreferencesToState(resolvedInitialPrefs);
       }
     } catch {
       // Ignore storage errors
     } finally {
       setFiltersHydrated(true);
     }
-  }, []);
+  }, [
+    resolvedInitialPrefs,
+    applyFilterStateObject,
+    applySharedPreferencesToState,
+  ]);
+
+  const syncPreferencesFromServer = useCallback(async () => {
+    if (isDirtyRef.current) return;
+    try {
+      const res = await fetch("/api/preferences", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        ok?: boolean;
+        preferences?: SharedUserPreferences;
+      };
+      if (!data.preferences || isDirtyRef.current) return;
+      const remotePrefs = data.preferences;
+      const remoteHasFilters =
+        remotePrefs.filters && Object.keys(remotePrefs.filters).length > 0;
+      if (!remoteHasFilters && !lastSyncedUpdatedAtRef.current) return;
+
+      const remoteMs = Date.parse(remotePrefs.updatedAt || "");
+      const currentMs = Date.parse(lastSyncedUpdatedAtRef.current || "");
+      if (
+        Number.isFinite(remoteMs) &&
+        (!Number.isFinite(currentMs) || remoteMs > currentMs)
+      ) {
+        applySharedPreferencesToState(remotePrefs);
+      }
+    } catch {
+      // Ignore transient network errors
+    }
+  }, [applySharedPreferencesToState]);
 
   useEffect(() => {
-    try {
-      const rawFavs = localStorage.getItem("moradia_favorites_v1");
-      const localFavs = rawFavs
-        ? (JSON.parse(rawFavs) as unknown[])
-            .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
-        : [];
-      const merged = [
-        ...new Set([...(initialDataset.favorites ?? []), ...localFavs]),
-      ];
-      setFavoriteKeys(merged);
-      localStorage.setItem("moradia_favorites_v1", JSON.stringify(merged));
-    } catch {
-      // Ignore storage errors
-    }
-  }, [initialDataset.favorites]);
+    void syncPreferencesFromServer();
+    const handleFocus = () => {
+      void syncPreferencesFromServer();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void syncPreferencesFromServer();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void syncPreferencesFromServer();
+      }
+    }, 10000);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      clearInterval(interval);
+    };
+  }, [syncPreferencesFromServer]);
 
   useEffect(() => {
     if (!filtersHydrated) return;
+    const filtersPayload = serializeExplorerFilters({
+      selectedCities,
+      selectedNeighborhoods,
+      searchQuery,
+      floorFilter,
+      minTotalMonthly,
+      maxTotalMonthly,
+      minScore,
+      sortBy,
+      minAreaM2,
+      maxAreaM2,
+      minBedrooms,
+      minBathrooms,
+      minParking,
+      modernityTiers,
+      minModernityScore,
+      furnishedFilter,
+      requiredFeatures,
+      hideMegaCondo,
+      hideForSale,
+      onlyNewEntries,
+      showIneligible,
+      providerFilter,
+      onlyFavorites,
+      deactivatedFilter,
+      showAdvancedFilters,
+      viewMode,
+    });
+
     try {
       localStorage.setItem(
         "moradia_explorer_filters_v1",
-        JSON.stringify({
-          selectedCities,
-          selectedCity:
-            selectedCities.length === 1 ? selectedCities[0]! : "ALL",
-          selectedNeighborhoods,
-          searchQuery,
-          floorFilter,
-          minTotalMonthly,
-          maxTotalMonthly,
-          minScore,
-          sortBy,
-          minAreaM2,
-          maxAreaM2,
-          minBedrooms,
-          minBathrooms,
-          minParking,
-          modernityTiers,
-          minModernityScore,
-          furnishedFilter,
-          requiredFeatures,
-          hideMegaCondo,
-          hideForSale,
-          onlyNewEntries,
-          showIneligible,
-          providerFilter,
-          onlyFavorites,
-          deactivatedFilter,
-          showAdvancedFilters,
-          viewMode,
-        }),
+        JSON.stringify(filtersPayload),
+      );
+      localStorage.setItem(
+        "moradia_weights_v2",
+        JSON.stringify({ presetId: activePresetId, weights }),
+      );
+      localStorage.setItem(
+        "moradia_favorites_v1",
+        JSON.stringify(favoriteKeys),
       );
     } catch {
       // Ignore storage errors
     }
+
+    const fullPayload = {
+      filters: filtersPayload,
+      weights,
+      activePresetId,
+      favorites: favoriteKeys,
+      compareKeys,
+    };
+    const serialized = JSON.stringify(fullPayload);
+    if (serialized === lastSavedSnapshotJsonRef.current) {
+      return;
+    }
+
+    isDirtyRef.current = true;
+    const timer = setTimeout(() => {
+      void fetch("/api/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: serialized,
+      })
+        .then(async (res) => {
+          if (!res.ok) return;
+          const data = (await res.json()) as {
+            ok?: boolean;
+            preferences?: SharedUserPreferences;
+          };
+          lastSavedSnapshotJsonRef.current = serialized;
+          if (data.preferences?.updatedAt) {
+            lastSyncedUpdatedAtRef.current = data.preferences.updatedAt;
+            try {
+              localStorage.setItem(
+                "moradia_preferences_updated_at_v1",
+                data.preferences.updatedAt,
+              );
+            } catch {
+              // Ignore storage errors
+            }
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          isDirtyRef.current = false;
+        });
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [
     filtersHydrated,
     selectedCities,
@@ -1170,19 +1487,11 @@ export function MoradiaPortal({
     deactivatedFilter,
     showAdvancedFilters,
     viewMode,
+    activePresetId,
+    weights,
+    favoriteKeys,
+    compareKeys,
   ]);
-
-  useEffect(() => {
-    if (!filtersHydrated) return;
-    try {
-      localStorage.setItem(
-        "moradia_weights_v2",
-        JSON.stringify({ presetId: activePresetId, weights }),
-      );
-    } catch {
-      // Ignore storage errors
-    }
-  }, [filtersHydrated, activePresetId, weights]);
 
   useEffect(() => {
     if (selectedCities.length > 0) {
@@ -1201,11 +1510,6 @@ export function MoradiaPortal({
       } catch {
         // Ignore storage errors
       }
-      void fetch("/api/favorites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key, favorite: !exists }),
-      }).catch(() => {});
       return next;
     });
   }, []);
@@ -1242,7 +1546,9 @@ export function MoradiaPortal({
       if (res.ok) {
         const fresh = (await res.json()) as MoradiaDatasetPayload;
         setDataset(fresh);
-        if (fresh.favorites && fresh.favorites.length > 0) {
+        if (fresh.preferences) {
+          applySharedPreferencesToState(fresh.preferences);
+        } else if (fresh.favorites && fresh.favorites.length > 0) {
           setFavoriteKeys((prev) => [
             ...new Set([...prev, ...(fresh.favorites ?? [])]),
           ]);
@@ -1251,7 +1557,7 @@ export function MoradiaPortal({
     } finally {
       setIsRefreshing(false);
     }
-  }, []);
+  }, [applySharedPreferencesToState]);
 
   const fetchScrapeStatus = useCallback(async () => {
     try {

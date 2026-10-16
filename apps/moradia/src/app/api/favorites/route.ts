@@ -1,8 +1,17 @@
-import { loadFavorites, toggleFavoriteInStore } from "@/lib/dataset-store";
+import {
+  loadSharedPreferences,
+  toggleSharedFavorite,
+} from "@/lib/preferences-store";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  return NextResponse.json({ favorites: loadFavorites() });
+  const prefs = await loadSharedPreferences();
+  return NextResponse.json(
+    { favorites: prefs.favorites, updatedAt: prefs.updatedAt },
+    { headers: { "Cache-Control": "no-store, max-age=0" } },
+  );
 }
 
 export async function POST(request: Request) {
@@ -19,8 +28,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const favorites = toggleFavoriteInStore(body.key, body.favorite);
-    return NextResponse.json({ ok: true, favorites });
+    const favorites = await toggleSharedFavorite(body.key, body.favorite);
+    return NextResponse.json(
+      { ok: true, favorites },
+      { headers: { "Cache-Control": "no-store, max-age=0" } },
+    );
   } catch (err) {
     return NextResponse.json(
       {

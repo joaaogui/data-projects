@@ -144,3 +144,23 @@ export const weightPresets = moradiaSchema.table("weight_presets", {
     .defaultNow()
     .notNull(),
 });
+
+export const userPreferences = moradiaSchema.table("user_preferences", {
+  id: text("id").primaryKey(),
+  filters: jsonb("filters")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+  weights: jsonb("weights")
+    .$type<Partial<ScoringWeights>>()
+    .notNull()
+    .default({}),
+  activePresetId: text("active_preset_id")
+    .notNull()
+    .default("balanced-original"),
+  favorites: jsonb("favorites").$type<string[]>().notNull().default([]),
+  compareKeys: jsonb("compare_keys").$type<string[]>().notNull().default([]),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});

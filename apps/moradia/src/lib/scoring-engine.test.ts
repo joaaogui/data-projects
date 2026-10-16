@@ -11,6 +11,7 @@ import {
   filterAndSortProperties,
   matchesFloorFilter,
   matchesPropertyFeature,
+  parseExplorerFiltersObject,
 } from "@/components/moradia-portal";
 import {
   getCardPhotoUrl,
@@ -1202,5 +1203,63 @@ describe("Moradia Dynamic Scoring Engine", () => {
       selectedCities: [],
     });
     expect(legacySingleCity.map((p) => p.id)).toEqual(["multi-city-cp"]);
+  });
+
+  it("parses and sanitizes shared DB explorer filters across devices via parseExplorerFiltersObject", () => {
+    const parsed = parseExplorerFiltersObject({
+      selectedCities: ["BH", "RJ", "BH", "INVALID"],
+      selectedNeighborhoods: ["Lourdes", "Flamengo"],
+      searchQuery: "cobertura",
+      floorFilter: "HIGH_OR_TOP",
+      minTotalMonthly: 2500,
+      maxTotalMonthly: 4800,
+      minScore: 140,
+      sortBy: "floor_desc",
+      minAreaM2: 45,
+      maxAreaM2: 90,
+      minBedrooms: 2,
+      minBathrooms: 2,
+      minParking: 1,
+      modernityTiers: ["MODERN_OR_RENOVATED", "WELL_MAINTAINED"],
+      minModernityScore: 80,
+      furnishedFilter: "UNFURNISHED",
+      requiredFeatures: ["ac", "balcony", "invalid_feature"],
+      hideMegaCondo: true,
+      hideForSale: true,
+      onlyNewEntries: false,
+      showIneligible: false,
+      providerFilter: "quintoandar",
+      onlyFavorites: true,
+      deactivatedFilter: "ACTIVE_ONLY",
+      showAdvancedFilters: true,
+      viewMode: "split",
+    });
+
+    expect(parsed.selectedCities).toEqual(["BH", "RJ"]);
+    expect(parsed.selectedNeighborhoods).toEqual(["Lourdes", "Flamengo"]);
+    expect(parsed.searchQuery).toBe("cobertura");
+    expect(parsed.floorFilter).toBe("HIGH_OR_TOP");
+    expect(parsed.minTotalMonthly).toBe(2500);
+    expect(parsed.maxTotalMonthly).toBe(4800);
+    expect(parsed.minScore).toBe(140);
+    expect(parsed.sortBy).toBe("floor_desc");
+    expect(parsed.minAreaM2).toBe(45);
+    expect(parsed.maxAreaM2).toBe(90);
+    expect(parsed.minBedrooms).toBe(2);
+    expect(parsed.minBathrooms).toBe(2);
+    expect(parsed.minParking).toBe(1);
+    expect(parsed.modernityTiers).toEqual([
+      "MODERN_OR_RENOVATED",
+      "WELL_MAINTAINED",
+    ]);
+    expect(parsed.minModernityScore).toBe(80);
+    expect(parsed.furnishedFilter).toBe("UNFURNISHED");
+    expect(parsed.requiredFeatures).toEqual(["ac", "balcony"]);
+    expect(parsed.hideMegaCondo).toBe(true);
+    expect(parsed.hideForSale).toBe(true);
+    expect(parsed.providerFilter).toBe("quintoandar");
+    expect(parsed.onlyFavorites).toBe(true);
+    expect(parsed.showAdvancedFilters).toBe(true);
+    expect(parsed.viewMode).toBe("split");
   });
 });

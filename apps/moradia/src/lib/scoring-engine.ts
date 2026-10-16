@@ -10,7 +10,7 @@ import type {
 
 export const DEFAULT_WEIGHTS: ScoringWeights = {
   urbanBreathingWeight: 1.0,
-  commuteLogisticsWeight: 1.0,
+  commuteLogisticsWeight: 1.8,
   buildingStockWeight: 1.0,
   budgetFitWeight: 1.0,
   safetyCarWeight: 2.5,
@@ -322,9 +322,18 @@ export function computeWeightedNeighborhoodScore(
     }
   }
 
+  const commuteScale = Math.min(1, Math.max(0, weights.commuteLogisticsWeight));
+  let commuteDistanceDelta = 0;
+  if (scores.commuteLogistics < 7.0) {
+    commuteDistanceDelta = -(7.0 - scores.commuteLogistics) * 0.65 * commuteScale;
+    if (scores.commuteLogistics <= 4.0) {
+      commuteDistanceDelta -= 1.4 * commuteScale;
+    }
+  }
+
   const finalScore = Math.max(
     1.0,
-    Math.min(10.0, weighted + streetSafetyDelta),
+    Math.min(10.0, weighted + streetSafetyDelta + commuteDistanceDelta),
   );
   return Math.round(finalScore * 100) / 100;
 }
@@ -1844,11 +1853,51 @@ export function computeDynamicProperties(
     const streetSafetyAdjustment =
       Math.round(rawStreetSafetyPts * safetyWeightScale * 10) / 10;
 
+    const nbCommuteLogistics = catalogNb
+      ? calibratedMeta
+        ? Math.min(catalogNb.commuteLogisticsScore, calibratedMeta.commuteLogistics)
+        : catalogNb.commuteLogisticsScore
+      : calibratedMeta
+        ? calibratedMeta.commuteLogistics
+        : 6.5;
+
+    // Direct Commute-Distance Impact (heavily penalize far-away neighborhoods like Barra da Tijuca / Barra Olímpica / Ponte Rio-Niterói)
+    const commuteWeightScale = weights.commuteLogisticsWeight / 1.8;
+    const fullLocationText = `${prop.street ?? ""} ${prop.title ?? ""} ${prop.description ?? ""}`;
+    const isDeepWestBarra =
+      prop.cityCode === "RJ" &&
+      /\b(barra ol[ií]mpica|estrada dos bandeirantes|shopping metropolitano|curicica|jacarepagu[aá]|recreio|riocentro|abelardo bueno|salvador allende|ad[ií]lio de oliveira)\b/i.test(
+        fullLocationText,
+      );
+    let rawCommutePts = 0;
+    if (isDeepWestBarra) {
+      rawCommutePts = -48.0;
+    } else if (nbCommuteLogistics <= 4.0) {
+      rawCommutePts = -32.0;
+    } else if (nbCommuteLogistics < 6.5) {
+      rawCommutePts = -((6.5 - nbCommuteLogistics) * 6.5);
+    } else if (nbCommuteLogistics >= 9.2) {
+      rawCommutePts = 4.0;
+    }
+    const commuteDistanceAdjustment =
+      Math.round(rawCommutePts * commuteWeightScale * 10) / 10;
+
     const modernityPoints =
       Math.round(prop.modernityScore * weights.modernityMultiplier * 10) / 10;
 
     // Nuances evaluation
     const nuances = evaluateApartmentNuances(prop, weights.penalizeMegaCondo);
+    if (isDeepWestBarra || nbCommuteLogistics <= 4.0) {
+      const distTag = isDeepWestBarra
+        ? "Barra Olímpica / Muito Longe do Nubank (75–100 min)"
+        : "Longe do Escritório (60–90 min)";
+      if (!nuances.redTags.includes(distTag)) {
+        nuances.redTags.unshift(distTag);
+      }
+      nuances.nuanceWarnings.unshift(
+        `Distância crítica até o escritório do Nubank (${commuteDistanceAdjustment.toFixed(1)} pts)`,
+      );
+    }
     if (nbSafetyCar < 6.0) {
       if (!nuances.redTags.includes("Alerta de Segurança na Rua")) {
         nuances.redTags.unshift("Alerta de Segurança na Rua");
@@ -1935,6 +1984,7 @@ export function computeDynamicProperties(
       Math.round(
         (neighborhoodPoints +
           streetSafetyAdjustment +
+          commuteDistanceAdjustment +
           cityPreferencePoints +
           modernityPoints +
           nuancesPoints +
