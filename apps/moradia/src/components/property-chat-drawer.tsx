@@ -194,41 +194,70 @@ export function PropertyChatDrawer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onOpenChange]);
 
-  // Auto-scroll to bottom when new items arrive or drawer opens
+  const lastItem = qaItems.at(-1);
+  const lastItemSignature = lastItem
+    ? `${lastItem.id}:${lastItem.status}:${lastItem.answeredAt ?? ""}:${(lastItem.answer ?? "").length}`
+    : "";
+  const prevAutoScrollRef = useRef<{
+    open: boolean;
+    length: number;
+    lastSignature: string;
+  }>({
+    open: false,
+    length: qaItems.length,
+    lastSignature: lastItemSignature,
+  });
+
+  // Scroll to a targeted property's message when requested from a card badge
   useEffect(() => {
-    if (!open) return;
-    if (scrollTargetPropertyKey) {
-      const targetItems = qaItems.filter(
-        (i) => i.propertyKey === scrollTargetPropertyKey,
-      );
-      const lastTarget = targetItems.at(-1);
-      if (lastTarget) {
-        setHighlightedId(lastTarget.id);
-        setTimeout(() => {
-          const el = messageRefs.current.get(lastTarget.id);
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-          onConsumeScrollTarget?.();
-        }, 120);
-        setTimeout(() => setHighlightedId(null), 2600);
-        return;
-      }
-      onConsumeScrollTarget?.();
+    if (!open || !scrollTargetPropertyKey) return;
+    const targetItems = qaItems.filter(
+      (i) => i.propertyKey === scrollTargetPropertyKey,
+    );
+    const lastTarget = targetItems.at(-1);
+    if (lastTarget) {
+      setHighlightedId(lastTarget.id);
+      const scrollTimer = setTimeout(() => {
+        const el = messageRefs.current.get(lastTarget.id);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        onConsumeScrollTarget?.();
+      }, 120);
+      const clearTimer = setTimeout(() => setHighlightedId(null), 2600);
+      return () => {
+        clearTimeout(scrollTimer);
+        clearTimeout(clearTimer);
+      };
     }
-    setTimeout(() => {
+    onConsumeScrollTarget?.();
+  }, [open, scrollTargetPropertyKey, qaItems, onConsumeScrollTarget]);
+
+  // Auto-scroll to bottom only when drawer opens, items.length increases, or the last item's status/answer changes
+  useEffect(() => {
+    const prev = prevAutoScrollRef.current;
+    const justOpened = open && !prev.open;
+    const lengthIncreased = qaItems.length > prev.length;
+    const lastChanged =
+      qaItems.length > 0 && lastItemSignature !== prev.lastSignature;
+
+    prevAutoScrollRef.current = {
+      open,
+      length: qaItems.length,
+      lastSignature: lastItemSignature,
+    };
+
+    if (!open || scrollTargetPropertyKey) return;
+    if (!justOpened && !lengthIncreased && !lastChanged) return;
+
+    const timer = setTimeout(() => {
       if (scrollContainerRef.current) {
         scrollContainerRef.current.scrollTop =
           scrollContainerRef.current.scrollHeight;
       }
     }, 60);
-  }, [
-    open,
-    qaItems.length,
-    scrollTargetPropertyKey,
-    qaItems,
-    onConsumeScrollTarget,
-  ]);
+    return () => clearTimeout(timer);
+  }, [open, qaItems.length, lastItemSignature, scrollTargetPropertyKey]);
 
   // Focus textarea when drawer opens or pinned property changes
   useEffect(() => {

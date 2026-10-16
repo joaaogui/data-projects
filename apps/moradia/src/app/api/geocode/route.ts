@@ -151,7 +151,8 @@ export async function POST(request: Request) {
     let cacheMutated = false;
     const coordinates: Record<string, PropertyCoordinate> = {};
 
-    let liveLookupsRemaining = 6;
+    const MAX_LIVE_LOOKUPS_PER_REQUEST = 6;
+    let liveLookupsRemaining = MAX_LIVE_LOOKUPS_PER_REQUEST;
 
     for (const item of items) {
       if (!item?.key || !item?.cityCode) continue;
@@ -166,17 +167,30 @@ export async function POST(request: Request) {
           lat: cached.lat,
           lng: cached.lng,
           source: "cache",
+          final: true,
         };
         continue;
       }
 
       const instant = resolveInstantPropertyCoordinate(item);
       if (instant.source === "street") {
-        coordinates[item.key] = instant;
+        coordinates[item.key] = {
+          ...instant,
+          final: true,
+        };
         continue;
       }
 
-      if (liveLookupsRemaining > 0 && item.street.trim().length > 3) {
+      const canAttemptLiveLookup = item.street.trim().length > 3;
+      if (!canAttemptLiveLookup) {
+        coordinates[item.key] = {
+          ...instant,
+          final: true,
+        };
+        continue;
+      }
+
+      if (liveLookupsRemaining > 0) {
         liveLookupsRemaining -= 1;
         const resolved = await queryOsmGeocoder(item);
         if (resolved) {
@@ -190,12 +204,21 @@ export async function POST(request: Request) {
             lat: resolved.lat,
             lng: resolved.lng,
             source: "nominatim",
+            final: true,
           };
           continue;
         }
+        coordinates[item.key] = {
+          ...instant,
+          final: true,
+        };
+        continue;
       }
 
-      coordinates[item.key] = instant;
+      coordinates[item.key] = {
+        ...instant,
+        final: false,
+      };
     }
 
     if (cacheMutated) {

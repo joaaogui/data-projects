@@ -20,6 +20,61 @@ const clientPhotosCache = new Map<
   Array<{ room: string | null; url: string }>
 >();
 
+export const inFlightPhotoRequests = new Map<
+  string,
+  Promise<Array<{ room: string | null; url: string }>>
+>();
+
+export const completedPhotoFetchKeys = new Set<string>();
+
+export function fetchPropertyPhotosShared(params: {
+  provider: string;
+  id: string;
+  url: string;
+}): Promise<Array<{ room: string | null; url: string }>> {
+  const propKey = `${params.provider}:${params.id}`;
+  const existing = inFlightPhotoRequests.get(propKey);
+  if (existing) {
+    return existing;
+  }
+
+  const query = new URLSearchParams({
+    provider: params.provider,
+    id: params.id,
+    url: params.url,
+  });
+
+  const reqPromise = fetch(`/api/photos?${query.toString()}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .then(
+      (
+        data: {
+          ok?: boolean;
+          photos?: Array<{ room: string | null; url: string }>;
+        } | null,
+      ) => {
+        if (data?.ok && Array.isArray(data.photos)) {
+          completedPhotoFetchKeys.add(propKey);
+          if (data.photos.length > 0) {
+            const prev = clientPhotosCache.get(propKey);
+            if (!prev || data.photos.length >= prev.length) {
+              clientPhotosCache.set(propKey, data.photos);
+            }
+          }
+          return data.photos;
+        }
+        return [];
+      },
+    )
+    .catch(() => [])
+    .finally(() => {
+      inFlightPhotoRequests.delete(propKey);
+    });
+
+  inFlightPhotoRequests.set(propKey, reqPromise);
+  return reqPromise;
+}
+
 /**
  * Upgrades a property photo URL to maximum available resolution for the fullscreen gallery modal.
  * - QuintoAndar: `/img/med/` (450x300) -> `/img/xxl/` (1152x768)
@@ -189,32 +244,20 @@ export function PropertyCardPhotoShowcase({
       setLoadedPhotos(cached);
       return;
     }
+    if (completedPhotoFetchKeys.has(propKey)) return;
 
     let cancelled = false;
     setIsLoadingCardPhotos(true);
-    const queryUrl = `/api/photos?provider=${encodeURIComponent(property.provider)}&id=${encodeURIComponent(property.id)}&url=${encodeURIComponent(property.url)}`;
-    fetch(queryUrl)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(
-        (
-          data: {
-            ok?: boolean;
-            photos?: Array<{ room: string | null; url: string }>;
-          } | null,
-        ) => {
-          if (cancelled) return;
-          if (
-            data?.ok &&
-            Array.isArray(data.photos) &&
-            data.photos.length > 0
-          ) {
-            clientPhotosCache.set(propKey, data.photos);
-            setLoadedPhotos(data.photos);
-          }
-        },
-      )
-      .catch(() => {
-        // Ignore fetch error
+    void fetchPropertyPhotosShared({
+      provider: property.provider,
+      id: property.id,
+      url: property.url,
+    })
+      .then((fetchedPhotos) => {
+        if (cancelled) return;
+        if (fetchedPhotos.length > 0) {
+          setLoadedPhotos(fetchedPhotos);
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoadingCardPhotos(false);
@@ -672,39 +715,23 @@ export function PropertyPhotoGalleryModal({
     }
     const shouldFetchMore =
       Boolean(property.url) &&
+      !completedPhotoFetchKeys.has(propKey) &&
       (expectedCount > galleryPhotos.length || galleryPhotos.length <= 6);
     if (!shouldFetchMore) return;
 
     let cancelled = false;
     setIsLoadingAllPhotos(true);
-    const query = new URLSearchParams({
+    void fetchPropertyPhotosShared({
       provider: property.provider,
       id: property.id,
       url: property.url,
-    });
-    fetch(`/api/photos?${query.toString()}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(
-        (
-          data: {
-            ok?: boolean;
-            photos?: Array<{ room: string | null; url: string }>;
-          } | null,
-        ) => {
-          if (cancelled) return;
-          if (
-            data?.ok &&
-            Array.isArray(data.photos) &&
-            data.photos.length > galleryPhotos.length
-          ) {
-            clientPhotosCache.set(propKey, data.photos);
-            setGalleryPhotos(data.photos);
-            onPhotosLoaded?.(data.photos);
-          }
-        },
-      )
-      .catch(() => {
-        // Keep existing samplePhotos on error
+    })
+      .then((fetchedPhotos) => {
+        if (cancelled) return;
+        if (fetchedPhotos.length > galleryPhotos.length) {
+          setGalleryPhotos(fetchedPhotos);
+          onPhotosLoaded?.(fetchedPhotos);
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoadingAllPhotos(false);

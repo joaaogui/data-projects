@@ -128,6 +128,7 @@ export interface PropertyCoordinate {
   lat: number;
   lng: number;
   source: "cache" | "nominatim" | "street" | "neighborhood";
+  final?: boolean;
 }
 
 const NEIGHBORHOOD_COORDINATES: Record<string, [number, number]> = {
