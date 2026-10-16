@@ -2958,7 +2958,7 @@ export function MoradiaPortal({
                 type="button"
                 onClick={() => setShowAdvancedFilters((v) => !v)}
                 aria-expanded={showAdvancedFilters}
-                className={`order-2 sm:order-6 inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-2.5 ${
+                className={`order-2 sm:order-6 inline-flex shrink-0 items-center gap-1 rounded-lg border px-1.5 py-1 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-2.5 ${
                   showAdvancedFilters || activeAdvancedFilterCount > 0
                     ? "border-primary/50 bg-primary/10 text-primary"
                     : "bg-background hover:bg-secondary"
@@ -2988,7 +2988,7 @@ export function MoradiaPortal({
                 }}
                 aria-pressed={onlyFavorites}
                 title="Mostrar apenas seus imóveis favoritados (inclusive os que foram alugados/desativados)"
-                className={`order-3 sm:order-2 inline-flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-2.5 ${
+                className={`order-3 sm:order-2 inline-flex shrink-0 items-center gap-1 rounded-lg border px-1.5 py-1 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-2.5 ${
                   onlyFavorites
                     ? "border-rose-500/50 bg-rose-500/15 text-rose-700 dark:text-rose-200"
                     : "bg-background text-foreground hover:bg-secondary"
@@ -3006,7 +3006,7 @@ export function MoradiaPortal({
               </button>
 
               {/* Sort By Selector */}
-              <div className="relative order-4 sm:order-4 inline-flex min-w-0 flex-1 sm:flex-initial items-center gap-1 rounded-lg border bg-background px-2 py-1 text-xs sm:gap-1.5 sm:px-2.5">
+              <div className="relative order-4 sm:order-4 inline-flex min-w-0 flex-1 sm:flex-initial items-center gap-1 rounded-lg border bg-background px-1.5 py-1 text-xs sm:gap-1.5 sm:px-2.5">
                 <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <span className="text-muted-foreground hidden sm:inline">
                   Ordenar:
