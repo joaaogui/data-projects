@@ -57,6 +57,17 @@ export const NUBANK_HUBS: Record<CityHubCode, NubankHubLocation> = {
     lat: -23.006134,
     lng: -47.117777,
   },
+  BSB: {
+    id: "bsb-parque-aguas-claras",
+    cityCode: "BSB",
+    name: "Parque Ecológico de Águas Claras — Referência BSB",
+    shortLabel: "Ref. BSB",
+    bannerSubtitle: "BSB · Parque de Águas Claras (Benchmark)",
+    address:
+      "Av. Castanheiras / Parque Ecológico de Águas Claras — Águas Claras, Brasília - DF, 71900-100",
+    lat: -15.8365,
+    lng: -48.0258,
+  },
 };
 
 /**
@@ -79,7 +90,7 @@ export const ADDITIONAL_NUBANK_HUBS: NubankHubLocation[] = [
 ];
 
 export const ALL_NUBANK_HUB_LOCATIONS: NubankHubLocation[] = [
-  ...Object.values(NUBANK_HUBS),
+  ...Object.values(NUBANK_HUBS).filter((h) => h.cityCode !== "BSB"),
   ...ADDITIONAL_NUBANK_HUBS,
 ];
 
@@ -95,6 +106,7 @@ export const CITY_BOUNDING_BOXES: Record<CityHubCode, CityBoundingBox> = {
   RJ: { minLat: -23.12, maxLat: -22.75, minLng: -43.55, maxLng: -42.95 },
   CP: { minLat: -23.10, maxLat: -22.75, minLng: -47.25, maxLng: -46.90 },
   SP: { minLat: -23.78, maxLat: -23.40, minLng: -46.85, maxLng: -46.45 },
+  BSB: { minLat: -15.90, maxLat: -15.75, minLng: -48.10, maxLng: -47.95 },
 };
 
 export function isCoordinateInsideCityBox(
@@ -259,6 +271,16 @@ const NEIGHBORHOOD_COORDINATES: Record<string, [number, number]> = {
   "sp:centro": [-23.5505, -46.6335],
   "sp:brás": [-23.5455, -46.6165],
   "sp:campos elíseos": [-23.5315, -46.6455],
+
+  // === BSB (Águas Claras, Brasília - DF) ===
+  "bsb:águas claras": [-15.8386, -48.0269],
+  "bsb:aguas claras": [-15.8386, -48.0269],
+  "bsb:norte (águas claras)": [-15.8335, -48.0255],
+  "bsb:norte (aguas claras)": [-15.8335, -48.0255],
+  "bsb:águas claras norte": [-15.8335, -48.0255],
+  "bsb:sul (águas claras)": [-15.8425, -48.0285],
+  "bsb:sul (aguas claras)": [-15.8425, -48.0285],
+  "bsb:águas claras sul": [-15.8425, -48.0285],
 };
 
 /**
@@ -354,6 +376,20 @@ const KNOWN_STREET_COORDINATES: Record<string, [number, number]> = {
   "sp:alameda itu": [-23.5652, -46.6598],
   "sp:alameda franca": [-23.5668, -46.6612],
   "sp:alameda lorena": [-23.5682, -46.6632],
+
+  // BSB (Águas Claras)
+  "bsb:avenida das castanheiras": [-15.8345, -48.0245],
+  "bsb:av. das castanheiras": [-15.8345, -48.0245],
+  "bsb:avenida das araucárias": [-15.8415, -48.0275],
+  "bsb:av. das araucárias": [-15.8415, -48.0275],
+  "bsb:avenida parque águas claras": [-15.8365, -48.0260],
+  "bsb:avenida boulevard norte": [-15.8350, -48.0235],
+  "bsb:avenida boulevard sul": [-15.8405, -48.0265],
+  "bsb:avenida flamboyant": [-15.8410, -48.0310],
+  "bsb:avenida pau brasil": [-15.8435, -48.0295],
+  "bsb:avenida jacarandá": [-15.8445, -48.0340],
+  "bsb:avenida sibipiruna": [-15.8375, -48.0335],
+  "bsb:avenida jequitibá": [-15.8455, -48.0245],
 };
 
 function normalizeTextToken(raw: string): string {

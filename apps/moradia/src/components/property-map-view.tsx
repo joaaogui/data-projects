@@ -71,6 +71,7 @@ const HUB_BANNER_SUBTITLE: Record<CityHubCode, string> = {
   RJ: "RJ · Porto Maravilha",
   SP: "SP · Pinheiros",
   CP: "CP · Viracopos",
+  BSB: "BSB · Parque de Águas Claras",
 };
 
 interface LeafletMapInstance {
@@ -379,6 +380,8 @@ export function resolveDisplayPoints(
 
 export interface PropertyMapViewProps {
   properties: EvaluatedProperty[];
+  totalFilteredCount?: number;
+  onLoadMore?: () => void;
   selectedCity: CityHubCode | "ALL";
   favoriteKeys: string[];
   hoveredPropertyKey: string | null;
@@ -392,6 +395,8 @@ export interface PropertyMapViewProps {
 
 export function PropertyMapView({
   properties,
+  totalFilteredCount,
+  onLoadMore,
   selectedCity,
   favoriteKeys,
   hoveredPropertyKey,
@@ -745,7 +750,13 @@ export function PropertyMapView({
     lineGroup.clearLayers();
 
     // 1. Render Nubank Office HQ Beacons + 2.5km Commute Radius Rings
-    for (const hub of ALL_NUBANK_HUB_LOCATIONS) {
+    const activeHubs =
+      selectedCity === "BSB" ||
+      resolvedItems.some((it) => it.prop.cityCode === "BSB")
+        ? [...ALL_NUBANK_HUB_LOCATIONS, NUBANK_HUBS.BSB]
+        : ALL_NUBANK_HUB_LOCATIONS;
+
+    for (const hub of activeHubs) {
       if (typeof L.circle === "function") {
         // Outer 2.5 km commute ring
         L.circle([hub.lat, hub.lng], {
@@ -853,7 +864,7 @@ export function PropertyMapView({
                   font-weight:900;
                   letter-spacing:0.06em;
                   color:#fde047;
-                ">★ ESCRITÓRIO NUBANK</span>
+                ">${hub.cityCode === "BSB" ? "★ REFERÊNCIA ATUAL (BSB)" : "★ ESCRITÓRIO NUBANK"}</span>
                 <span style="
                   font-family:ui-sans-serif,system-ui,sans-serif;
                   font-size:10px;
@@ -1073,7 +1084,7 @@ export function PropertyMapView({
   }, [selectedPropertyKey, hoveredPropertyKey, resolvedItems]);
 
   const cityCounts = useMemo(() => {
-    const map: Record<CityHubCode, number> = { BH: 0, RJ: 0, CP: 0, SP: 0 };
+    const map: Record<CityHubCode, number> = { BH: 0, RJ: 0, CP: 0, SP: 0, BSB: 0 };
     for (const item of resolvedItems) {
       map[item.prop.cityCode] += 1;
     }
@@ -1086,7 +1097,7 @@ export function PropertyMapView({
       <div className="flex items-center justify-between gap-1.5 border-b bg-card/95 px-2 py-1 text-xs backdrop-blur-xs z-20 overflow-x-auto whitespace-nowrap">
         {/* Quick City-Hub Jump Buttons */}
         <div className="flex items-center gap-1 shrink-0">
-          {(["BH", "RJ", "CP", "SP"] as const).map((c) => {
+          {(["BH", "RJ", "CP", "SP", ...(cityCounts.BSB > 0 || selectedCity === "BSB" ? (["BSB"] as const) : [])] as const).map((c) => {
             const count = cityCounts[c];
             const isHubActive = focusedHubCity === c;
             return (
@@ -1133,6 +1144,19 @@ export function PropertyMapView({
               GPS
             </span>
           )}
+
+          {onLoadMore &&
+            totalFilteredCount !== undefined &&
+            properties.length < totalFilteredCount && (
+              <button
+                type="button"
+                data-testid="map-load-more-button"
+                onClick={onLoadMore}
+                className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 whitespace-nowrap"
+              >
+                +Mais ({properties.length} de {totalFilteredCount})
+              </button>
+            )}
         </div>
 
         {/* Layer Switcher: Satélite + Ruas | Satélite | Mapa Limpo */}

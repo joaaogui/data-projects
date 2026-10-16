@@ -140,6 +140,11 @@ const CITY_BADGE_MODAL: Record<
     className:
       "border-fuchsia-400/40 bg-fuchsia-500/20 text-fuchsia-200",
   },
+  BSB: {
+    ufLabel: "BSB · Ref",
+    className:
+      "border-amber-400/45 bg-amber-500/20 text-amber-200",
+  },
 };
 
 export function PropertyCardPhotoShowcase({

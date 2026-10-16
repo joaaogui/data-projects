@@ -10,13 +10,13 @@ import type {
 } from "@/types/moradia";
 
 export const DEFAULT_WEIGHTS: ScoringWeights = {
-  urbanBreathingWeight: 1.0,
+  urbanBreathingWeight: 2.0,
   commuteLogisticsWeight: 1.8,
   buildingStockWeight: 1.0,
   budgetFitWeight: 1.0,
   safetyCarWeight: 2.5,
   neighborhoodMultiplier: 6.5,
-  modernityMultiplier: 0.65,
+  modernityMultiplier: 0.85,
   nuancesMultiplier: 1.0,
   minModernityScore: 60,
   budgetIdeal: 5500,
@@ -31,8 +31,8 @@ export const DEFAULT_WEIGHTS: ScoringWeights = {
   penalizeMegaCondo: true,
   minAreaM2: 40,
   maxAreaM2: 95,
-  sweetSpotMinM2: 48,
-  sweetSpotMaxM2: 68,
+  sweetSpotMinM2: 50,
+  sweetSpotMaxM2: 72,
 };
 
 export const BUILTIN_PRESETS: {
@@ -206,9 +206,9 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "CP:Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 9.6, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
   "CP:Parque Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 9.6, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
   "CP:Mansões Santo Antônio": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 8.0, commuteLogistics: 7.2, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.6 },
-  "CP:Jd. Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.5, commuteLogistics: 8.0, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.5 },
-  "CP:Jardim Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.5, commuteLogistics: 8.0, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.5 },
-  "CP:Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.5, commuteLogistics: 8.0, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.5 },
+  "CP:Jd. Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.0, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.5 },
+  "CP:Jardim Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.0, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.5 },
+  "CP:Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.0, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.5 },
   "CP:Chácara Primavera": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 8.2, commuteLogistics: 7.4, buildingStock: 8.4, budgetFit: 8.4, safetyCar: 8.5 },
   "CP:Chácara da Barra": { cityCode: "CP", commute: "25-30 min do Nubank (Viracopos)", urbanBreathing: 8.2, commuteLogistics: 7.6, buildingStock: 8.2, budgetFit: 8.2, safetyCar: 8.5 },
   "CP:Jd. Chapadão": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 7.8, commuteLogistics: 6.5, buildingStock: 6.5, budgetFit: 7.8, safetyCar: 8.5 },
@@ -217,7 +217,7 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "CP:Parque Prado": { cityCode: "CP", commute: "15 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 9.4, buildingStock: 7.5, budgetFit: 8.5, safetyCar: 8.5 },
   "CP:Vila Itapura": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.0, buildingStock: 7.8, budgetFit: 8.2, safetyCar: 8.0 },
   "CP:Jardim Proença": { cityCode: "CP", commute: "15-20 min do Nubank (Viracopos)", urbanBreathing: 7.6, commuteLogistics: 8.8, buildingStock: 7.6, budgetFit: 8.2, safetyCar: 8.0 },
-  "CP:Bosque": { cityCode: "CP", commute: "15-20 min do Nubank (Viracopos)", urbanBreathing: 8.0, commuteLogistics: 9.0, buildingStock: 7.8, budgetFit: 8.2, safetyCar: 7.9 },
+  "CP:Bosque": { cityCode: "CP", commute: "15-20 min do Nubank (Viracopos)", urbanBreathing: 7.4, commuteLogistics: 8.5, buildingStock: 7.8, budgetFit: 8.2, safetyCar: 7.9 },
   "CP:Botafogo": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 6.4, commuteLogistics: 8.0, buildingStock: 7.2, budgetFit: 8.6, safetyCar: 6.8 },
   "CP:Centro": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 5.5, commuteLogistics: 8.2, buildingStock: 6.5, budgetFit: 8.8, safetyCar: 5.5 },
 
@@ -261,6 +261,14 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "SP:Sé": { cityCode: "SP", commute: "30-40 min do Nubank (Pinheiros)", urbanBreathing: 4.5, commuteLogistics: 6.8, buildingStock: 5.5, budgetFit: 8.4, safetyCar: 3.8 },
   "SP:Centro": { cityCode: "SP", commute: "25-40 min do Nubank (Pinheiros)", urbanBreathing: 4.8, commuteLogistics: 7.0, buildingStock: 5.8, budgetFit: 8.4, safetyCar: 3.8 },
   "SP:Campos Elíseos": { cityCode: "SP", commute: "25-35 min do Nubank (Pinheiros)", urbanBreathing: 4.5, commuteLogistics: 7.0, buildingStock: 5.5, budgetFit: 8.6, safetyCar: 3.5 },
+
+  // === BSB (Águas Claras, Brasília - DF — Benchmark de Referência Atual) ===
+  "BSB:Águas Claras": { cityCode: "BSB", commute: "Benchmark Referência Atual (Águas Claras - DF)", urbanBreathing: 8.5, commuteLogistics: 8.5, buildingStock: 9.2, budgetFit: 9.2, safetyCar: 8.8 },
+  "BSB:Aguas Claras": { cityCode: "BSB", commute: "Benchmark Referência Atual (Águas Claras - DF)", urbanBreathing: 8.5, commuteLogistics: 8.5, buildingStock: 9.2, budgetFit: 9.2, safetyCar: 8.8 },
+  "BSB:Norte (Águas Claras)": { cityCode: "BSB", commute: "Benchmark Referência Atual (Águas Claras Norte - DF)", urbanBreathing: 8.6, commuteLogistics: 8.5, buildingStock: 9.3, budgetFit: 9.2, safetyCar: 8.8 },
+  "BSB:Sul (Águas Claras)": { cityCode: "BSB", commute: "Benchmark Referência Atual (Águas Claras Sul - DF)", urbanBreathing: 8.5, commuteLogistics: 8.5, buildingStock: 9.2, budgetFit: 9.2, safetyCar: 8.8 },
+  "BSB:Águas Claras Norte": { cityCode: "BSB", commute: "Benchmark Referência Atual (Águas Claras Norte - DF)", urbanBreathing: 8.6, commuteLogistics: 8.5, buildingStock: 9.3, budgetFit: 9.2, safetyCar: 8.8 },
+  "BSB:Águas Claras Sul": { cityCode: "BSB", commute: "Benchmark Referência Atual (Águas Claras Sul - DF)", urbanBreathing: 8.5, commuteLogistics: 8.5, buildingStock: 9.2, budgetFit: 9.2, safetyCar: 8.8 },
 };
 
 const NORMALIZED_NEIGHBORHOOD_METRICS = new Map<
@@ -332,9 +340,24 @@ export function computeWeightedNeighborhoodScore(
     }
   }
 
+  const breathingScale = Math.min(1, Math.max(0, weights.urbanBreathingWeight));
+  let urbanBreathingDelta = 0;
+  if (scores.urbanBreathing >= 9.0) {
+    urbanBreathingDelta = 0.45 * breathingScale;
+  } else if (scores.urbanBreathing < 7.5) {
+    urbanBreathingDelta =
+      -(7.5 - scores.urbanBreathing) * 0.75 * breathingScale;
+  }
+
   const finalScore = Math.max(
     1.0,
-    Math.min(10.0, weighted + streetSafetyDelta + commuteDistanceDelta),
+    Math.min(
+      10.0,
+      weighted +
+        streetSafetyDelta +
+        commuteDistanceDelta +
+        urbanBreathingDelta,
+    ),
   );
   return Math.round(finalScore * 100) / 100;
 }
@@ -361,11 +384,19 @@ export function computeDynamicNeighborhoods(
       calibrated && calibrated.safetyCar < 6.5
         ? Math.min(n.safetyCarScore, calibrated.safetyCar)
         : n.safetyCarScore;
+    const effectiveUrbanBreathing =
+      calibrated && calibrated.urbanBreathing < 8.0
+        ? Math.min(n.urbanBreathingScore, calibrated.urbanBreathing)
+        : n.urbanBreathingScore;
+    const effectiveCommuteLogistics =
+      calibrated && calibrated.urbanBreathing < 8.0
+        ? Math.min(n.commuteLogisticsScore, calibrated.commuteLogistics)
+        : n.commuteLogisticsScore;
 
     const dynamicScore = computeWeightedNeighborhoodScore(
       {
-        urbanBreathing: n.urbanBreathingScore,
-        commuteLogistics: n.commuteLogisticsScore,
+        urbanBreathing: effectiveUrbanBreathing,
+        commuteLogistics: effectiveCommuteLogistics,
         buildingStock: n.buildingStockFitScore,
         budgetFit: n.budgetFitScore,
         safetyCar: effectiveSafetyCar,
@@ -384,8 +415,8 @@ export function computeDynamicNeighborhoods(
 
     const dynamicJustification =
       `Nota Dinâmica ${dynamicScore.toFixed(2)}/10 (Base original: ${n.baseScore.toFixed(1)}) — ` +
-      `Composição ponderada: Respiração Urbana ${n.urbanBreathingScore.toFixed(1)} (peso ${weights.urbanBreathingWeight.toFixed(1)}x), ` +
-      `Logística Nubank ${n.commuteLogisticsScore.toFixed(1)} (peso ${weights.commuteLogisticsWeight.toFixed(1)}x), ` +
+      `Composição ponderada: Respiração Urbana ${effectiveUrbanBreathing.toFixed(1)} (peso ${weights.urbanBreathingWeight.toFixed(1)}x), ` +
+      `Logística Nubank ${effectiveCommuteLogistics.toFixed(1)} (peso ${weights.commuteLogisticsWeight.toFixed(1)}x), ` +
       `Estoque Predial ${n.buildingStockFitScore.toFixed(1)} (peso ${weights.buildingStockWeight.toFixed(1)}x), ` +
       `Adequação Orçamento ${n.budgetFitScore.toFixed(1)} (peso ${weights.budgetFitWeight.toFixed(1)}x), ` +
       `Segurança & Carro ${effectiveSafetyCar.toFixed(1)} (peso ${weights.safetyCarWeight.toFixed(1)}x).${safetyPenaltyNote} ` +
@@ -393,6 +424,8 @@ export function computeDynamicNeighborhoods(
 
     return {
       ...n,
+      urbanBreathingScore: effectiveUrbanBreathing,
+      commuteLogisticsScore: effectiveCommuteLogistics,
       safetyCarScore: effectiveSafetyCar,
       dynamicScore,
       dynamicOverallRank: 0,
@@ -472,6 +505,581 @@ export function normalizeNeighborhoodKey(
   return trimmed;
 }
 
+const SLOPED_HILLSIDE_NEIGHBORHOODS = new Set<string>([
+  "bh:sion",
+  "bh:santo antônio",
+  "bh:cruzeiro",
+  "bh:serra",
+  "bh:anchieta",
+  "bh:carmo",
+  "bh:são pedro",
+  "bh:mangabeiras",
+  "bh:santa lúcia",
+  "bh:luxemburgo",
+  "bh:vila da serra",
+  "bh:vale do sereno",
+  "bh:belvedere",
+  "bh:buritis",
+  "bh:santo agostinho",
+  "bh:gutierrez",
+  "bh:cidade jardim",
+  "rj:laranjeiras",
+  "rj:cosme velho",
+  "rj:santa teresa",
+  "rj:glória",
+  "rj:humaitá",
+  "rj:gávea",
+  "rj:jardim botânico",
+  "sp:sumaré",
+  "sp:sumarezinho",
+  "sp:perdizes",
+  "sp:vila madalena",
+]);
+
+const ORDINAL_FLOOR_MAP: Record<string, number> = {
+  primeiro: 1,
+  segundo: 2,
+  terceiro: 3,
+  quarto: 4,
+  quinto: 5,
+  sexto: 6,
+  setimo: 7,
+  sétimo: 7,
+  oitavo: 8,
+  nono: 9,
+  decimo: 10,
+  décimo: 10,
+};
+
+const CONDO_OR_GARAGE_FLOOR_CONTEXT =
+  /\b(garagem|vagas?|estacionamento|box|lazer|piscina|academia|fitness|gin[aá]stica|quadra|sal[aã]o|festas|jogos|churrasqueira|gourmet|sky\s*lounge|sky\s*gourmet|lounge|rooftop|cobertura|terra[cç]o|coworking|office|trabalho|lavanderia|portaria|hall|recep[cç][aã]o|pilotis|lojas?|com[eé]rcio|padaria|mercearia|mercado|restaurante|cafeteria|galeteria|[aá]reas?\s+comuns?|brinquedoteca|brinquedos|playground|biciclet[aá]rio|lances?\s+de\s+escada|de\s+escada|elevadores?\s+por|unidades?\s+por|apartamentos?\s+por|aptos?\s+por|por\s+andar|por\s+pavimento|dropbox|chaves)\b/i;
+
+/**
+ * Determines whether free-text description explicitly states the apartment unit itself
+ * is on the ground floor ("Térreo"), ignoring mentions of condominium common areas,
+ * garage levels, lobbies, or street-level stores ("vaga no térreo", "lazer no térreo",
+ * "piscina no térreo", "portaria no térreo", "lojas no térreo").
+ */
+export function isExplicitUnitGroundFloor(rawText: string): boolean {
+  if (!rawText || !/\bt[eé]rreo\b/i.test(rawText)) return false;
+
+  // Reject duplex internal floor descriptions where one level is "primeiro andar" and another is "térreo"
+  if (
+    /\b(?:primeiro|1[º°ªo]?)\s*(?:andar|pavimento)\b[\s\S]{0,120}\bt[eé]rreo\b/i.test(
+      rawText,
+    )
+  ) {
+    return false;
+  }
+
+  for (const m of rawText.matchAll(/\bt[eé]rreo\b/gi)) {
+    const idx = m.index ?? 0;
+    const before = rawText.slice(Math.max(0, idx - 55), idx);
+    const after = rawText.slice(idx + m[0].length, idx + m[0].length + 45);
+    const clauseBefore = before.split(/[.,;!\n|]/).pop() ?? before;
+    const clauseAfter = after.split(/[.,;!\n|]/)[0] ?? after;
+    const localClause = `${clauseBefore} térreo ${clauseAfter}`;
+    const sentenceBefore = before.split(/[.;!\n|]/).pop() ?? before;
+    const sentenceAfter = after.split(/[.;!\n|]/)[0] ?? after;
+    const widerSentence = `${sentenceBefore} térreo ${sentenceAfter}`;
+
+    const isDirectUnitPhrase =
+      /\b(?:apartamento|apto\.?|im[oó]vel|unidade|flat|studio|kitnet)\s+(?:pronto para morar\s+)?(?:localizad[oa]\s+|situad[oa]\s+|fica\s+)?(?:no\s+|em\s+)?(?:piso\s+|andar\s+|n[ií]vel\s+)?t[eé]rreo\b/i.test(
+        widerSentence,
+      );
+    if (isDirectUnitPhrase) {
+      if (CONDO_OR_GARAGE_FLOOR_CONTEXT.test(clauseBefore)) continue;
+      return true;
+    }
+
+    if (CONDO_OR_GARAGE_FLOOR_CONTEXT.test(localClause)) continue;
+    if (CONDO_OR_GARAGE_FLOOR_CONTEXT.test(widerSentence)) continue;
+
+    if (
+      /\b(?:localizad[oa]|situad[oa]|fica)\s+(?:no\s+|em\s+)(?:piso\s+|andar\s+|n[ií]vel\s+)?t[eé]rreo\b/i.test(
+        localClause,
+      ) ||
+      /\b(?:andar|piso)\s+t[eé]rreo\b/i.test(localClause) ||
+      /\bbloco\s*\w+\s*[-–]\s*t[eé]rreo\b/i.test(widerSentence) ||
+      /^\s*(?:apartamento\s+|apto\s+|im[oó]vel\s+)?t[eé]rreo\s*$/i.test(
+        rawText.trim(),
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Extracts explicit apartment floor numbers (1 to 45) from description text while ignoring
+ * duplex internal floor breakdowns ("1º andar: sala, 2º andar: quartos"), condominium
+ * leisure/garage floors ("piscina no 17º andar", "vaga no 1º andar"), stair flights
+ * ("1 lance de escada"), or QuintoAndar company mentions ("Dropbox do 5 Andar").
+ */
+export function extractExplicitFloorFromText(rawText: string): number | null {
+  if (!rawText) return null;
+
+  // 1. Prioritize explicit physical height equivalences ("no 1º andar (equivalente ao 4º andar)")
+  const equivMatch = rawText.match(
+    /\b(?:equivalente|corresponde)\s+a(?:o)?\s+(\d{1,2})\s*(?:[º°ªo]?\s*(?:andar|pavimento))?\b/i,
+  );
+  if (equivMatch?.[1]) {
+    const n = Number(equivMatch[1]);
+    if (n >= 1 && n <= 45) return n;
+  }
+
+  // 2. Reject duplex internal floor breakdowns ("1º andar: sala... 2º andar: suíte")
+  const hasDuplexBreakdown =
+    (/\b(?:1[º°ªo]?|primeiro)\s*(?:andar|pavimento)\b/i.test(rawText) &&
+      /\b(?:2[º°ªo]?|segundo)\s*(?:andar|pavimento)\b/i.test(rawText)) ||
+    (/\b(?:1[º°ªo]?|primeiro)\s*(?:andar|pavimento)\b/i.test(rawText) &&
+      /\bt[eé]rreo\b/i.test(rawText)) ||
+    /\b(?:1[º°ªo]?|2[º°ªo]?|primeiro|segundo)\s*(?:andar|pavimento)\s*:/i.test(
+      rawText,
+    );
+  if (hasDuplexBreakdown) return null;
+
+  // 3. Explicit numeric floor mentions ("12º andar", "8° andar", "5º pavimento", "no 11 andar")
+  const numRegex =
+    /\b(\d{1,2})\s*([º°ªo])?\s*(andar|pavimento)\b(?!\s*(?:alto|baixo|m[eé]dio|intermedi[aá]rio))/gi;
+  for (const m of rawText.matchAll(numRegex)) {
+    const n = Number(m[1]);
+    if (!Number.isFinite(n) || n < 1 || n > 45) continue;
+    const hasOrdinal = Boolean(m[2]);
+    const idx = m.index ?? 0;
+    const before = rawText.slice(Math.max(0, idx - 55), idx);
+    const after = rawText.slice(idx + m[0].length, idx + m[0].length + 45);
+    const clauseBefore = before.split(/[.,;!\n|]/).pop() ?? before;
+    const clauseAfter = after.split(/[.,;!\n|]/)[0] ?? after;
+    const localClause = `${clauseBefore} ${m[0]} ${clauseAfter}`;
+    const sentenceBefore = before.split(/[.;!\n|]/).pop() ?? before;
+
+    if (CONDO_OR_GARAGE_FLOOR_CONTEXT.test(localClause)) continue;
+    if (
+      /\b(?:piscina|academia|sal[aã]o|festas|jogos|churrasqueira|gourmet|sky\s*lounge|sky\s*gourmet|lounge|rooftop|terra[cç]o|coworking|lavanderia|garagem|vagas?|restaurante|lances?\s+de\s+escada|de\s+escada)\b/i.test(
+        sentenceBefore,
+      )
+    ) {
+      continue;
+    }
+    if (
+      /\b(?:quartos?|qtos?|su[ií]tes?|dormit[oó]rios?|sala|cozinha)\s+(?:p\s+)?(?:localizad[oa]s?\s+|ficam?\s+|no\s+)/i.test(
+        localClause,
+      )
+    ) {
+      continue;
+    }
+    if (!hasOrdinal) {
+      const validNoOrdinal =
+        /\b(?:no|do|ao|em|apto\.?|apartamento|unidade|quarto|m[²2]|andar)\s*$/i.test(
+          clauseBefore.trim(),
+        ) || /^\s*\d{1,2}\s+(?:andar|pavimento)\b/i.test(localClause.trim());
+      if (!validNoOrdinal) continue;
+    }
+    return n;
+  }
+
+  // 4. Portuguese ordinal words ("primeiro andar" .. "décimo andar")
+  const ordRegex =
+    /\b(primeiro|segundo|terceiro|quarto|quinto|sexto|s[eé]timo|oitavo|nono|d[eé]cimo)\s+(andar|pavimento)\b/gi;
+  for (const m of rawText.matchAll(ordRegex)) {
+    const word = (m[1] ?? "").toLowerCase();
+    const n = ORDINAL_FLOOR_MAP[word];
+    if (!n) continue;
+    const idx = m.index ?? 0;
+    const before = rawText.slice(Math.max(0, idx - 55), idx);
+    const after = rawText.slice(idx + m[0].length, idx + m[0].length + 45);
+    const clauseBefore = before.split(/[.,;!\n|]/).pop() ?? before;
+    const clauseAfter = after.split(/[.,;!\n|]/)[0] ?? after;
+    const localClause = `${clauseBefore} ${m[0]} ${clauseAfter}`;
+    if (CONDO_OR_GARAGE_FLOOR_CONTEXT.test(localClause)) continue;
+    if (
+      word === "quinto" &&
+      /\b(?:na|pela|da|do|no)\s+quinto\s+andar\b/i.test(localClause) &&
+      !/\b(?:de\s+frente|localizado|situado|fica)\b/i.test(localClause)
+    ) {
+      continue;
+    }
+    return n;
+  }
+
+  // 5. Explicit apartment unit number (e.g. "APTº505" -> 5º andar, "apto 304" -> 3º andar)
+  const aptNumMatch = rawText.match(
+    /\b(?:apt[oº°]\.?|apartamento)\s*(?:n[º°]\.?\s*)?([1-9]\d{2})\b(?!\s*m)/i,
+  );
+  if (aptNumMatch?.[1]) {
+    const aptNum = Number(aptNumMatch[1]);
+    const inferredFloor = Math.floor(aptNum / 100);
+    const unitSuffix = aptNum % 100;
+    if (
+      inferredFloor >= 1 &&
+      inferredFloor <= 35 &&
+      unitSuffix >= 1 &&
+      unitSuffix <= 24
+    ) {
+      return inferredFloor;
+    }
+  }
+
+  return null;
+}
+
+function detectUnitPenthouseOrDuplex(
+  rawText: string,
+  amenities: Set<string>,
+): { isPenthouse: boolean; isDuplex: boolean } {
+  const cleanedForCobertura = rawText
+    .replace(
+      /\b(?:piscina|lazer|sal[aã]o(?: de festas)?|churrasqueira|sauna|academia|fitness|espa[cç]o gourmet|rooftop|terra[cç]o|jardim|solarium|lavanderia|coworking|vista)[^.;,\n]{0,45}\bna cobertura\b/gi,
+      " ",
+    )
+    .replace(
+      /\bna cobertura\s*(?::|-|,)?\s*(?:piscina|lazer|sal[aã]o|churrasqueira|sauna|academia|fitness|espa[cç]o gourmet|rooftop|solarium)/gi,
+      " ",
+    )
+    .replace(/\bna cobertura do (?:edif[ií]cio|pr[eé]dio|condom[ií]nio)\b/gi, " ")
+    .replace(
+      /\bcobertura (?:coletiva|do pr[eé]dio|do edif[ií]cio|do condom[ií]nio|das [aá]reas|sky view|de vidro|retr[aá]til|met[aá]lica|inclusive)\b/gi,
+      " ",
+    )
+    .replace(
+      /\b(?:sacada|varanda|vaga|garagem|seguro|[aá]rea)[^.;,\n]{0,35}\bcobertura\b/gi,
+      " ",
+    );
+
+  const cleanedForDuplex = rawText.replace(
+    /\b(?:geladeira|refrigerador|arm[aá]rio|guarda[- ]?roupa|edif[ií]cio york)\s+duplex\b/gi,
+    " ",
+  );
+
+  const isPenthouse =
+    amenities.has("apartamento cobertura") ||
+    /\bcobertura\b/i.test(cleanedForCobertura);
+  const isDuplex =
+    /\b(duplex|triplex|loft duplex|p[eé][- ]direito duplo)\b/i.test(
+      cleanedForDuplex,
+    );
+
+  return { isPenthouse, isDuplex };
+}
+
+function detectUnitTopFloor(
+  rawText: string,
+  effectiveFloor: number | null,
+  totalFloors: number | null,
+): boolean {
+  if (
+    effectiveFloor !== null &&
+    totalFloors !== null &&
+    totalFloors >= 5 &&
+    effectiveFloor <= totalFloors - 2
+  ) {
+    return false;
+  }
+  const cleanedTopFloor = rawText.replace(
+    /\b(?:sal[aã]o|sal[oõ]es|festas?|lazer|piscina|academia|rooftop|terra[cç]o|churrasqueira|gourmet)[^.;,\n]{0,35}\b(?:[uú]ltimo andar|andar topo)\b/gi,
+    " ",
+  );
+  return (
+    /\b([uú]ltimo andar|andar topo)\b/i.test(cleanedTopFloor) ||
+    (effectiveFloor !== null &&
+      totalFloors !== null &&
+      totalFloors >= 3 &&
+      effectiveFloor === totalFloors)
+  );
+}
+
+export interface StreetMicroEnvironmentEvaluation {
+  category:
+    | "BUNKER_OR_SPOOF"
+    | "HEAVY_ARTERIAL"
+    | "PRIME_WALKABLE"
+    | "NEUTRAL";
+  pointsDelta: number;
+  redTag: string | null;
+  greenTag: string | null;
+  warning: string | null;
+  highlight: string | null;
+  safetyCarCap: number | null;
+  urbanBreathingCap: number | null;
+}
+
+/**
+ * Deterministic street & micro-location analyzer that prevents "Efeito Bunker"
+ * (buildings on noisy 4–6 lane arterial avenues or degraded downtown borders
+ * masquerading as a neighboring noble neighborhood) and rewards genuinely
+ * walkable, tree-lined micro-axes ("Vibe Setor Marista").
+ */
+export function evaluateStreetMicroEnvironment(
+  prop: SlimPropertyRecord,
+): StreetMicroEnvironmentEvaluation {
+  const normText = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+  const street = normText(prop.street ?? "").trim();
+  const nb = normText(prop.neighborhood ?? "").trim();
+  const numStr = (prop.streetNumber ?? "").replace(/\D/g, "");
+  const streetNum = numStr ? Number(numStr) : null;
+
+  const coreText = normText(
+    [
+      prop.street ?? "",
+      prop.title ?? "",
+      prop.description ?? "",
+      prop.condominiumName ?? "",
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+
+  const allPlaces = prop.placesNearby ?? [];
+  const immediatePlacesText = normText(
+    allPlaces
+      .slice(0, 6)
+      .map((p) => p.name)
+      .join(" "),
+  );
+  const generatedTextIfCompactPlaces =
+    allPlaces.length <= 6 ? normText(prop.generatedDescription ?? "") : "";
+  const combinedMicroText =
+    `${coreText} ${immediatePlacesText} ${generatedTextIfCompactPlaces}`.trim();
+
+  // === CATEGORY A: Border Spoofing + Express Corridor ("Efeito Bunker" -> -26 pts) ===
+  let isCategoryA = false;
+
+  if (prop.cityCode === "CP") {
+    const isCpExpressOrBorderStreet =
+      /\b(aquidaba|viaduto\s+cury|rua\s+uruguaiana|duque\s+de\s+caxias|francisco\s+glicerio|senador\s+saraiva|av(?:enida|\.)?\s+anchieta)\b/i.test(
+        combinedMicroText,
+      ) ||
+      (/\bmoraes\s+salles\b/i.test(street) &&
+        (/\b(centro|bosque)\b/i.test(nb) ||
+          (streetNum !== null && streetNum < 1500) ||
+          /\b(viaduto|centro|aquidaba|terminal)\b/i.test(combinedMicroText))) ||
+      (/\b(bosque|centro)\b/i.test(nb) &&
+        /\b(rua\s+jose\s+paulino|rua\s+boaventura\s+do\s+amaral|rua\s+luzitana|rua\s+doutor\s+quirino|rua\s+barao\s+de\s+jaguara)\b/i.test(
+          street,
+        ));
+    const hasJaraguaOrAquidabaSpoof =
+      /\b(shopping\s+jaragua|aquidaba)\b/i.test(combinedMicroText);
+
+    if (isCpExpressOrBorderStreet || hasJaraguaOrAquidabaSpoof) {
+      isCategoryA = true;
+    }
+  } else if (prop.cityCode === "BH") {
+    const isNobleBhTag =
+      /\b(lourdes|funcionarios|santo\s+agostinho|savassi)\b/i.test(nb);
+    const hasExplicitCentroLandmark =
+      /\b(shopping\s+cidade|mercado\s+central|praca\s+raul\s+soares|sesc\s+palladium|praca\s+sete|shopping\s+popular\s+oiapoque|shopping\s+oiapoque|minas\s+centro|rodoviaria)\b/i.test(
+        combinedMicroText,
+      ) ||
+      /\b(otima\s+localizacao\s+no\s+centro|localizado\s+no\s+centro)\b/i.test(
+        coreText,
+      );
+    const isAmazonas =
+      /\bav(?:enida|\.)?\s+amazonas\b/i.test(street) ||
+      /\b(esquina\s+com\s+av(?:enida|\.)?\s+amazonas|na\s+av(?:enida|\.)?\s+amazonas)\b/i.test(
+        coreText,
+      );
+    const isAfonsoPenaCentro =
+      /\bav(?:enida|\.)?\s+afonso\s+pena\b/i.test(street) &&
+      (/\b(centro|lourdes)\b/i.test(nb) ||
+        (streetNum !== null && streetNum < 1600) ||
+        /\b(centro|shopping\s+cidade|mercado\s+central|sesc\s+palladium|parque\s+municipal|praca\s+sete|rodoviaria)\b/i.test(
+          combinedMicroText,
+        ));
+    const isOlegarioCentro =
+      /\bav(?:enida|\.)?\s+olegario\s+maciel\b/i.test(street) &&
+      (/\bcentro\b/i.test(nb) ||
+        (streetNum !== null && streetNum < 1400) ||
+        /\b(centro|shopping\s+cidade|mercado\s+central|raul\s+soares|amazonas|rodoviaria)\b/i.test(
+          combinedMicroText,
+        ));
+    const isBhDowntownBorderStreetNumber =
+      isNobleBhTag &&
+      /\b(rua\s+sao\s+paulo|rua\s+rio\s+de\s+janeiro|rua\s+espirito\s+santo|rua\s+da\s+bahia|rua\s+santa\s+catarina|rua\s+curitiba|rua\s+dos\s+guajajaras|rua\s+dos\s+goitacazes|rua\s+dos\s+tupis|rua\s+dos\s+tamoios|rua\s+dos\s+carijos|rua\s+dos\s+tupinambas|rua\s+dos\s+caetes|av(?:enida|\.)?\s+augusto\s+de\s+lima)\b/i.test(
+        street,
+      ) &&
+      ((streetNum !== null && streetNum > 0 && streetNum <= 1350) ||
+        /\b(rua\s+dos\s+guajajaras|rua\s+dos\s+goitacazes|rua\s+dos\s+tupis|rua\s+dos\s+tamoios|rua\s+dos\s+carijos|rua\s+dos\s+tupinambas|rua\s+dos\s+caetes|av(?:enida|\.)?\s+augusto\s+de\s+lima)\b/i.test(
+          street,
+        ));
+
+    if (
+      (isNobleBhTag && hasExplicitCentroLandmark) ||
+      isAmazonas ||
+      isAfonsoPenaCentro ||
+      isOlegarioCentro ||
+      isBhDowntownBorderStreetNumber
+    ) {
+      isCategoryA = true;
+    }
+  } else if (prop.cityCode === "RJ") {
+    const isRjExpressCorridor =
+      /\b(presidente\s+vargas|binario\s+do\s+porto|av(?:enida|\.)?\s+brasil|conde\s+de\s+bonfim|rua\s+pinheiro\s+machado)\b/i.test(
+        combinedMicroText,
+      ) ||
+      (/\bbarata\s+ribeiro\b/i.test(street) &&
+        (/\b(tunel|inhanga)\b/i.test(combinedMicroText) ||
+          (streetNum !== null && streetNum <= 220)));
+    if (isRjExpressCorridor) {
+      isCategoryA = true;
+    }
+  } else if (prop.cityCode === "SP") {
+    const isSpExpressCorridor =
+      /\b(23\s+de\s+maio|vinte\s+e\s+tres\s+de\s+maio|rubem\s+berta|moreira\s+guimaraes|av(?:enida|\.)?\s+dos\s+bandeirantes|av(?:enida|\.)?\s+santo\s+amaro|av(?:enida|\.)?\s+reboucas|nove\s+de\s+julho|9\s+de\s+julho|brigadeiro\s+lui[sz]\s+antonio|minhocao|elevado\s+presidente\s+joao\s+goulart|elevado\s+costa\s+e\s+silva|rua\s+amaral\s+gurgel)\b/i.test(
+        combinedMicroText,
+      );
+    if (isSpExpressCorridor) {
+      isCategoryA = true;
+    }
+  }
+
+  if (isCategoryA) {
+    return {
+      category: "BUNKER_OR_SPOOF",
+      pointsDelta: -26.0,
+      redTag: "Via Arterial / Efeito Bunker",
+      greenTag: null,
+      warning:
+        "Corredor viário intenso / divisa de centro (efeito bunker: -26 pts base)",
+      highlight: null,
+      safetyCarCap: 5.8,
+      urbanBreathingCap: 5.0,
+    };
+  }
+
+  // === CATEGORY B: Heavy Traffic Arterial Avenue (-10 pts) ===
+  let isCategoryB = false;
+  if (prop.cityCode === "BH") {
+    isCategoryB =
+      /\b(av(?:enida|\.)?\s+do\s+contorno|nossa\s+senhora\s+do\s+carmo|raja\s+gabaglia|cristiano\s+machado|antonio\s+carlos|bias\s+fortes)\b/i.test(
+        street,
+      );
+  } else if (prop.cityCode === "CP") {
+    isCategoryB =
+      /\b(av(?:enida|\.)?\s+brasil|barao\s+de\s+itapura|orosimbo\s+maia|norte[- ]?sul|jose\s+de\s+sou[zs]a\s+campos)\b/i.test(
+        street,
+      ) || /\bav(?:enida|\.)?\s+norte[- ]?sul\b/i.test(coreText);
+  } else if (prop.cityCode === "RJ") {
+    isCategoryB =
+      /\b(voluntarios\s+da\s+patria|rua\s+sao\s+clemente|rua\s+humaita|nossa\s+senhora\s+de\s+copacabana)\b/i.test(
+        street,
+      );
+  }
+
+  if (isCategoryB) {
+    return {
+      category: "HEAVY_ARTERIAL",
+      pointsDelta: -10.0,
+      redTag: null,
+      greenTag: null,
+      warning:
+        "Avenida de tráfego intenso (ruído e menor caminhabilidade)",
+      highlight: null,
+      safetyCarCap: null,
+      urbanBreathingCap: null,
+    };
+  }
+
+  // === CATEGORY C: Prime Walkable "Vibe Setor Marista" Micro-Location Bonus (+8 pts) ===
+  let isCategoryC = false;
+  if (prop.cityCode === "BH") {
+    const isBhPrimeNb =
+      /\b(funcionarios|lourdes|savassi|santo\s+agostinho|boa\s+viagem)\b/i.test(
+        nb,
+      );
+    const isFuncionariosOrLourdesPrimeStreet =
+      /\b(rua\s+maranhao|rua\s+alagoas|rua\s+goncalves\s+dias|rua\s+sergipe|rua\s+paraiba|rua\s+pernambuco|rua\s+bernardo\s+guimaraes|rua\s+(?:dos\s+)?aimores|rua\s+claudio\s+manoel|rua\s+piaui|av(?:enida|\.)?\s+alvares\s+cabral|av(?:enida|\.)?\s+carandai|rua\s+marilia\s+de\s+dirceu|rua\s+tomas\s+gonzaga|rua\s+barbara\s+heliodora|praca\s+da\s+liberdade|praca\s+marilia\s+de\s+dirceu|praca\s+da\s+assembleia)\b/i.test(
+        street,
+      ) ||
+      (/\blourdes\b/i.test(nb) &&
+        /\b(rua\s+curitiba|rua\s+rio\s+de\s+janeiro)\b/i.test(street) &&
+        (streetNum === null || streetNum >= 1400));
+
+    if (
+      (isBhPrimeNb && isFuncionariosOrLourdesPrimeStreet) ||
+      /\b(praca\s+marilia\s+de\s+dirceu|praca\s+da\s+liberdade|praca\s+da\s+assembleia)\b/i.test(
+        street,
+      )
+    ) {
+      isCategoryC = true;
+    }
+  } else if (prop.cityCode === "CP") {
+    const isTaquaralNb = /\btaquaral\b/i.test(nb);
+    const isTaquaralPrimeStreet =
+      /\b(heitor\s+penteado|padre\s+mano?el\s+bernardes|marechal\s+carmona|paula\s+bueno|lui[sz]\s+otavio)\b/i.test(
+        street,
+      ) ||
+      (isTaquaralNb &&
+        /\b(frente\s+para\s+a\s+lagoa|ao\s+lado\s+da\s+lagoa|colado\s+na\s+lagoa|parque\s+portugal)\b/i.test(
+          coreText,
+        ));
+    if (isTaquaralPrimeStreet) {
+      isCategoryC = true;
+    }
+  } else if (prop.cityCode === "RJ") {
+    const isRjPrimeStreet =
+      /\b(praia\s+do\s+flamengo|rua\s+cruz\s+lima|rua\s+tucuma|rua\s+oswaldo\s+cruz|barao\s+de\s+icarai|epitacio\s+pessoa|borges\s+de\s+medeiros|joao\s+luiz\s+alves|candido\s+gaffree|praia\s+da\s+urca|rua\s+jardim\s+botanico|rua\s+lopes\s+quintas|rua\s+maria\s+angelica|rua\s+faro|rua\s+pio\s+correia|delfim\s+moreira|vieira\s+souto|prudente\s+de\s+morais|nascimento\s+silva|rua\s+redentor|barao\s+da\s+torre|dias\s+ferreira|general\s+urquiza|venancio\s+flores|anibal\s+de\s+mendonca|garcia\s+d['’]?avila|maria\s+quiteria|joana\s+angelica|visconde\s+de\s+piraja)\b/i.test(
+        street,
+      ) ||
+      (/\b(flamengo|lagoa|urca|jardim\s+botanico|leblon|ipanema)\b/i.test(
+        nb,
+      ) &&
+        /\b(aterro\s+do\s+flamengo|lagoa\s+rodrigo\s+de\s+freitas|praia\s+do\s+leblon|praia\s+de\s+ipanema|parque\s+lage)\b/i.test(
+          coreText,
+        ));
+    if (isRjPrimeStreet) {
+      isCategoryC = true;
+    }
+  } else if (prop.cityCode === "SP") {
+    const isSpIbirapueraAxis =
+      (/\bvila\s+nova\s+conceicao\b/i.test(nb) &&
+        /\b(afonso\s+braz|diogo\s+jacome|domingos\s+fernandes|joao\s+lourenco|balthazar\s+da\s+veiga|antonio\s+jose\s+da\s+silva|pereira\s+coutinho|republica\s+do\s+libano|quarto\s+centenario)\b/i.test(
+          street,
+        )) ||
+      (/\b(moema|vila\s+uberabinha|vila\s+nova\s+conceicao)\b/i.test(
+        nb,
+      ) &&
+        /\b(rua\s+gaivota|rua\s+canario|rua\s+tuim|rua\s+inhambu|rua\s+pintassilgo|escobar\s+ortiz|lourenco\s+de\s+almeida|franca\s+pinto|moema\s+passaros|colado\s+no\s+parque\s+ibirapuera|ao\s+lado\s+do\s+ibirapuera)\b/i.test(
+          coreText,
+        ));
+    if (isSpIbirapueraAxis) {
+      isCategoryC = true;
+    }
+  }
+
+  if (isCategoryC) {
+    return {
+      category: "PRIME_WALKABLE",
+      pointsDelta: 8.0,
+      redTag: null,
+      greenTag: "Eixo Caminhável / Respiro Urbano",
+      warning: null,
+      highlight: "Eixo caminhável arborizado (estilo Setor Marista)",
+      safetyCarCap: null,
+      urbanBreathingCap: null,
+    };
+  }
+
+  return {
+    category: "NEUTRAL",
+    pointsDelta: 0,
+    redTag: null,
+    greenTag: null,
+    warning: null,
+    highlight: null,
+    safetyCarCap: null,
+    urbanBreathingCap: null,
+  };
+}
+
+export const detectArterialOrBorderBunker = evaluateStreetMicroEnvironment;
+
 /**
  * Extracts fine-grained apartment nuances from comfortCommodities, practicalityCommodities,
  * floor / floorRange, placesNearby (parks, malls, subway), installations, photoCaptions,
@@ -514,7 +1122,14 @@ export function evaluateApartmentNuances(
     (prop.amenities ?? []).map((c) => c.toLowerCase()),
   );
   const captions = (prop.photoCaptions ?? []).join(" ").toLowerCase();
-  const fullDesc = `${prop.title ?? ""} ${prop.description ?? ""} ${prop.generatedDescription ?? ""}`.toLowerCase();
+  const sentenceJoinedDesc = [
+    prop.title ?? "",
+    prop.description ?? "",
+    prop.generatedDescription ?? "",
+  ]
+    .filter(Boolean)
+    .join(". ");
+  const fullDesc = sentenceJoinedDesc.toLowerCase();
   const elevatorSources = [
     ...(prop.installations ?? []),
     ...(prop.amenities ?? []),
@@ -523,10 +1138,21 @@ export function evaluateApartmentNuances(
     prop.title ?? "",
   ].join(" ");
 
-  const hasNoElevator =
-    /\b(sem elevador|pr[eé]dio escada|\d+\s*lances? de escada|acesso por escadas)\b/i.test(
+  const hasExplicitNoElevatorText =
+    /\b(sem elevador|n[aã]o\s+(?:possui|tem|disp[oõ]e\s+de|conta\s+com)\s+elevador|pr[eé]dio escada|\d+\s*lances? de escada|acesso por escadas)\b/i.test(
       elevatorSources,
-    ) || !/elevador|elevator/i.test(elevatorSources);
+    );
+  const hasElevatorMention = /elevador|elevator/i.test(elevatorSources);
+  const hasTallBuildingElevatorEvidence =
+    prop.provider !== "quintoandar" &&
+    ((prop.totalFloors !== null && prop.totalFloors >= 5) ||
+      (prop.floor !== null && prop.floor >= 5) ||
+      ((prop.provider === "netimoveis" || prop.provider === "imovelweb") &&
+        ((prop.floor !== null && prop.floor >= 4) ||
+          Boolean(prop.doorman && prop.doorman !== "NotAvailable"))));
+  const hasNoElevator =
+    hasExplicitNoElevatorText ||
+    (!hasElevatorMention && !hasTallBuildingElevatorEvidence);
   const hasTrappedParking =
     /\b(vagas? presas?|garagem presa|vaga bloqueada)\b/i.test(elevatorSources);
 
@@ -580,25 +1206,106 @@ export function evaluateApartmentNuances(
   let floorTag: FloorTag | null = null;
   let highFloorLabel: string | null = null;
   let lowFloorLabel: string | null = null;
+
+  const explicitGroundText = isExplicitUnitGroundFloor(sentenceJoinedDesc);
+  const textFloor = extractExplicitFloorFromText(sentenceJoinedDesc);
+  const effectiveTotalFloors =
+    prop.totalFloors !== null && prop.totalFloors > 0 ? prop.totalFloors : null;
+
+  let normalizedPropFloor = prop.floor;
+  if (normalizedPropFloor !== null && normalizedPropFloor > 45) {
+    normalizedPropFloor =
+      normalizedPropFloor <= 95 ? Math.floor(normalizedPropFloor / 10) : null;
+  }
+
+  let normalizedFloorRange = prop.floorRange;
+  if (
+    normalizedFloorRange &&
+    normalizedFloorRange.min > 45 &&
+    normalizedFloorRange.max <= 95
+  ) {
+    const inferred = Math.floor(normalizedFloorRange.min / 10);
+    normalizedFloorRange = { min: inferred, max: inferred };
+  }
+
   // On Zap Imóveis & VivaReal, unitFloor=0 is the API default when the agency did not fill in the floor
   const isOlxZeroFloorPlaceholder =
-    prop.floor === 0 &&
+    normalizedPropFloor === 0 &&
     (prop.provider === "zapimoveis" ||
       prop.provider === "vivareal" ||
       prop.provider === "zap") &&
-    !/\bt[eé]rreo\b/i.test(fullDesc);
-  const effectiveFloor = isOlxZeroFloorPlaceholder ? null : prop.floor;
-  const minFloor = effectiveFloor ?? prop.floorRange?.min ?? null;
-  const maxFloor = effectiveFloor ?? prop.floorRange?.max ?? null;
-  const isTopFloor =
-    /\b([uú]ltimo andar|andar topo)\b/i.test(fullDesc) ||
-    (effectiveFloor !== null &&
-      prop.totalFloors !== null &&
-      prop.totalFloors >= 3 &&
-      effectiveFloor === prop.totalFloors);
-  const isPenthouseOrDuplex =
-    amenities.has("apartamento cobertura") ||
-    /\b(cobertura|duplex|triplex|loft duplex|p[eé][- ]direito duplo)\b/i.test(fullDesc);
+    !explicitGroundText;
+
+  // In some CRMs feeding Zap/VivaReal, unitFloor=1 is filled as a default placeholder even in tall towers
+  const isZapFirstFloorPlaceholder =
+    normalizedPropFloor === 1 &&
+    (prop.provider === "zapimoveis" ||
+      prop.provider === "vivareal" ||
+      prop.provider === "zap") &&
+    textFloor === null &&
+    !explicitGroundText &&
+    !/\b(1[º°ªo]?\s*(?:andar|pavimento)|primeiro\s+(?:andar|pavimento)|andar\s+baixo|[aá]rea\s+privativa(?!\s*(?:de\s*)?\d)|garden|quintal)\b/i.test(
+      sentenceJoinedDesc,
+    ) &&
+    ((effectiveTotalFloors !== null && effectiveTotalFloors >= 8) ||
+      hasFreeView ||
+      /\bandar\s+(alto|m[eé]dio|intermedi[aá]rio)\b/i.test(sentenceJoinedDesc));
+
+  let effectiveFloor =
+    isOlxZeroFloorPlaceholder || isZapFirstFloorPlaceholder
+      ? null
+      : normalizedPropFloor;
+
+  if (
+    explicitGroundText &&
+    (effectiveFloor === null || effectiveFloor === 0) &&
+    textFloor === null
+  ) {
+    effectiveFloor = 0;
+  } else if (
+    effectiveFloor === null &&
+    normalizedFloorRange === null &&
+    textFloor !== null
+  ) {
+    effectiveFloor = textFloor;
+  } else if (
+    effectiveFloor !== null &&
+    effectiveFloor <= 3 &&
+    textFloor !== null &&
+    textFloor >= 4
+  ) {
+    effectiveFloor = textFloor;
+  } else if (
+    normalizedFloorRange !== null &&
+    normalizedFloorRange.min <= 3 &&
+    textFloor !== null &&
+    textFloor >= 4
+  ) {
+    effectiveFloor = textFloor;
+  } else if (
+    normalizedFloorRange !== null &&
+    normalizedFloorRange.min === 0 &&
+    normalizedFloorRange.max === 3 &&
+    textFloor !== null &&
+    textFloor >= 1 &&
+    textFloor <= 3
+  ) {
+    effectiveFloor = textFloor;
+  }
+
+  const minFloor = effectiveFloor ?? normalizedFloorRange?.min ?? null;
+  const maxFloor = effectiveFloor ?? normalizedFloorRange?.max ?? null;
+
+  const isTopFloor = detectUnitTopFloor(
+    sentenceJoinedDesc,
+    effectiveFloor,
+    effectiveTotalFloors,
+  );
+  const { isPenthouse, isDuplex } = detectUnitPenthouseOrDuplex(
+    sentenceJoinedDesc,
+    amenities,
+  );
+  const isPenthouseOrDuplex = isPenthouse || isDuplex;
 
   if (isPenthouseOrDuplex && isTopFloor) {
     pts += 11.0;
@@ -607,10 +1314,7 @@ export function evaluateApartmentNuances(
     highlights.push(highFloorLabel);
   } else if (isPenthouseOrDuplex) {
     pts += 9.0;
-    highFloorLabel =
-      /\bcobertura\b/i.test(fullDesc) || amenities.has("apartamento cobertura")
-        ? "Cobertura"
-        : "Duplex / Pé-direito duplo";
+    highFloorLabel = isPenthouse ? "Cobertura" : "Duplex / Pé-direito duplo";
     floorTag = { label: highFloorLabel, rarity: "legendary" };
     highlights.push(highFloorLabel);
   } else if (isTopFloor) {
@@ -631,7 +1335,11 @@ export function evaluateApartmentNuances(
       if (!highFloorLabel) highFloorLabel = floorText;
       if (!floorTag) floorTag = { label: floorText, rarity: "epic" };
       highlights.push(floorText);
-    } else if (/\bandar alto\b/i.test(fullDesc)) {
+    } else if (
+      amenities.has("andar alto") ||
+      comfort.has("andar alto") ||
+      /\bandar alto\b/i.test(fullDesc)
+    ) {
       pts += 5.0;
       if (!highFloorLabel) highFloorLabel = "Andar alto";
       if (!floorTag) floorTag = { label: "Andar alto", rarity: "epic" };
@@ -646,13 +1354,32 @@ export function evaluateApartmentNuances(
             : `Andar médio (${minFloor}º andar)`;
       if (!floorTag) floorTag = { label: midFloorText, rarity: "rare" };
       highlights.push(midFloorText);
+    } else if (
+      !floorTag &&
+      (amenities.has("andar médio") ||
+        amenities.has("andar intermediário") ||
+        /\bandar (m[eé]dio|intermedi[aá]rio)\b/i.test(fullDesc))
+    ) {
+      pts += 2.5;
+      floorTag = { label: "Andar médio", rarity: "rare" };
+      highlights.push("Andar médio");
     }
-  } else if (!highFloorLabel && /\bandar alto\b/i.test(fullDesc)) {
+  } else if (
+    !highFloorLabel &&
+    (amenities.has("andar alto") ||
+      comfort.has("andar alto") ||
+      /\bandar alto\b/i.test(fullDesc))
+  ) {
     pts += 5.0;
     highFloorLabel = "Andar alto";
     if (!floorTag) floorTag = { label: "Andar alto", rarity: "epic" };
     highlights.push("Andar alto");
-  } else if (!floorTag && /\bandar (m[eé]dio|intermedi[aá]rio)\b/i.test(fullDesc)) {
+  } else if (
+    !floorTag &&
+    (amenities.has("andar médio") ||
+      amenities.has("andar intermediário") ||
+      /\bandar (m[eé]dio|intermedi[aá]rio)\b/i.test(fullDesc))
+  ) {
     pts += 2.5;
     floorTag = { label: "Andar médio", rarity: "rare" };
     highlights.push("Andar médio");
@@ -664,37 +1391,27 @@ export function evaluateApartmentNuances(
     greenTags.push("Sol da manhã");
   }
 
-  if (!isTopFloor && !isPenthouseOrDuplex) {
+  if (!isTopFloor && !isPenthouseOrDuplex && !highFloorLabel && !floorTag) {
     const isGroundFloor =
       effectiveFloor === 0 ||
+      explicitGroundText ||
       (minFloor === 0 && (maxFloor === null || maxFloor <= 1));
 
     if (isGroundFloor) {
       lowFloorLabel = "Térreo";
-      if (!floorTag) floorTag = { label: "Térreo", rarity: "common" };
+      floorTag = { label: "Térreo", rarity: "common" };
     } else if (effectiveFloor !== null && effectiveFloor >= 1 && effectiveFloor <= 3) {
       lowFloorLabel = `Andar baixo (${effectiveFloor}º andar)`;
-      if (!floorTag) floorTag = { label: lowFloorLabel, rarity: "uncommon" };
+      floorTag = { label: lowFloorLabel, rarity: "uncommon" };
     } else if (minFloor !== null && minFloor <= 3) {
+      const displayMin = minFloor === 0 ? 1 : minFloor;
       lowFloorLabel =
-        maxFloor && maxFloor !== minFloor
-          ? `Andar baixo (${minFloor}º–${maxFloor}º andar)`
-          : `Andar baixo (${minFloor}º andar)`;
-      if (!floorTag) floorTag = { label: lowFloorLabel, rarity: "uncommon" };
-    } else if (minFloor === null && !highFloorLabel && !floorTag) {
-      if (/\bt[eé]rreo\b/i.test(fullDesc)) {
-        lowFloorLabel = "Térreo";
-        floorTag = { label: "Térreo", rarity: "common" };
-      } else if (/\b1[º°]\s*andar\b/i.test(fullDesc)) {
-        lowFloorLabel = "Andar baixo (1º andar)";
-        floorTag = { label: lowFloorLabel, rarity: "uncommon" };
-      } else if (/\b2[º°]\s*andar\b/i.test(fullDesc)) {
-        lowFloorLabel = "Andar baixo (2º andar)";
-        floorTag = { label: lowFloorLabel, rarity: "uncommon" };
-      } else if (/\b3[º°]\s*andar\b/i.test(fullDesc)) {
-        lowFloorLabel = "Andar baixo (3º andar)";
-        floorTag = { label: lowFloorLabel, rarity: "uncommon" };
-      } else if (/\bandar baixo\b/i.test(fullDesc)) {
+        maxFloor && maxFloor !== displayMin
+          ? `Andar baixo (${displayMin}º–${maxFloor}º andar)`
+          : `Andar baixo (${displayMin}º andar)`;
+      floorTag = { label: lowFloorLabel, rarity: "uncommon" };
+    } else if (minFloor === null) {
+      if (/\bandar baixo\b/i.test(fullDesc)) {
         lowFloorLabel = "Andar baixo";
         floorTag = { label: lowFloorLabel, rarity: "uncommon" };
       }
@@ -708,9 +1425,38 @@ export function evaluateApartmentNuances(
         effectiveFloor === 1 ||
         minFloor === 1 ||
         /\b1[º°]\s*andar\b/i.test(lowFloorLabel ?? "");
-      const lowFloorPenalty = isFirstFloor ? 18.0 : 14.0;
+      const hasPrivatePatio =
+        amenities.has("área privativa") ||
+        amenities.has("area privativa") ||
+        amenities.has("garden") ||
+        amenities.has("quintal") ||
+        /\b([aá]rea privativa(?!\s*(?:de\s*)?\d)|apartamento garden|apto garden|tipo garden|quintal privativo|terra[cç]o privativo)\b/i.test(
+          fullDesc,
+        );
+      const isSlopedNeighborhood = SLOPED_HILLSIDE_NEIGHBORHOODS.has(
+        `${prop.cityCode.toLowerCase()}:${prop.neighborhood.trim().toLowerCase()}`,
+      );
+
+      let lowFloorPenalty = isFirstFloor ? 18.0 : 14.0;
+      const isAmbiguousZeroToThreeRange =
+        effectiveFloor === null &&
+        normalizedFloorRange !== null &&
+        normalizedFloorRange.min === 0 &&
+        normalizedFloorRange.max === 3;
+      if (hasFreeView && isSlopedNeighborhood) {
+        lowFloorPenalty = isAmbiguousZeroToThreeRange ? 21.0 : 2.0;
+        warnings.push(
+          `${lowFloorLabel ?? "Andar baixo"} compensado por topografia em desnível e vista livre (-${lowFloorPenalty} pts base)`,
+        );
+      } else if (hasFreeView || hasPrivatePatio) {
+        lowFloorPenalty = isAmbiguousZeroToThreeRange ? 22.0 : 6.0;
+        warnings.push(
+          `${lowFloorLabel ?? "Andar baixo"} atenuado por ${hasFreeView ? "vista livre" : "área privativa/garden"} (-${lowFloorPenalty} pts base)`,
+        );
+      } else {
+        warnings.push(`${lowFloorLabel ?? "Andar baixo"} (-${lowFloorPenalty} pts base)`);
+      }
       pts -= lowFloorPenalty;
-      warnings.push(`${lowFloorLabel ?? "Andar baixo"} (-${lowFloorPenalty} pts base)`);
     }
   }
 
@@ -786,6 +1532,14 @@ export function evaluateApartmentNuances(
   if (has24hDoorman) {
     pts += 2.5;
     highlights.push("Portaria 24h / Biometria");
+  } else if (prop.doorman === "NotAvailable") {
+    pts -= 6.0;
+    warnings.push("Sem portaria 24h (-6 pts base)");
+  }
+
+  if (prop.salePrice !== null && prop.salePrice > 0) {
+    pts -= 4.0;
+    warnings.push("Imóvel também à venda (-4 pts base)");
   }
 
   if (/\bvagas? (de garagem )?(livres?|individuais?|demarcadas?)\b/i.test(fullDesc)) {
@@ -831,6 +1585,24 @@ export function evaluateApartmentNuances(
     )
   ) {
     greenTags.push("Prédio Novo / 1ª Locação");
+  }
+
+  // 6. Micro-localização de Rua: Detector Anti-Bunker / Corredor Arterial vs Eixo Caminhável
+  const microEnv = evaluateStreetMicroEnvironment(prop);
+  if (microEnv.pointsDelta !== 0) {
+    pts += microEnv.pointsDelta;
+  }
+  if (microEnv.highlight && !highlights.includes(microEnv.highlight)) {
+    highlights.push(microEnv.highlight);
+  }
+  if (microEnv.warning && !warnings.includes(microEnv.warning)) {
+    warnings.unshift(microEnv.warning);
+  }
+  if (microEnv.greenTag && !greenTags.includes(microEnv.greenTag)) {
+    greenTags.push(microEnv.greenTag);
+  }
+  if (microEnv.redTag && !redTags.includes(microEnv.redTag)) {
+    redTags.unshift(microEnv.redTag);
   }
 
   // Build Red Tags (floor badge is rendered separately via floorTag)
@@ -1023,6 +1795,7 @@ function resolveOfficeReference(
     CP: "hub em Viracopos",
     RJ: "hub no Porto Maravilha",
     SP: "escritório na Capote Valente",
+    BSB: "Parque de Águas Claras (Referência BSB)",
   };
   const rawTime = catalogNb
     ? catalogNb.commuteTime
@@ -1036,6 +1809,46 @@ function resolveOfficeReference(
     commuteTimeText: rawTime || "20 min",
     officeLabel: officeByCity[cityCode] ?? "escritório do Nubank",
   };
+}
+
+export function parseCommuteMinutes(
+  commuteText: string,
+  isDeepWestBarra?: boolean,
+): { minutes: number; label: string } {
+  if (isDeepWestBarra) {
+    return { minutes: 85, label: "75–100 min" };
+  }
+
+  const cleaned = (commuteText ?? "")
+    .replace(/\s*\([^)]*\)/g, "")
+    .replace(/\s*do Nubank.*/i, "")
+    .replace(/^~/, "")
+    .trim();
+
+  const rangeMatch = cleaned.match(/(\d+)\s*(?:[-–a]|a)\s*(\d+)\s*min/i);
+  if (rangeMatch) {
+    const a = Number(rangeMatch[1]);
+    const b = Number(rangeMatch[2]);
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      return {
+        minutes: Math.round((a + b) / 2),
+        label: `${a}–${b} min`,
+      };
+    }
+  }
+
+  const singleMatch = cleaned.match(/(\d+)\s*min/i);
+  if (singleMatch) {
+    const m = Number(singleMatch[1]);
+    if (Number.isFinite(m)) {
+      return {
+        minutes: m,
+        label: `${m} min`,
+      };
+    }
+  }
+
+  return { minutes: 25, label: cleaned || "20–30 min" };
 }
 
 /**
@@ -1181,6 +1994,10 @@ function extractNonRedundantHighlights(
   }
 
   // 3. Surroundings & Micro-location
+  if (nuances.greenTags.includes("Eixo Caminhável / Respiro Urbano")) {
+    addSurrounding("quadra arborizada com vida a pé (estilo Setor Marista)");
+  }
+
   if (nuances.nuanceHighlights.includes("Rua silenciosa")) {
     addSurrounding("rua silenciosa");
   }
@@ -1266,6 +2083,9 @@ const NEIGHBORHOOD_DRAWBACK_FALLBACKS: Record<string, string> = {
   "rj:flamengo": "estoque predial do entorno majoritariamente antigo",
   "rj:leme": "estoque predial do entorno majoritariamente antigo",
   "rj:copacabana": "adensamento urbano elevado e fluxo intenso nas calçadas",
+  "bsb:águas claras": "trânsito carregado nas saídas da EPTG em horário de pico e ausência de hub presencial do Nubank",
+  "bsb:norte (águas claras)": "trânsito carregado nas saídas da EPTG em horário de pico e ausência de hub presencial do Nubank",
+  "bsb:sul (águas claras)": "trânsito carregado nas saídas da EPTG/Park Way em horário de pico e ausência de hub presencial do Nubank",
 };
 
 function resolveNeighborhoodDrawback(
@@ -1379,8 +2199,11 @@ function buildShortJustification(params: {
     extractNonRedundantHighlights(prop, nuances);
 
   // === SENTENCE 1: PONTOS POSITIVOS (PRÓS) ===
+  const isBunkerCorridor = nuances.redTags.includes(
+    "Via Arterial / Efeito Bunker",
+  );
   let urbanContext = `a ${commuteTimeText} do ${officeLabel}`;
-  if (catalogNb) {
+  if (!isBunkerCorridor && catalogNb) {
     if (catalogNb.urbanBreathingScore >= 9.0) {
       urbanContext += " em eixo arborizado de alto respiro urbano";
     } else if (catalogNb.commuteLogisticsScore >= 9.0) {
@@ -1390,7 +2213,7 @@ function buildShortJustification(params: {
     } else if (catalogNb.budgetFitScore >= 9.0) {
       urbanContext += " em região de ótimo custo-benefício";
     }
-  } else if (safetyCar >= 8.3) {
+  } else if (!isBunkerCorridor && safetyCar >= 8.3) {
     urbanContext += " em bolha caminhável segura";
   }
 
@@ -1442,6 +2265,19 @@ function buildShortJustification(params: {
   // === SENTENCE 2: PONTOS NEGATIVOS / RESSALVAS (CONTRAS) ===
   const primaryDrawbacks: string[] = [];
   const secondaryDrawbacks: string[] = [];
+
+  // 0. Anti-Bunker / Express Corridor (#1 drawback when detected)
+  if (isBunkerCorridor) {
+    primaryDrawbacks.push(
+      "fica em corredor viário intenso / divisa de centro (efeito bunker: barulho de trânsito e calçada hostil a pé)",
+    );
+  } else if (
+    nuances.nuanceWarnings.some((w) => /avenida de tr[aá]fego intenso/i.test(w))
+  ) {
+    primaryDrawbacks.push(
+      "fica em avenida de tráfego intenso (ruído e menor caminhabilidade)",
+    );
+  }
 
   // 1. Hard eligibility exclusions
   if (!eligible) {
@@ -1504,9 +2340,15 @@ function buildShortJustification(params: {
       "fica no térreo (maior exposição a ruído de calçada e menor privacidade)",
     );
   } else if (nuances.floorTag?.rarity === "uncommon") {
-    primaryDrawbacks.push(
-      "fica em andar baixo (mais próximo do ruído da rua e com vista mais restrita)",
-    );
+    if (nuances.nuanceHighlights.includes("Vista livre/definitiva")) {
+      secondaryDrawbacks.push(
+        "fica em andar baixo (embora atenuado pela vista livre)",
+      );
+    } else {
+      primaryDrawbacks.push(
+        "fica em andar baixo (mais próximo do ruído da rua e com vista mais restrita)",
+      );
+    }
   } else if (nuances.floorTag === null) {
     secondaryDrawbacks.push("andar não especificado no anúncio");
   }
@@ -1896,23 +2738,28 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
       captionsText,
     );
 
-  const descText = [
+  const rawDescText = [
     prop.title ?? "",
     prop.description ?? "",
     prop.generatedDescription ?? "",
-  ].join(" ");
+  ].join("\n");
 
-  const hasNegationOrRemoval =
-    /\b(n[aã]o|sem)\s+mobiliad[oa]\b/i.test(descText) ||
-    /\b(ser[aã]o removidos|n[aã]o ficam|retirad[oa]s)\b/i.test(descText);
+  const strippedSpacePhrases = rawDescText.replace(
+    /\b(?:espa[cç]o|lugar|local|ponto|prepara[cç][aã]o|espera|cabe|cabem|comporta|acomoda|previsto)\s+(?:para\s+|p\/\s+)?(?:uma?\s+)?(?:cama(?:\s+(?:de\s+)?(?:casal|solteiro|box|queen|king))*|sof[aá](?:[- ]?cama|\s+retr[aá]til|\s+de\s+\d+\s+lugares)*|geladeira|refrigerador|m[aá]quina de lavar|lava[- ]?lou[cç]as|lava[- ]?e[- ]?seca|fog[aã]o|micro[- ]?ondas|mesa(?:\s+(?:de\s+jantar|com\s+cadeiras))*|tv)/gi,
+    " ",
+  );
 
-  const hasPlaceholderOnly =
-    /\b(espa[cç]o|local|ponto|espera|previsto)\s+(para|p\/)\s+(geladeira|m[aá]quina de lavar|lava[- ]?e[- ]?seca|fog[aã]o|micro[- ]?ondas|cama|sof[aá])\b/i.test(
-      descText,
+  const affirmativeClauses = strippedSpacePhrases
+    .split(/[.;!\n]+|,\s*(?=mas\b|por[eé]m\b|contudo\b|entretanto\b)/i)
+    .filter(
+      (clause) =>
+        !/ser[aã]o removid|n[aã]o fica|retirad|sem mob[ií]lia|n[aã]o mobiliad/i.test(
+          clause,
+        ),
     );
+  const descText = affirmativeClauses.join(". ");
 
   const hasTextBedOrSofa =
-    !hasNegationOrRemoval &&
     /\b(cama (de )?(casal|solteiro)|cama box|cama queen|cama king|\bcama\b|sof[aá][- ]?cama|sof[aá] e cama|\bsof[aá]\b|\bpoltrona\b|mesa com cadeiras|mesas? e cadeiras de jantar|porteira fechada|totalmente mobiliad[oa]|100%\s*mobiliad[oa])\b/i.test(
       descText,
     );
@@ -1920,15 +2767,13 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
   const hasExplicitSemiFurnished = /\bsemi[- ]?mobiliad[oa]\b/i.test(descText);
 
   const hasTextGeneralFurnished =
-    !hasNegationOrRemoval &&
     !hasExplicitSemiFurnished &&
-    /\b(apartamento mobiliado|im[oó]vel mobiliado|flat mobiliado|loft mobiliado|studio mobiliado|kitnet mobiliada)\b/i.test(
+    !/\b(?:aluguel|valor)\s+mobiliad[oa]\s+a\s+consultar\b/i.test(descText) &&
+    /\b((?:apartamento|apto\.?|im[oó]vel|flat|loft|studio|kitnet)\s+(?:[^.,;!\n]{0,40}\s+)?mobiliad[oa]|(?:todo|totalmente|completamente|inteiramente|100%)\s+mobiliad[oa]|vai\s+ser\s+alugad[oa]\s+mobiliad[oa]|loca[cç][aã]o\s+mobiliad[oa]|mobiliad[oa]\s+para\s+(?:loca[cç][aã]o|aluguel|venda)|apartamento:\s*mobiliad[oa])\b/i.test(
       descText,
     );
 
   const hasTextAppliance =
-    !hasNegationOrRemoval &&
-    !hasPlaceholderOnly &&
     /\b(geladeira|refrigerador|m[aá]quina de lavar|lava[- ]?e[- ]?seca|micro[- ]?ondas|fog[aã]o|forno|cooktop|cozinha equipada|cozinha mobiliada|utens[ií]lios de cozinha)\b/i.test(
       descText,
     );
@@ -1963,6 +2808,7 @@ export function computeDynamicProperties(
   properties: SlimPropertyRecord[],
   computedNeighborhoods: ComputedNeighborhood[],
   weights: ScoringWeights,
+  options?: { includeBsbBenchmark?: boolean },
 ): EvaluatedProperty[] {
   const nbMap = new Map<string, ComputedNeighborhood>();
   for (const n of computedNeighborhoods) {
@@ -1979,8 +2825,9 @@ export function computeDynamicProperties(
       prop.cityCode,
       prop.neighborhood,
     );
+    const microEnv = evaluateStreetMicroEnvironment(prop);
 
-    const nbSafetyCar = catalogNb
+    const baseSafetyCar = catalogNb
       ? calibratedMeta && calibratedMeta.safetyCar < 6.5
         ? Math.min(catalogNb.safetyCarScore, calibratedMeta.safetyCar)
         : catalogNb.safetyCarScore
@@ -1990,19 +2837,52 @@ export function computeDynamicProperties(
           ? 4.8
           : 6.5;
 
+    const nbSafetyCar =
+      microEnv.safetyCarCap !== null
+        ? Math.min(baseSafetyCar, microEnv.safetyCarCap)
+        : baseSafetyCar;
+
+    const baseUrbanBreathing = catalogNb
+      ? calibratedMeta && calibratedMeta.urbanBreathing < 8.0
+        ? Math.min(catalogNb.urbanBreathingScore, calibratedMeta.urbanBreathing)
+        : catalogNb.urbanBreathingScore
+      : calibratedMeta
+        ? calibratedMeta.urbanBreathing
+        : 6.0;
+    const effectiveUrbanBreathing =
+      microEnv.urbanBreathingCap !== null
+        ? Math.min(baseUrbanBreathing, microEnv.urbanBreathingCap)
+        : baseUrbanBreathing;
+
     let nbScore = 6.2;
     let nbCommute = "~20-35 min do Nubank";
     if (catalogNb) {
-      nbScore = catalogNb.dynamicScore;
       nbCommute = `${catalogNb.commuteTime} (${catalogNb.nubankHub})`;
+      if (
+        microEnv.safetyCarCap !== null ||
+        microEnv.urbanBreathingCap !== null
+      ) {
+        nbScore = computeWeightedNeighborhoodScore(
+          {
+            urbanBreathing: effectiveUrbanBreathing,
+            commuteLogistics: catalogNb.commuteLogisticsScore,
+            buildingStock: catalogNb.buildingStockFitScore,
+            budgetFit: catalogNb.budgetFitScore,
+            safetyCar: nbSafetyCar,
+          },
+          weights,
+        );
+      } else {
+        nbScore = catalogNb.dynamicScore;
+      }
     } else if (calibratedMeta) {
       nbScore = computeWeightedNeighborhoodScore(
         {
-          urbanBreathing: calibratedMeta.urbanBreathing,
+          urbanBreathing: effectiveUrbanBreathing,
           commuteLogistics: calibratedMeta.commuteLogistics,
           buildingStock: calibratedMeta.buildingStock,
           budgetFit: calibratedMeta.budgetFit,
-          safetyCar: calibratedMeta.safetyCar,
+          safetyCar: nbSafetyCar,
         },
         weights,
       );
@@ -2010,7 +2890,7 @@ export function computeDynamicProperties(
     } else {
       nbScore = computeWeightedNeighborhoodScore(
         {
-          urbanBreathing: 6.0,
+          urbanBreathing: effectiveUrbanBreathing,
           commuteLogistics: 6.5,
           buildingStock: 6.2,
           budgetFit: 7.0,
@@ -2082,8 +2962,23 @@ export function computeDynamicProperties(
     const commuteDistanceAdjustment =
       Math.round(rawCommutePts * commuteWeightScale * 10) / 10;
 
+    // Non-linear interior quality & modernity curve (+8 pts >= 82, -10 pts < 68, -18 pts < 58)
+    const modernityCurveBonus =
+      weights.modernityMultiplier > 0
+        ? prop.modernityScore >= 82
+          ? 8.0
+          : prop.modernityScore < 58
+            ? -18.0
+            : prop.modernityScore < 68
+              ? -10.0
+              : 0
+        : 0;
     const modernityPoints =
-      Math.round(prop.modernityScore * weights.modernityMultiplier * 10) / 10;
+      Math.round(
+        (prop.modernityScore * weights.modernityMultiplier +
+          modernityCurveBonus) *
+          10,
+      ) / 10;
 
     // Nuances evaluation
     const nuances = evaluateApartmentNuances(prop, weights.penalizeMegaCondo);
@@ -2159,18 +3054,24 @@ export function computeDynamicProperties(
         "Totalmente mobiliado com cama/sofá (requer negociar retirada de mobília solta ou adaptar)";
     }
 
-    // Area points
+    // Area points (calibrated for bringing Brasília furniture: Queen bed, large sofa, fridge, washer, dishwasher)
     const area = prop.areaM2;
     let areaPoints = 0;
     let areaDesc = "";
     if (area >= weights.sweetSpotMinM2 && area <= weights.sweetSpotMaxM2) {
+      areaPoints = 10;
+      areaDesc = `${area} m² no sweet spot ideal para a mudança de Brasília (${weights.sweetSpotMinM2}–${weights.sweetSpotMaxM2} m²)`;
+    } else if (area > weights.sweetSpotMaxM2 && area <= weights.maxAreaM2) {
       areaPoints = 6;
-      areaDesc = `${area} m² no sweet spot (${weights.sweetSpotMinM2}–${weights.sweetSpotMaxM2} m²)`;
-    } else if (area >= weights.minAreaM2 && area <= weights.maxAreaM2) {
-      areaPoints = 3;
-      areaDesc = `${area} m² dentro da janela (${weights.minAreaM2}–${weights.maxAreaM2} m²)`;
+      areaDesc = `${area} m² planta espaçosa (${weights.sweetSpotMaxM2}–${weights.maxAreaM2} m²)`;
+    } else if (area >= 46 && area < weights.sweetSpotMinM2) {
+      areaPoints = 0;
+      areaDesc = `${area} m² compacta no limite (46–${weights.sweetSpotMinM2 - 1} m²)`;
+    } else if (area >= weights.minAreaM2 && area < 46) {
+      areaPoints = -10;
+      areaDesc = `${area} m² muito enxuta para acomodar toda a mudança de Brasília (${weights.minAreaM2}–45 m²)`;
     } else {
-      areaPoints = -8;
+      areaPoints = -18;
       areaDesc = `${area} m² fora da faixa configurada (${weights.minAreaM2}–${weights.maxAreaM2} m²)`;
     }
 
@@ -2288,9 +3189,16 @@ export function computeDynamicProperties(
       `[Garagem ${fmtSign(parkingPoints)} pts] ${parkingDesc}.`,
     ];
 
+    const parsedCommute = parseCommuteMinutes(
+      catalogNb?.commuteTime ?? nbCommute,
+      isDeepWestBarra,
+    );
+
     return {
       ...effectiveProp,
       furnitureTier,
+      commuteMinutes: parsedCommute.minutes,
+      commuteLabel: parsedCommute.label,
       eligible,
       exclusionReason,
       finalScore,
@@ -2306,6 +3214,9 @@ export function computeDynamicProperties(
         furniturePoints,
         areaPoints,
         parkingPoints,
+        safetyPoints: streetSafetyAdjustment,
+        commutePoints: commuteDistanceAdjustment,
+        cityPreferencePoints,
       },
       cardTags: {
         acLabel: nuances.acLabel,
@@ -2357,9 +3268,7 @@ export function computeDynamicProperties(
   const nbCounters = new Map<string, number>();
 
   for (const item of evaluated) {
-    if (!item.eligible) continue;
-    overallCounter++;
-    item.overallRank = overallCounter;
+    if (!item.eligible || item.isActive === false) continue;
 
     const cRank = (cityCounters.get(item.cityCode) ?? 0) + 1;
     cityCounters.set(item.cityCode, cRank);
@@ -2369,6 +3278,11 @@ export function computeDynamicProperties(
     const nRank = (nbCounters.get(nbKey) ?? 0) + 1;
     nbCounters.set(nbKey, nRank);
     item.neighborhoodRank = nRank;
+
+    if (item.cityCode !== "BSB" || options?.includeBsbBenchmark) {
+      overallCounter++;
+      item.overallRank = overallCounter;
+    }
   }
 
   return evaluated;

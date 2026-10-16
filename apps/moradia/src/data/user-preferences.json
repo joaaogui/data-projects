@@ -1,6 +1,7 @@
 {
+  "schemaVersion": 2,
   "filters": {
-    "sortBy": "price_asc",
+    "sortBy": "score_desc",
     "minScore": null,
     "viewMode": "list",
     "maxAreaM2": null,
@@ -18,26 +19,27 @@
     "modernityTiers": [],
     "onlyNewEntries": false,
     "providerFilter": "ALL",
-    "selectedCities": [],
+    "selectedCities": [
+      "BH",
+      "CP"
+    ],
     "showIneligible": false,
     "furnishedFilter": "UNFURNISHED",
     "maxTotalMonthly": 4000,
     "minTotalMonthly": null,
-    "selectedParking": [
-      1,
-      2
+    "selectedParking": [],
+    "requiredFeatures": [
+      "ac"
     ],
-    "requiredFeatures": [],
-    "selectedBedrooms": [
-      1,
-      2
-    ],
+    "selectedBedrooms": [],
     "deactivatedFilter": "ACTIVE_ONLY",
+    "maxCommuteMinutes": null,
     "minModernityScore": null,
     "selectedBathrooms": [],
-    "showAdvancedFilters": true,
+    "enableBsbBenchmark": true,
+    "showAdvancedFilters": false,
     "selectedNeighborhoods": [],
-    "onlyTop20Neighborhoods": true
+    "onlyTop20Neighborhoods": false
   },
   "weights": {
     "budgetMax": 6500,
@@ -49,8 +51,8 @@
     "parkingBonus1": 5,
     "parkingBonus2": 8,
     "requireParking": true,
-    "sweetSpotMaxM2": 68,
-    "sweetSpotMinM2": 48,
+    "sweetSpotMaxM2": 72,
+    "sweetSpotMinM2": 50,
     "budgetFitWeight": 1,
     "safetyCarWeight": 2.5,
     "furnishedPenalty": -22,
@@ -59,8 +61,8 @@
     "nuancesMultiplier": 1,
     "penalizeMegaCondo": true,
     "buildingStockWeight": 1,
-    "modernityMultiplier": 0.65,
-    "urbanBreathingWeight": 1,
+    "modernityMultiplier": 0.85,
+    "urbanBreathingWeight": 2,
     "commuteLogisticsWeight": 1.8,
     "neighborhoodMultiplier": 6.5
   },
@@ -82,12 +84,15 @@
     "quintoandar:893083464",
     "quintoandar:895740524",
     "quintoandar:895706010",
-    "quintoandar:895651295"
+    "quintoandar:895651295",
+    "quintoandar:893880856",
+    "zapimoveis:2440644288",
+    "quintoandar:893007761"
   ],
   "compareKeys": [
     "quintoandar:893127481",
     "zapimoveis:2900134401",
     "quintoandar:895394820"
   ],
-  "updatedAt": "2026-10-16T21:51:37.419Z"
+  "updatedAt": "2026-10-16T23:32:09.383Z"
 }

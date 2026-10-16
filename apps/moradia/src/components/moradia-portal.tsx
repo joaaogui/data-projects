@@ -1,5 +1,6 @@
 "use client";
 
+import { PropertyChatDrawer } from "@/components/property-chat-drawer";
 import { PropertyMapView } from "@/components/property-map-view";
 import {
   getCardPhotoUrl,
@@ -31,9 +32,11 @@ import { ThemeToggle } from "@data-projects/ui";
 import {
   ArrowUpDown,
   Building2,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Copy,
   ExternalLink,
   Filter,
   GitCompare,
@@ -78,7 +81,8 @@ export type SortByOption =
   | "area_desc"
   | "modernity_desc"
   | "price_per_m2_asc"
-  | "floor_desc";
+  | "floor_desc"
+  | "commute_asc";
 
 export type FurnishedFilterOption =
   | "ALL"
@@ -119,6 +123,7 @@ export interface PropertyExplorerFilters {
   floorFilters?: FloorFilterOption[];
   minTotalMonthly: number | null;
   maxTotalMonthly: number | null;
+  maxCommuteMinutes?: number | null;
   minScore: number | null;
   sortBy: SortByOption;
   selectedNeighborhoods: string[];
@@ -141,6 +146,7 @@ export interface PropertyExplorerFilters {
   providerFilter: ProviderFilterOption;
   onlyFavorites: boolean;
   onlyTop20Neighborhoods?: boolean;
+  enableBsbBenchmark?: boolean;
   deactivatedFilter: DeactivatedFilterOption;
   favoriteKeys?: string[];
 }
@@ -153,6 +159,7 @@ export const DEFAULT_EXPLORER_FILTERS: PropertyExplorerFilters = {
   floorFilters: [],
   minTotalMonthly: null,
   maxTotalMonthly: null,
+  maxCommuteMinutes: null,
   minScore: null,
   sortBy: "score_desc",
   selectedNeighborhoods: [],
@@ -175,6 +182,7 @@ export const DEFAULT_EXPLORER_FILTERS: PropertyExplorerFilters = {
   providerFilter: "ALL",
   onlyFavorites: false,
   onlyTop20Neighborhoods: false,
+  enableBsbBenchmark: false,
   deactivatedFilter: "ACTIVE_ONLY",
   favoriteKeys: [],
 };
@@ -252,6 +260,11 @@ export const SORT_BY_OPTIONS: {
     shortLabel: "Moderno ↓",
   },
   { value: "price_per_m2_asc", label: "Melhor R$/m²", shortLabel: "R$/m² ↑" },
+  {
+    value: "commute_asc",
+    label: "Menor Tempo até o Escritório (min)",
+    shortLabel: "Tempo ↑",
+  },
 ];
 
 export const PROPERTY_FEATURE_OPTIONS: {
@@ -438,6 +451,16 @@ export const STRICT_TOP_20_NEIGHBORHOODS_BY_CITY: Record<
     "jardim oceanico",
     "barra da tijuca",
   ]),
+  BSB: new Set([
+    "águas claras",
+    "aguas claras",
+    "norte (águas claras)",
+    "norte (aguas claras)",
+    "sul (águas claras)",
+    "sul (aguas claras)",
+    "águas claras norte",
+    "águas claras sul",
+  ]),
 };
 
 const DEEP_WEST_BARRA_EXCLUSION_RE =
@@ -485,10 +508,15 @@ export function filterAndSortProperties(
     ...(favoriteKeysArg ?? []),
   ]);
   const onlyFavorites = filters.onlyFavorites ?? false;
+  const enableBsbBenchmark = filters.enableBsbBenchmark ?? false;
   const deactivatedFilter: DeactivatedFilterOption =
     filters.deactivatedFilter ?? "ACTIVE_ONLY";
 
   const filtered = properties.filter((p) => {
+    if (!enableBsbBenchmark && p.cityCode === "BSB") {
+      return false;
+    }
+
     const propKey = `${p.provider}:${p.id}`;
     const isFav = favSet.has(propKey) || favSet.has(p.id);
     const isActive = p.isActive !== false;
@@ -514,7 +542,7 @@ export function filterAndSortProperties(
     const activeCities =
       filters.selectedCities &&
       filters.selectedCities.length > 0 &&
-      filters.selectedCities.length < 4
+      (enableBsbBenchmark || filters.selectedCities.length < 4)
         ? filters.selectedCities
         : filters.selectedCity && filters.selectedCity !== "ALL"
           ? [filters.selectedCity]
@@ -560,6 +588,13 @@ export function filterAndSortProperties(
     if (
       filters.maxTotalMonthly !== null &&
       p.totalMonthly > filters.maxTotalMonthly
+    ) {
+      return false;
+    }
+    if (
+      filters.maxCommuteMinutes !== null &&
+      filters.maxCommuteMinutes !== undefined &&
+      (p.commuteMinutes ?? 25) > filters.maxCommuteMinutes
     ) {
       return false;
     }
@@ -735,6 +770,11 @@ export function filterAndSortProperties(
         const bFl = getEffectiveFloorSortValue(b);
         return bFl - aFl || b.finalScore - a.finalScore;
       }
+      case "commute_asc":
+        return (
+          (a.commuteMinutes ?? 99) - (b.commuteMinutes ?? 99) ||
+          b.finalScore - a.finalScore
+        );
       case "score_desc":
       default:
         return b.finalScore - a.finalScore || a.totalMonthly - b.totalMonthly;
@@ -744,12 +784,83 @@ export function filterAndSortProperties(
   return sorted;
 }
 
+export function formatTopPropertiesForAiPrompt(
+  properties: EvaluatedProperty[],
+  options?: {
+    activeFilterLabels?: string[];
+    favoriteKeys?: Set<string> | Iterable<string>;
+    limit?: number;
+  },
+): string {
+  const maxLimit = options?.limit ?? 50;
+  const items = properties.slice(0, maxLimit);
+  const totalFiltered = properties.length;
+  const favSet = new Set<string>(options?.favoriteKeys ?? []);
+  const filterLabels = options?.activeFilterLabels ?? [];
+
+  const headerLines = [
+    `# Top ${items.length} Imóveis Selecionados — Housing (BH · CP · RJ · SP)`,
+    "",
+    "**Contexto & Perfil do Morador**: Mudança de Brasília levando mobília e eletrodomésticos próprios (~6–8 m³: cama, sofá, geladeira, máquina de lavar, etc.), buscando apartamento sem mobília (ou no máximo semi-mobiliado sem conflito). Orçamento mensal total (Aluguel + Condomínio + IPTU) ideal ≤ R$ 5.500/mês e teto de R$ 6.500/mês; área útil ideal 48–68 m² (janela aceitável 40–95 m²); mínimo de 1 vaga de garagem livre e prédio com elevador; forte preferência por andar alto ou cobertura, prédio novo/reformado, segurança real ao caminhar na calçada e deslocamento rápido até o escritório do Nubank.",
+    "",
+    `- **Filtros ativos**: ${filterLabels.length > 0 ? filterLabels.join(" · ") : "Nenhum (busca padrão)"}`,
+    `- **Total filtrado**: Exibindo top ${items.length} de ${totalFiltered} imóveis`,
+    "",
+    "---",
+  ];
+
+  if (items.length === 0) {
+    return [...headerLines, "", "_Nenhum imóvel encontrado para os filtros atuais._"].join("\n");
+  }
+
+  const itemBlocks = items.map((p, idx) => {
+    const propKey = `${p.provider}:${p.id}`;
+    const isFav = favSet.has(propKey) || favSet.has(p.id);
+    const allTags = [
+      ...(p.cardTags.floorTag ? [p.cardTags.floorTag.label] : []),
+      ...p.cardTags.greenTags,
+      ...p.cardTags.redTags,
+    ];
+    const furnitureLabel =
+      p.furnitureTier === "FULLY_FURNISHED"
+        ? "Mobiliado"
+        : p.furnitureTier === "SEMI_FURNISHED"
+          ? "Semi-mobiliado (eletros)"
+          : "Sem mobília";
+
+    const rawDesc = (p.description ?? p.generatedDescription ?? "").trim();
+    const cleanDesc =
+      rawDesc && !/^\$\d+$/.test(rawDesc)
+        ? rawDesc.replace(/\s+/g, " ").slice(0, 350) +
+          (rawDesc.replace(/\s+/g, " ").length > 350 ? "…" : "")
+        : null;
+
+    const lines = [
+      `### ${idx + 1}. [#${p.overallRank ?? "—"} Geral | #${p.cityRank ?? "—"} ${p.cityCode}] ${p.neighborhood} (${p.city}) — ${p.street}${p.streetNumber ? `, ${p.streetNumber}` : ""}${p.condominiumName ? ` (${p.condominiumName})` : ""}${isFav ? " [★ FAVORITO]" : ""}`,
+      `- **Score & Custos**: Nota: ${p.finalScore.toFixed(1)} pts | Pacote Total: R$ ${p.totalMonthly.toLocaleString("pt-BR")}/mês (Aluguel R$ ${p.rent.toLocaleString("pt-BR")} + Cond. R$ ${p.condoFee.toLocaleString("pt-BR")} + IPTU R$ ${p.iptu.toLocaleString("pt-BR")})`,
+      `- **Planta & Andar**: ${p.areaM2} m² | ${p.bedrooms} quarto(s)${p.suites > 0 ? ` (${p.suites} suíte)` : ""} | ${p.bathrooms} banheiro(s) | ${p.parkingSpaces} vaga(s) | Andar: ${p.cardTags.floorTag?.label ?? "Não informado"} | Mobília: ${furnitureLabel} | Conservação: ${p.modernityTier} (${p.modernityScore}/100)${p.constructionYear ? ` · Ano ${p.constructionYear}` : ""}`,
+      `- **Logística Nubank & Tags**: Tempo até o Nubank: ${p.commuteLabel ?? "~20-30 min"} | Tags: ${allTags.join(", ") || "Nenhuma"}`,
+      `- **Prós & Ressalvas**: Resumo: ${p.shortJustification.replace(/\n+/g, " | ")}`,
+    ];
+
+    if (cleanDesc) {
+      lines.push(`- **Descrição**: ${cleanDesc}`);
+    }
+    lines.push(`- **Link**: ${p.url} (${propKey})`);
+
+    return lines.join("\n");
+  });
+
+  return [...headerLines, "", itemBlocks.join("\n\n")].join("\n");
+}
+
 const CITY_LABELS: Record<CityHubCode | "ALL", string> = {
   ALL: "Todas as 4 Praças",
   BH: "Belo Horizonte (MG)",
   CP: "Campinas (SP)",
   RJ: "Rio de Janeiro (RJ)",
   SP: "São Paulo Capital (SP)",
+  BSB: "Águas Claras — Brasília (DF) [Benchmark]",
 };
 
 const CITY_BADGE_INFO: Record<
@@ -775,6 +886,11 @@ const CITY_BADGE_INFO: Record<
     ufLabel: "SP",
     className:
       "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-800 dark:border-fuchsia-400/30 dark:bg-fuchsia-400/10 dark:text-fuchsia-200",
+  },
+  BSB: {
+    ufLabel: "BSB · Ref",
+    className:
+      "border-amber-500/45 bg-amber-500/15 text-amber-800 dark:border-amber-400/45 dark:bg-amber-400/15 dark:text-amber-200",
   },
 };
 
@@ -892,6 +1008,7 @@ export interface ParsedExplorerFiltersState {
   floorFilters: FloorFilterOption[];
   minTotalMonthly: number | null;
   maxTotalMonthly: number | null;
+  maxCommuteMinutes: number | null;
   minScore: number | null;
   sortBy: SortByOption;
   minAreaM2: number | null;
@@ -913,6 +1030,7 @@ export interface ParsedExplorerFiltersState {
   providerFilter: ProviderFilterOption;
   onlyFavorites: boolean;
   onlyTop20Neighborhoods: boolean;
+  enableBsbBenchmark: boolean;
   deactivatedFilter: DeactivatedFilterOption;
   showAdvancedFilters: boolean;
   viewMode: "split" | "list" | "map";
@@ -928,19 +1046,30 @@ export function parseExplorerFiltersObject(
     }
   >;
 
+  const enableBsbBenchmark =
+    typeof parsed.enableBsbBenchmark === "boolean"
+      ? parsed.enableBsbBenchmark
+      : false;
+
   let selectedCities: CityHubCode[] = [];
   if (Array.isArray(parsed.selectedCities)) {
     const validCities = parsed.selectedCities.filter(
       (c): c is CityHubCode =>
-        c === "BH" || c === "CP" || c === "RJ" || c === "SP",
+        c === "BH" ||
+        c === "CP" ||
+        c === "RJ" ||
+        c === "SP" ||
+        (enableBsbBenchmark && c === "BSB"),
     );
     const uniqueCities = [...new Set(validCities)];
-    selectedCities = uniqueCities.length >= 4 ? [] : uniqueCities;
+    selectedCities =
+      !enableBsbBenchmark && uniqueCities.length >= 4 ? [] : uniqueCities;
   } else if (
     parsed.selectedCity === "BH" ||
     parsed.selectedCity === "CP" ||
     parsed.selectedCity === "RJ" ||
-    parsed.selectedCity === "SP"
+    parsed.selectedCity === "SP" ||
+    (enableBsbBenchmark && parsed.selectedCity === "BSB")
   ) {
     selectedCities = [parsed.selectedCity];
   }
@@ -1008,6 +1137,10 @@ export function parseExplorerFiltersObject(
       typeof parsed.minTotalMonthly === "number" ? parsed.minTotalMonthly : null,
     maxTotalMonthly:
       typeof parsed.maxTotalMonthly === "number" ? parsed.maxTotalMonthly : null,
+    maxCommuteMinutes:
+      typeof parsed.maxCommuteMinutes === "number"
+        ? parsed.maxCommuteMinutes
+        : null,
     minScore: typeof parsed.minScore === "number" ? parsed.minScore : null,
     sortBy:
       typeof parsed.sortBy === "string" &&
@@ -1073,6 +1206,7 @@ export function parseExplorerFiltersObject(
       typeof parsed.onlyTop20Neighborhoods === "boolean"
         ? parsed.onlyTop20Neighborhoods
         : false,
+    enableBsbBenchmark,
     deactivatedFilter:
       parsed.deactivatedFilter === "ACTIVE_ONLY" ||
       parsed.deactivatedFilter === "ALL" ||
@@ -1104,6 +1238,7 @@ function serializeExplorerFilters(state: ParsedExplorerFiltersState) {
     floorFilters: state.floorFilters,
     minTotalMonthly: state.minTotalMonthly,
     maxTotalMonthly: state.maxTotalMonthly,
+    maxCommuteMinutes: state.maxCommuteMinutes,
     minScore: state.minScore,
     sortBy: state.sortBy,
     minAreaM2: state.minAreaM2,
@@ -1125,6 +1260,7 @@ function serializeExplorerFilters(state: ParsedExplorerFiltersState) {
     providerFilter: state.providerFilter,
     onlyFavorites: state.onlyFavorites,
     onlyTop20Neighborhoods: state.onlyTop20Neighborhoods,
+    enableBsbBenchmark: state.enableBsbBenchmark,
     deactivatedFilter: state.deactivatedFilter,
     showAdvancedFilters: state.showAdvancedFilters,
     viewMode: state.viewMode,
@@ -1189,6 +1325,9 @@ export function MoradiaPortal({
   const [maxTotalMonthly, setMaxTotalMonthly] = useState<number | null>(
     initialParsedFilters.maxTotalMonthly,
   );
+  const [maxCommuteMinutes, setMaxCommuteMinutes] = useState<number | null>(
+    initialParsedFilters.maxCommuteMinutes,
+  );
   const [minScore, setMinScore] = useState<number | null>(
     initialParsedFilters.minScore,
   );
@@ -1250,6 +1389,11 @@ export function MoradiaPortal({
   const [onlyTop20Neighborhoods, setOnlyTop20Neighborhoods] = useState<boolean>(
     initialParsedFilters.onlyTop20Neighborhoods,
   );
+  const [enableBsbBenchmark, setEnableBsbBenchmark] = useState<boolean>(
+    initialParsedFilters.enableBsbBenchmark,
+  );
+  const [benchmarkPanelCollapsed, setBenchmarkPanelCollapsed] =
+    useState<boolean>(false);
   const [deactivatedFilter, setDeactivatedFilter] =
     useState<DeactivatedFilterOption>(initialParsedFilters.deactivatedFilter);
   const [favoriteKeys, setFavoriteKeys] = useState<string[]>(initialFavorites);
@@ -1292,13 +1436,15 @@ export function MoradiaPortal({
     string | null
   >(null);
   const [qaItems, setQaItems] = useState<PropertyQuestionItem[]>([]);
-  const [openQuestionBoxKeys, setOpenQuestionBoxKeys] = useState<string[]>([]);
-  const [questionDraftByKey, setQuestionDraftByKey] = useState<
-    Record<string, string>
-  >({});
-  const [submittingQuestionKey, setSubmittingQuestionKey] = useState<
+  const [showChatDrawer, setShowChatDrawer] = useState<boolean>(false);
+  const [pinnedChatPropertyKey, setPinnedChatPropertyKey] = useState<
     string | null
   >(null);
+  const [chatScrollTargetKey, setChatScrollTargetKey] = useState<string | null>(
+    null,
+  );
+  const [isSubmittingChatQuestion, setIsSubmittingChatQuestion] =
+    useState<boolean>(false);
 
   const focusCardInList = useCallback((key: string) => {
     setViewMode((prev) => (prev === "map" ? "split" : prev));
@@ -1326,6 +1472,7 @@ export function MoradiaPortal({
     }),
   );
   const isDirtyRef = useRef<boolean>(false);
+  const isApplyingRemotePrefsRef = useRef<boolean>(false);
 
   const applyFilterStateObject = useCallback(
     (parsed: ParsedExplorerFiltersState) => {
@@ -1335,6 +1482,7 @@ export function MoradiaPortal({
       setFloorFilters(parsed.floorFilters);
       setMinTotalMonthly(parsed.minTotalMonthly);
       setMaxTotalMonthly(parsed.maxTotalMonthly);
+      setMaxCommuteMinutes(parsed.maxCommuteMinutes);
       setMinScore(parsed.minScore);
       setSortBy(parsed.sortBy);
       setMinAreaM2(parsed.minAreaM2);
@@ -1356,6 +1504,7 @@ export function MoradiaPortal({
       setProviderFilter(parsed.providerFilter);
       setOnlyFavorites(parsed.onlyFavorites);
       setOnlyTop20Neighborhoods(parsed.onlyTop20Neighborhoods);
+      setEnableBsbBenchmark(parsed.enableBsbBenchmark);
       setDeactivatedFilter(parsed.deactivatedFilter);
       setShowAdvancedFilters(parsed.showAdvancedFilters);
       setViewMode(parsed.viewMode);
@@ -1380,6 +1529,7 @@ export function MoradiaPortal({
           : DEFAULT_COMPARE_KEYS;
 
       const serializedFilters = serializeExplorerFilters(parsedFilters);
+      isApplyingRemotePrefsRef.current = true;
       lastSavedSnapshotJsonRef.current = JSON.stringify({
         filters: serializedFilters,
         weights: nextWeights,
@@ -1460,15 +1610,34 @@ export function MoradiaPortal({
       const rawNext = exists
         ? selectedCities.filter((c) => c !== city)
         : [...selectedCities, city];
-      const nextCities = rawNext.length >= 4 ? [] : rawNext;
+      const maxAllCount = enableBsbBenchmark ? 5 : 4;
+      const nextCities = rawNext.length >= maxAllCount ? [] : rawNext;
       setSelectedCities(nextCities);
       setSelectedNeighborhoods((prevNbs) =>
         pruneNeighborhoodsForCities(prevNbs, nextCities),
       );
       setVisibleCount(30);
     },
-    [selectedCities, pruneNeighborhoodsForCities],
+    [selectedCities, enableBsbBenchmark, pruneNeighborhoodsForCities],
   );
+
+  const handleToggleBsbBenchmark = useCallback(() => {
+    setEnableBsbBenchmark((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSelectedCities((prevCities) =>
+          prevCities.filter((c) => c !== "BSB"),
+        );
+        setSelectedNeighborhoods((prevNbs) =>
+          prevNbs.filter((nb) => !/[aá]guas claras/i.test(nb)),
+        );
+      } else {
+        setBenchmarkPanelCollapsed(false);
+      }
+      setVisibleCount(30);
+      return next;
+    });
+  }, []);
 
   const resetAllFilters = () => {
     setSelectedCities([]);
@@ -1477,6 +1646,7 @@ export function MoradiaPortal({
     setFloorFilters([]);
     setMinTotalMonthly(null);
     setMaxTotalMonthly(null);
+    setMaxCommuteMinutes(null);
     setMinScore(null);
     setSortBy("score_desc");
     setMinAreaM2(null);
@@ -1637,6 +1807,7 @@ export function MoradiaPortal({
       floorFilters,
       minTotalMonthly,
       maxTotalMonthly,
+      maxCommuteMinutes,
       minScore,
       sortBy,
       minAreaM2,
@@ -1658,6 +1829,7 @@ export function MoradiaPortal({
       providerFilter,
       onlyFavorites,
       onlyTop20Neighborhoods,
+      enableBsbBenchmark,
       deactivatedFilter,
       showAdvancedFilters,
       viewMode,
@@ -1688,7 +1860,9 @@ export function MoradiaPortal({
       compareKeys,
     };
     const serialized = JSON.stringify(fullPayload);
-    if (serialized === lastSavedSnapshotJsonRef.current) {
+    const wasApplyingRemote = isApplyingRemotePrefsRef.current;
+    isApplyingRemotePrefsRef.current = false;
+    if (wasApplyingRemote || serialized === lastSavedSnapshotJsonRef.current) {
       return;
     }
 
@@ -1734,6 +1908,7 @@ export function MoradiaPortal({
     floorFilters,
     minTotalMonthly,
     maxTotalMonthly,
+    maxCommuteMinutes,
     minScore,
     sortBy,
     minAreaM2,
@@ -1755,6 +1930,7 @@ export function MoradiaPortal({
     providerFilter,
     onlyFavorites,
     onlyTop20Neighborhoods,
+    enableBsbBenchmark,
     deactivatedFilter,
     showAdvancedFilters,
     viewMode,
@@ -1886,87 +2062,25 @@ export function MoradiaPortal({
   );
 
   useEffect(() => {
-    if (!hasPendingQa) return;
-    const interval = setInterval(() => {
-      void fetchQaItems();
-    }, 1500);
-    return () => clearInterval(interval);
-  }, [hasPendingQa, fetchQaItems]);
-
-  const toggleQuestionBox = useCallback((propertyKey: string) => {
-    setOpenQuestionBoxKeys((prev) =>
-      prev.includes(propertyKey)
-        ? prev.filter((k) => k !== propertyKey)
-        : [...prev, propertyKey],
+    if (!hasPendingQa && !showChatDrawer) return;
+    const interval = setInterval(
+      () => {
+        void fetchQaItems();
+      },
+      hasPendingQa ? 1500 : 3500,
     );
-  }, []);
+    return () => clearInterval(interval);
+  }, [hasPendingQa, showChatDrawer, fetchQaItems]);
 
-  const submitPropertyQuestion = useCallback(
-    async (prop: EvaluatedProperty, customQuestion?: string) => {
-      const key = `${prop.provider}:${prop.id}`;
-      const question = (
-        customQuestion ??
-        questionDraftByKey[key] ??
-        ""
-      ).trim();
-      if (!question) return;
-
-      setSubmittingQuestionKey(key);
-      try {
-        const res = await fetch("/api/qa", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "ask",
-            propertyKey: key,
-            question,
-            propertySnapshot: {
-              title: prop.title,
-              neighborhood: prop.neighborhood,
-              cityCode: prop.cityCode,
-              street: prop.street,
-              streetNumber: prop.streetNumber,
-              condominiumName: prop.condominiumName,
-              totalMonthly: prop.totalMonthly,
-              rent: prop.rent,
-              condoFee: prop.condoFee,
-              iptu: prop.iptu,
-              areaM2: prop.areaM2,
-              bedrooms: prop.bedrooms,
-              bathrooms: prop.bathrooms,
-              parkingSpaces: prop.parkingSpaces,
-              floor: prop.floor,
-              floorLabel: prop.cardTags.floorTag?.label ?? null,
-              furnished: prop.furnished,
-              modernityScore: prop.modernityScore,
-              finalScore: prop.finalScore,
-              overallRank: prop.overallRank,
-              url: prop.url,
-              shortJustification: prop.shortJustification,
-              description: prop.description ?? prop.generatedDescription ?? null,
-            },
-          }),
-        });
-        if (res.ok) {
-          const data = (await res.json()) as {
-            ok?: boolean;
-            items?: PropertyQuestionItem[];
-          };
-          if (Array.isArray(data.items)) {
-            setQaItems(data.items);
-          }
-          setQuestionDraftByKey((prev) => ({ ...prev, [key]: "" }));
-          setOpenQuestionBoxKeys((prev) =>
-            prev.includes(key) ? prev : [...prev, key],
-          );
-        }
-      } catch {
-        // Ignore network errors
-      } finally {
-        setSubmittingQuestionKey((prev) => (prev === key ? null : prev));
+  const openChatForProperty = useCallback(
+    (propertyKey: string, scrollToMessages = false) => {
+      setPinnedChatPropertyKey(propertyKey);
+      if (scrollToMessages) {
+        setChatScrollTargetKey(propertyKey);
       }
+      setShowChatDrawer(true);
     },
-    [questionDraftByKey],
+    [],
   );
 
   const deletePropertyQuestion = useCallback(async (id: string) => {
@@ -1984,6 +2098,21 @@ export function MoradiaPortal({
         if (Array.isArray(data.items)) {
           setQaItems(data.items);
         }
+      }
+    } catch {
+      // Ignore network errors
+    }
+  }, []);
+
+  const clearChatHistory = useCallback(async () => {
+    try {
+      const res = await fetch("/api/qa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear" }),
+      });
+      if (res.ok) {
+        setQaItems([]);
       }
     } catch {
       // Ignore network errors
@@ -2073,13 +2202,268 @@ export function MoradiaPortal({
         dataset.properties,
         dynamicNeighborhoods,
         weights,
+        { includeBsbBenchmark: enableBsbBenchmark },
       ),
-    [dataset.properties, dynamicNeighborhoods, weights],
+    [dataset.properties, dynamicNeighborhoods, weights, enableBsbBenchmark],
   );
+
+  const bsbBenchmarkStats = useMemo(() => {
+    const medianOf = (nums: number[]): number => {
+      if (nums.length === 0) return 0;
+      const sorted = [...nums].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 === 0
+        ? Math.round((sorted[mid - 1]! + sorted[mid]!) / 2)
+        : Math.round(sorted[mid]!);
+    };
+
+    const activeEligibleByCity = (code: CityHubCode, strictTop20 = false) =>
+      evaluatedProperties.filter(
+        (p) =>
+          p.cityCode === code &&
+          p.isActive !== false &&
+          p.eligible &&
+          (!strictTop20 || isStrictlyInTop20Neighborhoods(p)),
+      );
+
+    const bsbAllActive = evaluatedProperties.filter(
+      (p) => p.cityCode === "BSB" && p.isActive !== false,
+    );
+    const bsbEligible = activeEligibleByCity("BSB", false);
+    const bsbModernHigh = bsbEligible.filter(
+      (p) =>
+        p.modernityScore >= 72 &&
+        p.parkingSpaces >= 1 &&
+        p.areaM2 >= 48 &&
+        p.areaM2 <= 75,
+    );
+
+    const countUpTo3400 = bsbEligible.filter(
+      (p) => p.totalMonthly <= 3400,
+    ).length;
+    const countModernUpTo3400 = bsbModernHigh.filter(
+      (p) => p.totalMonthly <= 3400,
+    ).length;
+    const countUpTo4000 = bsbEligible.filter(
+      (p) => p.totalMonthly <= 4000,
+    ).length;
+    const countUpTo4500 = bsbEligible.filter(
+      (p) => p.totalMonthly <= 4500,
+    ).length;
+
+    const bsbMedianMonthly = medianOf(bsbEligible.map((p) => p.totalMonthly));
+    const bsbModernMedianMonthly = medianOf(
+      (bsbModernHigh.length > 0 ? bsbModernHigh : bsbEligible).map(
+        (p) => p.totalMonthly,
+      ),
+    );
+    const bsbMedianPm2 = medianOf(
+      bsbEligible.map((p) => p.totalMonthly / Math.max(1, p.areaM2)),
+    );
+
+    const cityComparisons = (
+      [
+        {
+          code: "BSB" as const,
+          label: "Águas Claras (Norte & Sul)",
+          neighborhoods: [
+            "águas claras",
+            "sul (águas claras)",
+            "norte (águas claras)",
+          ],
+          minArea: 48,
+          maxArea: 75,
+          minMonthly: 2800,
+          maxMonthly: 5800,
+          minModernity: 60,
+          requireParking: true,
+          poolLevel: true,
+        },
+        {
+          code: "CP" as const,
+          label: "CP — Taquaral / Bosque / Guanabara",
+          neighborhoods: [
+            "taquaral",
+            "bosque",
+            "jd. guanabara",
+            "nova campinas",
+          ],
+          minArea: 48,
+          maxArea: 75,
+          minMonthly: 2500,
+          maxMonthly: 5400,
+          minModernity: 0,
+          requireParking: true,
+          poolLevel: false,
+        },
+        {
+          code: "BH" as const,
+          label: "BH — Funcionários / Sion / S. Efigênia / Lourdes",
+          neighborhoods: [
+            "funcionários",
+            "sion",
+            "santo agostinho",
+            "santa efigênia",
+            "lourdes",
+          ],
+          minArea: 48,
+          maxArea: 75,
+          minMonthly: 2800,
+          maxMonthly: 5800,
+          minModernity: 60,
+          requireParking: true,
+          poolLevel: false,
+        },
+        {
+          code: "RJ" as const,
+          label: "RJ — Zona Sul: Flamengo / Botafogo",
+          neighborhoods: [
+            "flamengo",
+            "leme",
+            "botafogo",
+            "botafogo (orla)",
+            "laranjeiras",
+            "catete",
+            "copacabana",
+          ],
+          minArea: 48,
+          maxArea: 72,
+          minMonthly: 4200,
+          maxMonthly: 7800,
+          minModernity: 0,
+          requireParking: false,
+          poolLevel: false,
+        },
+        {
+          code: "SP" as const,
+          label: "SP — Moema / V. Mariana / Pinheiros",
+          neighborhoods: [
+            "moema",
+            "indianópolis",
+            "vila mariana",
+            "jardim paulista",
+            "pinheiros",
+            "sumaré",
+          ],
+          minArea: 48,
+          maxArea: 72,
+          minMonthly: 4200,
+          maxMonthly: 7800,
+          minModernity: 0,
+          requireParking: true,
+          poolLevel: false,
+        },
+      ]
+    ).map((spec) => {
+      const allowedNbs = new Set(spec.neighborhoods);
+      const items = evaluatedProperties.filter((p) => {
+        if (p.cityCode !== spec.code || p.isActive === false) return false;
+        if (p.furnitureTier === "FULLY_FURNISHED" || p.furnished === true) {
+          return false;
+        }
+        if (p.areaM2 < spec.minArea || p.areaM2 > spec.maxArea) return false;
+        if (
+          p.totalMonthly < spec.minMonthly ||
+          p.totalMonthly > spec.maxMonthly
+        ) {
+          return false;
+        }
+        if (p.modernityScore < spec.minModernity) return false;
+        if (spec.requireParking && p.parkingSpaces < 1) return false;
+        const normNb = normalizeNeighborhoodKey(
+          p.neighborhood ?? "",
+          spec.code,
+        ).toLowerCase();
+        return allowedNbs.has(normNb);
+      });
+
+      const byNb = new Map<string, EvaluatedProperty[]>();
+      for (const p of items) {
+        const k = normalizeNeighborhoodKey(
+          p.neighborhood ?? "",
+          spec.code,
+        ).toLowerCase();
+        const prev = byNb.get(k);
+        if (prev) {
+          prev.push(p);
+        } else {
+          byNb.set(k, [p]);
+        }
+      }
+
+      const nbMonthlies: number[] = [];
+      const nbPm2s: number[] = [];
+      const nbScores: number[] = [];
+      for (const [, list] of byNb.entries()) {
+        if (list.length < 3 && !spec.poolLevel) continue;
+        nbMonthlies.push(medianOf(list.map((x) => x.totalMonthly)));
+        nbPm2s.push(
+          medianOf(
+            list.map((x) => Math.round(x.totalMonthly / Math.max(1, x.areaM2))),
+          ),
+        );
+        nbScores.push(
+          Math.round(
+            (list.reduce((s, p) => s + p.finalScore, 0) / list.length) * 10,
+          ) / 10,
+        );
+      }
+
+      const usePool = spec.poolLevel || nbMonthlies.length === 0;
+      const medianMonthly = usePool
+        ? medianOf(items.map((p) => p.totalMonthly))
+        : medianOf(nbMonthlies);
+      const medianPm2 = usePool
+        ? medianOf(
+            items.map((p) =>
+              Math.round(p.totalMonthly / Math.max(1, p.areaM2)),
+            ),
+          )
+        : medianOf(nbPm2s);
+      const medianScore = usePool
+        ? items.length > 0
+          ? Math.round(
+              (items.reduce((s, p) => s + p.finalScore, 0) / items.length) * 10,
+            ) / 10
+          : 0
+        : Math.round(
+            (nbScores.reduce((a, b) => a + b, 0) / nbScores.length) * 10,
+          ) / 10;
+
+      return {
+        code: spec.code,
+        label: spec.label,
+        totalEligible: items.length,
+        medianMonthly,
+        medianPm2,
+        medianScore,
+        upTo4200Count: items.filter((p) => p.totalMonthly <= 4200).length,
+      };
+    });
+
+    return {
+      totalScrapedBsb: bsbAllActive.length,
+      totalEligibleBsb: bsbEligible.length,
+      countUpTo3400,
+      countModernUpTo3400,
+      countUpTo4000,
+      countUpTo4500,
+      bsbMedianMonthly,
+      bsbModernMedianMonthly,
+      bsbMedianPm2,
+      contractGapReais: Math.max(0, bsbModernMedianMonthly - 3400),
+      contractGapPct:
+        bsbModernMedianMonthly > 0
+          ? Math.round(((bsbModernMedianMonthly - 3400) / 3400) * 100)
+          : 0,
+      cityComparisons,
+    };
+  }, [evaluatedProperties]);
 
   const availableNeighborhoodOptions = useMemo(() => {
     const countMap = new Map<string, { count: number; cityCode: CityHubCode }>();
     for (const p of evaluatedProperties) {
+      if (!enableBsbBenchmark && p.cityCode === "BSB") continue;
       if (!showIneligible && !p.eligible) continue;
       if (selectedCities.length > 0 && !selectedCities.includes(p.cityCode)) {
         continue;
@@ -2122,6 +2506,7 @@ export function MoradiaPortal({
       );
   }, [
     evaluatedProperties,
+    enableBsbBenchmark,
     selectedCities,
     showIneligible,
     onlyTop20Neighborhoods,
@@ -2137,6 +2522,7 @@ export function MoradiaPortal({
       floorFilters,
       minTotalMonthly,
       maxTotalMonthly,
+      maxCommuteMinutes,
       minScore,
       sortBy,
       selectedNeighborhoods,
@@ -2159,6 +2545,7 @@ export function MoradiaPortal({
       providerFilter,
       onlyFavorites,
       onlyTop20Neighborhoods,
+      enableBsbBenchmark,
       deactivatedFilter,
       favoriteKeys,
     }),
@@ -2169,6 +2556,7 @@ export function MoradiaPortal({
       floorFilters,
       minTotalMonthly,
       maxTotalMonthly,
+      maxCommuteMinutes,
       minScore,
       sortBy,
       selectedNeighborhoods,
@@ -2191,6 +2579,7 @@ export function MoradiaPortal({
       providerFilter,
       onlyFavorites,
       onlyTop20Neighborhoods,
+      enableBsbBenchmark,
       deactivatedFilter,
       favoriteKeys,
     ],
@@ -2206,14 +2595,135 @@ export function MoradiaPortal({
     [evaluatedProperties, currentExplorerFilters, favoriteKeys],
   );
 
+  const pinnedChatProperty = useMemo(() => {
+    if (!pinnedChatPropertyKey) return null;
+    const found =
+      evaluatedProperties.find(
+        (p) => `${p.provider}:${p.id}` === pinnedChatPropertyKey,
+      ) ?? null;
+    if (!found) return null;
+    const extraPhotos = extraPhotosByKey[pinnedChatPropertyKey];
+    if (extraPhotos && extraPhotos.length > found.samplePhotos.length) {
+      return { ...found, samplePhotos: extraPhotos };
+    }
+    return found;
+  }, [pinnedChatPropertyKey, evaluatedProperties, extraPhotosByKey]);
+
+  const submitChatQuestion = useCallback(
+    async ({
+      question,
+      property,
+    }: {
+      question: string;
+      property: EvaluatedProperty | null;
+    }) => {
+      const trimmed = question.trim();
+      if (!trimmed) return;
+      const key = property ? `${property.provider}:${property.id}` : "general";
+
+      const topContextLines = filteredProperties
+        .slice(0, 5)
+        .map(
+          (p, idx) =>
+            `${idx + 1}. #${p.overallRank ?? idx + 1} ${p.neighborhood} (${p.cityCode}) — ${p.street}: ${p.finalScore.toFixed(1)} pts · R$ ${p.totalMonthly.toLocaleString("pt-BR")}/mês · ${p.areaM2} m²`,
+        )
+        .join("\n");
+
+      setIsSubmittingChatQuestion(true);
+      try {
+        const res = await fetch("/api/qa", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "ask",
+            propertyKey: key,
+            question: trimmed,
+            contextSummary:
+              filteredProperties.length > 0
+                ? `Filtro atual na tela (${filteredProperties.length} imóveis):\n${topContextLines}`
+                : undefined,
+            propertySnapshot: property
+              ? {
+                  title: property.title,
+                  neighborhood: property.neighborhood,
+                  cityCode: property.cityCode,
+                  street: property.street,
+                  streetNumber: property.streetNumber,
+                  condominiumName: property.condominiumName,
+                  totalMonthly: property.totalMonthly,
+                  rent: property.rent,
+                  condoFee: property.condoFee,
+                  iptu: property.iptu,
+                  areaM2: property.areaM2,
+                  bedrooms: property.bedrooms,
+                  bathrooms: property.bathrooms,
+                  parkingSpaces: property.parkingSpaces,
+                  floor: property.floor,
+                  floorLabel: property.cardTags.floorTag?.label ?? null,
+                  furnished: property.furnished,
+                  modernityScore: property.modernityScore,
+                  finalScore: property.finalScore,
+                  overallRank: property.overallRank,
+                  cityRank: property.cityRank,
+                  furnitureTier: property.furnitureTier,
+                  url: property.url,
+                  shortJustification: property.shortJustification,
+                  description:
+                    property.description ??
+                    property.generatedDescription ??
+                    null,
+                  thumbnailUrl: property.samplePhotos[0]?.url ?? null,
+                  suites: property.suites,
+                  totalFloors: property.totalFloors,
+                  floorRange: property.floorRange,
+                  constructionYear: property.constructionYear,
+                  doorman: property.doorman,
+                  acLabel: property.cardTags.acLabel,
+                  greenTags: property.cardTags.greenTags,
+                  redTags: property.cardTags.redTags,
+                  nuanceHighlights: property.nuanceHighlights,
+                  nuanceWarnings: property.nuanceWarnings,
+                  breakdown: property.breakdown,
+                }
+              : undefined,
+          }),
+        });
+        const data = (await res.json()) as {
+          ok?: boolean;
+          error?: string;
+          items?: PropertyQuestionItem[];
+        };
+        if (!res.ok || data.ok === false) {
+          throw new Error(
+            data.error ??
+              "Não foi possível enviar sua pergunta. Tente novamente.",
+          );
+        }
+        if (Array.isArray(data.items)) {
+          setQaItems(data.items);
+        }
+        return true;
+      } finally {
+        setIsSubmittingChatQuestion(false);
+      }
+    },
+    [filteredProperties],
+  );
+
   const deactivatedTotalCount = useMemo(
-    () => evaluatedProperties.filter((p) => p.isActive === false).length,
-    [evaluatedProperties],
+    () =>
+      evaluatedProperties.filter(
+        (p) =>
+          (enableBsbBenchmark || p.cityCode !== "BSB") &&
+          p.isActive === false,
+      ).length,
+    [evaluatedProperties, enableBsbBenchmark],
   );
 
   const totalBasePoolCount = useMemo(
     () =>
       evaluatedProperties.filter((p) => {
+        if (!enableBsbBenchmark && p.cityCode === "BSB") return false;
         if (deactivatedFilter === "ACTIVE_ONLY" && !onlyFavorites && p.isActive === false) {
           return false;
         }
@@ -2222,7 +2732,7 @@ export function MoradiaPortal({
         }
         return showIneligible || onlyFavorites ? true : p.eligible;
       }).length,
-    [evaluatedProperties, showIneligible, deactivatedFilter, onlyFavorites],
+    [evaluatedProperties, enableBsbBenchmark, showIneligible, deactivatedFilter, onlyFavorites],
   );
 
   const activeAdvancedFilterCount = useMemo(() => {
@@ -2230,6 +2740,7 @@ export function MoradiaPortal({
     if (selectedNeighborhoods.length > 0) count += selectedNeighborhoods.length;
     if (floorFilters.length > 0) count += floorFilters.length;
     if (minTotalMonthly !== null || maxTotalMonthly !== null) count += 1;
+    if (maxCommuteMinutes !== null) count += 1;
     if (minScore !== null) count += 1;
     if (minAreaM2 !== null || maxAreaM2 !== null) count += 1;
     if (selectedBedrooms.length > 0 || minBedrooms !== null) count += 1;
@@ -2252,6 +2763,7 @@ export function MoradiaPortal({
     floorFilters,
     minTotalMonthly,
     maxTotalMonthly,
+    maxCommuteMinutes,
     minScore,
     minAreaM2,
     maxAreaM2,
@@ -2314,6 +2826,13 @@ export function MoradiaPortal({
           setMinTotalMonthly(null);
           setMaxTotalMonthly(null);
         },
+      });
+    }
+    if (maxCommuteMinutes !== null) {
+      pills.push({
+        id: "commute",
+        label: `Tempo ≤ ${maxCommuteMinutes} min`,
+        onClear: () => setMaxCommuteMinutes(null),
       });
     }
     if (minScore !== null) {
@@ -2525,6 +3044,7 @@ export function MoradiaPortal({
     floorFilters,
     minTotalMonthly,
     maxTotalMonthly,
+    maxCommuteMinutes,
     minScore,
     sortBy,
     selectedNeighborhoods,
@@ -2550,6 +3070,40 @@ export function MoradiaPortal({
     favoriteKeys.length,
     deactivatedFilter,
   ]);
+
+  const [copiedTop50Count, setCopiedTop50Count] = useState<number | null>(null);
+  const copyTop50TimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCopyTop50ForAi = useCallback(async () => {
+    if (filteredProperties.length === 0) return;
+    const countToCopy = Math.min(50, filteredProperties.length);
+    const text = formatTopPropertiesForAiPrompt(filteredProperties, {
+      activeFilterLabels: activeFilterPills.map((p) => p.label),
+      favoriteKeys: new Set(favoriteKeys),
+      limit: 50,
+    });
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+
+    setCopiedTop50Count(countToCopy);
+    if (copyTop50TimerRef.current) {
+      clearTimeout(copyTop50TimerRef.current);
+    }
+    copyTop50TimerRef.current = setTimeout(() => {
+      setCopiedTop50Count(null);
+    }, 2500);
+  }, [filteredProperties, activeFilterPills, favoriteKeys]);
 
   const comparedProperties = useMemo(
     () =>
@@ -2756,6 +3310,24 @@ export function MoradiaPortal({
             <span>
               {isRefreshing ? "Sincronizando..." : "Recarregar"}
             </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowChatDrawer((v) => !v)}
+            title="Abrir Chat & Consultor da Sessão (⌘J)"
+            aria-label="Abrir Chat & Consultor da Sessão"
+            aria-expanded={showChatDrawer}
+            className={`inline-flex h-7 sm:h-8 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition-all sm:px-2.5 ${
+              showChatDrawer
+                ? "border-purple-600 bg-purple-600 text-white shadow-xs"
+                : "border-purple-500/40 bg-purple-500/10 text-purple-800 hover:bg-purple-500/20 dark:border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-200"
+            }`}
+          >
+            <MessageSquarePlus className="h-3.5 w-3.5 shrink-0" />
+            <span>Chat ({qaItems.length})</span>
+            {hasPendingQa && (
+              <span className="h-2 w-2 rounded-full bg-purple-400 animate-pulse" />
+            )}
           </button>
           <button
             type="button"
@@ -3521,9 +4093,18 @@ export function MoradiaPortal({
           </button>
         </div>
 
-        {/* Inline City Pills with Muted Top-3 Badge (Multi-Select, single sleek row on mobile) */}
+        {/* Inline City Pills with Muted Top-3 Badge + Opt-in BSB Benchmark Toggle */}
         <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap sm:flex-wrap">
-          {(["ALL", "BH", "CP", "RJ", "SP"] as const).map((city) => {
+          {(
+            [
+              "ALL",
+              "BH",
+              "CP",
+              "RJ",
+              "SP",
+              ...(enableBsbBenchmark ? (["BSB"] as const) : []),
+            ] as const
+          ).map((city) => {
             const cityInfo = city === "ALL" ? undefined : cityTop3ByCode.get(city);
             const isSelected =
               city === "ALL"
@@ -3537,16 +4118,28 @@ export function MoradiaPortal({
                 title={
                   city === "ALL"
                     ? `${CITY_LABELS.ALL} (clique nas praças para selecionar mais de uma por vez)`
-                    : `${CITY_LABELS[city]}${cityInfo ? ` — Top 3 bairros: ${cityInfo.top3Avg.toFixed(2)} (${cityInfo.top3Names.join(", ")})` : ""} · Clique para alternar seleção múltipla`
+                    : city === "BSB"
+                      ? "Águas Claras — Brasília (DF): Benchmark temporário para comparação com seu aluguel atual de R$ 3.400"
+                      : `${CITY_LABELS[city]}${cityInfo ? ` — Top 3 bairros: ${cityInfo.top3Avg.toFixed(2)} (${cityInfo.top3Names.join(", ")})` : ""} · Clique para alternar seleção múltipla`
                 }
                 onClick={() => handleCitySelect(city)}
                 className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors sm:px-2.5 ${
                   isSelected
-                    ? "bg-primary text-primary-foreground"
-                    : "border bg-card hover:bg-secondary"
+                    ? city === "BSB"
+                      ? "bg-amber-600 text-white"
+                      : "bg-primary text-primary-foreground"
+                    : city === "BSB"
+                      ? "border border-amber-500/50 bg-amber-500/10 text-amber-800 hover:bg-amber-500/20 dark:text-amber-200"
+                      : "border bg-card hover:bg-secondary"
                 }`}
               >
-                <span>{city === "ALL" ? "Todas" : city}</span>
+                <span>
+                  {city === "ALL"
+                    ? "Todas"
+                    : city === "BSB"
+                      ? "BSB (Ref)"
+                      : city}
+                </span>
                 {cityInfo && (
                   <span
                     className={`font-mono text-[10px] font-normal ${
@@ -3561,19 +4154,296 @@ export function MoradiaPortal({
               </button>
             );
           })}
+
+          <button
+            type="button"
+            data-testid="toggle-bsb-benchmark"
+            aria-pressed={enableBsbBenchmark}
+            onClick={handleToggleBsbBenchmark}
+            title="Ativar/desativar comparação temporária com o mercado atual de Águas Claras (DF) vs. seu aluguel atual de R$ 3.400 (não altera o ranking fixo quando desativado)"
+            className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold transition-all sm:px-2.5 ${
+              enableBsbBenchmark
+                ? "border-amber-500 bg-amber-500/20 text-amber-900 ring-1 ring-amber-500/40 dark:border-amber-400 dark:bg-amber-500/25 dark:text-amber-100"
+                : "border-dashed border-amber-500/50 bg-amber-500/5 text-amber-800 hover:bg-amber-500/15 dark:text-amber-300"
+            }`}
+          >
+            <span aria-hidden="true">⚖️</span>
+            <span className="sm:hidden">
+              {enableBsbBenchmark ? "BSB Ativo" : "Benchmark BSB"}
+            </span>
+            <span className="hidden sm:inline">
+              {enableBsbBenchmark
+                ? "Benchmark: Águas Claras (Ativo)"
+                : "Benchmark: Águas Claras (BSB)"}
+            </span>
+          </button>
         </div>
       </div>
 
       {/* TAB 1: PROPERTIES EXPLORER */}
       {activeTab === "properties" && (
         <section className="space-y-3">
+          {/* Collapsible BSB Benchmark Comparison Banner (Only visible when Benchmark Mode is toggled ON) */}
+          {enableBsbBenchmark && (
+            <div
+              data-testid="bsb-benchmark-banner"
+              className="rounded-xl border-2 border-amber-500/45 bg-gradient-to-br from-amber-500/10 via-card to-purple-500/5 p-3 sm:p-4 shadow-xs space-y-3"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="space-y-0.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/50 bg-amber-500/20 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-900 dark:text-amber-100">
+                      ⚖️ MODO BENCHMARK TEMPORÁRIO (OPT-IN)
+                    </span>
+                    <h2 className="text-xs sm:text-sm font-bold text-foreground">
+                      Seu Aluguel Atual em Águas Claras (R$ 3.400/mês) vs.
+                      Mercado Aberto Hoje ({bsbBenchmarkStats.totalScrapedBsb}{" "}
+                      anúncios raspados em Águas Claras)
+                    </h2>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-muted-foreground">
+                    Comparação na mesma régua de pontuação (40–95 m², 1+ vaga,
+                    modernidade e lazer). Quando desativado, Águas Claras sai
+                    100% do ranking.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setBenchmarkPanelCollapsed((v) => !v)}
+                    className="rounded-md border bg-background px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  >
+                    {benchmarkPanelCollapsed ? "Expandir dados" : "Recolher"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleToggleBsbBenchmark}
+                    className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-800 hover:bg-rose-500/20 dark:text-rose-200"
+                  >
+                    <X className="h-3 w-3" />
+                    <span>Desativar Benchmark</span>
+                  </button>
+                </div>
+              </div>
+
+              {!benchmarkPanelCollapsed && (
+                <>
+                  {/* Key Findings Grid: Why R$ 3.400 feels so different from open-market listings today */}
+                  <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                    <div className="rounded-lg border border-amber-500/30 bg-background/85 p-3 space-y-1">
+                      <span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                        1. Seu Contrato Vigente vs. Águas Claras Hoje
+                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-mono text-base font-bold text-foreground">
+                          R$ 3.400
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          seu pacote hoje vs.{" "}
+                          <strong className="font-mono text-amber-700 dark:text-amber-300">
+                            R${" "}
+                            {bsbBenchmarkStats.bsbModernMedianMonthly.toLocaleString(
+                              "pt-BR",
+                            )}
+                          </strong>{" "}
+                          (mediana moderna hoje em BSB)
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        Para novos inquilinos entrando hoje em Águas Claras, o
+                        pacote mediano de um apê moderno (48–75 m², 1+ vaga) já
+                        subiu para{" "}
+                        <strong>
+                          R${" "}
+                          {bsbBenchmarkStats.bsbModernMedianMonthly.toLocaleString(
+                            "pt-BR",
+                          )}
+                          /mês
+                        </strong>{" "}
+                        (
+                        {bsbBenchmarkStats.contractGapReais > 0
+                          ? `+R$ ${bsbBenchmarkStats.contractGapReais.toLocaleString("pt-BR")}/mês ou +${bsbBenchmarkStats.contractGapPct}% acima do seu contrato`
+                          : "em linha com seu contrato"}
+                        ).
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border bg-background/85 p-3 space-y-1">
+                      <span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-primary">
+                        2. O Que R$ 3.400 Compra Hoje em Águas Claras?
+                      </span>
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono text-xs">
+                        <span>
+                          ≤ R$ 3.400:{" "}
+                          <strong className="text-sm text-foreground">
+                            {bsbBenchmarkStats.countUpTo3400}
+                          </strong>{" "}
+                          apês ({bsbBenchmarkStats.countModernUpTo3400}{" "}
+                          modernos)
+                        </span>
+                        <span className="text-muted-foreground">|</span>
+                        <span>
+                          ≤ R$ 4.000:{" "}
+                          <strong className="text-sm text-foreground">
+                            {bsbBenchmarkStats.countUpTo4000}
+                          </strong>
+                        </span>
+                        <span className="text-muted-foreground">|</span>
+                        <span>
+                          ≤ R$ 4.500:{" "}
+                          <strong className="text-sm text-foreground">
+                            {bsbBenchmarkStats.countUpTo4500}
+                          </strong>
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        Dos {bsbBenchmarkStats.totalEligibleBsb} imóveis
+                        qualificados hoje em Águas Claras, apenas{" "}
+                        <strong>{bsbBenchmarkStats.countUpTo3400}</strong> saem
+                        até R$ 3.400 (quase todos de 1 quarto/43–50 m²). Os
+                        condomínios clube de 2 quartos (55–70 m²) hoje pedem{" "}
+                        <strong>R$ 3.900 a R$ 4.900/mês</strong> em novos
+                        anúncios.
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border bg-background/85 p-3 space-y-1.5">
+                      <span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        3. Comparativo Direto (Mesmo Padrão Residencial: Sem
+                        Mobília · 48–75 m²)
+                      </span>
+                      <div className="space-y-1 font-mono text-[11px]">
+                        {bsbBenchmarkStats.cityComparisons.map((c) => (
+                          <div
+                            key={c.code}
+                            className={`flex items-center justify-between rounded px-1.5 py-0.5 ${
+                              c.code === "BSB"
+                                ? "bg-amber-500/15 font-bold text-amber-900 dark:text-amber-100"
+                                : "bg-muted/50 text-foreground"
+                            }`}
+                          >
+                            <span className="font-sans text-[11px] font-semibold">
+                              {c.label}
+                            </span>
+                            <span>
+                              R$ {c.medianMonthly.toLocaleString("pt-BR")} · R${" "}
+                              {c.medianPm2}/m² · {c.medianScore.toFixed(1)} pts
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick 1-Click Benchmark Filter Presets */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mr-1">
+                      Testar na lista:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCities(["BSB"]);
+                        setSelectedNeighborhoods([]);
+                        setOnlyTop20Neighborhoods(false);
+                        setMaxTotalMonthly(null);
+                        setVisibleCount(30);
+                      }}
+                      className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                        selectedCities.length === 1 &&
+                        selectedCities[0] === "BSB" &&
+                        maxTotalMonthly === null
+                          ? "border-amber-600 bg-amber-600 text-white"
+                          : "bg-background hover:bg-secondary"
+                      }`}
+                    >
+                      Ver só Águas Claras ({bsbBenchmarkStats.totalEligibleBsb}{" "}
+                      apês)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCities(["BSB"]);
+                        setSelectedNeighborhoods([]);
+                        setOnlyTop20Neighborhoods(false);
+                        setMaxTotalMonthly(3600);
+                        setVisibleCount(30);
+                      }}
+                      className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                        selectedCities.length === 1 &&
+                        selectedCities[0] === "BSB" &&
+                        maxTotalMonthly === 3600
+                          ? "border-amber-600 bg-amber-600 text-white"
+                          : "bg-background hover:bg-secondary"
+                      }`}
+                    >
+                      O que R$ 3.400–3.600 paga hoje em Águas Claras
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCities(["BSB", "BH"]);
+                        setSelectedNeighborhoods([]);
+                        setOnlyTop20Neighborhoods(true);
+                        setMaxTotalMonthly(null);
+                        setVisibleCount(30);
+                      }}
+                      className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                        selectedCities.length === 2 &&
+                        selectedCities.includes("BSB") &&
+                        selectedCities.includes("BH") &&
+                        maxTotalMonthly === null
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "bg-background hover:bg-secondary"
+                      }`}
+                    >
+                      Comparar Águas Claras + BH (Top Bairros)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCities(["BSB", "BH", "CP"]);
+                        setSelectedNeighborhoods([]);
+                        setOnlyTop20Neighborhoods(true);
+                        setMaxTotalMonthly(4200);
+                        setVisibleCount(30);
+                      }}
+                      className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                        selectedCities.length === 3 &&
+                        selectedCities.includes("BSB") &&
+                        maxTotalMonthly === 4200
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "bg-background hover:bg-secondary"
+                      }`}
+                    >
+                      Até R$ 4.200: Águas Claras vs. BH vs. Campinas
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {/* 2-Level Ergonomic Filter System */}
           <div className="rounded-xl border bg-card p-2.5 sm:p-3 shadow-2xs space-y-2.5 sm:space-y-3">
             {/* LEVEL 1 — Primary Filter Strip (Always Visible) */}
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               {/* Praça Quick Selector (Multi-Select — hidden on small screens since the top toolbar already shows city pills) */}
               <div className="hidden md:inline-flex items-center gap-0.5 rounded-lg border bg-background p-0.5 sm:order-1">
-                {(["ALL", "BH", "CP", "RJ", "SP"] as const).map((city) => {
+                {(
+                  [
+                    "ALL",
+                    "BH",
+                    "CP",
+                    "RJ",
+                    "SP",
+                    ...(enableBsbBenchmark ? (["BSB"] as const) : []),
+                  ] as const
+                ).map((city) => {
                   const isSelected =
                     city === "ALL"
                       ? selectedCities.length === 0
@@ -3777,11 +4647,11 @@ export function MoradiaPortal({
               </div>
             </div>
 
-            {/* LEVEL 1B — Instant Quick Strips: Destaques & Comodidades · Valor Total (R$) · Área Útil (m²) (hidden by default on mobile until uncollapsed) */}
+            {/* LEVEL 1B — Instant Quick Strips: Destaques & Comodidades · Valor Total (R$) · Área Útil (m²) · Tempo até o Escritório (min) (hidden by default on mobile until uncollapsed) */}
             <div
               className={`${
                 showAdvancedFilters ? "grid" : "hidden lg:grid"
-              } grid-cols-1 gap-2.5 lg:grid-cols-3`}
+              } grid-cols-1 gap-2.5 lg:grid-cols-2 xl:grid-cols-4`}
             >
               {/* 1. Destaques & Comodidades Quick Filter */}
               <div className="rounded-lg border bg-background/60 p-2.5 space-y-1.5">
@@ -4029,6 +4899,84 @@ export function MoradiaPortal({
                       }}
                       className="w-14 rounded border bg-card px-1.5 py-0.5 text-right"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Tempo até o Escritório (min) Quick Filter + Slider */}
+              <div className="rounded-lg border bg-background/60 p-2.5 space-y-1.5">
+                <div className="flex items-center justify-between gap-2 text-[11px]">
+                  <span className="font-bold uppercase tracking-wider text-foreground">
+                    Tempo até o Escritório (min)
+                  </span>
+                  <span className="font-mono font-semibold text-primary">
+                    {maxCommuteMinutes === null
+                      ? "Qualquer"
+                      : `≤ ${maxCommuteMinutes} min`}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { label: "Qualquer", max: null },
+                    { label: "≤ 10 min", max: 10 },
+                    { label: "≤ 15 min", max: 15 },
+                    { label: "≤ 20 min", max: 20 },
+                    { label: "≤ 30 min", max: 30 },
+                    { label: "≤ 40 min", max: 40 },
+                  ].map((preset) => {
+                    const active = maxCommuteMinutes === preset.max;
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          setMaxCommuteMinutes(preset.max);
+                          setVisibleCount(30);
+                        }}
+                        className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                          active
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-2 pt-0.5">
+                  <input
+                    type="range"
+                    min={5}
+                    max={60}
+                    step={5}
+                    aria-label="Tempo máximo até o escritório em minutos"
+                    value={maxCommuteMinutes ?? 60}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setMaxCommuteMinutes(val >= 60 ? null : val);
+                      setVisibleCount(30);
+                    }}
+                    className="h-1.5 flex-1 accent-primary"
+                  />
+                  <div className="flex items-center gap-1 font-mono text-[10px]">
+                    <span className="text-muted-foreground">≤</span>
+                    <input
+                      type="number"
+                      min={5}
+                      max={120}
+                      step={5}
+                      placeholder="min"
+                      aria-label="Tempo máximo em minutos"
+                      value={maxCommuteMinutes ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setMaxCommuteMinutes(raw === "" ? null : Number(raw));
+                        setVisibleCount(30);
+                      }}
+                      className="w-14 rounded border bg-card px-1.5 py-0.5 text-right"
+                    />
+                    <span className="text-muted-foreground">min</span>
                   </div>
                 </div>
               </div>
@@ -4692,38 +5640,85 @@ export function MoradiaPortal({
                 ))}
               </div>
 
-              {activeFilterPills.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={resetAllFilters}
-                  className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  onClick={() => void handleCopyTop50ForAi()}
+                  disabled={filteredProperties.length === 0}
+                  title="Copiar resumo estruturado em Markdown do Top 50 exibido na tela (ou total filtrado) para enviar a outra IA"
+                  className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                    copiedTop50Count !== null
+                      ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-800 dark:border-emerald-400/50 dark:bg-emerald-500/20 dark:text-emerald-200"
+                      : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+                  }`}
                 >
-                  <RotateCcw className="h-3 w-3" />
-                  Limpar filtros
+                  {copiedTop50Count !== null ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 shrink-0" />
+                      <span>Copiado ({copiedTop50Count} imóveis p/ IA)!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        {filteredProperties.length > 0 &&
+                        filteredProperties.length < 50
+                          ? `Copiar Top 50 (${filteredProperties.length})`
+                          : "Copiar Top 50"}
+                      </span>
+                    </>
+                  )}
                 </button>
-              )}
+
+                {activeFilterPills.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetAllFilters}
+                    className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Properties Content: Split-Screen (Lista + Mapa), Só Lista, or Só Mapa */}
           {viewMode === "map" ? (
-            <div className="h-[calc(100vh-8rem)] min-h-[600px] w-full">
-              <PropertyMapView
-                properties={filteredProperties.slice(0, visibleCount)}
-                selectedCity={
-                  selectedCities.length === 1 ? selectedCities[0]! : "ALL"
-                }
-                favoriteKeys={favoriteKeys}
-                hoveredPropertyKey={hoveredPropertyKey}
-                selectedPropertyKey={selectedMapPropertyKey}
-                onHoverProperty={setHoveredPropertyKey}
-                onSelectProperty={setSelectedMapPropertyKey}
-                onFocusCardInList={focusCardInList}
-                onToggleFavorite={toggleFavorite}
-                onOpenGallery={(property, initialIndex) =>
-                  setGalleryState({ property, initialIndex })
-                }
-              />
+            <div className="space-y-3">
+              <div className="h-[calc(100vh-8rem)] min-h-[600px] w-full">
+                <PropertyMapView
+                  properties={filteredProperties.slice(0, visibleCount)}
+                  totalFilteredCount={filteredProperties.length}
+                  onLoadMore={() => setVisibleCount((c) => c + 30)}
+                  selectedCity={
+                    selectedCities.length === 1 ? selectedCities[0]! : "ALL"
+                  }
+                  favoriteKeys={favoriteKeys}
+                  hoveredPropertyKey={hoveredPropertyKey}
+                  selectedPropertyKey={selectedMapPropertyKey}
+                  onHoverProperty={setHoveredPropertyKey}
+                  onSelectProperty={setSelectedMapPropertyKey}
+                  onFocusCardInList={focusCardInList}
+                  onToggleFavorite={toggleFavorite}
+                  onOpenGallery={(property, initialIndex) =>
+                    setGalleryState({ property, initialIndex })
+                  }
+                />
+              </div>
+              {visibleCount < filteredProperties.length && (
+                <div className="flex justify-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((c) => c + 30)}
+                    className="rounded-lg border bg-card px-5 py-2.5 text-xs font-semibold hover:bg-secondary"
+                  >
+                    Carregar mais imóveis no mapa ({visibleCount} de{" "}
+                    {filteredProperties.length})
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
           <div
@@ -4838,6 +5833,11 @@ export function MoradiaPortal({
                           </span>
                           <span className="font-mono text-[11px] text-muted-foreground">
                             #{prop.cityRank ?? "—"} em {prop.cityCode}
+                            {prop.commuteLabel
+                              ? ` · ${prop.commuteLabel} do Nu`
+                              : prop.commuteMinutes !== undefined
+                                ? ` · ${prop.commuteMinutes} min do Nu`
+                                : ""}
                           </span>
                           {isDeactivated && (
                             <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/50 bg-rose-500/15 px-2 py-0.5 text-[11px] sm:px-2.5 sm:text-xs font-bold text-rose-800 dark:text-rose-200">
@@ -5131,8 +6131,8 @@ export function MoradiaPortal({
                           {(() => {
                             const cardQaList =
                               qaItemsByPropertyKey.get(key) ?? [];
-                            const isQaOpen =
-                              openQuestionBoxKeys.includes(key);
+                            const isPinnedInChat =
+                              showChatDrawer && pinnedChatPropertyKey === key;
                             const hasPending = cardQaList.some(
                               (q) => q.status === "pending",
                             );
@@ -5141,22 +6141,20 @@ export function MoradiaPortal({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  toggleQuestionBox(key);
+                                  openChatForProperty(
+                                    key,
+                                    cardQaList.length > 0,
+                                  );
                                 }}
-                                title="Perguntar sobre este imóvel direto para a sessão do Cursor"
+                                title="Fixar este imóvel no Chat & Consultor da Sessão"
                                 className={`inline-flex items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold transition-colors sm:px-2.5 ${
-                                  isQaOpen || cardQaList.length > 0
+                                  isPinnedInChat || cardQaList.length > 0
                                     ? "border-purple-500/40 bg-purple-500/12 text-purple-800 dark:border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-200"
                                     : "bg-background hover:bg-secondary"
                                 }`}
                               >
                                 <MessageSquarePlus className="h-3.5 w-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
-                                <span className="truncate">
-                                  Perguntar
-                                  {cardQaList.length > 0
-                                    ? ` (${cardQaList.length})`
-                                    : ""}
-                                </span>
+                                <span className="truncate">Perguntar</span>
                                 {hasPending && (
                                   <span className="h-2 w-2 shrink-0 rounded-full bg-purple-500 animate-pulse" />
                                 )}
@@ -5204,174 +6202,37 @@ export function MoradiaPortal({
                         </div>
                       </div>
 
-                      {/* Inline Q&A Box & Thread (Perguntar à Sessão do Agente) */}
+                      {/* Compact Chat Thread Badge on Card */}
                       {(() => {
                         const cardQaList =
                           qaItemsByPropertyKey.get(key) ?? [];
-                        const isQaOpen = openQuestionBoxKeys.includes(key);
-                        if (!isQaOpen && cardQaList.length === 0) return null;
-
-                        const draft = questionDraftByKey[key] ?? "";
-                        const isSubmitting = submittingQuestionKey === key;
-                        const quickSuggestions = [
-                          "Vale agendar visita?",
-                          "Como é esse trecho da rua?",
-                          "O preço está justo p/ o bairro?",
-                          "Inspecione as fotos p/ mim",
-                        ];
+                        if (cardQaList.length === 0) return null;
+                        const lastQa = cardQaList.at(-1);
 
                         return (
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className="mt-2.5 cursor-default rounded-xl border border-purple-500/30 bg-purple-500/5 p-3 space-y-2.5 dark:border-purple-400/25 dark:bg-purple-950/20"
+                            className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-purple-500/30 bg-purple-500/8 px-2.5 py-1.5 text-xs dark:border-purple-400/25 dark:bg-purple-950/25"
                           >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900 dark:text-purple-200">
-                                <Sparkles className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                                <span>
-                                  Perguntar à Sessão do Agente (Cursor)
+                            <button
+                              type="button"
+                              onClick={() => openChatForProperty(key, true)}
+                              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                            >
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-purple-600 px-2 py-0.5 font-mono text-[11px] font-bold text-white shadow-2xs hover:bg-purple-700">
+                                💬 Ver {cardQaList.length} msg no Chat
+                              </span>
+                              {lastQa && (
+                                <span className="truncate text-[11px] text-muted-foreground">
+                                  <strong className="text-foreground">
+                                    {lastQa.question}
+                                  </strong>
+                                  {lastQa.answer
+                                    ? ` — ${lastQa.answer.replace(/\*\*/g, "").slice(0, 90)}...`
+                                    : " (Analisando...)"}
                                 </span>
-                                {cardQaList.length > 0 && (
-                                  <span className="rounded-full bg-purple-500/20 px-2 py-0.2 font-mono text-[10px]">
-                                    {cardQaList.length}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                {!isQaOpen && (
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleQuestionBox(key)}
-                                    className="rounded-md border border-purple-500/30 bg-background px-2 py-0.5 text-[11px] font-semibold text-purple-700 hover:bg-purple-500/10 dark:text-purple-300"
-                                  >
-                                    + Nova pergunta
-                                  </button>
-                                )}
-                                {isQaOpen && (
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleQuestionBox(key)}
-                                    className="rounded-md p-0.5 text-muted-foreground hover:text-foreground"
-                                    title="Recolher campo de pergunta"
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Existing Q&A Thread */}
-                            {cardQaList.length > 0 && (
-                              <div className="space-y-2">
-                                {cardQaList.map((qa) => (
-                                  <div
-                                    key={qa.id}
-                                    className="rounded-lg border bg-card/90 p-2.5 text-xs space-y-1.5 shadow-2xs"
-                                  >
-                                    <div className="flex items-start justify-between gap-2">
-                                      <p className="font-semibold text-foreground">
-                                        <span className="mr-1.5 font-mono text-[10px] uppercase text-purple-600 dark:text-purple-400">
-                                          Você:
-                                        </span>
-                                        {qa.question}
-                                      </p>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          void deletePropertyQuestion(qa.id)
-                                        }
-                                        title="Remover pergunta"
-                                        className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-rose-500"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </button>
-                                    </div>
-
-                                    {qa.status === "pending" ? (
-                                      <div className="inline-flex items-center gap-1.5 rounded-md border border-purple-500/35 bg-purple-500/12 px-2.5 py-1 text-[11px] font-semibold text-purple-800 dark:text-purple-200 animate-pulse">
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                        <span>
-                                          Aguardando resposta da sessão do
-                                          Cursor...
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      <div className="rounded-md border-l-2 border-purple-500 bg-muted/50 pl-2.5 pr-2 py-1.5 text-xs leading-relaxed text-foreground whitespace-pre-line">
-                                        <span className="block font-mono text-[10px] font-bold uppercase text-purple-600 dark:text-purple-400 mb-0.5">
-                                          Agente Cursor:
-                                        </span>
-                                        {qa.answer}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Input Form + Quick Suggestion Chips */}
-                            {isQaOpen && (
-                              <div className="space-y-2 pt-0.5">
-                                <div className="flex flex-wrap gap-1">
-                                  {quickSuggestions.map((chip) => (
-                                    <button
-                                      key={chip}
-                                      type="button"
-                                      disabled={isSubmitting}
-                                      onClick={() =>
-                                        void submitPropertyQuestion(
-                                          propWithPhotos,
-                                          chip,
-                                        )
-                                      }
-                                      className="rounded-md border border-purple-500/25 bg-card px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-purple-500/50 hover:bg-purple-500/10 hover:text-foreground disabled:opacity-50"
-                                    >
-                                      {chip}
-                                    </button>
-                                  ))}
-                                </div>
-
-                                <div className="flex items-center gap-1.5">
-                                  <input
-                                    type="text"
-                                    value={draft}
-                                    disabled={isSubmitting}
-                                    onChange={(e) =>
-                                      setQuestionDraftByKey((prev) => ({
-                                        ...prev,
-                                        [key]: e.target.value,
-                                      }))
-                                    }
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" && !e.shiftKey) {
-                                        e.preventDefault();
-                                        void submitPropertyQuestion(
-                                          propWithPhotos,
-                                        );
-                                      }
-                                    }}
-                                    placeholder="Pergunte sobre este apê para a sessão do Cursor (ex: vale visitar? o condomínio compensa? como é essa quadra?)..."
-                                    className="flex-1 rounded-lg border bg-card px-3 py-1.5 text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500"
-                                  />
-                                  <button
-                                    type="button"
-                                    disabled={!draft.trim() || isSubmitting}
-                                    onClick={() =>
-                                      void submitPropertyQuestion(
-                                        propWithPhotos,
-                                      )
-                                    }
-                                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs transition-opacity hover:bg-purple-700 disabled:opacity-50"
-                                  >
-                                    {isSubmitting ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <Send className="h-3.5 w-3.5" />
-                                    )}
-                                    <span>Enviar p/ Sessão</span>
-                                  </button>
-                                </div>
-                              </div>
-                            )}
+                              )}
+                            </button>
                           </div>
                         );
                       })()}
@@ -6036,6 +6897,25 @@ export function MoradiaPortal({
           onClose={() => setGalleryState(null)}
         />
       )}
+
+      <PropertyChatDrawer
+        open={showChatDrawer}
+        onOpenChange={setShowChatDrawer}
+        qaItems={qaItems}
+        pinnedProperty={pinnedChatProperty}
+        onClearPinnedProperty={() => setPinnedChatPropertyKey(null)}
+        onFocusProperty={(propertyKey) => {
+          setPinnedChatPropertyKey(propertyKey);
+          focusCardInList(propertyKey);
+        }}
+        onSubmitQuestion={submitChatQuestion}
+        onDeleteQuestion={deletePropertyQuestion}
+        onClearHistory={clearChatHistory}
+        isSubmitting={isSubmittingChatQuestion}
+        scrollTargetPropertyKey={chatScrollTargetKey}
+        onConsumeScrollTarget={() => setChatScrollTargetKey(null)}
+        filteredCount={filteredProperties.length}
+      />
     </div>
   );
 }

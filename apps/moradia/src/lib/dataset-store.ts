@@ -187,7 +187,7 @@ export async function loadMoradiaDataset(
 
         // If local seed-snapshot.json on disk is newer than Neon DB, prefer the local disk snapshot
         const localDiskIsNewer =
-          existsSync(LOCAL_SNAPSHOT_FILE) &&
+          existsSync(/*turbopackIgnore: true*/ LOCAL_SNAPSHOT_FILE) &&
           snapUpdatedAtMs > latestDbUpdatedAtMs + 1000;
 
         if (!localDiskIsNewer) {

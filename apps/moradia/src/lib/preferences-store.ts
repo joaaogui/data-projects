@@ -37,6 +37,7 @@ function normalizePreferences(
   fallback?: SharedUserPreferences,
 ): SharedUserPreferences {
   const base = fallback ?? {
+    schemaVersion: 2,
     filters: {},
     weights: {},
     activePresetId: "balanced-original",
@@ -54,10 +55,27 @@ function normalizePreferences(
     raw.weights && typeof raw.weights === "object" && !Array.isArray(raw.weights)
       ? (raw.weights as Partial<ScoringWeights>)
       : base.weights;
-  const weights: Partial<ScoringWeights> = {
-    ...rawWeightsObj,
-    ...(rawWeightsObj.furnishedPenalty === -5 ? { furnishedPenalty: -22 } : {}),
-  };
+  const isV2 =
+    raw.schemaVersion === 2 ||
+    raw.schema_version === 2 ||
+    (raw.filters &&
+      typeof raw.filters === "object" &&
+      !Array.isArray(raw.filters) &&
+      (raw.filters as Record<string, unknown>).schemaVersion === 2);
+  const weights: Partial<ScoringWeights> = isV2
+    ? { ...rawWeightsObj }
+    : {
+        ...rawWeightsObj,
+        ...(rawWeightsObj.furnishedPenalty === -5 ? { furnishedPenalty: -22 } : {}),
+        ...(rawWeightsObj.urbanBreathingWeight === 1
+          ? { urbanBreathingWeight: 2.0 }
+          : {}),
+        ...(rawWeightsObj.modernityMultiplier === 0.65
+          ? { modernityMultiplier: 0.85 }
+          : {}),
+        ...(rawWeightsObj.sweetSpotMinM2 === 48 ? { sweetSpotMinM2: 50 } : {}),
+        ...(rawWeightsObj.sweetSpotMaxM2 === 68 ? { sweetSpotMaxM2: 72 } : {}),
+      };
   const activePresetId =
     typeof raw.activePresetId === "string" && raw.activePresetId.trim()
       ? raw.activePresetId.trim()
@@ -80,6 +98,7 @@ function normalizePreferences(
         : base.updatedAt;
 
   return {
+    schemaVersion: 2,
     filters,
     weights,
     activePresetId,
@@ -214,14 +233,16 @@ export async function saveSharedPreferences(
 ): Promise<SharedUserPreferences> {
   const current = await loadSharedPreferences();
   const nowIso = new Date().toISOString();
+  const resolvedFilters =
+    partial.filters !== undefined &&
+    partial.filters !== null &&
+    typeof partial.filters === "object" &&
+    !Array.isArray(partial.filters)
+      ? partial.filters
+      : current.filters;
   const merged: SharedUserPreferences = {
-    filters:
-      partial.filters !== undefined &&
-      partial.filters !== null &&
-      typeof partial.filters === "object" &&
-      !Array.isArray(partial.filters)
-        ? partial.filters
-        : current.filters,
+    schemaVersion: 2,
+    filters: { ...resolvedFilters, schemaVersion: 2 },
     weights:
       partial.weights !== undefined &&
       partial.weights !== null &&

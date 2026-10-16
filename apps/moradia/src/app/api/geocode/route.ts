@@ -72,6 +72,7 @@ const STATE_BY_CITY: Record<CityHubCode, string> = {
   RJ: "Rio de Janeiro",
   CP: "São Paulo",
   SP: "São Paulo",
+  BSB: "Distrito Federal",
 };
 
 async function queryOsmGeocoder(

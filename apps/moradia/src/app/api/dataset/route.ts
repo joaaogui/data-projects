@@ -6,7 +6,11 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const rawCity = searchParams.get("city")?.toUpperCase();
   const cityFilter: CityHubCode | "ALL" =
-    rawCity === "BH" || rawCity === "CP" || rawCity === "SP" || rawCity === "RJ"
+    rawCity === "BH" ||
+    rawCity === "CP" ||
+    rawCity === "SP" ||
+    rawCity === "RJ" ||
+    rawCity === "BSB"
       ? rawCity
       : "ALL";
 

@@ -1,4 +1,4 @@
-export type CityHubCode = "BH" | "CP" | "SP" | "RJ";
+export type CityHubCode = "BH" | "CP" | "SP" | "RJ" | "BSB";
 
 export type ModernityTier =
   | "MODERN_OR_RENOVATED"
@@ -155,10 +155,15 @@ export interface ScoreBreakdown {
   furniturePoints: number;
   areaPoints: number;
   parkingPoints: number;
+  safetyPoints: number;
+  commutePoints: number;
+  cityPreferencePoints: number;
 }
 
 export interface EvaluatedProperty extends SlimPropertyRecord {
   furnitureTier?: FurnitureTier;
+  commuteMinutes?: number;
+  commuteLabel?: string;
   eligible: boolean;
   exclusionReason: string | null;
   finalScore: number;
@@ -186,6 +191,7 @@ export interface EvaluatedProperty extends SlimPropertyRecord {
 }
 
 export interface SharedUserPreferences {
+  schemaVersion?: number;
   filters: Record<string, unknown>;
   weights: Partial<ScoringWeights>;
   activePresetId: string;
@@ -243,17 +249,32 @@ export interface PropertyQuestionSnapshot {
   modernityScore: number;
   finalScore: number;
   overallRank: number | null;
+  cityRank?: number | null;
+  furnitureTier?: FurnitureTier;
   url: string;
   shortJustification: string;
   description: string | null;
+  thumbnailUrl?: string | null;
+  suites?: number;
+  totalFloors?: number | null;
+  floorRange?: { min: number; max: number } | null;
+  constructionYear?: number | null;
+  doorman?: string | null;
+  acLabel?: string | null;
+  greenTags?: string[];
+  redTags?: string[];
+  nuanceHighlights?: string[];
+  nuanceWarnings?: string[];
+  breakdown?: ScoreBreakdown;
 }
 
 export interface PropertyQuestionItem {
   id: string;
-  propertyKey: string; // e.g. "quintoandar:895354338"
+  propertyKey: string; // e.g. "quintoandar:895354338" or "general"
   question: string;
   status: "pending" | "answered";
   answer: string | null;
+  answerSource?: "instant_diagnostic" | "cursor_session" | "llm";
   createdAt: string;
   answeredAt: string | null;
   propertySnapshot: PropertyQuestionSnapshot;

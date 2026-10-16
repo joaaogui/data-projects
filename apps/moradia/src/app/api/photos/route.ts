@@ -1,3 +1,4 @@
+import { loadMoradiaDataset } from "@/lib/dataset-store";
 import { NextResponse } from "next/server";
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -13,6 +14,39 @@ const SCRAPER_WORKSPACE_DIR = "/Users/joao.guilherme/.cursor/Empty";
 
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+const ALLOWED_LISTING_HOST_REGEX =
+  /^(?:www\.)?(?:quintoandar\.com\.br|zapimoveis\.com\.br|vivareal\.com\.br|netimoveis\.com(?:\.br)?|imovelweb\.com\.br)$/i;
+
+export function isValidAllowedListingUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "https:") return false;
+    return ALLOWED_LISTING_HOST_REGEX.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function fetchHtml(targetUrl: string): Promise<string | null> {
+  if (!isValidAllowedListingUrl(targetUrl)) {
+    return null;
+  }
+  const res = await fetch(targetUrl, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+    },
+    signal: AbortSignal.timeout(7000),
+  });
+  if (!res.ok) return null;
+  if (res.url && !isValidAllowedListingUrl(res.url)) {
+    return null;
+  }
+  return res.text();
+}
 
 export interface ExtractedPhoto {
   room: string | null;
@@ -373,11 +407,43 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const provider = (searchParams.get("provider") ?? "").trim();
     const id = (searchParams.get("id") ?? "").trim();
-    const url = (searchParams.get("url") ?? "").trim();
+    const rawUrlParam = (searchParams.get("url") ?? "").trim();
 
-    if (!provider || !id || !url) {
+    if (!provider || !id) {
       return NextResponse.json(
-        { ok: false, photos: [], error: "Parâmetros provider, id e url são obrigatórios." },
+        {
+          ok: false,
+          photos: [],
+          error: "Parâmetros provider e id são obrigatórios.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (rawUrlParam && !isValidAllowedListingUrl(rawUrlParam)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          photos: [],
+          error: "Parâmetro url inválido ou domínio não permitido.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const dataset = await loadMoradiaDataset();
+    const storedProp = dataset.properties.find(
+      (p) => p.provider === provider && String(p.id) === id,
+    );
+    const url = (storedProp?.url ?? "").trim() || rawUrlParam;
+
+    if (!url || !isValidAllowedListingUrl(url)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          photos: [],
+          error: "Parâmetros provider, id e url válidos são obrigatórios.",
+        },
         { status: 400 },
       );
     }
@@ -427,17 +493,8 @@ export async function GET(request: Request) {
 
     for (const targetUrl of candidateUrls) {
       try {
-        const res = await fetch(targetUrl, {
-          headers: {
-            "User-Agent": USER_AGENT,
-            Accept:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-          },
-          signal: AbortSignal.timeout(7000),
-        });
-        if (res.ok) {
-          const html = await res.text();
+        const html = await fetchHtml(targetUrl);
+        if (html) {
           const extracted = extractPhotosFromHtml(provider, html, targetUrl);
           if (extracted.length > 0) {
             cache[cacheKey] = extracted;

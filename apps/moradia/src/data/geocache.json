@@ -98,5 +98,20 @@
     "lat": -22.912122,
     "lng": -47.057828,
     "updatedAt": "2026-10-16T19:46:38.790Z"
+  },
+  "BH|buritis|rua rubens caporali ribeiro|351": {
+    "lat": -19.976703,
+    "lng": -43.976789,
+    "updatedAt": "2026-10-16T23:24:16.123Z"
+  },
+  "BSB|sul (águas claras)|quadra|203": {
+    "lat": -15.840048,
+    "lng": -48.015614,
+    "updatedAt": "2026-10-16T23:24:16.722Z"
+  },
+  "BH|funcionários|rua dos aimorés|612": {
+    "lat": -19.929685,
+    "lng": -43.932842,
+    "updatedAt": "2026-10-16T23:24:16.977Z"
   }
 }
