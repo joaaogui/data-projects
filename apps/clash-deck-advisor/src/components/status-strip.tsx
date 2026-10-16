@@ -1,3 +1,5 @@
+import { formatNumber, formatSigned } from "@data-projects/shared";
+
 import type { LossAutopsy, Player } from "@/lib/types";
 
 interface StatusStripProps {
@@ -5,8 +7,6 @@ interface StatusStripProps {
   lossAutopsy: LossAutopsy;
   generatedAt: string;
 }
-
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 const TONE = {
   good: "text-[#087454]",
@@ -78,7 +78,7 @@ export function StatusStrip({
             {player.name}
           </h1>
           <p className="mt-1 text-xs font-bold text-[#6d7a8b]">
-            {numberFormatter.format(player.trophies)} trophies · career{" "}
+            {formatNumber(player.trophies)} trophies · career{" "}
             {careerWinRate.toFixed(0)}% win rate · updated {updatedAt}
           </p>
         </div>
@@ -111,7 +111,7 @@ export function StatusStrip({
             />
             <Stat
               label="Trophies"
-              value={`${net > 0 ? "+" : net < 0 ? "−" : ""}${Math.abs(net)}`}
+              value={formatSigned(net)}
               tone={net > 0 ? "good" : net < 0 ? "bad" : "neutral"}
             />
           </dl>

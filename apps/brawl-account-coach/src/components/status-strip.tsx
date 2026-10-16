@@ -1,3 +1,4 @@
+import { formatNumber } from "@data-projects/shared";
 import { RefreshCw, Trophy } from "lucide-react";
 
 import type { AccountHealth } from "@/lib/schemas";
@@ -11,8 +12,6 @@ interface StatusStripProps {
   isRefreshing: boolean;
   onRefresh: () => void;
 }
-
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 export function StatusStrip({
   player,
@@ -98,9 +97,9 @@ export function StatusStrip({
               Trophies
             </dt>
             <dd className="mt-0.5 text-lg font-black tabular-nums text-[#101631]">
-              {numberFormatter.format(player.trophies)}
+              {formatNumber(player.trophies)}
               <span className="ml-1.5 text-xs font-bold text-[#5d6681]">
-                peak {numberFormatter.format(player.highestTrophies)}
+                peak {formatNumber(player.highestTrophies)}
               </span>
             </dd>
           </div>

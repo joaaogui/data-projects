@@ -1,11 +1,11 @@
 import { db } from "@/db";
 import { importJobs, scrobbles } from "@/db/schema";
 import type { ImportJobView, ImportLogEntry, ImportMode } from "@/types/lastfm";
+import { AppError, sleep } from "@data-projects/shared";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 import { desc, eq, sql } from "drizzle-orm";
 import { env } from "./env";
-import { AppError } from "./errors";
 import { getRecentTracks, RECENT_TRACKS_MAX_LIMIT } from "./lastfm-server";
-import { createTaggedLogger } from "./logger";
 
 const log = createTaggedLogger("import");
 
@@ -28,8 +28,6 @@ const BATCH_DELAY_MS = 150;
 /** Rows per INSERT. Neon's HTTP driver sends one request per statement. */
 const FLUSH_SIZE = 500;
 const MAX_LOG_ENTRIES = 200;
-
-const sleep = (ms: number) => new Promise((r) => globalThis.setTimeout(r, ms));
 
 type ImportJobRow = typeof importJobs.$inferSelect;
 

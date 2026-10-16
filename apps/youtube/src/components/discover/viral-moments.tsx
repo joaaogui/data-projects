@@ -2,15 +2,10 @@
 
 import { formatCompact } from "@/lib/format";
 import type { VideoData } from "@/types/youtube";
+import { median } from "@data-projects/shared";
 import { Zap } from "lucide-react";
 import Image from "next/image";
 import { useMemo } from "react";
-
-function median(arr: number[]): number {
-  const sorted = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-}
 
 function getMostCommonTopics(videos: VideoData[]): Set<string> {
   const freq = new Map<string, number>();

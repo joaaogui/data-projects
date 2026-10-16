@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { requireAdmin } from "@/lib/admin-auth";
-import { createTaggedLogger } from "@/lib/logger";
-import { withErrorHandling } from "@/lib/route-handler";
+import { createTaggedLogger } from "@data-projects/shared/logger";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 

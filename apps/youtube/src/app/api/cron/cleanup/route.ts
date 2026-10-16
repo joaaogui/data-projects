@@ -1,4 +1,4 @@
-import { createTaggedLogger } from "@/lib/logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 import { cleanupStaleJobs, getJobHealthMetrics } from "@/lib/sync-cleanup";
 import { NextRequest, NextResponse } from "next/server";
 

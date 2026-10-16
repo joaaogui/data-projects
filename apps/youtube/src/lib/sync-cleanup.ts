@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
 import { and, inArray, lt, sql } from "drizzle-orm";
 import { STALE_JOB_THRESHOLD_MS } from "./constants";
-import { createTaggedLogger } from "./logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 
 const log = createTaggedLogger("sync-cleanup");
 

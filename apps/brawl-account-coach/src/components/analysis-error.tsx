@@ -1,3 +1,4 @@
+import { SUPERCELL_ERROR_GUIDANCE } from "@data-projects/shared/supercell";
 import { AlertTriangle, RotateCcw, ServerCog } from "lucide-react";
 
 interface AnalysisErrorProps {
@@ -6,43 +7,12 @@ interface AnalysisErrorProps {
   onRetry: () => void;
 }
 
-const guidance: Record<string, { title: string; detail: string }> = {
-  CONFIGURATION_MISSING: {
-    title: "Server setup needed",
-    detail:
-      "Add the Brawl Stars and AI provider server environment variables, then check again.",
-  },
-  AUTHORIZATION_FAILED: {
-    title: "Brawl access was rejected",
-    detail:
-      "Verify the API token and confirm the RoyaleAPI proxy IP is allowed for that token.",
-  },
-  PLAYER_NOT_FOUND: {
-    title: "Player tag was not found",
-    detail:
-      "The coach is fixed to #Y0GLCU0GL. Confirm that account is available through the API.",
-  },
-  UPSTREAM_RATE_LIMITED: {
-    title: "Brawl Stars needs a timeout",
-    detail: "Wait a few minutes before requesting another fresh snapshot.",
-  },
-  UPSTREAM_MAINTENANCE: {
-    title: "Brawl Stars is under maintenance",
-    detail: "The account will be available after the official API returns.",
-  },
-  RATE_LIMITED: {
-    title: "Too many refreshes",
-    detail:
-      "This dossier refreshes every 30 minutes, so another request is not needed yet.",
-  },
-};
-
 export function AnalysisError({
   code,
   message,
   onRetry,
 }: AnalysisErrorProps) {
-  const copy = guidance[code] ?? {
+  const copy = SUPERCELL_ERROR_GUIDANCE[code] ?? {
     title: "The dossier could not be completed",
     detail:
       "The live services did not return a valid account analysis. Try again shortly.",

@@ -1,3 +1,9 @@
+import {
+  readLocalStorageJson,
+  toggleExclusiveListItem,
+  writeLocalStorageJson,
+} from "@data-projects/shared";
+
 import { mergeBattleHistory } from "./battle-history";
 import { deckKeyOf } from "./learning-engine";
 import {
@@ -51,29 +57,15 @@ export function parseLedger(raw: unknown): LearningLedger {
 }
 
 export function loadLedger(): LearningLedger {
-  if (typeof window === "undefined") {
-    return emptyLedger();
-  }
-  try {
-    const raw = window.localStorage.getItem(LEARNING_LEDGER_STORAGE_KEY);
-    return raw ? parseLedger(JSON.parse(raw)) : emptyLedger();
-  } catch {
-    return emptyLedger();
-  }
+  return readLocalStorageJson(
+    LEARNING_LEDGER_STORAGE_KEY,
+    emptyLedger(),
+    parseLedger,
+  );
 }
 
 export function saveLedger(ledger: LearningLedger): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  try {
-    window.localStorage.setItem(
-      LEARNING_LEDGER_STORAGE_KEY,
-      JSON.stringify(ledger),
-    );
-  } catch {
-    // Ignore storage quota or private-browsing failures.
-  }
+  writeLocalStorageJson(LEARNING_LEDGER_STORAGE_KEY, ledger);
 }
 
 export function hasLedgerData(ledger: LearningLedger): boolean {
@@ -97,11 +89,12 @@ export function toggleLockedCard<T extends PlayerFeedbackInput>(
   state: T,
   cardName: string,
 ): T {
-  const isLocked = state.lockedCards.includes(cardName);
-  const lockedCards = isLocked
-    ? state.lockedCards.filter((name) => name !== cardName)
-    : [...state.lockedCards, cardName].slice(-8);
-  const excludedCards = state.excludedCards.filter((name) => name !== cardName);
+  const [lockedCards, excludedCards] = toggleExclusiveListItem(
+    state.lockedCards,
+    state.excludedCards,
+    cardName,
+    8,
+  );
 
   return {
     ...state,
@@ -114,11 +107,12 @@ export function toggleExcludedCard<T extends PlayerFeedbackInput>(
   state: T,
   cardName: string,
 ): T {
-  const isExcluded = state.excludedCards.includes(cardName);
-  const excludedCards = isExcluded
-    ? state.excludedCards.filter((name) => name !== cardName)
-    : [...state.excludedCards, cardName].slice(-20);
-  const lockedCards = state.lockedCards.filter((name) => name !== cardName);
+  const [excludedCards, lockedCards] = toggleExclusiveListItem(
+    state.excludedCards,
+    state.lockedCards,
+    cardName,
+    20,
+  );
 
   return {
     ...state,

@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { YouTubeTranscriptApi } from "youtube-transcript-api-js";
-import { createTaggedLogger } from "./logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 import { runWorkerPool, sleep, WorkerPoolError } from "./utils";
 
 const log = createTaggedLogger("transcript");

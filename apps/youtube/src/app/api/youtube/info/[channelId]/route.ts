@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import { channels } from "@/db/schema";
-import { createTaggedLogger } from "@/lib/logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { validateChannelId } from "@/lib/validation";
 import { getChannelById } from "@/lib/youtube-server";
 import {

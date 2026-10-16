@@ -1,5 +1,6 @@
 "use client";
 
+import { copyToClipboard } from "@data-projects/shared";
 import { Ban, Check, Clock, Copy, ExternalLink, Lock, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 
@@ -23,18 +24,6 @@ interface ChangePlanProps {
   onToggleExclude: (cardName: string) => void;
   onClearRules: () => void;
   onSwitchToBestMode?: () => void;
-}
-
-function fallbackCopy(value: string): boolean {
-  const textArea = document.createElement("textarea");
-  textArea.value = value;
-  textArea.style.position = "fixed";
-  textArea.style.opacity = "0";
-  document.body.appendChild(textArea);
-  textArea.select();
-  const copied = document.execCommand("copy");
-  textArea.remove();
-  return copied;
 }
 
 function headlineFor(
@@ -124,21 +113,12 @@ export function ChangePlan({
   );
 
   async function copyDeckLink() {
-    if (!deckLink) {
+    if (!deckLink || !(await copyToClipboard(deckLink))) {
       setCopyStatus("failed");
       return;
     }
-    try {
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(deckLink);
-      } else if (!fallbackCopy(deckLink)) {
-        throw new Error("Copy command failed");
-      }
-      setCopyStatus("copied");
-      window.setTimeout(() => setCopyStatus("idle"), 2_000);
-    } catch {
-      setCopyStatus("failed");
-    }
+    setCopyStatus("copied");
+    window.setTimeout(() => setCopyStatus("idle"), 2_000);
   }
 
   return (

@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import { channels, sagas, suggestionCache, syncJobs, transcripts, videos } from "@/db/schema";
 import { requireAdmin } from "@/lib/admin-auth";
-import { createTaggedLogger } from "@/lib/logger";
-import { withErrorHandling } from "@/lib/route-handler";
+import { createTaggedLogger } from "@data-projects/shared/logger";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { cleanupSchema } from "@/lib/schemas";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";

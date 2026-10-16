@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { channels, videos } from "@/db/schema";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { validateChannelId } from "@/lib/validation";
 import { inArray, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";

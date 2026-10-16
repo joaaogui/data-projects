@@ -1,3 +1,4 @@
+import { formatNumber, normalizeKey } from "@data-projects/shared";
 import { ArrowUpRight, Coins, Trophy } from "lucide-react";
 
 import type { BuildAdvice, PushTarget, UpgradePriority } from "@/lib/schemas";
@@ -16,17 +17,11 @@ interface UpgradePrioritiesProps {
   onToggleExclude?: (brawlerName: string) => void;
 }
 
-const numberFormatter = new Intl.NumberFormat("en-US");
-
 const impactStyles = {
   high: "bg-[#f42f8c] text-white",
   medium: "bg-[#ffcb2f] text-[#101631]",
   low: "bg-[#eaf1ff] text-[#0d3fbb]",
 };
-
-function nameKey(name: string): string {
-  return name.trim().toLocaleUpperCase().replace(/[^A-Z0-9]/g, "");
-}
 
 export function UpgradePriorities({
   priorities,
@@ -39,19 +34,19 @@ export function UpgradePriorities({
   onToggleExclude,
 }: UpgradePrioritiesProps) {
   const brawlersByName = new Map(
-    brawlers.map((brawler) => [nameKey(brawler.name), brawler]),
+    brawlers.map((brawler) => [normalizeKey(brawler.name), brawler]),
   );
   const buildsByName = new Map(
-    builds.map((build) => [nameKey(build.brawlerName), build]),
+    builds.map((build) => [normalizeKey(build.brawlerName), build]),
   );
   const pushesByName = new Map(
-    pushTargets.map((target) => [nameKey(target.brawlerName), target]),
+    pushTargets.map((target) => [normalizeKey(target.brawlerName), target]),
   );
-  const pinnedKeys = new Set(pinnedBrawlers.map(nameKey));
-  const excludedKeys = new Set(excludedBrawlers.map(nameKey));
+  const pinnedKeys = new Set(pinnedBrawlers.map(normalizeKey));
+  const excludedKeys = new Set(excludedBrawlers.map(normalizeKey));
 
   const rows = priorities.flatMap((priority) => {
-    const key = nameKey(priority.brawlerName);
+    const key = normalizeKey(priority.brawlerName);
     const brawler = brawlersByName.get(key);
     return brawler
       ? [
@@ -129,7 +124,7 @@ export function UpgradePriorities({
                   {matchingPush ? (
                     <span className="inline-flex items-center gap-1 rounded-full border-2 border-[#101631] bg-[#fff8db] px-2 py-0.5 text-[10px] font-black text-[#a36f00]">
                       <Trophy aria-hidden="true" className="size-3" />
-                      Push to {numberFormatter.format(matchingPush.targetTrophies)}
+                      Push to {formatNumber(matchingPush.targetTrophies)}
                     </span>
                   ) : null}
                 </div>

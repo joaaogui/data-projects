@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import { channels, sagas, syncJobs, transcripts, videos } from "@/db/schema";
 import { requireAdmin } from "@/lib/admin-auth";
-import { createTaggedLogger } from "@/lib/logger";
-import { withErrorHandling } from "@/lib/route-handler";
+import { createTaggedLogger } from "@data-projects/shared/logger";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { bulkRequestSchema } from "@/lib/schemas";
 import { syncChannelTranscripts } from "@/lib/sync-transcripts";
 import { syncChannelVideos } from "@/lib/sync-videos";

@@ -1,3 +1,5 @@
+import { median } from "@data-projects/shared";
+
 import type {
   AccountMetrics,
   BattleEntry,
@@ -17,18 +19,6 @@ function round(value: number, places = 1): number {
 
 function percentage(numerator: number, denominator: number): number {
   return denominator > 0 ? round((numerator / denominator) * 100) : 0;
-}
-
-function median(values: number[]): number {
-  if (values.length === 0) {
-    return 0;
-  }
-
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[middle - 1] + sorted[middle]) / 2
-    : sorted[middle];
 }
 
 function normalizedTag(tag: string): string {

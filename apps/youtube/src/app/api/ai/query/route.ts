@@ -1,9 +1,9 @@
 import { getModel } from "@/lib/ai-providers";
 import { SYSTEM_PROMPT } from "@/lib/ai-query";
 import { auth } from "@/lib/auth";
-import { createTaggedLogger } from "@/lib/logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { aiQuerySchema } from "@/lib/schemas";
 import {
   mergeHeaders,

@@ -1,4 +1,5 @@
 import "server-only";
+import { loadServerEnv } from "@data-projects/shared/env";
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -21,30 +22,13 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-const skipValidation =
-  process.env.NODE_ENV === "test" ||
-  !!process.env.VITEST ||
-  !!process.env.CI ||
-  !!process.env.SKIP_ENV_VALIDATION;
-
-const BUILD_DEFAULTS: Env = {
+export const env = loadServerEnv(envSchema, {
   POSTGRES_URL: "postgresql://build:build@localhost/build",
   AUTH_SECRET: "build-secret",
   AUTH_GOOGLE_ID: "build-google-id",
   AUTH_GOOGLE_SECRET: "build-google-secret",
   YOUTUBE_API_KEY: "build-api-key",
-};
-
-function loadEnv(): Env {
-  const result = envSchema.safeParse(process.env);
-  if (result.success) return result.data;
-  if (skipValidation) {
-    return { ...BUILD_DEFAULTS, ...process.env } as Env;
-  }
-  throw result.error;
-}
-
-export const env = loadEnv();
+});
 
 export const allowedEmails = (env.ALLOWED_EMAILS ?? "")
   .split(",")

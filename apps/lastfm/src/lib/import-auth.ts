@@ -1,6 +1,6 @@
 import "server-only";
 import { timingSafeEqual } from "node:crypto";
-import { AppError } from "./errors";
+import { AppError } from "@data-projects/shared";
 import { env } from "./env";
 
 function tokensEqual(provided: string, expected: string): boolean {

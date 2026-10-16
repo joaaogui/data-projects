@@ -30,7 +30,7 @@ describe("assertImportAuthorized", () => {
 
   it("fails closed when no secrets are configured", async () => {
     const { assertImportAuthorized } = await loadAuth({});
-    const { AppError } = await import("../errors");
+    const { AppError } = await import("@data-projects/shared");
     expect(() => assertImportAuthorized(requestWithBearer("anything"))).toThrow(
       AppError,
     );
@@ -48,7 +48,7 @@ describe("assertImportAuthorized", () => {
     const { assertImportAuthorized } = await loadAuth({
       IMPORT_SECRET: "import-secret",
     });
-    const { AppError } = await import("../errors");
+    const { AppError } = await import("@data-projects/shared");
     expect(() => assertImportAuthorized(requestWithBearer())).toThrow(AppError);
   });
 
@@ -56,7 +56,7 @@ describe("assertImportAuthorized", () => {
     const { assertImportAuthorized } = await loadAuth({
       IMPORT_SECRET: "import-secret",
     });
-    const { AppError } = await import("../errors");
+    const { AppError } = await import("@data-projects/shared");
     expect(() => assertImportAuthorized(requestWithBearer("wrong"))).toThrow(
       AppError,
     );

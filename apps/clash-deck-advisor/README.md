@@ -90,7 +90,6 @@ src/components/                Dashboard, change plan, swap list, loss autopsy, 
 src/lib/clash-royale.ts        API client and analysis-context assembly
 src/lib/analyze-deck.ts        Orchestration, caching, DB/browser merge
 src/lib/deck-engine.ts         Deterministic recommendation + AI polish
-src/lib/ai-provider.ts      Re-exports the provider fallback chain from @data-projects/shared/ai-provider
 src/lib/archetype-engine.ts    Archetype matching, gates, ranking (+ archetypes.data.ts templates)
 src/lib/card-knowledge.ts      Card profiles and aggregates (+ card-roles.data.ts, card-mechanics.ts)
 src/lib/deck-score.ts          Local deck scoring
@@ -106,7 +105,7 @@ src/lib/deck-link.ts           In-game deck link construction
 src/lib/analysis-request.ts    Request size/shape validation for POST
 src/lib/schemas.ts, types.ts   Zod schemas and shared types
 src/db/                        Drizzle client (index.ts) and schema.ts
-src/test/                      Vitest env loader and server-only stub
+src/test/                      Vitest env loader
 ```
 
 ## Limitations

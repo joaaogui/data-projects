@@ -1,7 +1,14 @@
+import { createRateLimiter, getClientIp } from "@data-projects/shared";
+import { MissingAiConfigurationError } from "@data-projects/shared/ai-provider";
+import {
+  MissingConfigurationError,
+  SupercellApiError,
+  SupercellNetworkError,
+  supercellUpstreamStatus,
+} from "@data-projects/shared/supercell";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
-import { MissingAiConfigurationError } from "@/lib/ai-provider";
 import {
   MAX_ANALYSIS_REQUEST_BYTES,
   parseAnalysisRequestBody,
@@ -15,13 +22,7 @@ import {
   hasPersonalInput,
   type AnalysisInput,
 } from "@/lib/analyze-deck";
-import {
-  ClashRoyaleApiError,
-  ClashRoyaleNetworkError,
-  MissingConfigurationError,
-} from "@/lib/clash-royale";
 import type { AnalysisMode } from "@/lib/engine-context";
-import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
 import { playerFeedbackInputSchema } from "@/lib/schemas";
 
 export const runtime = "nodejs";
@@ -66,23 +67,6 @@ function rateLimited(retryAfter: number, resetAt: number, message: string) {
       },
     },
   );
-}
-
-function upstreamStatus(error: ClashRoyaleApiError): number {
-  if (error.code === "PLAYER_NOT_FOUND") {
-    return 404;
-  }
-  if (error.code === "UPSTREAM_RATE_LIMITED") {
-    return 429;
-  }
-  if (
-    error.code === "AUTHORIZATION_FAILED" ||
-    error.code === "UPSTREAM_MAINTENANCE" ||
-    error.code === "UPSTREAM_UNAVAILABLE"
-  ) {
-    return 503;
-  }
-  return 502;
 }
 
 function invalidRequest(result: AnalysisRequestRejection) {
@@ -166,7 +150,7 @@ async function handleAnalysisRequest(
       );
     }
 
-    if (error instanceof ClashRoyaleApiError) {
+    if (error instanceof SupercellApiError) {
       console.error("[clash-deck-advisor] upstream API request failed", {
         mode,
         errorType: error.name,
@@ -181,7 +165,7 @@ async function handleAnalysisRequest(
           },
         },
         {
-          status: upstreamStatus(error),
+          status: supercellUpstreamStatus(error),
           headers:
             error.code === "UPSTREAM_RATE_LIMITED"
               ? { ...rateHeaders, "Retry-After": "300" }
@@ -190,7 +174,7 @@ async function handleAnalysisRequest(
       );
     }
 
-    if (error instanceof ClashRoyaleNetworkError) {
+    if (error instanceof SupercellNetworkError) {
       console.error("[clash-deck-advisor] upstream network request failed", {
         mode,
         errorType: error.name,
@@ -198,7 +182,7 @@ async function handleAnalysisRequest(
       return NextResponse.json(
         {
           error: {
-            code: "UPSTREAM_UNAVAILABLE",
+            code: error.code,
             message: error.publicMessage,
           },
         },

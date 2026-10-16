@@ -1,5 +1,15 @@
 import "server-only";
 
+import {
+  createSupercellFetcher,
+  encodedTag,
+  MissingConfigurationError,
+  normalizePlayerTag,
+  SupercellApiError,
+  SupercellNetworkError,
+  type SupercellErrorCode,
+} from "@data-projects/shared/supercell";
+
 import { deriveAccountMetrics } from "./account-metrics";
 import type {
   AnalysisContext,
@@ -11,142 +21,25 @@ import type {
   PlayerProfile,
 } from "./types";
 
+export {
+  encodedTag,
+  MissingConfigurationError,
+  normalizePlayerTag,
+  SupercellApiError as BrawlStarsApiError,
+  SupercellNetworkError as BrawlStarsNetworkError,
+  type SupercellErrorCode as BrawlStarsErrorCode,
+};
+
 export const API_BASE = "https://bsproxy.royaleapi.dev/v1";
 export const PLAYER_TAG = "Y0GLCU0GL";
 
 const API_REVALIDATE_SECONDS = 30 * 60;
 
-type NextFetchInit = RequestInit & {
-  next?: {
-    revalidate?: number;
-    tags?: string[];
-  };
-};
-
-export type BrawlStarsErrorCode =
-  | "AUTHORIZATION_FAILED"
-  | "PLAYER_NOT_FOUND"
-  | "UPSTREAM_RATE_LIMITED"
-  | "UPSTREAM_MAINTENANCE"
-  | "UPSTREAM_UNAVAILABLE"
-  | "UPSTREAM_REQUEST_FAILED";
-
-export class MissingConfigurationError extends Error {
-  readonly variableName: string;
-
-  constructor(variableName: string) {
-    super(`Missing required server configuration: ${variableName}`);
-    this.name = "MissingConfigurationError";
-    this.variableName = variableName;
-  }
-}
-
-export class BrawlStarsApiError extends Error {
-  readonly status: number;
-  readonly code: BrawlStarsErrorCode;
-  readonly publicMessage: string;
-
-  constructor(status: number) {
-    const details = apiErrorDetails(status);
-    super(`Brawl Stars API request failed with status ${status}`);
-    this.name = "BrawlStarsApiError";
-    this.status = status;
-    this.code = details.code;
-    this.publicMessage = details.message;
-  }
-}
-
-export class BrawlStarsNetworkError extends Error {
-  readonly publicMessage =
-    "The Brawl Stars service could not be reached. Try again shortly.";
-
-  constructor() {
-    super("Brawl Stars API network request failed");
-    this.name = "BrawlStarsNetworkError";
-  }
-}
-
-interface ApiErrorDetails {
-  code: BrawlStarsErrorCode;
-  message: string;
-}
-
-function apiErrorDetails(status: number): ApiErrorDetails {
-  if (status === 401 || status === 403) {
-    return {
-      code: "AUTHORIZATION_FAILED",
-      message:
-        "Brawl Stars access was rejected. Check the API token and proxy IP allowlist.",
-    };
-  }
-  if (status === 404) {
-    return {
-      code: "PLAYER_NOT_FOUND",
-      message: "The configured Brawl Stars player could not be found.",
-    };
-  }
-  if (status === 429) {
-    return {
-      code: "UPSTREAM_RATE_LIMITED",
-      message:
-        "Brawl Stars is temporarily limiting requests. Try again in a few minutes.",
-    };
-  }
-  if (status === 503) {
-    return {
-      code: "UPSTREAM_MAINTENANCE",
-      message: "Brawl Stars is under maintenance. Try again later.",
-    };
-  }
-  if (status >= 500) {
-    return {
-      code: "UPSTREAM_UNAVAILABLE",
-      message: "Brawl Stars is temporarily unavailable. Try again shortly.",
-    };
-  }
-  return {
-    code: "UPSTREAM_REQUEST_FAILED",
-    message: "Brawl Stars rejected the request. Try again shortly.",
-  };
-}
-
-export function normalizePlayerTag(tag: string): string {
-  return `#${tag.trim().replace(/^#+/, "").toUpperCase()}`;
-}
-
-export function encodedTag(tag: string): string {
-  return encodeURIComponent(normalizePlayerTag(tag));
-}
-
-export async function brawlFetch<T>(
-  path: string,
-  init: NextFetchInit = {},
-): Promise<T> {
-  const apiKey = process.env.BRAWL_STARS_API_KEY?.trim();
-  if (!apiKey) {
-    throw new MissingConfigurationError("BRAWL_STARS_API_KEY");
-  }
-
-  const headers = new Headers(init.headers);
-  headers.set("Accept", "application/json");
-  headers.set("Authorization", `Bearer ${apiKey}`);
-
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}${path}`, {
-      ...init,
-      headers,
-    });
-  } catch {
-    throw new BrawlStarsNetworkError();
-  }
-
-  if (!response.ok) {
-    throw new BrawlStarsApiError(response.status);
-  }
-
-  return (await response.json()) as T;
-}
+export const brawlFetch = createSupercellFetcher({
+  serviceName: "Brawl Stars",
+  baseUrl: API_BASE,
+  apiKeyEnvVar: "BRAWL_STARS_API_KEY",
+});
 
 function normalizeItems(items: NamedItem[] | undefined): NamedItem[] {
   return items ?? [];

@@ -1,3 +1,4 @@
+import { formatNumber, normalizeKey } from "@data-projects/shared";
 import { Crosshair, Trophy } from "lucide-react";
 
 import type { BuildAdvice, PushTarget } from "@/lib/schemas";
@@ -15,12 +16,6 @@ interface PushTargetsProps {
   onToggleExclude?: (brawlerName: string) => void;
 }
 
-const numberFormatter = new Intl.NumberFormat("en-US");
-
-function nameKey(name: string): string {
-  return name.trim().toLocaleUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
 export function PushTargets({
   targets,
   brawlers,
@@ -31,16 +26,16 @@ export function PushTargets({
   onToggleExclude,
 }: PushTargetsProps) {
   const brawlersByName = new Map(
-    brawlers.map((brawler) => [nameKey(brawler.name), brawler]),
+    brawlers.map((brawler) => [normalizeKey(brawler.name), brawler]),
   );
   const buildsByName = new Map(
-    builds.map((build) => [nameKey(build.brawlerName), build]),
+    builds.map((build) => [normalizeKey(build.brawlerName), build]),
   );
-  const pinnedKeys = new Set(pinnedBrawlers.map(nameKey));
-  const excludedKeys = new Set(excludedBrawlers.map(nameKey));
+  const pinnedKeys = new Set(pinnedBrawlers.map(normalizeKey));
+  const excludedKeys = new Set(excludedBrawlers.map(normalizeKey));
 
   const rows = targets.flatMap((target) => {
-    const key = nameKey(target.brawlerName);
+    const key = normalizeKey(target.brawlerName);
     const brawler = brawlersByName.get(key);
     return brawler
       ? [
@@ -97,10 +92,10 @@ export function PushTargets({
                   onToggleExclude={onToggleExclude}
                 >
                   <div className="flex items-center justify-between gap-4 text-xs font-black">
-                    <span>{numberFormatter.format(target.currentTrophies)}</span>
+                    <span>{formatNumber(target.currentTrophies)}</span>
                     <span className="flex items-center gap-1 text-[#a36f00]">
                       <Trophy aria-hidden="true" className="size-3.5" />
-                      {numberFormatter.format(target.targetTrophies)}
+                      {formatNumber(target.targetTrophies)}
                     </span>
                   </div>
                   <div

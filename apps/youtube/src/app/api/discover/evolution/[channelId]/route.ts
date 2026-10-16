@@ -1,14 +1,12 @@
 import { db } from "@/db";
 import { videos } from "@/db/schema";
-import { getModel } from "@/lib/ai-providers";
+import { extractJsonObject, getModel } from "@/lib/ai-providers";
 import { auth } from "@/lib/auth";
-import { createTaggedLogger } from "@/lib/logger";
 import {
   checkRateLimit,
   getClientIp,
   RATE_LIMITS,
 } from "@/lib/rate-limit";
-import { withErrorHandling } from "@/lib/route-handler";
 import {
   corsHeaders,
   mergeHeaders,
@@ -16,6 +14,8 @@ import {
   rateLimitExceededResponse,
   withRateLimitHeaders,
 } from "@data-projects/shared";
+import { createTaggedLogger } from "@data-projects/shared/logger";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { generateText } from "ai";
 import { eq } from "drizzle-orm";
 
@@ -118,13 +118,13 @@ export const POST = withErrorHandling("discover-evolution", async (request, { pa
     maxOutputTokens: 2000,
   });
 
-  const jsonMatch = /\{[\s\S]*\}/.exec(text);
-  if (!jsonMatch) {
+  const rawJson = extractJsonObject(text);
+  if (!rawJson) {
     log.error({ channelId }, "Failed to parse AI response for evolution");
     return Response.json({ error: "Failed to generate analysis" }, { status: 500, headers: corsHeaders });
   }
 
-  const result = JSON.parse(jsonMatch[0]);
+  const result = JSON.parse(rawJson);
 
   return Response.json(result, {
     headers: mergeHeaders(corsHeaders, withRateLimitHeaders(rateLimitResult)),

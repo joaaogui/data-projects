@@ -1,5 +1,5 @@
 import { getOverviewStats } from "@/lib/analytics/overview";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import {
   checkRateLimit,
   getClientIp,

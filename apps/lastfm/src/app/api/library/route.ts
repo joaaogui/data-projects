@@ -3,7 +3,7 @@ import {
   LIBRARY_DEFAULT_LIMIT,
   type LibraryKind,
 } from "@/lib/analytics/library";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import {
   checkRateLimit,
   getClientIp,

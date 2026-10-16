@@ -1,5 +1,5 @@
+import { AppError, sleep } from "@data-projects/shared";
 import { env } from "./env";
-import { AppError } from "./errors";
 
 const API_URL = "https://ws.audioscrobbler.com/2.0/";
 
@@ -10,8 +10,6 @@ const RATE_LIMIT_BASE_MS = 5_000;
 const LASTFM_ERROR_RATE_LIMIT = 29;
 const LASTFM_ERROR_TEMPORARY = 16;
 const LASTFM_ERROR_SERVICE_OFFLINE = 11;
-
-const sleep = (ms: number) => new Promise((r) => globalThis.setTimeout(r, ms));
 
 /** The key is a query param, so it lands in every URL we might log or throw. */
 function redactKey(url: string): string {

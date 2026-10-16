@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { channels, syncJobs, transcripts, users, videos } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { STALE_JOB_THRESHOLD_MS, SYNC_RATE_LIMIT } from "@/lib/constants";
-import { createTaggedLogger } from "@/lib/logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { checkSyncQuota, incrementSyncUsage } from "@/lib/user-service";
 import { validateChannelId } from "@/lib/validation";

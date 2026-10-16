@@ -122,8 +122,6 @@ Run from the repository root with `pnpm --filter brawl-account-coach <script>`.
 | `src/lib/types.ts` | TypeScript types for upstream payloads, derived metrics, and `AnalysisResponse`. |
 | `src/lib/recommendation-validation.ts` | Grounds AI recommendations against the owned roster and catalog; applies pin/exclude preferences. |
 | `src/lib/progression-store.ts` | Browser `localStorage` progression ledger, snapshot diffing, and progression summaries. |
-| `src/lib/rate-limit.ts` | Re-exports `createRateLimiter` and `getClientIp` from `@data-projects/shared`. |
-| `src/lib/ai-provider.ts` | Re-exports the provider fallback chain from `@data-projects/shared/ai-provider`. |
 
 ## Limitations
 

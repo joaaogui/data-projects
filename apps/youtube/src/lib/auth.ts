@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { allowedEmails, allowPublicAuth, env } from "./env";
-import { createTaggedLogger } from "./logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 
 const log = createTaggedLogger("auth");
 

@@ -1,14 +1,12 @@
 import { db } from "@/db";
 import { sagas, videos } from "@/db/schema";
-import { getModel } from "@/lib/ai-providers";
+import { extractJsonObject, getModel } from "@/lib/ai-providers";
 import { auth } from "@/lib/auth";
-import { createTaggedLogger } from "@/lib/logger";
 import {
   checkRateLimit,
   getClientIp,
   RATE_LIMITS,
 } from "@/lib/rate-limit";
-import { withErrorHandling } from "@/lib/route-handler";
 import {
   corsHeaders,
   mergeHeaders,
@@ -16,6 +14,8 @@ import {
   rateLimitExceededResponse,
   withRateLimitHeaders,
 } from "@data-projects/shared";
+import { createTaggedLogger } from "@data-projects/shared/logger";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { generateText } from "ai";
 import { eq } from "drizzle-orm";
 
@@ -128,13 +128,13 @@ export const POST = withErrorHandling("discover-starter-pack", async (request, {
     maxOutputTokens: 1500,
   });
 
-  const jsonMatch = /\{[\s\S]*\}/.exec(text);
-  if (!jsonMatch) {
+  const rawJson = extractJsonObject(text);
+  if (!rawJson) {
     log.error({ channelId }, "Failed to parse AI response for starter pack");
     return Response.json({ error: "Failed to generate starter pack" }, { status: 500, headers: corsHeaders });
   }
 
-  const result = JSON.parse(jsonMatch[0]);
+  const result = JSON.parse(rawJson);
 
   const validIds = new Set(channelVideos.map((v) => v.id));
   result.picks = (result.picks ?? []).filter(

@@ -1,5 +1,5 @@
 import { getArtistDetail } from "@/lib/analytics/artists";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import {
   checkRateLimit,
   getClientIp,

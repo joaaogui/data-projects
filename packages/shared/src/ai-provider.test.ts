@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   AiProvidersExhaustedError,
+  extractJsonObject,
   getAiModelChain,
-  getAiProviderOptions,
   getAiProviderConfig,
+  getAiProviderOptions,
   getCandidateModels,
   runWithAiFallback,
 } from "./ai-provider";
@@ -19,6 +20,17 @@ describe("getAiProviderConfig", () => {
     expect(getAiProviderConfig(bothProviders)).toEqual({
       provider: "google",
       apiKey: "google-key",
+      model: "gemini-3.5-flash-lite",
+      label: "gemini-3.5-flash-lite",
+    });
+  });
+
+  it("supports GOOGLE_AI_API_KEY as a fallback alias", () => {
+    expect(
+      getAiProviderConfig({ GOOGLE_AI_API_KEY: "legacy-google-key" }),
+    ).toEqual({
+      provider: "google",
+      apiKey: "legacy-google-key",
       model: "gemini-3.5-flash-lite",
       label: "gemini-3.5-flash-lite",
     });
@@ -171,5 +183,16 @@ describe("runWithAiFallback", () => {
       "message",
       expect.stringContaining("provider details"),
     );
+  });
+});
+
+describe("extractJsonObject", () => {
+  it("strips markdown fences and extracts the outer JSON object", () => {
+    const raw = 'Here is your JSON:\n```json\n{"a": 1, "b": {"c": 2}}\n```';
+    expect(extractJsonObject(raw)).toBe('{"a": 1, "b": {"c": 2}}');
+  });
+
+  it("returns empty string when no JSON object is present", () => {
+    expect(extractJsonObject("no braces here")).toBe("");
   });
 });

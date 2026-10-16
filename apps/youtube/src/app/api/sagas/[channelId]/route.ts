@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import { sagaCorrections, sagas, videos } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { createTaggedLogger } from "@/lib/logger";
-import { withErrorHandling } from "@/lib/route-handler";
+import { createTaggedLogger } from "@data-projects/shared/logger";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { validateChannelId } from "@/lib/validation";
 import type { Saga } from "@/types/youtube";
 import { and, eq, inArray } from "drizzle-orm";

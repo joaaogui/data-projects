@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import { transcripts } from "@/db/schema";
-import { getModel } from "@/lib/ai-providers";
-import { createTaggedLogger } from "@/lib/logger";
+import { extractJsonObject, getModel } from "@/lib/ai-providers";
 import { fetchTranscriptBatch } from "@/lib/transcript";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 import { generateText } from "ai";
 import { inArray } from "drizzle-orm";
 
@@ -157,16 +157,16 @@ type RawParsed = {
   continuingAtEnd?: string | null;
 };
 
-function extractAndParseJson(cleaned: string): RawParsed | null {
-  const jsonMatch = /\{[\s\S]*\}/.exec(cleaned);
-  if (!jsonMatch) {
-    log.error({ preview: cleaned.slice(0, 300) }, "No JSON found in AI response");
+function extractAndParseJson(text: string): RawParsed | null {
+  const rawJson = extractJsonObject(text);
+  if (!rawJson) {
+    log.error({ preview: text.slice(0, 300) }, "No JSON found in AI response");
     return null;
   }
   try {
-    return JSON.parse(jsonMatch[0]);
+    return JSON.parse(rawJson);
   } catch {
-    log.error({ preview: jsonMatch[0].slice(0, 300) }, "JSON parse error in AI response");
+    log.error({ preview: rawJson.slice(0, 300) }, "JSON parse error in AI response");
     return null;
   }
 }
@@ -223,8 +223,7 @@ export function parseAiResponse(
   text: string,
   videos: VideoInput[]
 ): { segments: SegmentResult[]; tailContext: string } {
-  const cleaned = text.replaceAll(/```(?:json)?\s*/g, "").replaceAll(/```\s*$/g, "");
-  const parsed = extractAndParseJson(cleaned);
+  const parsed = extractAndParseJson(text);
   if (!parsed) return { segments: [], tailContext: "" };
 
   const segments = parseSegments(parsed.segments ?? [], videos);

@@ -15,6 +15,7 @@ import { TranscriptSearchOverlay } from "@/components/transcript-search-overlay"
 import { YouTubeIcon } from "@/components/youtube-icon";
 import { ChannelProvider, useChannel } from "@/hooks/use-channel-context";
 import { useChannelStats } from "@/hooks/use-channel-stats";
+import { copyToClipboard } from "@data-projects/shared";
 import { Button, Navbar, Skeleton, Tooltip, TooltipContent, TooltipTrigger } from "@data-projects/ui";
 import { AlertCircle, ArrowLeft, BarChart3, Calendar, Check, Eye, Loader2, Minus, Share2, ThumbsUp, TrendingDown, TrendingUp } from "lucide-react";
 import Image from "next/image";
@@ -155,7 +156,9 @@ function ChannelPageContent() {
       }
       const { reportId } = await res.json();
       const url = `${globalThis.location.origin}/report/${reportId}`;
-      await navigator.clipboard.writeText(url);
+      if (!(await copyToClipboard(url))) {
+        throw new Error("Failed to copy link");
+      }
       setShareState("done");
       setTimeout(() => setShareState("idle"), 3000);
     } catch {

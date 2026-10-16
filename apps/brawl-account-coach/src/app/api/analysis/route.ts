@@ -1,17 +1,18 @@
+import { createRateLimiter, getClientIp } from "@data-projects/shared";
+import { MissingAiConfigurationError } from "@data-projects/shared/ai-provider";
+import {
+  MissingConfigurationError,
+  SupercellApiError,
+  SupercellNetworkError,
+  supercellUpstreamStatus,
+} from "@data-projects/shared/supercell";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
-import { MissingAiConfigurationError } from "@/lib/ai-provider";
 import {
   ANALYSIS_CACHE_TAG,
   getAccountAnalysisWithPreferences,
 } from "@/lib/analyze-account";
-import {
-  BrawlStarsApiError,
-  BrawlStarsNetworkError,
-  MissingConfigurationError,
-} from "@/lib/brawl-stars";
-import { createRateLimiter, getClientIp } from "@/lib/rate-limit";
 import { playerPreferencesSchema, type PlayerPreferences } from "@/lib/schemas";
 
 export const runtime = "nodejs";
@@ -34,23 +35,6 @@ function rateLimitHeaders(remaining: number, resetAt: number) {
     "X-RateLimit-Remaining": String(remaining),
     "X-RateLimit-Reset": String(Math.ceil(resetAt / 1_000)),
   };
-}
-
-function upstreamStatus(error: BrawlStarsApiError): number {
-  if (error.code === "PLAYER_NOT_FOUND") {
-    return 404;
-  }
-  if (error.code === "UPSTREAM_RATE_LIMITED") {
-    return 429;
-  }
-  if (
-    error.code === "AUTHORIZATION_FAILED" ||
-    error.code === "UPSTREAM_MAINTENANCE" ||
-    error.code === "UPSTREAM_UNAVAILABLE"
-  ) {
-    return 503;
-  }
-  return 502;
 }
 
 function parseListParam(searchParams: URLSearchParams, keys: string[]): string[] {
@@ -162,7 +146,7 @@ async function handleAnalysisRequest(
       );
     }
 
-    if (error instanceof BrawlStarsApiError) {
+    if (error instanceof SupercellApiError) {
       console.error("[brawl-account-coach] upstream API request failed", {
         errorType: error.name,
         status: error.status,
@@ -176,7 +160,7 @@ async function handleAnalysisRequest(
           },
         },
         {
-          status: upstreamStatus(error),
+          status: supercellUpstreamStatus(error),
           headers:
             error.code === "UPSTREAM_RATE_LIMITED"
               ? { ...headers, "Retry-After": "300" }
@@ -185,14 +169,14 @@ async function handleAnalysisRequest(
       );
     }
 
-    if (error instanceof BrawlStarsNetworkError) {
+    if (error instanceof SupercellNetworkError) {
       console.error("[brawl-account-coach] upstream network request failed", {
         errorType: error.name,
       });
       return NextResponse.json(
         {
           error: {
-            code: "UPSTREAM_UNAVAILABLE",
+            code: error.code,
             message: error.publicMessage,
           },
         },

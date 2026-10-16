@@ -1,3 +1,5 @@
+import { apiFetch } from "@data-projects/shared";
+
 /** Thin wrapper so every hook surfaces server error messages the same way. */
 
 const IMPORT_TOKEN_KEY = "lastfm-import-token";
@@ -22,16 +24,11 @@ function authHeaders(): HeadersInit {
 }
 
 export async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(body?.error ?? `Request failed with status ${response.status}`);
-  }
-  return body as T;
+  return apiFetch<T>(url);
 }
 
 export async function postJson<T>(url: string, payload: unknown): Promise<T> {
-  const response = await fetch(url, {
+  return apiFetch<T>(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -39,9 +36,4 @@ export async function postJson<T>(url: string, payload: unknown): Promise<T> {
     },
     body: JSON.stringify(payload),
   });
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(body?.error ?? `Request failed with status ${response.status}`);
-  }
-  return body as T;
 }

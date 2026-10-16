@@ -1,16 +1,6 @@
-import { formatCompact, formatNumber } from "@data-projects/shared";
+import { formatCompact, formatNumber, getAgeLabel } from "@data-projects/shared";
 
-export { formatCompact, formatNumber };
-
-export function getAgeLabel(days: number): string {
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days >= 365) {
-    const years = days / 365;
-    return `${years.toFixed(1)}y`;
-  }
-  return `${formatNumber(days)}d`;
-}
+export { formatCompact, formatNumber, getAgeLabel };
 
 /*
  * Performance is encoded as weight rather than hue: the strongest results get

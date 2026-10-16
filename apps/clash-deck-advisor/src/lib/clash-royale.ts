@@ -1,6 +1,16 @@
 import "server-only";
 
 import {
+  createSupercellFetcher,
+  encodedTag,
+  MissingConfigurationError,
+  normalizePlayerTag,
+  SupercellApiError,
+  SupercellNetworkError,
+  type SupercellErrorCode,
+} from "@data-projects/shared/supercell";
+
+import {
   battleIdentity,
   fromStoredBattle,
   mergeBattleHistory,
@@ -27,15 +37,17 @@ import type {
   StoredSuggestionEntry,
 } from "./types";
 
+export {
+  encodedTag,
+  MissingConfigurationError,
+  normalizePlayerTag,
+  SupercellApiError as ClashRoyaleApiError,
+  SupercellNetworkError as ClashRoyaleNetworkError,
+  type SupercellErrorCode as ClashRoyaleErrorCode,
+};
+
 export const API_BASE = "https://proxy.royaleapi.dev/v1";
 export const PLAYER_TAG = "VGURQ0QQ2";
-
-type NextFetchInit = RequestInit & {
-  next?: {
-    revalidate?: number;
-    tags?: string[];
-  };
-};
 
 interface RankedPlayer {
   tag: string;
@@ -49,126 +61,11 @@ interface RankedPlayersResponse {
   items: RankedPlayer[];
 }
 
-export type ClashRoyaleErrorCode =
-  | "AUTHORIZATION_FAILED"
-  | "PLAYER_NOT_FOUND"
-  | "UPSTREAM_RATE_LIMITED"
-  | "UPSTREAM_MAINTENANCE"
-  | "UPSTREAM_UNAVAILABLE"
-  | "UPSTREAM_REQUEST_FAILED";
-
-export class MissingConfigurationError extends Error {
-  readonly variableName: string;
-
-  constructor(variableName: string) {
-    super(`Missing required server configuration: ${variableName}`);
-    this.name = "MissingConfigurationError";
-    this.variableName = variableName;
-  }
-}
-
-interface ApiErrorDetails {
-  code: ClashRoyaleErrorCode;
-  message: string;
-}
-
-function apiErrorDetails(status: number): ApiErrorDetails {
-  if (status === 401 || status === 403) {
-    return {
-      code: "AUTHORIZATION_FAILED",
-      message:
-        "Clash Royale access was rejected. Check the API token and proxy IP allowlist.",
-    };
-  }
-  if (status === 404) {
-    return {
-      code: "PLAYER_NOT_FOUND",
-      message: "The configured Clash Royale player could not be found.",
-    };
-  }
-  if (status === 429) {
-    return {
-      code: "UPSTREAM_RATE_LIMITED",
-      message:
-        "Clash Royale is temporarily limiting requests. Try again in a few minutes.",
-    };
-  }
-  if (status === 503) {
-    return {
-      code: "UPSTREAM_MAINTENANCE",
-      message: "Clash Royale is under maintenance. Try again later.",
-    };
-  }
-  if (status >= 500) {
-    return {
-      code: "UPSTREAM_UNAVAILABLE",
-      message: "Clash Royale is temporarily unavailable. Try again shortly.",
-    };
-  }
-  return {
-    code: "UPSTREAM_REQUEST_FAILED",
-    message: "Clash Royale rejected the request. Try again shortly.",
-  };
-}
-
-export class ClashRoyaleApiError extends Error {
-  readonly status: number;
-  readonly code: ClashRoyaleErrorCode;
-  readonly publicMessage: string;
-
-  constructor(status: number) {
-    const details = apiErrorDetails(status);
-    super(`Clash Royale API request failed with status ${status}`);
-    this.name = "ClashRoyaleApiError";
-    this.status = status;
-    this.code = details.code;
-    this.publicMessage = details.message;
-  }
-}
-
-export class ClashRoyaleNetworkError extends Error {
-  readonly publicMessage =
-    "The Clash Royale service could not be reached. Try again shortly.";
-
-  constructor() {
-    super("Clash Royale API network request failed");
-    this.name = "ClashRoyaleNetworkError";
-  }
-}
-
-function encodedTag(tag: string): string {
-  return `%23${encodeURIComponent(tag.replace(/^#/, ""))}`;
-}
-
-export async function clashFetch<T>(
-  path: string,
-  init: NextFetchInit = {},
-): Promise<T> {
-  const apiKey = process.env.CLASH_ROYALE_API_KEY?.trim();
-  if (!apiKey) {
-    throw new MissingConfigurationError("CLASH_ROYALE_API_KEY");
-  }
-
-  const headers = new Headers(init.headers);
-  headers.set("Accept", "application/json");
-  headers.set("Authorization", `Bearer ${apiKey}`);
-
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}${path}`, {
-      ...init,
-      headers,
-    });
-  } catch {
-    throw new ClashRoyaleNetworkError();
-  }
-
-  if (!response.ok) {
-    throw new ClashRoyaleApiError(response.status);
-  }
-
-  return (await response.json()) as T;
-}
+export const clashFetch = createSupercellFetcher({
+  serviceName: "Clash Royale",
+  baseUrl: API_BASE,
+  apiKeyEnvVar: "CLASH_ROYALE_API_KEY",
+});
 
 export async function getPlayer(): Promise<Player> {
   return clashFetch<Player>(`/players/${encodedTag(PLAYER_TAG)}`, {

@@ -1,3 +1,9 @@
+import {
+  normalizeKey,
+  readLocalStorageJson,
+  toggleExclusiveListItem,
+  writeLocalStorageJson,
+} from "@data-projects/shared";
 import { z } from "zod";
 
 import { playerPreferencesSchema, type PlayerPreferences } from "./schemas";
@@ -78,10 +84,6 @@ export interface ProgressionSummary {
   verdict: "gaining" | "steady" | "slipping" | "baseline";
 }
 
-function normalizeName(name: string): string {
-  return name.trim().toLocaleUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
 export function emptyProgressionLedger(): ProgressionLedger {
   return {
     snapshots: [],
@@ -127,29 +129,15 @@ export function parseProgressionLedger(raw: unknown): ProgressionLedger {
 }
 
 export function loadProgressionLedger(): ProgressionLedger {
-  if (typeof window === "undefined") {
-    return emptyProgressionLedger();
-  }
-  try {
-    const raw = window.localStorage.getItem(PROGRESSION_LEDGER_STORAGE_KEY);
-    return raw ? parseProgressionLedger(JSON.parse(raw)) : emptyProgressionLedger();
-  } catch {
-    return emptyProgressionLedger();
-  }
+  return readLocalStorageJson(
+    PROGRESSION_LEDGER_STORAGE_KEY,
+    emptyProgressionLedger(),
+    parseProgressionLedger,
+  );
 }
 
 export function saveProgressionLedger(ledger: ProgressionLedger): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  try {
-    window.localStorage.setItem(
-      PROGRESSION_LEDGER_STORAGE_KEY,
-      JSON.stringify(ledger),
-    );
-  } catch {
-    // Ignore storage quota or private-browsing failures.
-  }
+  writeLocalStorageJson(PROGRESSION_LEDGER_STORAGE_KEY, ledger);
 }
 
 export function hasPreferences(ledger: PlayerPreferences): boolean {
@@ -169,15 +157,11 @@ export function togglePinnedBrawler<T extends PlayerPreferences>(
   state: T,
   brawlerName: string,
 ): T {
-  const key = normalizeName(brawlerName);
-  const isPinned = state.pinnedBrawlers.some(
-    (item) => normalizeName(item) === key,
-  );
-  const pinnedBrawlers = isPinned
-    ? state.pinnedBrawlers.filter((item) => normalizeName(item) !== key)
-    : [...state.pinnedBrawlers, brawlerName].slice(-12);
-  const excludedBrawlers = state.excludedBrawlers.filter(
-    (item) => normalizeName(item) !== key,
+  const [pinnedBrawlers, excludedBrawlers] = toggleExclusiveListItem(
+    state.pinnedBrawlers,
+    state.excludedBrawlers,
+    brawlerName,
+    12,
   );
 
   return {
@@ -191,15 +175,11 @@ export function toggleExcludedBrawler<T extends PlayerPreferences>(
   state: T,
   brawlerName: string,
 ): T {
-  const key = normalizeName(brawlerName);
-  const isExcluded = state.excludedBrawlers.some(
-    (item) => normalizeName(item) === key,
-  );
-  const excludedBrawlers = isExcluded
-    ? state.excludedBrawlers.filter((item) => normalizeName(item) !== key)
-    : [...state.excludedBrawlers, brawlerName].slice(-30);
-  const pinnedBrawlers = state.pinnedBrawlers.filter(
-    (item) => normalizeName(item) !== key,
+  const [excludedBrawlers, pinnedBrawlers] = toggleExclusiveListItem(
+    state.excludedBrawlers,
+    state.pinnedBrawlers,
+    brawlerName,
+    30,
   );
 
   return {
@@ -287,7 +267,7 @@ function mergeRecommendations(first: string[], second: string[]): string[] {
   const seen = new Set<string>();
   const merged: string[] = [];
   for (const name of [...second, ...first]) {
-    const key = normalizeName(name);
+    const key = normalizeKey(name);
     if (!seen.has(key)) {
       seen.add(key);
       merged.push(name);
@@ -383,14 +363,14 @@ export function computeProgressionSummary(
     baseline.brawlers.map((brawler) => [brawler.id, brawler]),
   );
   const prevByName = new Map(
-    baseline.brawlers.map((brawler) => [normalizeName(brawler.name), brawler]),
+    baseline.brawlers.map((brawler) => [normalizeKey(brawler.name), brawler]),
   );
 
   const recUpgradeKeys = new Set(
-    baseline.recommendedUpgrades.map((name) => normalizeName(name)),
+    baseline.recommendedUpgrades.map((name) => normalizeKey(name)),
   );
   const recPushKeys = new Set(
-    baseline.recommendedPushes.map((name) => normalizeName(name)),
+    baseline.recommendedPushes.map((name) => normalizeKey(name)),
   );
 
   const unlockedBrawlers: string[] = [];
@@ -398,7 +378,7 @@ export function computeProgressionSummary(
   const brawlerTrophyGains: BrawlerTrophyGain[] = [];
 
   for (const current of currentSnapshot.brawlers) {
-    const key = normalizeName(current.name);
+    const key = normalizeKey(current.name);
     const prev = prevById.get(current.id) ?? prevByName.get(key);
 
     if (!prev) {
@@ -481,7 +461,7 @@ export function computeProgressionSummary(
   const followedNames = new Set<string>();
   for (const item of upgradedBrawlers) {
     if (item.wasRecommendedUpgrade) {
-      followedNames.add(normalizeName(item.name));
+      followedNames.add(normalizeKey(item.name));
     }
   }
   for (const item of brawlerTrophyGains) {
@@ -489,7 +469,7 @@ export function computeProgressionSummary(
       item.trophyDelta > 0 &&
       (item.wasRecommendedPush || item.wasRecommendedUpgrade)
     ) {
-      followedNames.add(normalizeName(item.name));
+      followedNames.add(normalizeKey(item.name));
     }
   }
 

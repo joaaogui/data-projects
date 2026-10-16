@@ -1,4 +1,5 @@
 import type { ChannelInfo, FetchProgress, PlaylistInfo, PlaylistItem, VideoData, VideoDetails } from "@/types/youtube";
+import { sleep } from "@data-projects/shared";
 import dayjs from "dayjs";
 import { env } from "./env";
 import { parseISO8601Duration, scoreVideoBatch, type VideoMetrics } from "./scoring";
@@ -27,8 +28,6 @@ const RETRY_BASE_MS = 500;
 function isRetryableStatus(status: number): boolean {
   return status === 429 || status >= 500;
 }
-
-const sleep = (ms: number) => new Promise((r) => globalThis.setTimeout(r, ms));
 
 /**
  * Syncing a large channel is ~2 requests per 50 videos, so a 2,700-video

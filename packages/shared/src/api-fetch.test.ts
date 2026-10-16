@@ -43,6 +43,22 @@ describe("apiFetch", () => {
     await expect(apiFetch("/x")).rejects.toBeInstanceOf(ApiError);
   });
 
+  it("uses default 429 rate-limit message when response has no error message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        headers: { get: () => "text/plain" },
+      }),
+    );
+
+    await expect(apiFetch("/x", { fallbackError: "Custom fallback" })).rejects.toMatchObject({
+      message: "Too many requests. Please wait a moment and try again.",
+      status: 429,
+    });
+  });
+
   it("reads nested error.message objects", async () => {
     vi.stubGlobal(
       "fetch",

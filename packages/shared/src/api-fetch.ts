@@ -8,17 +8,23 @@ export class ApiError extends Error {
   }
 }
 
+const DEFAULT_RATE_LIMIT_MESSAGE =
+  "Too many requests. Please wait a moment and try again.";
+
 export async function apiFetch<T>(
   input: RequestInfo | URL,
-  init?: RequestInit & { fallbackError?: string }
+  init?: RequestInit & { fallbackError?: string },
 ): Promise<T> {
   const response = await fetch(input, init);
   if (response.ok) {
     return (await response.json()) as T;
   }
 
-  const fallback = init?.fallbackError ?? "Request failed";
-  const contentType = response.headers.get("content-type") ?? "";
+  const fallback =
+    response.status === 429
+      ? DEFAULT_RATE_LIMIT_MESSAGE
+      : (init?.fallbackError ?? "Request failed");
+  const contentType = response.headers?.get?.("content-type") ?? "";
 
   if (contentType.includes("application/json")) {
     try {

@@ -6,6 +6,7 @@ import type { LanguageModel } from "ai";
 
 export interface AiEnvironment {
   GOOGLE_GENERATIVE_AI_API_KEY?: string;
+  GOOGLE_AI_API_KEY?: string;
   GROQ_API_KEY?: string;
 }
 
@@ -76,7 +77,9 @@ function groqConfig(apiKey: string): AiModelConfig {
 
 function readEnvironment(environment: AiEnvironment) {
   return {
-    googleKey: environment.GOOGLE_GENERATIVE_AI_API_KEY?.trim(),
+    googleKey:
+      environment.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
+      environment.GOOGLE_AI_API_KEY?.trim(),
     groqKey: environment.GROQ_API_KEY?.trim(),
   };
 }
@@ -84,6 +87,7 @@ function readEnvironment(environment: AiEnvironment) {
 function processEnvironment(): AiEnvironment {
   return {
     GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY,
     GROQ_API_KEY: process.env.GROQ_API_KEY,
   };
 }
@@ -228,4 +232,17 @@ export function createAiModel(
   environment: AiEnvironment = processEnvironment(),
 ): LanguageModel {
   return instantiateModel(getAiProviderConfig(environment));
+}
+
+/**
+ * Strips markdown code fences and extracts the outer `{...}` JSON object from
+ * raw model output. Returns an empty string when no JSON object is present.
+ */
+export function extractJsonObject(text: string): string {
+  const cleaned = text
+    .replace(/```(?:json)?\s*/gi, "")
+    .replace(/```\s*$/g, "")
+    .trim();
+  const match = /\{[\s\S]*\}/.exec(cleaned);
+  return match ? match[0] : "";
 }

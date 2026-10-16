@@ -1,7 +1,7 @@
 import { searchChannel } from "@/lib/youtube-server";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
-import { createTaggedLogger } from "@/lib/logger";
-import { withErrorHandling } from "@/lib/route-handler";
+import { createTaggedLogger } from "@data-projects/shared/logger";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { validateSearchQuery } from "@/lib/validation";
 import {
   corsHeaders,

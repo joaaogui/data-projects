@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
 import type { SyncLogEntry } from "@/types/youtube";
 import { eq, sql } from "drizzle-orm";
-import { createTaggedLogger } from "./logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 
 export interface JobLogger {
   info(msg: string): void;

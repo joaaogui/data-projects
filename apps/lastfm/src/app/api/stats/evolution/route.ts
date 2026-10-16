@@ -1,5 +1,5 @@
 import { getEvolutionStats } from "@/lib/analytics/evolution";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import {
   checkRateLimit,
   getClientIp,

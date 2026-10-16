@@ -1,5 +1,6 @@
 "use client";
 
+import { normalizeKey } from "@data-projects/shared";
 import { Skeleton } from "@data-projects/ui";
 import { Ban, LockKeyhole, Pin, Sparkles, X } from "lucide-react";
 import Image from "next/image";
@@ -38,10 +39,6 @@ interface ErrorPayload {
     code?: string;
     message?: string;
   };
-}
-
-function nameKey(name: string): string {
-  return name.trim().toLocaleUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 function CoachHeader() {
@@ -298,17 +295,17 @@ export function AccountDashboard() {
   );
 
   const upgradeKeys = new Set(
-    analysis.upgradePriorities.map((item) => nameKey(item.brawlerName)),
+    analysis.upgradePriorities.map((item) => normalizeKey(item.brawlerName)),
   );
   const standalonePushTargets = analysis.pushTargets.filter(
-    (target) => !upgradeKeys.has(nameKey(target.brawlerName)),
+    (target) => !upgradeKeys.has(normalizeKey(target.brawlerName)),
   );
   const shownBuildKeys = new Set([
     ...upgradeKeys,
-    ...analysis.pushTargets.map((item) => nameKey(item.brawlerName)),
+    ...analysis.pushTargets.map((item) => normalizeKey(item.brawlerName)),
   ]);
   const remainingBuilds = analysis.buildAdvice.filter(
-    (build) => !shownBuildKeys.has(nameKey(build.brawlerName)),
+    (build) => !shownBuildKeys.has(normalizeKey(build.brawlerName)),
   );
   const hasActiveRules = hasPreferences(ledger);
 

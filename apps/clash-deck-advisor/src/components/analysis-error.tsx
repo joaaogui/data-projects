@@ -1,5 +1,6 @@
 "use client";
 
+import { SUPERCELL_ERROR_GUIDANCE } from "@data-projects/shared/supercell";
 import { CloudOff, RotateCcw } from "lucide-react";
 
 interface AnalysisErrorProps {
@@ -10,39 +11,7 @@ interface AnalysisErrorProps {
 }
 
 const guidance: Record<string, { title: string; detail: string }> = {
-  CONFIGURATION_MISSING: {
-    title: "Server setup needed",
-    detail:
-      "Add the Clash Royale and AI provider server environment variables, then run the analysis again.",
-  },
-  AUTHORIZATION_FAILED: {
-    title: "Clash Royale access was rejected",
-    detail:
-      "Verify the API token and confirm the RoyaleAPI proxy IP is allowed for that token.",
-  },
-  PLAYER_NOT_FOUND: {
-    title: "Player tag was not found",
-    detail:
-      "The advisor is fixed to #VGURQ0QQ2. Confirm that account is available through the API.",
-  },
-  UPSTREAM_RATE_LIMITED: {
-    title: "Clash Royale needs a timeout",
-    detail: "Wait a few minutes before requesting another fresh snapshot.",
-  },
-  UPSTREAM_MAINTENANCE: {
-    title: "Clash Royale is under maintenance",
-    detail: "The workshop will return once the official API is back online.",
-  },
-  UPSTREAM_UNAVAILABLE: {
-    title: "Clash Royale is temporarily unavailable",
-    detail:
-      "The upstream service could not be reached. Wait a moment and run the analysis again.",
-  },
-  RATE_LIMITED: {
-    title: "Too many refreshes",
-    detail:
-      "This recommendation refreshes every 30 minutes, so another request is not needed yet.",
-  },
+  ...SUPERCELL_ERROR_GUIDANCE,
   INVALID_REQUEST: {
     title: "Saved history could not be read",
     detail:

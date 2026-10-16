@@ -1,41 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { median, runWorkerPool, WorkerPoolError } from "@/lib/utils";
-
-describe("median", () => {
-  it("returns 0 for empty array", () => {
-    expect(median([])).toBe(0);
-  });
-
-  it("returns the single element for array of length 1", () => {
-    expect(median([42])).toBe(42);
-  });
-
-  it("returns the middle element for odd-length array", () => {
-    expect(median([3, 1, 2])).toBe(2);
-  });
-
-  it("returns the average of two middle elements for even-length array", () => {
-    expect(median([1, 2, 3, 4])).toBe(2.5);
-  });
-
-  it("handles already sorted input", () => {
-    expect(median([10, 20, 30, 40, 50])).toBe(30);
-  });
-
-  it("handles unsorted input", () => {
-    expect(median([50, 10, 40, 20, 30])).toBe(30);
-  });
-
-  it("handles duplicate values", () => {
-    expect(median([5, 5, 5])).toBe(5);
-  });
-
-  it("does not mutate the original array", () => {
-    const arr = [3, 1, 2];
-    median(arr);
-    expect(arr).toEqual([3, 1, 2]);
-  });
-});
+import { runWorkerPool, WorkerPoolError } from "@/lib/utils";
 
 describe("runWorkerPool", () => {
   it("processes all items", async () => {

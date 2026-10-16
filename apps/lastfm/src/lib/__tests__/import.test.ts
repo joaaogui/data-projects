@@ -29,7 +29,7 @@ vi.mock("drizzle-orm", () => ({
   sql: vi.fn(),
 }));
 vi.mock("../lastfm-server", () => ({ getRecentTracks: vi.fn(), RECENT_TRACKS_MAX_LIMIT: 200 }));
-vi.mock("../logger", () => ({
+vi.mock("@data-projects/shared/logger", () => ({
   createTaggedLogger: () => ({ info: vi.fn(), error: vi.fn() }),
 }));
 vi.mock("../env", () => ({ env: { LASTFM_USERNAME: "user" } }));

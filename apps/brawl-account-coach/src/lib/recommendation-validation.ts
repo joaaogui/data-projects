@@ -1,3 +1,5 @@
+import { normalizeKey } from "@data-projects/shared";
+
 import {
   accountCoachSchema,
   type AccountCoachAnalysis,
@@ -13,17 +15,13 @@ import type {
   PlayerProfile,
 } from "./types";
 
-function nameKey(name: string): string {
-  return name.trim().toLocaleUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
 function createItemCatalog(
   catalog: BrawlerCatalogItem[],
   select: (brawler: BrawlerCatalogItem) => NamedItem[],
 ): Set<string> {
   return new Set(
     catalog.flatMap((brawler) =>
-      select(brawler).map((item) => nameKey(item.name)),
+      select(brawler).map((item) => normalizeKey(item.name)),
     ),
   );
 }
@@ -60,12 +58,12 @@ function ownedItem(
     return null;
   }
 
-  const key = nameKey(value);
+  const key = normalizeKey(value);
   if (!catalogNames.has(key)) {
     throw new Error(`Unknown ${label} for ${brawler.name}: ${value}`);
   }
 
-  const match = owned.find((item) => nameKey(item.name) === key);
+  const match = owned.find((item) => normalizeKey(item.name) === key);
   if (!match) {
     throw new Error(
       `Player does not own ${label} for ${brawler.name}: ${value}`,
@@ -98,17 +96,17 @@ export function applyBrawlerPreferences(
   }
 
   const ownedByKey = new Map(
-    player.brawlers.map((brawler) => [nameKey(brawler.name), brawler]),
+    player.brawlers.map((brawler) => [normalizeKey(brawler.name), brawler]),
   );
 
   const excludedKeys = new Set(
-    preferences.excludedBrawlers.map((name) => nameKey(name)),
+    preferences.excludedBrawlers.map((name) => normalizeKey(name)),
   );
   const pinnedBrawlers: PlayerBrawler[] = [];
   const pinnedKeys = new Set<string>();
 
   for (const rawName of preferences.pinnedBrawlers) {
-    const key = nameKey(rawName);
+    const key = normalizeKey(rawName);
     if (excludedKeys.has(key) || pinnedKeys.has(key)) {
       continue;
     }
@@ -120,15 +118,15 @@ export function applyBrawlerPreferences(
   }
 
   const filteredUpgrades = analysis.upgradePriorities.filter(
-    (item) => !excludedKeys.has(nameKey(item.brawlerName)),
+    (item) => !excludedKeys.has(normalizeKey(item.brawlerName)),
   );
   const existingUpgradeByKey = new Map(
-    filteredUpgrades.map((item) => [nameKey(item.brawlerName), item]),
+    filteredUpgrades.map((item) => [normalizeKey(item.brawlerName), item]),
   );
 
   const boostedUpgrades: UpgradePriority[] = [];
   for (const brawler of pinnedBrawlers) {
-    const key = nameKey(brawler.name);
+    const key = normalizeKey(brawler.name);
     const existing = existingUpgradeByKey.get(key);
     if (existing) {
       boostedUpgrades.push({
@@ -146,21 +144,21 @@ export function applyBrawlerPreferences(
     }
   }
   for (const item of filteredUpgrades) {
-    if (!pinnedKeys.has(nameKey(item.brawlerName))) {
+    if (!pinnedKeys.has(normalizeKey(item.brawlerName))) {
       boostedUpgrades.push(item);
     }
   }
 
   const filteredPushes = analysis.pushTargets.filter(
-    (item) => !excludedKeys.has(nameKey(item.brawlerName)),
+    (item) => !excludedKeys.has(normalizeKey(item.brawlerName)),
   );
   const existingPushByKey = new Map(
-    filteredPushes.map((item) => [nameKey(item.brawlerName), item]),
+    filteredPushes.map((item) => [normalizeKey(item.brawlerName), item]),
   );
 
   const boostedPushes: PushTarget[] = [];
   for (const brawler of pinnedBrawlers) {
-    const key = nameKey(brawler.name);
+    const key = normalizeKey(brawler.name);
     const existing = existingPushByKey.get(key);
     if (existing) {
       boostedPushes.push(existing);
@@ -181,21 +179,21 @@ export function applyBrawlerPreferences(
     }
   }
   for (const item of filteredPushes) {
-    if (!pinnedKeys.has(nameKey(item.brawlerName))) {
+    if (!pinnedKeys.has(normalizeKey(item.brawlerName))) {
       boostedPushes.push(item);
     }
   }
 
   const filteredBuilds = analysis.buildAdvice.filter(
-    (item) => !excludedKeys.has(nameKey(item.brawlerName)),
+    (item) => !excludedKeys.has(normalizeKey(item.brawlerName)),
   );
   const existingBuildByKey = new Map(
-    filteredBuilds.map((item) => [nameKey(item.brawlerName), item]),
+    filteredBuilds.map((item) => [normalizeKey(item.brawlerName), item]),
   );
   const boostedBuilds: BuildAdvice[] = [];
 
   for (const brawler of pinnedBrawlers) {
-    const key = nameKey(brawler.name);
+    const key = normalizeKey(brawler.name);
     const existing = existingBuildByKey.get(key);
     if (existing) {
       boostedBuilds.push(existing);
@@ -217,7 +215,7 @@ export function applyBrawlerPreferences(
     }
   }
   for (const item of filteredBuilds) {
-    if (!pinnedKeys.has(nameKey(item.brawlerName))) {
+    if (!pinnedKeys.has(normalizeKey(item.brawlerName))) {
       boostedBuilds.push(item);
     }
   }
@@ -228,7 +226,7 @@ export function applyBrawlerPreferences(
     pushTargets: boostedPushes.slice(0, 5),
     buildAdvice: boostedBuilds.slice(0, 5),
     avoidForNow: analysis.avoidForNow.filter(
-      (item) => !pinnedKeys.has(nameKey(item.brawlerName)),
+      (item) => !pinnedKeys.has(normalizeKey(item.brawlerName)),
     ),
   };
 }
@@ -240,9 +238,9 @@ export function validateRecommendations(
   preferences?: PlayerPreferences,
 ): AccountCoachAnalysis {
   const analysis = accountCoachSchema.parse(input);
-  const catalogNames = new Set(catalog.map((brawler) => nameKey(brawler.name)));
+  const catalogNames = new Set(catalog.map((brawler) => normalizeKey(brawler.name)));
   const ownedBrawlers = new Map(
-    player.brawlers.map((brawler) => [nameKey(brawler.name), brawler]),
+    player.brawlers.map((brawler) => [normalizeKey(brawler.name), brawler]),
   );
   const gadgetCatalog = createItemCatalog(
     catalog,
@@ -259,7 +257,7 @@ export function validateRecommendations(
   );
 
   const resolveBrawler = (value: string): PlayerBrawler => {
-    const key = nameKey(value);
+    const key = normalizeKey(value);
     const brawler = ownedBrawlers.get(key);
     if (!brawler || !catalogNames.has(key)) {
       throw new Error(`Unknown or unowned brawler: ${value}`);

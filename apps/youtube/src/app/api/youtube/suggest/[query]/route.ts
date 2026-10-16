@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import { channels, suggestionCache } from "@/db/schema";
-import { createTaggedLogger } from "@/lib/logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { validateSearchQuery } from "@/lib/validation";
 import { searchChannels } from "@/lib/youtube-server";
 import type { ChannelSuggestion } from "@/types/youtube";

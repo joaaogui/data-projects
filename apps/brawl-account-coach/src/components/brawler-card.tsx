@@ -1,3 +1,4 @@
+import { formatNumber } from "@data-projects/shared";
 import { Ban, Bolt, Pin, Settings2, Star, Wrench } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
@@ -17,8 +18,6 @@ interface BrawlerCardProps {
   onTogglePin?: (brawlerName: string) => void;
   onToggleExclude?: (brawlerName: string) => void;
 }
-
-const numberFormatter = new Intl.NumberFormat("en-US");
 
 const accentClasses = {
   blue: "bg-[#155eef] text-white",
@@ -138,7 +137,7 @@ export function BrawlerCard({
             <span
               className={`shrink-0 rounded-full border-2 border-[#101631] px-2.5 py-1 text-[11px] font-black ${accentClasses[accent]}`}
             >
-              {numberFormatter.format(brawler.trophies)} trophies
+              {formatNumber(brawler.trophies)} trophies
             </span>
           </div>
           <div className="mt-3 flex-1">

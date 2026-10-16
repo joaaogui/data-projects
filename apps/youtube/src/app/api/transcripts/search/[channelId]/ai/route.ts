@@ -3,7 +3,7 @@ import { transcripts, videos } from "@/db/schema";
 import { getModel } from "@/lib/ai-providers";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { validateChannelId } from "@/lib/validation";
 import { rateLimitExceededResponse } from "@data-projects/shared";
 import { generateText } from "ai";

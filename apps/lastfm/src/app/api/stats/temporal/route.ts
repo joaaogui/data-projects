@@ -1,5 +1,5 @@
 import { getTemporalStats } from "@/lib/analytics/temporal";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import {
   checkRateLimit,
   getClientIp,

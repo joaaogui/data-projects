@@ -1,3 +1,4 @@
+import { median } from "@data-projects/shared";
 import type { VideoData } from "@/types/youtube";
 
 export const DURATION_RANGES = [
@@ -33,15 +34,6 @@ function mean(values: number[]): number {
   return values.length > 0
     ? values.reduce((sum, value) => sum + value, 0) / values.length
     : 0;
-}
-
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1
-    ? sorted[middle]
-    : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 function sampleFloor(videoCount: number): number {

@@ -1,10 +1,8 @@
 import { db } from "@/db";
 import { transcripts, videos } from "@/db/schema";
-import { getModel } from "@/lib/ai-providers";
+import { extractJsonObject, getModel } from "@/lib/ai-providers";
 import { auth } from "@/lib/auth";
-import { createTaggedLogger } from "@/lib/logger";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
-import { withErrorHandling } from "@/lib/route-handler";
 import type { SagaSuggestion } from "@/types/youtube";
 import {
   mergeHeaders,
@@ -13,6 +11,8 @@ import {
   corsHeaders as sharedCorsHeaders,
   withRateLimitHeaders,
 } from "@data-projects/shared";
+import { createTaggedLogger } from "@data-projects/shared/logger";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { generateText } from "ai";
 import { inArray } from "drizzle-orm";
 
@@ -131,16 +131,15 @@ async function processBatch(
   const elapsedMs = Date.now() - startMs;
   log.info({ batchNum, elapsedMs, responseLength: aiText.length }, "AI responded");
 
-  const cleaned = aiText.replaceAll(/```(?:json)?\s*/g, "").replaceAll(/```\s*$/g, "");
-  const jsonMatch = /\{[\s\S]*\}/.exec(cleaned);
+  const rawJson = extractJsonObject(aiText);
 
-  if (!jsonMatch) {
+  if (!rawJson) {
     log.warn({ batchNum }, "no JSON object found in AI response");
     return;
   }
 
   try {
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const parsed = JSON.parse(rawJson) as {
       suggestions?: Array<{
         videoId: string;
         sagaName: string;
@@ -161,7 +160,7 @@ async function processBatch(
       batchNum
     );
   } catch (parseErr) {
-    log.error({ err: parseErr, batchNum, raw: jsonMatch[0].slice(0, 500) }, "JSON parse error");
+    log.error({ err: parseErr, batchNum, raw: rawJson.slice(0, 500) }, "JSON parse error");
   }
 }
 

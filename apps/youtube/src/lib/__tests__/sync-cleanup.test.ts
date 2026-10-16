@@ -18,7 +18,7 @@ vi.mock("@/db/schema", () => ({
   syncJobs: { status: "status", updatedAt: "updated_at" },
 }));
 
-vi.mock("@/lib/logger", () => ({
+vi.mock("@data-projects/shared/logger", () => ({
   createTaggedLogger: () => ({
     warn: vi.fn(),
     info: vi.fn(),

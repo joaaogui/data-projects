@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
-import { createTaggedLogger } from "@/lib/logger";
-import { withErrorHandling } from "@/lib/route-handler";
+import { createTaggedLogger } from "@data-projects/shared/logger";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { validateChannelId } from "@/lib/validation";
 import {
   checkSubscription,

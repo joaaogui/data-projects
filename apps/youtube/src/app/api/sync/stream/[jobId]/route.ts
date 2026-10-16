@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { syncJobs } from "@/db/schema";
-import { createTaggedLogger } from "@/lib/logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 import { eq } from "drizzle-orm";
 
 const log = createTaggedLogger("sync-stream");

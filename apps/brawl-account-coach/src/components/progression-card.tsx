@@ -1,3 +1,4 @@
+import { formatNumber, formatSigned } from "@data-projects/shared";
 import {
   ArrowUpRight,
   BookmarkCheck,
@@ -18,8 +19,6 @@ interface ProgressionCardProps {
   onClearHistory?: () => void;
 }
 
-const numberFormatter = new Intl.NumberFormat("en-US");
-
 function formatBaselineDate(iso: string | null): string {
   if (!iso) {
     return "last check-in";
@@ -32,16 +31,6 @@ function formatBaselineDate(iso: string | null): string {
     month: "short",
     day: "numeric",
   });
-}
-
-function formatSigned(value: number): string {
-  if (value > 0) {
-    return `+${numberFormatter.format(value)}`;
-  }
-  if (value < 0) {
-    return `−${numberFormatter.format(Math.abs(value))}`;
-  }
-  return "0";
 }
 
 export function ProgressionCard({
@@ -100,7 +89,7 @@ export function ProgressionCard({
             <Sparkles aria-hidden="true" className="size-4 shrink-0 text-[#155eef]" />
             Baseline recorded at{" "}
             <strong className="font-black text-[#101631]">
-              {numberFormatter.format(currentTrophies)} trophies
+              {formatNumber(currentTrophies)} trophies
             </strong>{" "}
             across{" "}
             <strong className="font-black text-[#101631]">

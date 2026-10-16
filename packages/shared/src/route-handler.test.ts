@@ -4,28 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 const mockWarn = vi.fn();
 const mockError = vi.fn();
 
-vi.mock("@/lib/logger", () => ({
+vi.mock("./logger", () => ({
   logger: {
     child: () => ({ warn: mockWarn, error: mockError }),
   },
 }));
 
-vi.mock("@/lib/errors", async () => {
-  const { AppError } = await vi.importActual<typeof import("@/lib/errors")>(
-    "@/lib/errors",
-  );
-  return {
-    AppError,
-    isAppError: (e: unknown) => e instanceof AppError,
-    toErrorResponse: (e: unknown) => {
-      if (e instanceof AppError) return { message: e.message, status: e.status };
-      return { message: "Internal server error", status: 500 };
-    },
-  };
-});
-
-import { withErrorHandling } from "../route-handler";
-import { AppError } from "../errors";
+import { withErrorHandling } from "./route-handler";
+import { AppError } from "./errors";
 
 function createMockRequest(url = "http://localhost/api/test") {
   return new NextRequest(url);

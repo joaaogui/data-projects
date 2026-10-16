@@ -3,6 +3,7 @@
 // into a build error naming the offending file, rather than a Zod failure in
 // the browser about a variable that could never have been there.
 import "server-only";
+import { loadServerEnv } from "@data-projects/shared/env";
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -22,24 +23,9 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-const skipValidation =
-  process.env.NODE_ENV === "test" ||
-  !!process.env.VITEST ||
-  !!process.env.CI ||
-  !!process.env.SKIP_ENV_VALIDATION;
-
-const BUILD_DEFAULTS: Env = {
+export const env = loadServerEnv(envSchema, {
   POSTGRES_URL: "postgresql://build:build@localhost/build",
   LASTFM_API_KEY: "build-api-key",
   LASTFM_USERNAME: "build-user",
   LASTFM_TIMEZONE: "America/Sao_Paulo",
-};
-
-function loadEnv(): Env {
-  const result = envSchema.safeParse(process.env);
-  if (result.success) return result.data;
-  if (skipValidation) return { ...BUILD_DEFAULTS, ...process.env } as Env;
-  throw result.error;
-}
-
-export const env = loadEnv();
+});

@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { videos } from "@/db/schema";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { validateVideoId } from "@/lib/validation";
 import {
   corsHeaders,

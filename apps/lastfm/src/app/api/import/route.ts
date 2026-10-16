@@ -7,7 +7,7 @@ import {
   toJobView,
 } from "@/lib/import";
 import { assertImportAuthorized } from "@/lib/import-auth";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import type { ImportMode } from "@/types/lastfm";
 
 /** Must exceed CHUNK_BUDGET_MS in lib/import.ts so a chunk can save its cursor. */

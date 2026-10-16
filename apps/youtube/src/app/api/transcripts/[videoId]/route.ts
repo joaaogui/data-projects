@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { transcripts } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 

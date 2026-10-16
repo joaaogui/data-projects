@@ -1,9 +1,9 @@
 import { db } from "@/db";
 import { videos } from "@/db/schema";
 import { CHANNEL_FRESHNESS_MS } from "@/lib/constants";
-import { createTaggedLogger } from "@/lib/logger";
+import { createTaggedLogger } from "@data-projects/shared/logger";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
-import { withErrorHandling } from "@/lib/route-handler";
+import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { validateChannelId } from "@/lib/validation";
 import { dbRowsToVideoData } from "@/lib/video-mapper";
 import {

@@ -3,7 +3,10 @@ import "server-only";
 import { generateText } from "ai";
 
 import { recommendArchetype } from "./archetype-engine";
-import { instantiateModel, runWithAiFallback } from "./ai-provider";
+import {
+  instantiateModel,
+  runWithAiFallback,
+} from "@data-projects/shared/ai-provider";
 import { groundedClaims } from "./claim-check";
 import type { EngineContext } from "./engine-context";
 import type { DeckAnalysis } from "./schemas";

@@ -12,6 +12,37 @@
     "./ai-provider": {
       "types": "./src/ai-provider.ts",
       "default": "./src/ai-provider.ts"
+    },
+    "./db": {
+      "types": "./src/db.ts",
+      "default": "./src/db.ts"
+    },
+    "./env": {
+      "types": "./src/env.ts",
+      "default": "./src/env.ts"
+    },
+    "./eslint-config": {
+      "default": "./src/eslint-config.mjs"
+    },
+    "./logger": {
+      "types": "./src/logger.ts",
+      "default": "./src/logger.ts"
+    },
+    "./next-headers": {
+      "types": "./src/next-headers.d.ts",
+      "default": "./src/next-headers.mjs"
+    },
+    "./route-handler": {
+      "types": "./src/route-handler.ts",
+      "default": "./src/route-handler.ts"
+    },
+    "./supercell": {
+      "types": "./src/supercell.ts",
+      "default": "./src/supercell.ts"
+    },
+    "./test/server-only-stub": {
+      "types": "./src/test/server-only-stub.ts",
+      "default": "./src/test/server-only-stub.ts"
     }
   },
   "scripts": {
@@ -22,18 +53,30 @@
   "dependencies": {
     "@ai-sdk/google": "^4.0.76",
     "@ai-sdk/groq": "^4.0.46",
+    "@neondatabase/serverless": "catalog:",
     "@tanstack/react-query": "catalog:",
     "ai": "^7.0.107",
     "clsx": "catalog:",
+    "drizzle-orm": "catalog:",
+    "pino": "catalog:",
+    "pino-pretty": "catalog:",
     "server-only": "catalog:",
-    "tailwind-merge": "catalog:"
+    "tailwind-merge": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
+    "@next/eslint-plugin-next": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
+    "eslint-plugin-react": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "next": "^16.4.0",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "next": "^14.0.0 || ^15.0.0 || ^16.0.0"
   }
 }

@@ -7,7 +7,7 @@ import {
   getAiProviderOptions,
   instantiateModel,
   runWithAiFallback,
-} from "./ai-provider";
+} from "@data-projects/shared/ai-provider";
 import { getAnalysisContext, PLAYER_TAG } from "./brawl-stars";
 import {
   applyBrawlerPreferences,
