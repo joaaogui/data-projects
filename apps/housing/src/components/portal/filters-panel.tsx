@@ -18,7 +18,6 @@ import {
   Columns2,
   List,
   Map as MapIcon,
-  MapPin,
   RotateCcw,
   Search,
   Sparkles,
@@ -26,6 +25,11 @@ import {
 } from "lucide-react";
 
 import { CITY_LABELS } from "@/components/portal/constants";
+import {
+  ineligibleModeOf,
+  ineligibleModePatch,
+  type IneligibleMode,
+} from "@/lib/filter-state";
 import { HIDDEN_BY_DEFAULT_CITIES, HIDDEN_CITY_LABELS } from "@/lib/city-config";
 import type { PortalController } from "@/components/portal/use-portal-controller";
 
@@ -33,18 +37,20 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
   const {
     activeAdvancedFilterCount,
     activeFilterPills,
+    applyFilterPatch,
     applyPerfeitoFilterPreset,
+    cityTop3ByCode,
     availableNeighborhoodOptions,
     copiedTop50Count,
     deactivatedFilter,
     deactivatedTotalCount,
     enabledHiddenCities,
-    favoriteKeys,
     filteredTotal,
     floorFilters,
     handleCitySelect,
     handleCopyTop50ForAi,
     handleToggleHiddenCity,
+    hideForSale,
     hideMegaCondo,
     ineligibleActiveCount,
     isPerfeitoPresetActive,
@@ -79,6 +85,7 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
     setDeactivatedFilter,
     setFloorFilters,
     setFurnishedFilter,
+    setHideForSale,
     setHideMegaCondo,
     setListingDateFrom,
     setListingDateTo,
@@ -96,7 +103,6 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
     setMinTotalMonthly,
     setModernityTiers,
     setOnlyFavorites,
-    setOnlyIneligible,
     setOnlyNewEntries,
     setOnlySafeStreets,
     setOnlyTop20Neighborhoods,
@@ -109,7 +115,6 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
     setSelectedNeighborhoods,
     setSelectedParking,
     setShowAdvancedFilters,
-    setShowIneligible,
     setSortBy,
     setViewMode,
     setVisibleCount,
@@ -118,15 +123,23 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
     sortBy,
     totalBasePoolCount,
     viewMode,
+    visibleFavoriteCount,
   } = ctl;
+  const ineligibleMode = ineligibleModeOf({ showIneligible, onlyIneligible });
+  const setIneligibleMode = (mode: IneligibleMode) =>
+    applyFilterPatch(ineligibleModePatch(mode));
   return (
     <>
       {/* 2-Level Ergonomic Filter System */}
       <div className="rounded-xl border bg-card p-2.5 sm:p-3 shadow-2xs space-y-2.5 sm:space-y-3">
         {/* LEVEL 1 — Primary Filter Strip (Always Visible) */}
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          {/* Praça Quick Selector (Multi-Select — hidden on small screens since the top toolbar already shows city pills) */}
-          <div className="hidden md:inline-flex items-center gap-0.5 rounded-lg border bg-background p-0.5 sm:order-1">
+          {/* City selector (multi-select): the only city control; hidden cities appear once enabled */}
+          <div
+            role="group"
+            aria-label="Cidade"
+            className="order-0 inline-flex items-center gap-0.5 rounded-lg border bg-background p-0.5 sm:order-1"
+          >
             {(["ALL", ...selectableCityList] as const).map((city) => {
               const isSelected =
                 city === "ALL"
@@ -143,13 +156,18 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
                       : `Alternar ${CITY_LABELS[city]} (permite selecionar mais de uma praça)`
                   }
                   onClick={() => handleCitySelect(city)}
-                  className={`rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
+                  className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
                     isSelected
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {city === "ALL" ? "Todas" : city}
+                  {city !== "ALL" && cityTop3ByCode.get(city) && (
+                    <span className="ml-1 font-mono text-[10px] font-medium opacity-70">
+                      {cityTop3ByCode.get(city)!.top3Avg.toFixed(1)}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -214,7 +232,7 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
               setVisibleCount(30);
             }}
             aria-pressed={onlyFavorites}
-            aria-label={`Favoritos (${favoriteKeys.length})`}
+            aria-label={`Favoritos (${visibleFavoriteCount})`}
             title="Mostrar apenas seus imóveis favoritados (inclusive os que foram alugados/desativados)"
             className={`order-3 sm:order-2 inline-flex shrink-0 items-center gap-1 rounded-lg border px-1.5 py-1 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-2.5 ${
               onlyFavorites
@@ -224,12 +242,12 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
           >
             <Heart
               className={`h-3.5 w-3.5 shrink-0 ${
-                onlyFavorites || favoriteKeys.length > 0
+                onlyFavorites || visibleFavoriteCount > 0
                   ? "fill-rose-500 text-rose-500"
                   : "text-muted-foreground"
               }`}
             />
-            <span>{favoriteKeys.length}</span>
+            <span>{visibleFavoriteCount}</span>
           </button>
 
           {/* 1-Click Perfeito Filter Preset Toggle */}
@@ -237,7 +255,11 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
             type="button"
             onClick={applyPerfeitoFilterPreset}
             aria-pressed={isPerfeitoPresetActive}
-            title="Assinala os filtros ideais: Ar-condicionado · Andar Alto/Cobertura · ≤ R$ 4.500 · ≤ 25 min do escritório · Não/Semi-mobiliado · Sem problemas de segurança"
+            title={
+              isPerfeitoPresetActive
+                ? "Desligar Perfeito e voltar aos filtros anteriores"
+                : "Troca os filtros por: Ar-condicionado · Andar alto/cobertura · ≤ R$ 4.500 · ≤ 25 min do escritório · Não mobiliado · Sem problemas de segurança (desligar restaura os anteriores)"
+            }
             className={`order-3 sm:order-2 inline-flex shrink-0 items-center gap-1 rounded-lg border px-1.5 py-1 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-2.5 ${
               isPerfeitoPresetActive
                 ? "border-amber-500/60 bg-amber-500/15 text-amber-800 dark:border-amber-400/60 dark:bg-amber-500/20 dark:text-amber-200"
@@ -254,30 +276,6 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
             <span>Perfeito</span>
           </button>
 
-          {/* 1-Click Top 20 Bairros Strict Filter Toggle */}
-          <button
-            type="button"
-            onClick={() => {
-              setOnlyTop20Neighborhoods((v) => !v);
-              setVisibleCount(30);
-            }}
-            aria-pressed={onlyTop20Neighborhoods}
-            title="Apenas estritamente nos 20 Bairros do Ranking (Top 20) — exclui Savassi, Cambuí, Pinheiros, Catete, Copacabana, Barra Olímpica, etc."
-            className={`order-3 sm:order-2 inline-flex shrink-0 items-center gap-1 rounded-lg border px-1.5 py-1 text-xs transition-colors sm:gap-1.5 sm:px-2.5 ${
-              onlyTop20Neighborhoods
-                ? "border-primary bg-primary/15 text-primary font-semibold"
-                : "bg-background font-semibold text-foreground hover:bg-secondary"
-            }`}
-          >
-            <MapPin
-              className={`h-3.5 w-3.5 shrink-0 ${
-                onlyTop20Neighborhoods
-                  ? "text-primary"
-                  : "text-muted-foreground"
-              }`}
-            />
-            <span>Top 20 Bairros</span>
-          </button>
 
           {/* Sort By Selector */}
           <div className="relative order-4 sm:order-4 inline-flex min-w-0 flex-1 sm:flex-initial items-center gap-1 rounded-lg border bg-background px-1.5 py-1 text-xs sm:gap-1.5 sm:px-2.5">
@@ -302,6 +300,29 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
               ))}
             </select>
           </div>
+
+          <button
+            type="button"
+            onClick={() => void handleCopyTop50ForAi()}
+            disabled={filteredTotal === 0}
+            aria-label={
+              copiedTop50Count !== null
+                ? `Copiado: ${copiedTop50Count} imóveis`
+                : "Copiar Top 50 para IA"
+            }
+            title="Copiar resumo em Markdown do Top 50 filtrado para enviar a outra IA"
+            className={`order-5 sm:order-5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              copiedTop50Count !== null
+                ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200"
+                : "bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            {copiedTop50Count !== null ? (
+              <Check className="h-3.5 w-3.5" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+          </button>
 
           {/* View Mode Toggle: On mobile (< md), compact Lista vs Mapa; on md+, Lista + Mapa (Split) | Só Lista | Só Mapa */}
           <div
@@ -706,9 +727,7 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
                       }}
                       className="accent-primary"
                     />
-                    <span>
-                      Apenas estritamente nos 20 Bairros do Ranking (Top 20)
-                    </span>
+                    <span>Só bairros do ranking (Top Bairros)</span>
                   </label>
                 </div>
                 {selectedNeighborhoods.length > 0 && (
@@ -1471,41 +1490,6 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
                   <label className="inline-flex items-center gap-2 font-medium cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={
-                        onlySafeStreets ||
-                        requiredFeatures.includes("safe_street")
-                      }
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setOnlySafeStreets(checked);
-                        if (!checked) {
-                          setRequiredFeatures((prev) =>
-                            prev.filter((f) => f !== "safe_street"),
-                          );
-                        }
-                        setVisibleCount(30);
-                      }}
-                      className="accent-primary"
-                    />
-                    <span>Sem problemas de segurança na rua</span>
-                  </label>
-                  <label className="inline-flex items-center gap-2 font-medium cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={onlyTop20Neighborhoods}
-                      onChange={(e) => {
-                        setOnlyTop20Neighborhoods(e.target.checked);
-                        setVisibleCount(30);
-                      }}
-                      className="accent-primary"
-                    />
-                    <span>
-                      Apenas estritamente nos 20 Bairros do Ranking (Top 20)
-                    </span>
-                  </label>
-                  <label className="inline-flex items-center gap-2 font-medium cursor-pointer">
-                    <input
-                      type="checkbox"
                       checked={hideMegaCondo}
                       onChange={(e) => {
                         setHideMegaCondo(e.target.checked);
@@ -1514,6 +1498,18 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
                       className="accent-primary"
                     />
                     <span>Ocultar Megacondomínios</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2 font-medium cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hideForSale}
+                      onChange={(e) => {
+                        setHideForSale(e.target.checked);
+                        setVisibleCount(30);
+                      }}
+                      className="accent-primary"
+                    />
+                    <span>Ocultar também à venda</span>
                   </label>
                   <label className="inline-flex items-center gap-2 font-medium cursor-pointer">
                     <input
@@ -1527,41 +1523,35 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
                     />
                     <span>Só novas entradas</span>
                   </label>
-                  <label className="inline-flex items-center gap-2 font-medium text-muted-foreground cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showIneligible && !onlyIneligible}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setShowIneligible(checked);
-                        if (checked) {
-                          setOnlyIneligible(false);
-                        }
-                        setVisibleCount(30);
-                      }}
-                      className="accent-primary"
-                    />
-                    <span>
-                      Incluir reprovados ({ineligibleActiveCount} retidos por
-                      modernidade/área &lt;35m²/tempo &gt;50min/vaga/elevador)
+                  <div className="space-y-1">
+                    <span className="block text-[11px] font-semibold text-muted-foreground">
+                      Retidos pelas barreiras ({ineligibleActiveCount}: área, vaga, elevador, tempo &gt; 50 min…)
                     </span>
-                  </label>
-                  <label className="inline-flex items-center gap-2 font-medium text-amber-700 dark:text-amber-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={onlyIneligible}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setOnlyIneligible(checked);
-                        setShowIneligible(checked);
-                        setVisibleCount(30);
-                      }}
-                      className="accent-primary"
-                    />
-                    <span>
-                      Só reprovados / retidos ({ineligibleActiveCount})
-                    </span>
-                  </label>
+                    <div role="radiogroup" aria-label="Retidos" className="inline-flex rounded-lg border bg-background p-0.5">
+                      {(
+                        [
+                          { mode: "hide", label: "Ocultar" },
+                          { mode: "include", label: "Incluir" },
+                          { mode: "only", label: "Só retidos" },
+                        ] as const
+                      ).map((opt) => (
+                        <button
+                          key={opt.mode}
+                          type="button"
+                          role="radio"
+                          aria-checked={ineligibleMode === opt.mode}
+                          onClick={() => setIneligibleMode(opt.mode)}
+                          className={`rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                            ineligibleMode === opt.mode
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1609,11 +1599,7 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
                     · {ineligibleActiveCount} filtrados pelas barreiras (
                     <button
                       type="button"
-                      onClick={() => {
-                        setOnlyIneligible(true);
-                        setShowIneligible(true);
-                        setVisibleCount(30);
-                      }}
+                      onClick={() => setIneligibleMode("only")}
                       className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
                     >
                       ver só retidos
@@ -1637,34 +1623,6 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => void handleCopyTop50ForAi()}
-              disabled={filteredTotal === 0}
-              title="Copiar resumo estruturado em Markdown do Top 50 exibido na tela (ou total filtrado) para enviar a outra IA"
-              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-[11px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                copiedTop50Count !== null
-                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-800 dark:border-emerald-400/50 dark:bg-emerald-500/20 dark:text-emerald-200"
-                  : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-              }`}
-            >
-              {copiedTop50Count !== null ? (
-                <>
-                  <Check className="h-3.5 w-3.5 shrink-0" />
-                  <span>Copiado ({copiedTop50Count} imóveis p/ IA)!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5 shrink-0" />
-                  <span>
-                    {filteredTotal > 0 && filteredTotal < 50
-                      ? `Copiar Top 50 (${filteredTotal})`
-                      : "Copiar Top 50"}
-                  </span>
-                </>
-              )}
-            </button>
-
             {activeFilterPills.length > 0 && (
               <button
                 type="button"
@@ -1672,7 +1630,7 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
                 className="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <RotateCcw className="h-3 w-3" />
-                Limpar filtros
+                Limpar tudo
               </button>
             )}
           </div>

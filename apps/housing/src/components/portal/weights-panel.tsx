@@ -26,7 +26,7 @@ export function WeightsPanel({ ctl }: { ctl: PortalController }) {
               </h2>
               <p className="text-xs text-muted-foreground">
                 Altere qualquer peso ou limite abaixo para reordenar os imóveis
-                e os 20 bairros instantaneamente e reconstruir as
+                e os bairros instantaneamente e reconstruir as
                 justificativas.
               </p>
             </div>
@@ -340,7 +340,7 @@ export function WeightsPanel({ ctl }: { ctl: PortalController }) {
             {/* Neighborhood Sub-weights */}
             <div className="space-y-3 rounded-lg border bg-background/50 p-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-                2. Sub-Pesos de Avaliação dos 20 Bairros
+                2. Sub-Pesos de Avaliação dos Bairros
               </h3>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -89,6 +89,8 @@ export interface PropertyQueryResponse {
     counts: PoolCounts;
     neighborhoodOptions: NeighborhoodOption[];
     benchmark: ReturnType<typeof buildBenchmarkStats> | null;
+    /** Favorites (from `allFavorites`) not in the visible pool, e.g. listings of a hidden city. */
+    favoritesOutsidePool: string[];
   };
   meta?: DatasetMeta;
   text?: string;
@@ -420,6 +422,13 @@ export function filterScoredSet(
   return result;
 }
 
+export function favoritesOutsidePool(set: ScoredSet, favorites: string[]): string[] {
+  if (favorites.length === 0) return [];
+  set.byKey ??= new Map(set.properties.map((p) => [`${p.provider}:${p.id}`, p]));
+  const byKey = set.byKey;
+  return favorites.filter((k) => !byKey.has(k));
+}
+
 export function runPropertyQuery(
   set: ScoredSet,
   req: PropertyQueryRequest,
@@ -463,6 +472,7 @@ export function runPropertyQuery(
       counts: computePoolCounts(set.properties, state),
       neighborhoodOptions: buildNeighborhoodOptions(set.properties, state, set.ranked),
       benchmark: state.enabledHiddenCities.includes("BSB") ? buildBenchmarkStats(set.properties) : null,
+      favoritesOutsidePool: favoritesOutsidePool(set, req.allFavorites ?? []),
     };
   }
   return response;

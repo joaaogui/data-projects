@@ -4,7 +4,19 @@ import { isAwaitingDetailedAnswer } from "@/lib/chat-text";
 import {
   createFilterStore,
   useFilterField,
+  useFilterSelector,
 } from "@/components/portal/filter-store";
+import {
+  PERFEITO_PRESET,
+  applyPresetFilters,
+  clearFilters,
+  countActiveFilters,
+  describeActiveFilters,
+  isPresetActive,
+  togglePreset,
+  type FilterPatch,
+  type FilterState,
+} from "@/lib/filter-state";
 import {
   completedPhotoFetchKeys,
   fetchPropertyPhotosShared,
@@ -18,16 +30,10 @@ import {
   selectableCities,
 } from "@/lib/city-config";
 import {
-  FLOOR_FILTER_OPTIONS,
-  SORT_BY_OPTIONS,
-  PROPERTY_FEATURE_OPTIONS,
   buildBenchmarkStats,
-  deriveLegacyFurnishedFilter,
   parseExplorerFiltersObject,
   serializeExplorerFilters,
   type FloorFilterOption,
-  type FurnishedFilterOption,
-  type PropertyFeatureKey,
   type ParsedExplorerFiltersState,
 } from "@/lib/property-filters";
 import {
@@ -48,7 +54,6 @@ import {
 import type {
   CityHubCode,
   EvaluatedProperty,
-  FurnitureTier,
   PropertyQuestionItem,
   ScoringWeights,
   ScrapeJobStatus,
@@ -64,11 +69,7 @@ import {
   useTransition,
 } from "react";
 
-import {
-  getProviderStyle,
-  MODERNITY_TIER_BADGES,
-  upsertBoundedRecord,
-} from "@/components/portal/constants";
+import { upsertBoundedRecord } from "@/components/portal/constants";
 
 const MAX_CLIENT_QUERY_CACHE_ENTRIES = 24;
 const PREFERENCES_SAVE_DEBOUNCE_MS = 800;
@@ -303,6 +304,8 @@ export function usePortalController({
     "deactivatedFilter",
   );
   const [favoriteKeys, setFavoriteKeys] = useState<string[]>(initialFavorites);
+  const favoriteKeysRef = useRef<string[]>(initialFavorites);
+  favoriteKeysRef.current = favoriteKeys;
   const [showAdvancedFilters, setShowAdvancedFilters] = useFilterField(
     filterStore,
     "showAdvancedFilters",
@@ -579,79 +582,38 @@ export function usePortalController({
     ],
   );
 
-  const resetAllFilters = () => {
-    setSelectedCities([]);
-    setSelectedNeighborhoods([]);
-    setSearchQuery("");
-    setFloorFilters([]);
-    setMinTotalMonthly(null);
-    setMaxTotalMonthly(5000);
-    setMaxCommuteMinutes(null);
-    setMinScore(null);
-    setSortBy("score_desc");
-    setMinAreaM2(null);
-    setMaxAreaM2(null);
-    setMinListingAgeDays(null);
-    setMaxListingAgeDays(null);
-    setListingDateFrom("");
-    setListingDateTo("");
-    setSelectedBedrooms([]);
-    setSelectedBathrooms([]);
-    setSelectedParking([]);
-    setMinBedrooms(null);
-    setMinBathrooms(null);
-    setMinParking(null);
-    setModernityTiers([]);
-    setMinModernityScore(null);
-    setFurnishedFilter("ALL");
-    setSelectedFurnitureTiers([]);
-    setRequiredFeatures([]);
-    setHideMegaCondo(false);
-    setHideForSale(false);
-    setOnlyNewEntries(false);
-    setShowIneligible(false);
-    setOnlyIneligible(false);
-    setProviderFilter("ALL");
-    setOnlyFavorites(false);
-    setOnlyTop20Neighborhoods(false);
-    setOnlySafeStreets(false);
-    setDeactivatedFilter("ACTIVE_ONLY");
+  const applyFilterPatch = useCallback(
+    (patch: FilterPatch) => {
+      filterStore.setState(patch);
+      setVisibleCount(30);
+    },
+    [filterStore],
+  );
+
+  /** "Limpar tudo": every filter back to "no restriction" (sort, view and hidden cities stay). */
+  const resetAllFilters = useCallback(() => {
+    presetPreviousRef.current = null;
+    filterStore.setState(clearFilters(filterStore.getState()));
     setVisibleCount(30);
-  };
+  }, [filterStore]);
   resetAllFiltersRef.current = resetAllFilters;
 
-  const isPerfeitoPresetActive =
-    requiredFeatures.includes("ac") &&
-    (floorFilters.includes("HIGH_OR_TOP") ||
-      (floorFilters.includes("LEGENDARY") && floorFilters.includes("EPIC"))) &&
-    maxTotalMonthly === 4500 &&
-    maxCommuteMinutes === 25 &&
-    (onlySafeStreets || requiredFeatures.includes("safe_street")) &&
-    ((selectedFurnitureTiers.includes("UNFURNISHED") &&
-      !selectedFurnitureTiers.includes("FULLY_FURNISHED")) ||
-      furnishedFilter === "UNFURNISHED" ||
-      furnishedFilter === "UNFURNISHED_OR_SEMI");
+  const presetPreviousRef = useRef<FilterState | null>(null);
+  const isPerfeitoPresetActive = useFilterSelector(filterStore, (st) =>
+    isPresetActive(st, PERFEITO_PRESET),
+  );
 
-  const applyPerfeitoFilterPreset = () => {
-    if (isPerfeitoPresetActive) {
-      resetAllFilters();
-      return;
-    }
-    setRequiredFeatures((prev) => [
-      ...new Set<PropertyFeatureKey>([
-        ...prev.filter((f) => f !== "safe_street"),
-        "ac",
-      ]),
-    ]);
-    setFloorFilters(["HIGH_OR_TOP"]);
-    setMinTotalMonthly(null);
-    setMaxTotalMonthly(4500);
-    setMaxCommuteMinutes(25);
-    setSelectedFurnitureTiers(["UNFURNISHED"]);
-    setFurnishedFilter("UNFURNISHED");
-    setOnlySafeStreets(true);
+  /** Perfeito replaces the current filters; turning it off restores the ones it replaced. */
+  const applyPerfeitoFilterPreset = useCallback(() => {
+    const { next, previous } = togglePreset(
+      filterStore.getState(),
+      PERFEITO_PRESET,
+      presetPreviousRef.current,
+    );
+    presetPreviousRef.current = previous;
+    filterStore.setState(next);
     setVisibleCount(30);
-  };
+  }, [filterStore]);
 
   useEffect(() => {
     try {
@@ -1025,19 +987,11 @@ export function usePortalController({
     setWeights(found.weights);
     setQueryWeights(found.weights);
     if (presetId === "perfeito") {
-      setRequiredFeatures((prev) => [
-        ...new Set<PropertyFeatureKey>([
-          ...prev.filter((f) => f !== "safe_street"),
-          "ac",
-        ]),
-      ]);
-      setFloorFilters(["HIGH_OR_TOP"]);
-      setMinTotalMonthly(null);
-      setMaxTotalMonthly(4500);
-      setMaxCommuteMinutes(25);
-      setSelectedFurnitureTiers(["UNFURNISHED"]);
-      setFurnishedFilter("UNFURNISHED");
-      setOnlySafeStreets(true);
+      const current = filterStore.getState();
+      if (!isPresetActive(current, PERFEITO_PRESET)) {
+        presetPreviousRef.current = current;
+        filterStore.setState(applyPresetFilters(current, PERFEITO_PRESET));
+      }
       setVisibleCount(30);
     }
   };
@@ -1516,6 +1470,7 @@ export function usePortalController({
             limit: Math.max(1, need - offset),
             includeFacets: !cached,
             includeMeta: isRefresh,
+            ...(!cached ? { allFavorites: favoriteKeysRef.current } : {}),
           },
           controller.signal,
         )
@@ -1901,479 +1856,33 @@ export function usePortalController({
   const ineligibleActiveCount = facets?.counts.ineligibleActiveCount ?? 0;
   const totalBasePoolCount = facets?.counts.totalBasePoolCount ?? 0;
   const recentListingsCount = facets?.counts.recentCount ?? 0;
+  const favoritesOutsidePool = useMemo(
+    () => new Set(facets?.favoritesOutsidePool ?? []),
+    [facets],
+  );
+  const visibleFavoriteCount = useMemo(
+    () => favoriteKeys.filter((k) => !favoritesOutsidePool.has(k)).length,
+    [favoriteKeys, favoritesOutsidePool],
+  );
 
-  const activeAdvancedFilterCount = useMemo(() => {
-    let count = 0;
-    if (selectedNeighborhoods.length > 0) count += selectedNeighborhoods.length;
-    if (floorFilters.length > 0) count += floorFilters.length;
-    if (minTotalMonthly !== null || maxTotalMonthly !== null) count += 1;
-    if (maxCommuteMinutes !== null) count += 1;
-    if (minScore !== null) count += 1;
-    if (minAreaM2 !== null || maxAreaM2 !== null) count += 1;
-    if (minListingAgeDays !== null || maxListingAgeDays !== null) count += 1;
-    if (listingDateFrom.trim() !== "" || listingDateTo.trim() !== "")
-      count += 1;
-    if (selectedBedrooms.length > 0 || minBedrooms !== null) count += 1;
-    if (selectedBathrooms.length > 0 || minBathrooms !== null) count += 1;
-    if (selectedParking.length > 0 || minParking !== null) count += 1;
-    if (modernityTiers.length > 0) count += modernityTiers.length;
-    if (minModernityScore !== null) count += 1;
-    if (selectedFurnitureTiers.length > 0) {
-      count += selectedFurnitureTiers.length;
-    } else if (furnishedFilter !== "ALL") {
-      count += 1;
-    }
-    if (requiredFeatures.length > 0) count += requiredFeatures.length;
-    if (hideMegaCondo) count += 1;
-    if (hideForSale) count += 1;
-    if (onlyNewEntries) count += 1;
-    if (showIneligible || onlyIneligible) count += 1;
-    if (providerFilter !== "ALL") count += 1;
-    if (onlyTop20Neighborhoods) count += 1;
-    if (onlySafeStreets && !requiredFeatures.includes("safe_street"))
-      count += 1;
-    if (deactivatedFilter !== "ACTIVE_ONLY") count += 1;
-    return count;
-  }, [
-    selectedNeighborhoods,
-    floorFilters,
-    minTotalMonthly,
-    maxTotalMonthly,
-    maxCommuteMinutes,
-    minScore,
-    minAreaM2,
-    maxAreaM2,
-    minListingAgeDays,
-    maxListingAgeDays,
-    listingDateFrom,
-    listingDateTo,
-    selectedBedrooms,
-    selectedBathrooms,
-    selectedParking,
-    minBedrooms,
-    minBathrooms,
-    minParking,
-    modernityTiers,
-    minModernityScore,
-    furnishedFilter,
-    selectedFurnitureTiers,
-    requiredFeatures,
-    hideMegaCondo,
-    hideForSale,
-    onlyNewEntries,
-    showIneligible,
-    onlyIneligible,
-    providerFilter,
-    onlyTop20Neighborhoods,
-    onlySafeStreets,
-    deactivatedFilter,
-  ]);
-
-  const activeFilterPills = useMemo(() => {
-    const pills: { id: string; label: string; onClear: () => void }[] = [];
-
-    for (const city of selectedCities) {
-      pills.push({
-        id: `city-${city}`,
-        label: `Praça: ${city}`,
-        onClear: () => handleCitySelect(city),
-      });
-    }
-    if (searchQuery.trim()) {
-      pills.push({
-        id: "search",
-        label: `Busca: "${searchQuery.trim()}"`,
-        onClear: () => setSearchQuery(""),
-      });
-    }
-    for (const ff of floorFilters) {
-      const opt = FLOOR_FILTER_OPTIONS.find((o) => o.value === ff);
-      pills.push({
-        id: `floor-${ff}`,
-        label: opt ? opt.label : `Andar: ${ff}`,
-        onClear: () =>
-          setFloorFilters((prev) => prev.filter((item) => item !== ff)),
-      });
-    }
-    if (minTotalMonthly !== null || maxTotalMonthly !== null) {
-      const label =
-        minTotalMonthly !== null && maxTotalMonthly !== null
-          ? `R$ ${minTotalMonthly.toLocaleString("pt-BR")}–R$ ${maxTotalMonthly.toLocaleString("pt-BR")}`
-          : maxTotalMonthly !== null
-            ? `≤ R$ ${maxTotalMonthly.toLocaleString("pt-BR")}`
-            : `≥ R$ ${(minTotalMonthly ?? 0).toLocaleString("pt-BR")}`;
-      pills.push({
-        id: "price",
-        label,
-        onClear: () => {
-          setMinTotalMonthly(null);
-          setMaxTotalMonthly(null);
-        },
-      });
-    }
-    if (maxCommuteMinutes !== null) {
-      pills.push({
-        id: "commute",
-        label: `Tempo ≤ ${maxCommuteMinutes} min`,
-        onClear: () => setMaxCommuteMinutes(null),
-      });
-    }
-    if (minScore !== null) {
-      pills.push({
-        id: "score",
-        label: `Nota ≥ ${minScore} pts`,
-        onClear: () => setMinScore(null),
-      });
-    }
-    if (sortBy !== "score_desc") {
-      const sortOpt = SORT_BY_OPTIONS.find((s) => s.value === sortBy);
-      pills.push({
-        id: "sort",
-        label: `Ordem: ${sortOpt?.label ?? sortBy}`,
-        onClear: () => setSortBy("score_desc"),
-      });
-    }
-    for (const nb of selectedNeighborhoods) {
-      const displayNb = nb.includes(":") ? nb.replace(":", " · ") : nb;
-      pills.push({
-        id: `nb-${nb}`,
-        label: `Bairro: ${displayNb}`,
-        onClear: () =>
-          setSelectedNeighborhoods((prev) =>
-            prev.filter((item) => item !== nb),
-          ),
-      });
-    }
-    if (minAreaM2 !== null || maxAreaM2 !== null) {
-      const label =
-        minAreaM2 !== null && maxAreaM2 !== null
-          ? `${minAreaM2}–${maxAreaM2} m²`
-          : minAreaM2 !== null
-            ? `≥ ${minAreaM2} m²`
-            : `≤ ${maxAreaM2} m²`;
-      pills.push({
-        id: "area",
-        label: `Área: ${label}`,
-        onClear: () => {
-          setMinAreaM2(null);
-          setMaxAreaM2(null);
-        },
-      });
-    }
-    if (minListingAgeDays !== null || maxListingAgeDays !== null) {
-      const label =
-        minListingAgeDays !== null && maxListingAgeDays !== null
-          ? `Idade: ${minListingAgeDays}–${maxListingAgeDays} dias`
-          : maxListingAgeDays !== null
-            ? `Idade do anúncio: ≤ ${maxListingAgeDays} dias`
-            : `Idade do anúncio: ≥ ${minListingAgeDays} dias`;
-      pills.push({
-        id: "listing-age",
-        label,
-        onClear: () => {
-          setMinListingAgeDays(null);
-          setMaxListingAgeDays(null);
-        },
-      });
-    }
-    if (listingDateFrom.trim() !== "" || listingDateTo.trim() !== "") {
-      const fromStr = listingDateFrom.trim();
-      const toStr = listingDateTo.trim();
-      const label =
-        fromStr && toStr
-          ? `Data do anúncio: ${fromStr} → ${toStr}`
-          : fromStr
-            ? `Data do anúncio: a partir de ${fromStr}`
-            : `Data do anúncio: até ${toStr}`;
-      pills.push({
-        id: "listing-date",
-        label,
-        onClear: () => {
-          setListingDateFrom("");
-          setListingDateTo("");
-        },
-      });
-    }
-    if (selectedBedrooms.length > 0) {
-      const labelNums = [...selectedBedrooms]
-        .sort((a, b) => a - b)
-        .map((n) => (n >= 3 ? "3+" : String(n)))
-        .join(", ");
-      pills.push({
-        id: "bedrooms",
-        label: `Quartos: ${labelNums}`,
-        onClear: () => {
-          setSelectedBedrooms([]);
-          setMinBedrooms(null);
-        },
-      });
-    } else if (minBedrooms !== null) {
-      pills.push({
-        id: "bedrooms",
-        label: `${minBedrooms}+ quartos`,
-        onClear: () => setMinBedrooms(null),
-      });
-    }
-    if (selectedBathrooms.length > 0) {
-      const labelNums = [...selectedBathrooms]
-        .sort((a, b) => a - b)
-        .map((n) => (n >= 3 ? "3+" : String(n)))
-        .join(", ");
-      pills.push({
-        id: "bathrooms",
-        label: `Banheiros: ${labelNums}`,
-        onClear: () => {
-          setSelectedBathrooms([]);
-          setMinBathrooms(null);
-        },
-      });
-    } else if (minBathrooms !== null) {
-      pills.push({
-        id: "bathrooms",
-        label: `${minBathrooms}+ banheiros`,
-        onClear: () => setMinBathrooms(null),
-      });
-    }
-    if (selectedParking.length > 0) {
-      const labelNums = [...selectedParking]
-        .sort((a, b) => a - b)
-        .map((n) => (n >= 2 ? "2+" : String(n)))
-        .join(", ");
-      pills.push({
-        id: "parking",
-        label: `Vagas: ${labelNums}`,
-        onClear: () => {
-          setSelectedParking([]);
-          setMinParking(null);
-        },
-      });
-    } else if (minParking !== null) {
-      pills.push({
-        id: "parking",
-        label: `≥ ${minParking} vaga(s)`,
-        onClear: () => setMinParking(null),
-      });
-    }
-    for (const tier of modernityTiers) {
-      const tierLabel =
-        MODERNITY_TIER_BADGES[tier]?.label.replace("Estado: ", "") ?? tier;
-      pills.push({
-        id: `tier-${tier}`,
-        label: `Estado: ${tierLabel}`,
-        onClear: () =>
-          setModernityTiers((prev) => prev.filter((t) => t !== tier)),
-      });
-    }
-    if (minModernityScore !== null) {
-      pills.push({
-        id: "min-mod",
-        label: `Modernidade ≥ ${minModernityScore}/100`,
-        onClear: () => setMinModernityScore(null),
-      });
-    }
-    if (selectedFurnitureTiers.length > 0) {
-      const furnitureTierPillLabels: Record<FurnitureTier, string> = {
-        UNFURNISHED: "Não mobiliado",
-        SEMI_FURNISHED: "Não mobiliado",
-        FULLY_FURNISHED: "Mobiliado",
-      };
-      for (const tier of selectedFurnitureTiers) {
-        pills.push({
-          id: `furn-${tier}`,
-          label: furnitureTierPillLabels[tier],
-          onClear: () => {
-            setSelectedFurnitureTiers((prev) => {
-              const next = prev.filter((t) => t !== tier);
-              setFurnishedFilter(deriveLegacyFurnishedFilter(next));
-              return next;
-            });
-          },
-        });
-      }
-    } else if (furnishedFilter !== "ALL") {
-      const furnishedPillLabels: Record<
-        Exclude<FurnishedFilterOption, "ALL">,
-        string
-      > = {
-        UNFURNISHED: "Sem mobília",
-        UNFURNISHED_OR_SEMI: "Sem mobília ou Semi",
-        SEMI_FURNISHED: "Só Semi-mobiliado",
-        FURNISHED: "Mobiliado",
-      };
-      pills.push({
-        id: "furnished",
-        label: furnishedPillLabels[furnishedFilter],
-        onClear: () => {
-          setSelectedFurnitureTiers([]);
-          setFurnishedFilter("ALL");
-        },
-      });
-    }
-    for (const feat of requiredFeatures) {
-      const fOpt = PROPERTY_FEATURE_OPTIONS.find((f) => f.key === feat);
-      pills.push({
-        id: `feat-${feat}`,
-        label: fOpt?.label ?? feat,
-        onClear: () => {
-          setRequiredFeatures((prev) => prev.filter((f) => f !== feat));
-          if (feat === "safe_street") {
-            setOnlySafeStreets(false);
-          }
-        },
-      });
-    }
-    if (onlySafeStreets && !requiredFeatures.includes("safe_street")) {
-      pills.push({
-        id: "only-safe-streets",
-        label: "Sem problemas de segurança",
-        onClear: () => setOnlySafeStreets(false),
-      });
-    }
-    if (hideMegaCondo) {
-      pills.push({
-        id: "no-megacondo",
-        label: "Sem Megacondomínio",
-        onClear: () => setHideMegaCondo(false),
-      });
-    }
-    if (hideForSale) {
-      pills.push({
-        id: "no-forsale",
-        label: "Sem imóveis à venda",
-        onClear: () => setHideForSale(false),
-      });
-    }
-    if (onlyNewEntries) {
-      pills.push({
-        id: "new-entries",
-        label: "Só Novas Entradas",
-        onClear: () => setOnlyNewEntries(false),
-      });
-    }
-    if (onlyIneligible) {
-      pills.push({
-        id: "only-ineligible",
-        label: "Só reprovados / retidos",
-        onClear: () => {
-          setOnlyIneligible(false);
-          setShowIneligible(false);
-        },
-      });
-    } else if (showIneligible) {
-      pills.push({
-        id: "show-ineligible",
-        label: "Incluindo reprovados",
-        onClear: () => setShowIneligible(false),
-      });
-    }
-    if (providerFilter !== "ALL") {
-      pills.push({
-        id: "provider",
-        label: getProviderStyle(providerFilter).label,
-        onClear: () => setProviderFilter("ALL"),
-      });
-    }
-    if (onlyFavorites) {
-      pills.push({
-        id: "only-favorites",
-        label: `♥ Favoritos (${favoriteKeys.length})`,
-        onClear: () => setOnlyFavorites(false),
-      });
-    }
-    if (onlyTop20Neighborhoods) {
-      pills.push({
-        id: "only-top-20-neighborhoods",
-        label: "Só Top 20 Bairros",
-        onClear: () => setOnlyTop20Neighborhoods(false),
-      });
-    }
-    if (deactivatedFilter !== "ACTIVE_ONLY") {
-      pills.push({
-        id: "deactivated-filter",
-        label:
-          deactivatedFilter === "ALL"
-            ? "Incluindo Desativados / Alugados"
-            : "Só Desativados / Alugados",
-        onClear: () => setDeactivatedFilter("ACTIVE_ONLY"),
-      });
-    }
-
-    return pills;
-  }, [
-    selectedCities,
-    handleCitySelect,
-    searchQuery,
-    floorFilters,
-    minTotalMonthly,
-    maxTotalMonthly,
-    maxCommuteMinutes,
-    minScore,
-    sortBy,
-    selectedNeighborhoods,
-    minAreaM2,
-    maxAreaM2,
-    minListingAgeDays,
-    maxListingAgeDays,
-    listingDateFrom,
-    listingDateTo,
-    selectedBedrooms,
-    selectedBathrooms,
-    selectedParking,
-    minBedrooms,
-    minBathrooms,
-    minParking,
-    modernityTiers,
-    minModernityScore,
-    furnishedFilter,
-    selectedFurnitureTiers,
-    requiredFeatures,
-    hideMegaCondo,
-    hideForSale,
-    onlyNewEntries,
-    showIneligible,
-    onlyIneligible,
-    providerFilter,
-    onlyFavorites,
-    onlyTop20Neighborhoods,
-    onlySafeStreets,
-    favoriteKeys.length,
-    deactivatedFilter,
-    setDeactivatedFilter,
-    setFloorFilters,
-    setFurnishedFilter,
-    setHideForSale,
-    setHideMegaCondo,
-    setListingDateFrom,
-    setListingDateTo,
-    setMaxAreaM2,
-    setMaxCommuteMinutes,
-    setMaxListingAgeDays,
-    setMaxTotalMonthly,
-    setMinAreaM2,
-    setMinBathrooms,
-    setMinBedrooms,
-    setMinListingAgeDays,
-    setMinModernityScore,
-    setMinParking,
-    setMinScore,
-    setMinTotalMonthly,
-    setModernityTiers,
-    setOnlyFavorites,
-    setOnlyIneligible,
-    setOnlyNewEntries,
-    setOnlySafeStreets,
-    setOnlyTop20Neighborhoods,
-    setProviderFilter,
-    setRequiredFeatures,
-    setSearchQuery,
-    setSelectedBathrooms,
-    setSelectedBedrooms,
-    setSelectedFurnitureTiers,
-    setSelectedNeighborhoods,
-    setSelectedParking,
-    setShowIneligible,
-    setSortBy,
-  ]);
+  const filterState = useFilterSelector(filterStore, (st) => st);
+  const activeAdvancedFilterCount = useMemo(
+    () => countActiveFilters(filterState),
+    [filterState],
+  );
+  const activeFilterPills = useMemo(
+    () =>
+      describeActiveFilters(filterState, {
+        favoritesCount: visibleFavoriteCount,
+      }).map((pill) => ({
+        id: pill.id,
+        label: pill.label,
+        onClear: pill.id.startsWith("city-")
+          ? () => handleCitySelect(pill.id.slice(5) as CityHubCode)
+          : () => applyFilterPatch(pill.clear),
+      })),
+    [filterState, visibleFavoriteCount, handleCitySelect, applyFilterPatch],
+  );
 
   const [copiedTop50Count, setCopiedTop50Count] = useState<number | null>(null);
   const copyTop50TimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2601,9 +2110,13 @@ export function usePortalController({
     handleToggleHiddenCity,
     selectableCityList,
     hasAwaitingDetailedQa,
+    hideForSale,
     hideMegaCondo,
     hoveredPropertyKey,
     ineligibleActiveCount,
+    applyFilterPatch,
+    filterState,
+    visibleFavoriteCount,
     isPerfeitoPresetActive,
     isQueryLoading,
     isRefreshing,
@@ -2662,6 +2175,7 @@ export function usePortalController({
     setFloorFilters,
     setFurnishedFilter,
     setGalleryState,
+    setHideForSale,
     setHideMegaCondo,
     setHoveredPropertyKey,
     setListingDateFrom,

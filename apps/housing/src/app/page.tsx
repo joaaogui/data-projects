@@ -27,6 +27,7 @@ export default async function HousingHomePage() {
     offset: 0,
     limit: DEFAULT_PAGE_SIZE,
     includeFacets: true,
+    allFavorites: preferences.favorites ?? [],
   };
   const [scored, meta] = await Promise.all([
     getScoredProperties(weights, { enabledHiddenCities: state.enabledHiddenCities }),

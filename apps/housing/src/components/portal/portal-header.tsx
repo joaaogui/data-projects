@@ -143,7 +143,7 @@ export function PortalHeader({ ctl }: { ctl: PortalController }) {
               )}
             </div>
             <p className="text-xs text-muted-foreground hidden sm:block">
-              Ranking dinâmico de imóveis e 20 bairros avaliados em tempo real
+              Ranking dinâmico de imóveis e bairros avaliados em tempo real
             </p>
           </div>
         </div>
