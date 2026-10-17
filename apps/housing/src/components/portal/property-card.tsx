@@ -11,8 +11,6 @@ import {
 import { categorizePropertyFeatures } from "@/lib/scoring-engine";
 import type { EvaluatedProperty } from "@/types/housing";
 import {
-  ChevronDown,
-  ChevronUp,
   ExternalLink,
   GitCompare,
   Heart,
@@ -544,27 +542,6 @@ export const PropertyCard = memo(function PropertyCard({
                 <span className="truncate">Abrir no {providerStyle.label}</span>
                 <ExternalLink className="h-3.5 w-3.5 shrink-0" />
               </a>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setExpandedId(isExpanded ? null : key);
-                }}
-                className="inline-flex items-center justify-center gap-1 rounded-md border bg-background px-2.5 py-1.5 sm:py-1 text-xs font-semibold hover:bg-secondary"
-              >
-                {isExpanded ? (
-                  <>
-                    <span>Menos</span>
-                    <ChevronUp className="h-3.5 w-3.5 shrink-0" />
-                  </>
-                ) : (
-                  <>
-                    <span className="sm:hidden">Detalhes</span>
-                    <span className="hidden sm:inline">Detalhes & Fotos</span>
-                    <ChevronDown className="h-3.5 w-3.5 shrink-0" />
-                  </>
-                )}
-              </button>
             </div>
           </div>
 
