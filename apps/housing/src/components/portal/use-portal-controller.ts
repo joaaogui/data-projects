@@ -2116,6 +2116,8 @@ export function usePortalController({
     ineligibleActiveCount,
     applyFilterPatch,
     filterState,
+    optionCounts: facets?.optionCounts,
+    queryWeights,
     visibleFavoriteCount,
     isPerfeitoPresetActive,
     isQueryLoading,

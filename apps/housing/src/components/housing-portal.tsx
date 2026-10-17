@@ -3,7 +3,7 @@
 import { FilterStoreContext } from "@/components/portal/filter-store";
 import { BenchmarkBanner } from "@/components/portal/benchmark-banner";
 import { CityToolbar } from "@/components/portal/city-toolbar";
-import { FiltersPanel } from "@/components/portal/filters-panel";
+import { FilterBar } from "@/components/portal/filters/bar";
 import { NeighborhoodsTab } from "@/components/portal/neighborhoods-tab";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { ResultsView } from "@/components/portal/results-view";
@@ -72,7 +72,7 @@ export function HousingPortal(props: HousingPortalProps) {
         {activeTab === "properties" && (
           <section className="space-y-3">
             <BenchmarkBanner ctl={ctl} />
-            <FiltersPanel ctl={ctl} />
+            <FilterBar ctl={ctl} />
             <ResultsView ctl={ctl} />
           </section>
         )}

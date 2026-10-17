@@ -62,7 +62,8 @@ export interface PropertyQueryRequest {
   limit?: number;
   includeFacets?: boolean;
   includeMeta?: boolean;
-  mode?: "page" | "copyTop50" | "activeKeys";
+  /** `count`: only the total (and option counts) for the filter sheet's live "Ver N imóveis". */
+  mode?: "page" | "copyTop50" | "activeKeys" | "count";
   /** Copy Top 50 extras. */
   activeFilterLabels?: string[];
   allFavorites?: string[];
@@ -91,7 +92,11 @@ export interface PropertyQueryResponse {
     benchmark: ReturnType<typeof buildBenchmarkStats> | null;
     /** Favorites (from `allFavorites`) not in the visible pool, e.g. listings of a hidden city. */
     favoritesOutsidePool: string[];
+    /** Facet counts for the bar's pinned chips, by option id. */
+    optionCounts?: Record<string, number>;
   };
+  /** Facet counts for the filter sheet options (`count` mode). */
+  optionCounts?: Record<string, number>;
   meta?: DatasetMeta;
   text?: string;
   keys?: string[];
@@ -447,6 +452,9 @@ export function runPropertyQuery(
         limit: 50,
       }),
     };
+  }
+  if (req.mode === "count") {
+    return { ...base, offset: 0, items: [] };
   }
   if (req.mode === "activeKeys") {
     return {

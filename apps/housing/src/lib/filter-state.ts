@@ -297,21 +297,21 @@ export function describeActiveFilters(
     add("score", "score", `Nota ≥ ${state.minScore}`, { minScore: null });
   }
   if (state.onlyIneligible) {
-    add("ineligible", "pool", "Só retidos", { onlyIneligible: false, showIneligible: false });
+    add("ineligible", "ineligible", "Só retidos", { onlyIneligible: false, showIneligible: false });
   } else if (state.showIneligible) {
-    add("ineligible", "pool", "Incluindo retidos", { showIneligible: false });
+    add("ineligible", "ineligible", "Incluindo retidos", { showIneligible: false });
   }
   if (state.deactivatedFilter !== "ACTIVE_ONLY") {
     add(
       "deactivated",
-      "pool",
+      "deactivated",
       state.deactivatedFilter === "ALL" ? "Incluindo desativados" : "Só desativados",
       { deactivatedFilter: "ACTIVE_ONLY" },
     );
   }
   if (state.onlyFavorites) {
     const n = options?.favoritesCount;
-    add("favorites", "pool", n === undefined ? "♥ Favoritos" : `♥ Favoritos (${n})`, {
+    add("favorites", "favorites", n === undefined ? "♥ Favoritos" : `♥ Favoritos (${n})`, {
       onlyFavorites: false,
     });
   }

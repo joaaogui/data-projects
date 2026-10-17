@@ -52,7 +52,9 @@ export async function POST(request: Request) {
       : {},
   );
   const mode =
-    body.mode === "copyTop50" || body.mode === "activeKeys" ? body.mode : "page";
+    body.mode === "copyTop50" || body.mode === "activeKeys" || body.mode === "count"
+      ? body.mode
+      : "page";
   const req: PropertyQueryRequest = {
     filters: toQueryFilters(state),
     weights: coerceWeights(body.weights),
