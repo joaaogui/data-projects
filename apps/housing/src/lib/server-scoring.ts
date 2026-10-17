@@ -18,8 +18,10 @@ import type { CityHubCode, ScoringWeights } from "@/types/housing";
 
 const MAX_SCORED_SETS = 6;
 
+type PhotoTrackedSet = ScoredSet & { servedHash: string };
+
 interface ServerScoringState {
-  scoredSets: Map<string, ScoredSet>;
+  scoredSets: Map<string, PhotoTrackedSet>;
   photoPatched: { servedHash: string; listings: PrecomputedListing[] } | null;
   metaCache: { servedHash: string; meta: DatasetMeta } | null;
 }
@@ -55,14 +57,28 @@ function getListings(served: ServedListings): PrecomputedListing[] {
   return listings;
 }
 
-/** Scores every listing for a weight set; cached per (dataset, weights, benchmark flag). */
+/** Copies the current photo fields onto an already scored set (scores never read photos). */
+function patchPhotos(set: PhotoTrackedSet, served: ServedListings): void {
+  const byKey = new Map(served.properties.map((p) => [`${p.provider}:${p.id}`, p]));
+  for (const p of set.properties) {
+    const current = byKey.get(`${p.provider}:${p.id}`);
+    if (!current) continue;
+    p.samplePhotos = current.samplePhotos;
+    p.photosCount = current.photosCount;
+  }
+  // The ACTIVE_ONLY filter drops listings without photos, so cached matches may change.
+  set.filtered.clear();
+  set.servedHash = served.servedHash;
+}
+
+/** Scores every listing for a weight set; cached per (listing features, weights, benchmark flag). */
 export async function getScoredProperties(
   weights: ScoringWeights,
   options: { includeBsbBenchmark: boolean },
 ): Promise<ScoredSet> {
   const served = await loadServedListings();
   const key = hashContent(
-    served.servedHash,
+    served.featureHash,
     buildWeightsKey(weights),
     options.includeBsbBenchmark ? "bsb" : "",
   );
@@ -70,6 +86,7 @@ export async function getScoredProperties(
   if (hit) {
     state.scoredSets.delete(key);
     state.scoredSets.set(key, hit);
+    if (hit.servedHash !== served.servedHash) patchPhotos(hit, served);
     return hit;
   }
   const t0 = performance.now();
@@ -78,9 +95,10 @@ export async function getScoredProperties(
   const properties = scorePrecomputedListings(listings, ranked, weights, {
     includeBsbBenchmark: options.includeBsbBenchmark,
   });
-  const set: ScoredSet = {
-    // Photo-cache updates don't change scores or matches; keep client result caches valid.
+  const set: PhotoTrackedSet = {
+    // Photo-cache updates don't change scores; keep client result caches valid.
     datasetHash: served.featureHash.slice(0, 16),
+    servedHash: served.servedHash,
     properties,
     ranked,
     filtered: new Map(),
