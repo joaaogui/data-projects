@@ -2,7 +2,6 @@
 
 import { ThemeToggle } from "@data-projects/ui";
 import {
-  MessageSquarePlus,
   Radar,
   RefreshCw,
   RotateCcw,
@@ -13,17 +12,13 @@ import type { PortalController } from "@/components/portal/use-portal-controller
 
 export function PortalHeader({ ctl }: { ctl: PortalController }) {
   const {
-    hasAwaitingDetailedQa,
     isRefreshing,
     meta,
-    qaItems,
     recentListingsCount,
     refreshDatasetFromServer,
     scrapeStatus,
-    setShowChatDrawer,
     setShowScrapeDrawer,
     setShowSlidersDrawer,
-    showChatDrawer,
     showScrapeDrawer,
     showSlidersDrawer,
   } = ctl;
@@ -194,27 +189,6 @@ export function PortalHeader({ ctl }: { ctl: PortalController }) {
               className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
             />
             <span>{isRefreshing ? "Sincronizando..." : "Recarregar"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowChatDrawer((v) => !v)}
-            title="Abrir assistente de imóveis (⌘J)"
-            aria-label="Abrir assistente de imóveis"
-            aria-expanded={showChatDrawer}
-            className={`inline-flex h-7 sm:h-8 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition-all sm:px-2.5 ${
-              showChatDrawer
-                ? "border-purple-600 bg-purple-600 text-white shadow-xs"
-                : "border-purple-500/40 bg-purple-500/10 text-purple-800 hover:bg-purple-500/20 dark:border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-200"
-            }`}
-          >
-            <MessageSquarePlus className="h-3.5 w-3.5 shrink-0" />
-            <span>Chat ({qaItems.length})</span>
-            {hasAwaitingDetailedQa && (
-              <span
-                className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"
-                title="Análise detalhada em andamento"
-              />
-            )}
           </button>
           <button
             type="button"
