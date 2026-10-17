@@ -56,6 +56,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Card thumbnails come straight from the portals' CDNs (already 1-year cacheable). */}
+        <link rel="preconnect" href="https://www.quintoandar.com.br" />
+        <link rel="preconnect" href="https://resizedimgs.zapimoveis.com.br" />
+        <link rel="dns-prefetch" href="https://resizedimgs.vivareal.com" />
+        <link rel="dns-prefetch" href="https://imgbr.imovelwebcdn.com" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased min-h-dvh`}
       >

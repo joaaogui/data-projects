@@ -136,8 +136,16 @@ export function fetchPropertyPhotosShared(params: {
  * - Zap Imóveis / VivaReal: `dimension=...` -> `dimension=1920x1440`
  * - ImovelWeb: `/720x532/` or `/360x266/` -> `/1200x1200/`
  */
-export function getHighResPhotoUrl(url: string): string {
-  if (!url) return url;
+/** Bare quintoandar.com.br photo URLs answer with a 301 to www; request www directly. */
+export function canonicalPhotoHost(url: string): string {
+  return url.startsWith("https://quintoandar.com.br/")
+    ? `https://www.${url.slice("https://".length)}`
+    : url;
+}
+
+export function getHighResPhotoUrl(rawUrl: string): string {
+  if (!rawUrl) return rawUrl;
+  const url = canonicalPhotoHost(rawUrl);
   if (url.includes("quintoandar.com.br/img/")) {
     return url.replace(/\/img\/(?:sm|med|lg|xl)\//, "/img/xxl/");
   }
@@ -160,8 +168,9 @@ export function getHighResPhotoUrl(url: string): string {
  * - Zap Imóveis / VivaReal: `dimension=480x360` (~11KB WebP, 0.66 MiB decoded)
  * - ImovelWeb: `/360x266/` (~9KB, 0.36 MiB decoded)
  */
-export function getCardPhotoUrl(url: string): string {
-  if (!url) return url;
+export function getCardPhotoUrl(rawUrl: string): string {
+  if (!rawUrl) return rawUrl;
+  const url = canonicalPhotoHost(rawUrl);
   if (url.includes("quintoandar.com.br/img/")) {
     return url.replace(/\/img\/(?:sm|med|lg|xl|xxl)\//, "/img/med/");
   }
@@ -187,8 +196,9 @@ export function getCardPhotoUrl(url: string): string {
  * - Zap Imóveis / VivaReal: `dimension=360x270` (~7.5KB WebP, 0.37 MiB decoded)
  * - ImovelWeb: `/360x266/` (~9KB, 0.36 MiB decoded)
  */
-export function getThumbPhotoUrl(url: string): string {
-  if (!url) return url;
+export function getThumbPhotoUrl(rawUrl: string): string {
+  if (!rawUrl) return rawUrl;
+  const url = canonicalPhotoHost(rawUrl);
   if (url.includes("quintoandar.com.br/img/")) {
     return url.replace(/\/img\/(?:sm|med|lg|xl|xxl)\//, "/img/med/");
   }
@@ -241,8 +251,9 @@ export function getFallbackPhotoUrl(
   if (failedUrl.includes("/720x532/")) {
     return failedUrl.replace("/720x532/", "/360x266/");
   }
-  if (failedUrl !== originalUrl) {
-    return originalUrl;
+  const canonicalOriginal = canonicalPhotoHost(originalUrl);
+  if (failedUrl !== canonicalOriginal) {
+    return canonicalOriginal;
   }
   return null;
 }

@@ -439,6 +439,18 @@ export async function fetchZapGlueApiPhotos(
   }
 }
 
+/**
+ * Photo lists are keyed by the query string (provider, id, url), so the CDN can serve repeats.
+ * Empty results expire quickly so a later scrape or live lookup can fill them in.
+ */
+function photoListCacheHeaders(hasPhotos: boolean): Record<string, string> {
+  return {
+    "Cache-Control": hasPhotos
+      ? "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800"
+      : "public, max-age=0, s-maxage=600",
+  };
+}
+
 export async function GET(request: Request) {
   const t0 = performance.now();
   try {
@@ -517,12 +529,15 @@ export async function GET(request: Request) {
         photosCount: photos.length,
         durationMs,
       });
-      return NextResponse.json({
-        ok: photos.length > 0,
-        photos,
-        description: fullDescription,
-        source: photos.length > 0 ? "cache" : "none",
-      });
+      return NextResponse.json(
+        {
+          ok: photos.length > 0,
+          photos,
+          description: fullDescription,
+          source: photos.length > 0 ? "cache" : "none",
+        },
+        { headers: photoListCacheHeaders(photos.length > 0) },
+      );
     }
 
     const url = (storedProp?.url ?? "").trim() || rawUrlParam;
@@ -706,12 +721,15 @@ export async function GET(request: Request) {
       durationMs,
     });
 
-    return NextResponse.json({
-      ok: photos.length > 0,
-      photos,
-      description: fullDescription,
-      source,
-    });
+    return NextResponse.json(
+      {
+        ok: photos.length > 0,
+        photos,
+        description: fullDescription,
+        source,
+      },
+      { headers: photoListCacheHeaders(photos.length > 0) },
+    );
   } catch (err) {
     const durationMs = Math.round((performance.now() - t0) * 100) / 100;
     logger.error("api/photos", "GET unhandled error", {

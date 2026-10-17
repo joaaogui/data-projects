@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  getCardPhotoUrl,
+  getHighResPhotoUrl,
+  getThumbPhotoUrl,
+} from "@/components/property-photo-showcase";
+import {
   filterAndSortProperties,
   formatTopPropertiesForAiPrompt,
   parseExplorerFiltersObject,
@@ -168,5 +173,16 @@ describe("server-side property query", () => {
     expect(w.minAreaM2).toBe(40);
     expect(w.budgetIdeal).toBe(DEFAULT_WEIGHTS.budgetIdeal);
     expect("bogus" in w).toBe(false);
+  });
+});
+
+describe("card photo URLs", () => {
+  it("requests QuintoAndar photos on www directly (the bare host answers with a 301)", () => {
+    const bare = "https://quintoandar.com.br/img/xxl/original895534031-751.jpg";
+    expect(getCardPhotoUrl(bare)).toBe("https://www.quintoandar.com.br/img/med/original895534031-751.jpg");
+    expect(getThumbPhotoUrl(bare)).toBe("https://www.quintoandar.com.br/img/med/original895534031-751.jpg");
+    expect(getHighResPhotoUrl(bare)).toBe("https://www.quintoandar.com.br/img/xxl/original895534031-751.jpg");
+    const zap = "https://resizedimgs.zapimoveis.com.br/img/vr-listing/x/foto.webp?action=fit-in&dimension=1920x1440";
+    expect(getCardPhotoUrl(zap)).toContain("dimension=480x360");
   });
 });

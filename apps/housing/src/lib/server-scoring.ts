@@ -69,7 +69,8 @@ export async function getScoredProperties(
     includeBsbBenchmark: options.includeBsbBenchmark,
   });
   const set: ScoredSet = {
-    datasetHash: served.servedHash.slice(0, 16),
+    // Photo-cache updates don't change scores or matches; keep client result caches valid.
+    datasetHash: served.featureHash.slice(0, 16),
     properties,
     ranked,
     filtered: new Map(),
