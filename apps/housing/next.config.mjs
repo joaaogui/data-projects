@@ -13,15 +13,12 @@ const DATASET_FILES = [
 /** @type {import('next').NextConfig} */
 const nextConfig = withSecurityHeaders({
   reactCompiler: true,
-  serverExternalPackages: ["pino", "pino-pretty"],
   transpilePackages: ["@data-projects/ui", "@data-projects/shared"],
   outputFileTracingIncludes: {
     "!/api/**": DATASET_FILES,
-    "/api/dataset": DATASET_FILES,
     "/api/photos": DATASET_FILES,
     "/api/properties": DATASET_FILES,
     "/api/properties/details": DATASET_FILES,
-    "/api/favorites": PREFERENCES_FILES,
     "/api/preferences": PREFERENCES_FILES,
     "/api/geocode": ["./src/data/geocache.json"],
     "/api/qa": ["./src/data/property-qa.json", "./src/data/seed-snapshot.json"],

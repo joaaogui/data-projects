@@ -4,6 +4,7 @@ import {
   type PropertyCoordinate,
   resolveInstantPropertyCoordinate,
 } from "@/lib/geocoding";
+import { enforceRateLimit, geocodeSchema, parseJsonBody } from "@/lib/api-guards";
 import { logger } from "@/lib/logger";
 import type { CityHubCode } from "@/types/housing";
 import { NextResponse } from "next/server";
@@ -162,8 +163,11 @@ async function queryOsmGeocoder(
 export async function POST(request: Request) {
   const t0 = performance.now();
   try {
-    const body = (await request.json()) as { items?: GeocodeRequestItem[] };
-    const items = Array.isArray(body.items) ? body.items.slice(0, 35) : [];
+    const limited = enforceRateLimit(request, "geocode", 90, 60_000);
+    if (limited) return limited;
+    const parsedBody = await parseJsonBody(request, geocodeSchema);
+    if (!parsedBody.ok) return parsedBody.response;
+    const items: GeocodeRequestItem[] = parsedBody.data.items.slice(0, 35);
 
     const cache = loadGeoCache();
     let cacheMutated = false;

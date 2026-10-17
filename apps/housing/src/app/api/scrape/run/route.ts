@@ -1,3 +1,6 @@
+import { parseJsonBody, scrapeRunSchema } from "@/lib/api-guards";
+import { requireAuth } from "@/lib/auth";
+import { getLocalScraperDir } from "@/lib/local-scraper";
 import { logger } from "@/lib/logger";
 import type { CityHubCode, ScrapeJobStatus } from "@/types/housing";
 import { NextResponse } from "next/server";
@@ -10,14 +13,10 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 
-const SCRAPER_WORKSPACE_DIR = "/Users/joao.guilherme/.cursor/Empty";
-const STATUS_FILE = join(SCRAPER_WORKSPACE_DIR, ".scrape-job-status.json");
-const PID_FILE = join(SCRAPER_WORKSPACE_DIR, ".scrape-job.pid");
-
-function readCurrentStatus(): ScrapeJobStatus | null {
-  if (!existsSync(STATUS_FILE)) return null;
+function readCurrentStatus(statusFile: string): ScrapeJobStatus | null {
+  if (!existsSync(/*turbopackIgnore: true*/ statusFile)) return null;
   try {
-    return JSON.parse(readFileSync(STATUS_FILE, "utf8")) as ScrapeJobStatus;
+    return JSON.parse(readFileSync(/*turbopackIgnore: true*/ statusFile, "utf8")) as ScrapeJobStatus;
   } catch {
     return null;
   }
@@ -35,17 +34,22 @@ function isPidAlive(pid: number): boolean {
 
 export async function POST(request: Request) {
   const t0 = performance.now();
-  const workerAvailable = existsSync(SCRAPER_WORKSPACE_DIR);
+  const unauthorized = requireAuth(request);
+  if (unauthorized) return unauthorized;
+  const SCRAPER_WORKSPACE_DIR = getLocalScraperDir();
+  const workerAvailable = SCRAPER_WORKSPACE_DIR !== null;
+  if (!SCRAPER_WORKSPACE_DIR) {
+    return NextResponse.json(
+      { ok: false, error: "Scraper local indisponível neste ambiente (HOUSING_SCRAPER_DIR)." },
+      { status: 503 },
+    );
+  }
+  const STATUS_FILE = join(SCRAPER_WORKSPACE_DIR, ".scrape-job-status.json");
+  const PID_FILE = join(SCRAPER_WORKSPACE_DIR, ".scrape-job.pid");
   try {
-    const body = (await request.json()) as {
-      action?: "start" | "cancel";
-      cities?: CityHubCode[];
-      neighborhoods?: string[];
-      customUrl?: string;
-      mode?: "full_sync" | "verify_only" | "custom_url";
-      keys?: string[];
-      maxPages?: number;
-    };
+    const parsedBody = await parseJsonBody(request, scrapeRunSchema);
+    if (!parsedBody.ok) return parsedBody.response;
+    const body = parsedBody.data;
 
     if (body.action === "cancel") {
       if (existsSync(PID_FILE)) {
@@ -64,7 +68,7 @@ export async function POST(request: Request) {
         }
       }
 
-      const prev = readCurrentStatus();
+      const prev = readCurrentStatus(STATUS_FILE);
       const now = new Date().toISOString();
       const cancelledStatus: ScrapeJobStatus = {
         jobId: prev?.jobId ?? `job-${Date.now()}`,
@@ -99,7 +103,7 @@ export async function POST(request: Request) {
     if (existsSync(PID_FILE)) {
       try {
         const existingPid = Number(readFileSync(PID_FILE, "utf8").trim());
-        const existingStatus = readCurrentStatus();
+        const existingStatus = readCurrentStatus(STATUS_FILE);
         if (existingStatus?.status === "running" && isPidAlive(existingPid)) {
           const durationMs = Math.round((performance.now() - t0) * 100) / 100;
           logger.info("api/scrape/run", "POST already running", {

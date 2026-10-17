@@ -1,3 +1,4 @@
+import { parseJsonBody, syncSchema } from "@/lib/api-guards";
 import { syncBatchToNeon } from "@/lib/dataset-store";
 import { logger } from "@/lib/logger";
 import type {
@@ -22,7 +23,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await request.json()) as {
+  const parsedBody = await parseJsonBody(request, syncSchema);
+  if (!parsedBody.ok) return parsedBody.response;
+  const body = parsedBody.data as {
     neighborhoods?: NeighborhoodEntry[];
     properties?: SlimPropertyRecord[];
   };

@@ -3,7 +3,10 @@ import {
   isCityVisible,
   resolveEnabledHiddenCities,
 } from "@/lib/city-config";
+import { enforceRateLimit, parseJsonBody, qaPostSchema } from "@/lib/api-guards";
+import { requireAuth } from "@/lib/auth";
 import { getPrecomputedListings, hashContent } from "@/lib/listing-features-store";
+import { getCardQuestionsQueueFile, getLocalScraperDir } from "@/lib/local-scraper";
 import { logger } from "@/lib/logger";
 import { PHOTO_AUDIT_OVERRIDES } from "@/lib/photo-audit-overrides";
 import { buildQaLlmPrompt } from "@/lib/qa-llm-prompt";
@@ -39,7 +42,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 export const dynamic = "force-dynamic";
 
@@ -56,9 +59,7 @@ const FALLBACK_SNAPSHOT_FILE = join(
   process.cwd(),
   "apps/housing/src/data/seed-snapshot.json",
 );
-const CURSOR_QUEUE_FILE =
-  "/Users/joao.guilherme/.cursor/Empty/.card-questions-queue.jsonl";
-const RAW_WORKSPACE_DIR = "/Users/joao.guilherme/.cursor/Empty";
+const QA_ASK_RATE_LIMIT = { limit: 12, windowMs: 60_000 };
 
 interface RawListingRecord {
   provider?: string;
@@ -818,7 +819,8 @@ function findRawListingOnDisk(
   cityCodeHint?: string | null,
 ): RawListingRecord | null {
   const [provider, id] = propertyKey.split(":");
-  if (!provider || !id) return null;
+  const rawWorkspaceDir = getLocalScraperDir();
+  if (!provider || !id || !rawWorkspaceDir) return null;
 
   const baseFiles = [
     "imoveis_mg.json",
@@ -835,7 +837,7 @@ function findRawListingOnDisk(
     : baseFiles;
 
   for (const file of orderedFiles) {
-    const fullPath = join(RAW_WORKSPACE_DIR, file);
+    const fullPath = join(rawWorkspaceDir, file);
     if (!existsSync(/*turbopackIgnore: true*/ fullPath)) continue;
     try {
       const mtimeMs = statSync(/*turbopackIgnore: true*/ fullPath).mtimeMs;
@@ -1815,20 +1817,18 @@ function withQaWriteLock<T>(task: () => Promise<T>): Promise<T> {
 
 export async function POST(request: Request) {
   const t0 = performance.now();
+  const unauthorized = requireAuth(request);
+  if (unauthorized) return unauthorized;
   try {
-    const body = (await request.json()) as {
-      action?: "ask" | "answer" | "delete" | "clear";
-      id?: string;
-      propertyKey?: string;
-      question?: string;
-      answer?: string;
-      propertySnapshot?: Partial<PropertyQuestionSnapshot>;
-      contextSummary?: string;
-      weights?: Partial<ScoringWeights>;
-      enabledHiddenCities?: unknown;
-    };
+    const parsedBody = await parseJsonBody(request, qaPostSchema);
+    if (!parsedBody.ok) return parsedBody.response;
+    const body = parsedBody.data;
+    const action = body.action;
 
-    const action = body.action ?? "ask";
+    if (action === "ask") {
+      const limited = enforceRateLimit(request, "qa-ask", QA_ASK_RATE_LIMIT.limit, QA_ASK_RATE_LIMIT.windowMs);
+      if (limited) return limited;
+    }
 
     if (action === "clear") {
       return await withQaWriteLock(async () => {
@@ -2026,10 +2026,11 @@ export async function POST(request: Request) {
     const itemId = `qa-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
     let queuedToLocalCursor = false;
-    if (existsSync(/*turbopackIgnore: true*/ dirname(CURSOR_QUEUE_FILE))) {
+    const cursorQueueFile = getCardQuestionsQueueFile();
+    if (cursorQueueFile) {
       try {
         appendFileSync(
-          /*turbopackIgnore: true*/ CURSOR_QUEUE_FILE,
+          /*turbopackIgnore: true*/ cursorQueueFile,
           `${JSON.stringify({
             event: "HOUSING_QUESTION_RECEIVED",
             item: {

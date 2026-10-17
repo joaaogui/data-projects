@@ -4,6 +4,10 @@ import {
   recordListingDeactivation,
 } from "@/lib/listing-deactivations";
 import { cleanListingText } from "@/lib/listing-normalization";
+import { enforceRateLimit, parseWith, photosQuerySchema } from "@/lib/api-guards";
+import { isAuthenticated } from "@/lib/auth";
+import { isValidAllowedListingUrl } from "@/lib/listing-url";
+import { getLocalScraperDir } from "@/lib/local-scraper";
 import { logger } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { execFile } from "node:child_process";
@@ -17,23 +21,11 @@ const execFileAsync = promisify(execFile);
 
 const PHOTOS_CACHE_FILE = join(process.cwd(), "src/data/photos-cache.json");
 const TMP_PHOTOS_CACHE_FILE = join(tmpdir(), "housing-photos-cache.json");
-const SCRAPER_WORKSPACE_DIR = "/Users/joao.guilherme/.cursor/Empty";
 
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-const ALLOWED_LISTING_HOST_REGEX =
-  /^(?:www\.)?(?:quintoandar\.com\.br|zapimoveis\.com\.br|vivareal\.com\.br|netimoveis\.com(?:\.br)?|imovelweb\.com\.br)$/i;
-
-export function isValidAllowedListingUrl(rawUrl: string): boolean {
-  try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol !== "https:") return false;
-    return ALLOWED_LISTING_HOST_REGEX.test(parsed.hostname);
-  } catch {
-    return false;
-  }
-}
+export { isValidAllowedListingUrl };
 
 async function fetchHtml(targetUrl: string): Promise<string | null> {
   if (!isValidAllowedListingUrl(targetUrl)) {
@@ -478,6 +470,11 @@ export async function GET(request: Request) {
     const id = (searchParams.get("id") ?? "").trim();
     const rawUrlParam = (searchParams.get("url") ?? "").trim();
 
+    if (provider && id) {
+      const query = parseWith(photosQuerySchema, { provider, id, url: rawUrlParam });
+      if (!query.ok) return query.response;
+    }
+
     if (!provider || !id) {
       const durationMs = Math.round((performance.now() - t0) * 100) / 100;
       logger.warn("api/photos", "GET rejected missing provider or id", {
@@ -558,6 +555,22 @@ export async function GET(request: Request) {
         { headers: photoListCacheHeaders(photos.length > 0) },
       );
     }
+
+    // Live resolution scrapes the portals, so it needs a session; anonymous visitors get the cache.
+    if (!isAuthenticated(request)) {
+      const photos = Array.isArray(cached) ? cached : [];
+      return NextResponse.json(
+        {
+          ok: photos.length > 0,
+          photos,
+          description: fullDescription,
+          source: photos.length > 0 ? "cache" : "none",
+        },
+        { headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
+    const limited = enforceRateLimit(request, "photos-live", 40, 60_000);
+    if (limited) return limited;
 
     const url = (storedProp?.url ?? "").trim() || rawUrlParam;
 
@@ -647,11 +660,12 @@ export async function GET(request: Request) {
         }
 
         // 2. Fallback to local Playwright script when not running on Vercel
+        const scraperDir = getLocalScraperDir();
         if (
-          !process.env.VERCEL &&
+          scraperDir &&
           existsSync(
             /*turbopackIgnore: true*/ join(
-              SCRAPER_WORKSPACE_DIR,
+              scraperDir,
               "scripts/extract-listing-photos.ts",
             ),
           )
@@ -667,7 +681,7 @@ export async function GET(request: Request) {
                 url,
               ],
               {
-                cwd: SCRAPER_WORKSPACE_DIR,
+                cwd: scraperDir,
                 timeout: 22_000,
               },
             );

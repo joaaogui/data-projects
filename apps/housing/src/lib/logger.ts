@@ -1,4 +1,4 @@
-import { appendFileSync } from "node:fs";
+import { appendFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export const HOUSING_RUNTIME_LOG_FILE = join(
@@ -14,6 +14,52 @@ export interface StructuredLogEntry {
   scope: string;
   event: string;
   [key: string]: unknown;
+}
+
+const FLUSH_DELAY_MS = 1_000;
+const MAX_BUFFERED_LINES = 2_000;
+
+/**
+ * The file sink is a local debugging aid: on by default only under `next dev`, never in tests or
+ * on Vercel; `HOUSING_RUNTIME_LOG=1|0` overrides.
+ */
+function fileSinkEnabled(): boolean {
+  const flag = process.env.HOUSING_RUNTIME_LOG;
+  if (flag === "1") return true;
+  if (flag === "0") return false;
+  if (process.env.VITEST || process.env.VERCEL) return false;
+  return process.env.NODE_ENV === "development";
+}
+
+let buffer: string[] = [];
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let flushChain: Promise<void> = Promise.resolve();
+
+function flushBuffer(): Promise<void> {
+  flushTimer = null;
+  if (buffer.length === 0) return flushChain;
+  const chunk = buffer.join("");
+  buffer = [];
+  flushChain = flushChain
+    .then(() => appendFile(/*turbopackIgnore: true*/ HOUSING_RUNTIME_LOG_FILE, chunk, "utf8"))
+    .catch(() => {
+      // Read-only filesystem: the console line already went out.
+    });
+  return flushChain;
+}
+
+function enqueueFileLine(line: string): void {
+  if (buffer.length >= MAX_BUFFERED_LINES) buffer.shift();
+  buffer.push(line);
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => void flushBuffer(), FLUSH_DELAY_MS);
+  flushTimer.unref?.();
+}
+
+/** Writes buffered lines now; for scripts that exit right after logging. */
+export function flushRuntimeLog(): Promise<void> {
+  if (flushTimer) clearTimeout(flushTimer);
+  return flushBuffer();
 }
 
 function serializeError(err: unknown): Record<string, unknown> {
@@ -70,14 +116,8 @@ function emitLog(
     console.info(readableLine);
   }
 
-  try {
-    appendFileSync(
-      /*turbopackIgnore: true*/ HOUSING_RUNTIME_LOG_FILE,
-      `${readableLine} | json=${JSON.stringify(entry)}\n`,
-      "utf8",
-    );
-  } catch {
-    // Ignore file write errors in read-only environments
+  if (fileSinkEnabled()) {
+    enqueueFileLine(`${readableLine} | json=${JSON.stringify(entry)}\n`);
   }
 
   return entry;

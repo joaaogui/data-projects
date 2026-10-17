@@ -1,12 +1,9 @@
+import { getLocalScraperDir } from "@/lib/local-scraper";
 import { logger } from "@/lib/logger";
 import type { ScrapeJobStatus } from "@/types/housing";
 import { NextResponse } from "next/server";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-
-const SCRAPER_WORKSPACE_DIR = "/Users/joao.guilherme/.cursor/Empty";
-const STATUS_FILE = join(SCRAPER_WORKSPACE_DIR, ".scrape-job-status.json");
-const PID_FILE = join(SCRAPER_WORKSPACE_DIR, ".scrape-job.pid");
 
 function isPidAlive(pid: number): boolean {
   if (!Number.isFinite(pid) || pid <= 0) return false;
@@ -20,9 +17,12 @@ function isPidAlive(pid: number): boolean {
 
 export async function GET() {
   const t0 = performance.now();
-  const workerAvailable = existsSync(SCRAPER_WORKSPACE_DIR);
+  const scraperDir = getLocalScraperDir();
+  const workerAvailable = scraperDir !== null;
+  const STATUS_FILE = join(scraperDir ?? "", ".scrape-job-status.json");
+  const PID_FILE = join(scraperDir ?? "", ".scrape-job.pid");
 
-  if (!existsSync(STATUS_FILE)) {
+  if (!scraperDir || !existsSync(/*turbopackIgnore: true*/ STATUS_FILE)) {
     const idle: ScrapeJobStatus = {
       jobId: "none",
       status: "idle",

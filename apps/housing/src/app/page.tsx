@@ -1,3 +1,4 @@
+import { AuthBadge } from "@/components/auth-badge";
 import { HousingPortal } from "@/components/housing-portal";
 import { parseExplorerFiltersObject } from "@/lib/property-filters";
 import {
@@ -34,11 +35,14 @@ export default async function HousingHomePage() {
     getDatasetMeta(),
   ]);
   return (
-    <HousingPortal
-      initialMeta={meta}
-      initialQuery={runPropertyQuery(scored, request)}
-      initialQueryKey={buildQueryKey(request)}
-      initialPreferences={preferences}
-    />
+    <>
+      <HousingPortal
+        initialMeta={meta}
+        initialQuery={runPropertyQuery(scored, request)}
+        initialQueryKey={buildQueryKey(request)}
+        initialPreferences={preferences}
+      />
+      <AuthBadge />
+    </>
   );
 }

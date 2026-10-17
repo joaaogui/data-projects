@@ -5075,9 +5075,6 @@ export function scorePrecomputedListings(
       ? staticMeta.nuancesPenalize
       : staticMeta.nuancesNoPenalize;
     const isFurnishedClassified = furnitureTier === "FULLY_FURNISHED";
-    const failsFurnished = false;
-    const isBunkerExcluded = false;
-    const failsBunker = isBunkerExcluded;
     const parsedCommute = parseCommuteMinutes(
       cpFarCommute?.commuteText ?? catalogNb?.commuteTime ?? nbCommute,
       isDeepWestBarra,
@@ -5243,19 +5240,13 @@ export function scorePrecomputedListings(
       ) / 10;
 
     // Eligibility checks (strictly per user retention rules: NO budget retention, NO furniture retention, NO modernity retention, NO bunker retention; retain ONLY on area < minAreaM2, commute > 50 min, no parking, no elevator, trapped parking)
-    const failsBudget = false;
     const failsArea = area < weights.minAreaM2;
     const failsParking = weights.requireParking && prop.parkingSpaces < 1;
-    const failsMod = false;
     const eligible =
-      !failsBudget &&
       !failsArea &&
       !failsParking &&
       !nuances.hasNoElevator &&
       !nuances.hasTrappedParking &&
-      !failsMod &&
-      !failsFurnished &&
-      !failsBunker &&
       !failsCommuteBottleneck;
 
     let exclusionReason: string | null = null;

@@ -1,3 +1,5 @@
+import { parseJsonBody, preferencesSaveSchema } from "@/lib/api-guards";
+import { requireAuth } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import {
   loadSharedPreferences,
@@ -85,13 +87,13 @@ export async function GET(request: Request) {
 async function handleSave(request: Request) {
   const t0 = performance.now();
   const method = request.method || "POST";
+  const unauthorized = requireAuth(request);
+  if (unauthorized) return unauthorized;
   try {
-    const body = (await request.json()) as {
-      filters?: Record<string, unknown>;
+    const parsedBody = await parseJsonBody(request, preferencesSaveSchema);
+    if (!parsedBody.ok) return parsedBody.response;
+    const body = parsedBody.data as typeof parsedBody.data & {
       weights?: Partial<ScoringWeights>;
-      activePresetId?: string;
-      favorites?: string[];
-      clientUpdatedAt?: string;
     };
 
     const dbConfigured = Boolean(
