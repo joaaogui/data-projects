@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  AC_ABSENT_TAG,
+  AC_UNCONFIRMED_TAG,
   BUILTIN_PRESETS,
   canNegotiateFurnitureRemoval,
   categorizePropertyFeatures,
@@ -13,6 +15,7 @@ import {
   detectArterialOrBorderBunker,
   evaluateStreetMicroEnvironment,
   hasActiveSaleListing,
+  isApartHotelListing,
   parseCommuteMinutes,
   resolveCpFarCommute,
   resolveCurrentPublicationIso,
@@ -48,6 +51,14 @@ import {
   NUBANK_HUBS,
   resolveInstantPropertyCoordinate,
 } from "@/lib/geocoding";
+import {
+  applyListingDeactivations,
+  isQuintoAndarUnavailableHtml,
+} from "@/lib/listing-deactivations";
+import {
+  PHOTO_AUDIT_OVERRIDES,
+  type PhotoAuditOverride,
+} from "@/lib/photo-audit-overrides";
 import type { NeighborhoodEntry, SlimPropertyRecord } from "@/types/housing";
 
 const SAMPLE_NEIGHBORHOODS: NeighborhoodEntry[] = [
@@ -3846,5 +3857,214 @@ describe("Retention false positives: ground floor, CRM floor noise, public rotat
     expect(byId.get("street-zona-azul")!.eligible).toBe(true);
     expect(byId.get("garage-rotativa")!.exclusionReason).toContain("Vaga presa");
     expect(byId.get("garage-manobrista")!.exclusionReason).toContain("Vaga presa");
+  });
+});
+
+describe("Top-20 photo audit rules: AC evidence, doorman field, Zap 1st floor, partial views, apart-hotels, inactive listings", () => {
+  const rankedNbs = computeDynamicNeighborhoods(SAMPLE_NEIGHBORHOODS, DEFAULT_WEIGHTS).ranked;
+  const rule = (overrides: Partial<SlimPropertyRecord>): SlimPropertyRecord => ({
+    ...SAMPLE_PROPERTIES[0]!,
+    id: "rule-base",
+    title: "Apartamento 1 quarto",
+    description: "Apartamento com 1 vaga.",
+    generatedDescription: null,
+    installations: ["Elevador"],
+    amenities: ["Box"],
+    comfortCommodities: [],
+    practicalityCommodities: [],
+    photoCaptions: [],
+    positiveSignals: [],
+    ...overrides,
+  });
+  const evaluate = (props: SlimPropertyRecord[]) =>
+    new Map(computeDynamicProperties(props, rankedNbs, DEFAULT_WEIGHTS).map((p) => [p.id, p]));
+  const withOverrides = (entries: Record<string, PhotoAuditOverride>, run: () => void) => {
+    Object.assign(PHOTO_AUDIT_OVERRIDES, entries);
+    try {
+      run();
+    } finally {
+      for (const key of Object.keys(entries)) delete PHOTO_AUDIT_OVERRIDES[key];
+    }
+  };
+  const modernOverride: PhotoAuditOverride = { modernityScore: 90, modernityTier: "MODERN_OR_RENOVATED" };
+
+  it("scores portal-checkbox-only AC as unconfirmed (0 pts, amber tag) and keeps +12 / -10 for confirmed / absent AC", () => {
+    withOverrides({ "quintoandar:ac-photo": { ...modernOverride, verifiedAC: true } }, () => {
+      const byId = evaluate([
+        rule({ id: "ac-none" }),
+        rule({ id: "ac-qa-checkbox", comfortCommodities: ["Ar condicionado"], amenities: ["Box", "Ar condicionado"] }),
+        rule({ id: "ac-zap-checkbox", provider: "zapimoveis", amenities: ["AIR_CONDITIONING"] }),
+        rule({ id: "ac-signal-only", positiveSignals: ["Ar-condicionado"] }),
+        rule({ id: "ac-infra-text", description: "Sala com ponto para ar-condicionado split." }),
+        rule({ id: "ac-text", comfortCommodities: ["Ar condicionado"], description: "Sala e quarto com ares condicionados." }),
+        rule({ id: "ac-split", description: "Split inverter na suíte." }),
+        rule({ id: "ac-photo", comfortCommodities: ["Ar condicionado"] }),
+        rule({ id: "ac-negated", comfortCommodities: ["Ar condicionado"], description: "Imóvel sem ar-condicionado." }),
+      ]);
+      const pts = (id: string) => byId.get(id)!.breakdown.nuancesPoints;
+
+      for (const id of ["ac-qa-checkbox", "ac-zap-checkbox", "ac-signal-only", "ac-infra-text"]) {
+        const ev = byId.get(id)!;
+        expect(ev.cardTags.acLabel).toBeNull();
+        expect(ev.cardTags.warningTags).toContain(AC_UNCONFIRMED_TAG);
+        expect(ev.cardTags.redTags).not.toContain(AC_ABSENT_TAG);
+        expect(ev.cardTags.greenTags.some((t) => t.startsWith("Ar-condicionado"))).toBe(false);
+        expect(matchesPropertyFeature(ev, "ac")).toBe(false);
+      }
+      expect(pts("ac-qa-checkbox")).toBeCloseTo(pts("ac-none") + 10, 1);
+
+      expect(byId.get("ac-text")!.cardTags.acLabel).toBe("Ar-condicionado");
+      expect(byId.get("ac-split")!.cardTags.acLabel).toBe("Ar-condicionado Split");
+      expect(byId.get("ac-photo")!.cardTags.acLabel).toBe("Ar-condicionado");
+      expect(pts("ac-text")).toBeCloseTo(pts("ac-qa-checkbox") + 12, 1);
+      expect(byId.get("ac-text")!.cardTags.warningTags).not.toContain(AC_UNCONFIRMED_TAG);
+      expect(matchesPropertyFeature(byId.get("ac-text")!, "ac")).toBe(true);
+
+      for (const id of ["ac-none", "ac-negated"]) {
+        expect(byId.get(id)!.cardTags.redTags).toContain(AC_ABSENT_TAG);
+        expect(byId.get(id)!.cardTags.warningTags).not.toContain(AC_UNCONFIRMED_TAG);
+      }
+      expect(pts("ac-negated")).toBeCloseTo(pts("ac-none"), 1);
+    });
+  });
+
+  it("shows the red 'Sem ar-condicionado' tag when a photo audit marks the AC as false", () => {
+    withOverrides({ "quintoandar:ac-false": { ...modernOverride, falseAC: true } }, () => {
+      const ev = evaluate([rule({ id: "ac-false", description: "Split na sala e no quarto." })]).get("ac-false")!;
+      expect(ev.cardTags.acLabel).toBeNull();
+      expect(ev.cardTags.redTags).toContain(AC_ABSENT_TAG);
+    });
+  });
+
+  it("lets an explicit 'no doorman' structured field beat biometria / app-access text", () => {
+    const description = "Portaria totalmente automatizada (biometria e acesso remoto por aplicativo).";
+    const byId = evaluate([
+      rule({ id: "door-none", doorman: "NotAvailable", description }),
+      rule({ id: "door-none-24h-text", doorman: "NotAvailable", description: "Portaria 24h." }),
+      rule({ id: "door-24h", doorman: "NightAndDayShift", description }),
+      rule({ id: "door-unknown", doorman: null, description }),
+    ]);
+    for (const id of ["door-none", "door-none-24h-text"]) {
+      expect(byId.get(id)!.nuanceHighlights).not.toContain("Portaria 24h / Biometria");
+      expect(byId.get(id)!.nuanceWarnings.join(" ")).toMatch(/Sem portaria 24h/);
+      expect(matchesPropertyFeature(byId.get(id)!, "doorman_24h")).toBe(false);
+    }
+    expect(byId.get("door-24h")!.nuanceHighlights).toContain("Portaria 24h / Biometria");
+    expect(byId.get("door-unknown")!.nuanceHighlights).toContain("Portaria 24h / Biometria");
+    expect(byId.get("door-24h")!.breakdown.nuancesPoints).toBeCloseTo(
+      byId.get("door-none")!.breakdown.nuancesPoints + 12,
+      1,
+    );
+  });
+
+  it("does not treat 'sol da manhã' as evidence that a Zap floor=1 is a placeholder", () => {
+    const zap = (overrides: Partial<SlimPropertyRecord>) =>
+      rule({ provider: "zapimoveis", floor: 1, floorRange: null, totalFloors: null, ...overrides });
+    const byId = evaluate([
+      zap({ id: "zap-1-sun", description: "Apartamento com vista sol da manhã." }),
+      zap({ id: "zap-1-tall", totalFloors: 12, description: "Apartamento com vista sol da manhã." }),
+      zap({ id: "zap-1-andar-alto", description: "Andar alto, sol da manhã." }),
+    ]);
+    expect(byId.get("zap-1-sun")!.cardTags.floorTag?.label).toBe("Andar baixo (1º andar)");
+    expect(byId.get("zap-1-sun")!.nuanceWarnings).toContain("Andar baixo (1º andar) (-22 pts base)");
+    expect(byId.get("zap-1-tall")!.cardTags.lowFloorLabel).toBeNull();
+    expect(byId.get("zap-1-andar-alto")!.cardTags.lowFloorLabel).toBeNull();
+  });
+
+  it("halves a checkbox-only 'Vista livre' in a megacondo and lets a photo audit cancel it", () => {
+    const megaInstalls = ["Elevador", "Brinquedoteca", "Playground", "Quadra esportiva", "Salão de jogos"];
+    withOverrides({ "quintoandar:view-false": { ...modernOverride, falseFreeView: true } }, () => {
+      const byId = evaluate([
+        rule({ id: "view-mega-none", installations: megaInstalls }),
+        rule({ id: "view-mega-checkbox", installations: megaInstalls, comfortCommodities: ["Vista livre"] }),
+        rule({ id: "view-mega-text", installations: megaInstalls, description: "Vista livre e definitiva." }),
+        rule({ id: "view-single-none" }),
+        rule({ id: "view-single-checkbox", comfortCommodities: ["Vista livre"] }),
+        rule({ id: "view-false", comfortCommodities: ["Vista livre"] }),
+      ]);
+      const pts = (id: string) => byId.get(id)!.breakdown.nuancesPoints;
+      expect(pts("view-mega-checkbox")).toBeCloseTo(pts("view-mega-none") + 4, 1);
+      expect(byId.get("view-mega-checkbox")!.nuanceHighlights).toContain("Vista livre parcial (megacondomínio)");
+      expect(pts("view-mega-text")).toBeCloseTo(pts("view-mega-none") + 8, 1);
+      expect(pts("view-single-checkbox")).toBeCloseTo(pts("view-single-none") + 8, 1);
+      expect(byId.get("view-false")!.cardTags.greenTags).not.toContain("Vista livre");
+      expect(pts("view-false")).toBeCloseTo(pts("view-single-none"), 1);
+    });
+  });
+
+  it("uses a photo-audit floorHint only when floor data is missing, and drops cabinet bonuses on noCabinets", () => {
+    withOverrides(
+      {
+        "quintoandar:hint-high": { ...modernOverride, floorHint: "HIGH" },
+        "quintoandar:hint-high-known-floor": { ...modernOverride, floorHint: "HIGH" },
+        "quintoandar:hint-none": modernOverride,
+        "quintoandar:cab-none": { ...modernOverride, noCabinets: true },
+        "quintoandar:cab-ok": modernOverride,
+      },
+      () => {
+        const byId = evaluate([
+          rule({ id: "hint-high", floor: null, floorRange: null, totalFloors: null }),
+          rule({ id: "hint-none", floor: null, floorRange: null, totalFloors: null }),
+          rule({ id: "hint-high-known-floor", floor: 2, floorRange: null, totalFloors: 10 }),
+          rule({ id: "cab-none", amenities: ["Box", "Armários na cozinha", "Armários no quarto"] }),
+          rule({ id: "cab-ok", amenities: ["Box", "Armários na cozinha", "Armários no quarto"] }),
+        ]);
+        expect(byId.get("hint-high")!.cardTags.highFloorLabel).toBe("Andar alto");
+        expect(byId.get("hint-high")!.breakdown.nuancesPoints).toBeCloseTo(
+          byId.get("hint-none")!.breakdown.nuancesPoints + 9,
+          1,
+        );
+        expect(byId.get("hint-high-known-floor")!.cardTags.lowFloorLabel).toBe("Andar baixo (2º andar)");
+        expect(byId.get("cab-ok")!.nuanceHighlights).toContain("Marcenaria / armários planejados");
+        expect(byId.get("cab-none")!.nuanceHighlights.join(" ")).not.toMatch(/arm[aá]rios/i);
+      },
+    );
+  });
+
+  it("detects apart-hotels by serviced signals plus a hotel-level condo fee, without flagging regular condos", () => {
+    const flat = (overrides: Partial<SlimPropertyRecord>): SlimPropertyRecord =>
+      rule({ condominiumName: null, furnished: true, rent: 2500, condoFee: 1400, ...overrides });
+    const positives = [
+      flat({ id: "ah-top-life", condominiumName: "Moema Top Life", rent: 2000, condoFee: 1470 }),
+      flat({ id: "ah-flat-text", description: "Flat para alugar com 45 m², 1 quarto." }),
+      flat({ id: "ah-camareira", rent: 4000, condoFee: 1490, description: "Incluído no condomínio: serviços de camareira." }),
+      flat({ id: "ah-ratio", rent: 1800, condoFee: 950, furnished: null, description: "Apart-hotel com recepção." }),
+      flat({ id: "ah-brand", condominiumName: "Mercure Lourdes", condoFee: 400, furnished: false }),
+      flat({ id: "ah-name-low-fee", condominiumName: "Square Apart Hotel", rent: 3200, condoFee: 730 }),
+    ];
+    const negatives = [
+      flat({ id: "nah-regular", condominiumName: "Residencial Jardins", condoFee: 1300, description: "Portaria 24h, piscina e academia." }),
+      flat({ id: "nah-tv-flat", condoFee: 1500, description: "Sala com smart TV flat e sofá." }),
+      flat({ id: "nah-low-fee", rent: 4400, condoFee: 700, description: "Flat duplex loft exclusivo." }),
+      flat({ id: "nah-unfurnished", furnished: false, description: "Flat para alugar, sem mobília." }),
+      flat({ id: "nah-reception", furnished: null, condoFee: 1300, description: "Recepção 24h e piscina." }),
+    ];
+    for (const p of positives) expect(isApartHotelListing(p), p.id).toBe(true);
+    for (const p of negatives) expect(isApartHotelListing(p), p.id).toBe(false);
+    expect(classifyFurnitureTier(positives[1]!)).toBe("FULLY_FURNISHED");
+    expect(classifyFurnitureTier(negatives[0]!)).toBe("UNFURNISHED");
+  });
+
+  it("marks QuintoAndar listings found unavailable as inactive unless they were republished afterwards", () => {
+    expect(isQuintoAndarUnavailableHtml("<h1>Esse imóvel está indisponível :(</h1>")).toBe(true);
+    expect(isQuintoAndarUnavailableHtml("<h1>Apartamento com 1 quarto disponível</h1>")).toBe(false);
+
+    const deactivations = {
+      "quintoandar:gone": { deactivatedAt: "2026-10-17T12:00:00.000Z", reason: "QuintoAndar: imóvel indisponível" },
+      "quintoandar:relisted": { deactivatedAt: "2026-10-01T12:00:00.000Z", reason: "QuintoAndar: imóvel indisponível" },
+    };
+    const [gone, relisted, live] = applyListingDeactivations(
+      [
+        rule({ id: "gone", isActive: true, deactivatedAt: null }),
+        rule({ id: "relisted", isActive: true, listingUpdatedAt: "2026-10-10T00:00:00.000Z" }),
+        rule({ id: "live", isActive: true }),
+      ],
+      deactivations,
+    );
+    expect(gone!.isActive).toBe(false);
+    expect(gone!.deactivatedAt).toBe("2026-10-17T12:00:00.000Z");
+    expect(relisted!.isActive).toBe(true);
+    expect(live!.isActive).toBe(true);
+    expect(evaluate([gone!, live!]).get("gone")!.overallRank).toBeNull();
   });
 });

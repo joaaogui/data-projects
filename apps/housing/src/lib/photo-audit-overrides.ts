@@ -4,7 +4,14 @@ export interface PhotoAuditOverride {
   modernityScore: number;
   modernityTier: ModernityTier;
   falseAC?: boolean;
+  /** Split seen in the photos; confirms AC even when the listing text never mentions it. */
+  verifiedAC?: boolean;
   falseGourmet?: boolean;
+  falseFreeView?: boolean;
+  /** No kitchen/wardrobe cabinets visible despite the portal checkboxes. */
+  noCabinets?: boolean;
+  /** Used only when the listing has no floor/floorRange. */
+  floorHint?: "HIGH" | "MID" | "LOW";
   furnishedTier?: FurnitureTier;
   hasMaintenanceIssue?: boolean;
   hardExcludeDated?: boolean;
@@ -91,14 +98,18 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     "visualWarnings": []
   },
   "quintoandar:894349167": {
-    "modernityScore": 84,
+    "modernityScore": 79,
     "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "falseFreeView": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
       "Tanque de coluna simples na lavanderia",
-      "Piso granilite/cerâmico padrão na cozinha"
+      "Piso granilite/cerâmico padrão na cozinha",
+      "Auditoria visual: vista parcial — torre vizinha do mesmo condomínio bloqueia metade da vista da sala e da suíte",
+      "Split confirmado apenas na suíte (quarto 1 sem AC)"
     ]
   },
   "quintoandar:895702014": {
@@ -120,10 +131,14 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
   "zapimoveis:2915407598": {
     "modernityScore": 92,
     "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Apenas 1 split visível (suíte); sala e 2º quarto sem ar",
+      "Perfil de megacondomínio familiar (brinquedoteca, playground, mini quadra, piscinas adulto/infantil, várias torres)"
+    ]
   },
   "quintoandar:895648124": {
     "modernityScore": 86,
@@ -546,11 +561,53 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "quintoandar:895199327": {
-    "modernityScore": 94,
+    "modernityScore": 88,
     "modernityTier": "MODERN_OR_RENOVATED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Loft duplex: escada interna e suíte em mezanino aberta para a sala (sem privacidade)",
+      "Sem ar-condicionado Split visível em nenhum ambiente",
+      "Banheiro com pastilhas de vidro (estilo anos 2000/2010) e chuveiro elétrico",
+      "Portaria automatizada (biometria/app), sem porteiro"
+    ]
+  },
+  "quintoandar:895722432": {
+    "modernityScore": 95,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Auditoria visual: anúncio marca ar-condicionado mas não há Split instalado nas fotos (sala e 2 quartos vazios)"
+    ]
+  },
+  "quintoandar:893127481": {
+    "modernityScore": 100,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "noCabinets": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Fotos de 2020 mostram cozinha sem armários (só bancada) e quarto sem guarda-roupa",
+      "Fotos antigas (ago/2020) — estado atual não confirmado",
+      "Entorno hospitalar (Hospital das Clínicas / Santa Casa / João XXIII a ~400 m): sirenes e fluxo intenso"
+    ]
+  },
+  "quintoandar:894469434": {
+    "modernityScore": 55,
+    "modernityTier": "STANDARD",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Auditoria visual (Moema Top Life): flat anos 90 mobiliado (madeira mel, cozinha americana compacta com cooktop 2 bocas e armários de madeira/vidro), sem split visível",
+      "Área útil aparente ~40–45 m²: os 89 m² declarados provavelmente são área total/registrada"
+    ]
   },
   "quintoandar:894663476": {
     "modernityScore": 68,
@@ -734,13 +791,14 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "quintoandar:895262148": {
-    "modernityScore": 85,
+    "modernityScore": 82,
     "modernityTier": "MODERN_OR_RENOVATED",
+    "floorHint": "HIGH",
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Esquadria de alumínio natural da janela do quarto mantida da construção original"
+      "Esquadrias de alumínio natural originais na sala e no quarto (cozinha e banheiro totalmente reformados)"
     ]
   },
   "quintoandar:895740524": {

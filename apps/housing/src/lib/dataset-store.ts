@@ -1,6 +1,10 @@
 import "server-only";
 
 import { getDb, schema } from "@/db";
+import {
+  applyListingDeactivations,
+  loadListingDeactivations,
+} from "@/lib/listing-deactivations";
 import { logger } from "@/lib/logger";
 import {
   loadSharedPreferences,
@@ -325,7 +329,7 @@ export async function loadHousingDataset(
             latestDbUpdatedAtMs > 0
               ? new Date(latestDbUpdatedAtMs).toISOString()
               : snap.updatedAt;
-          const mappedProperties = dbProps.map((p) => {
+          const mappedProperties = applyListingDeactivations(dbProps.map((p) => {
             const cachedPhotos = photosCache[`${p.provider}:${p.id}`];
             const basePhotos = p.samplePhotos ?? [];
             const resolvedPhotos =
@@ -390,7 +394,7 @@ export async function loadHousingDataset(
               isActive: p.isActive ?? true,
               deactivatedAt: p.deactivatedAt ?? null,
             };
-          });
+          }), loadListingDeactivations());
           const activeCount = mappedProperties.filter(
             (p) => p.isActive !== false,
           ).length;
@@ -522,10 +526,12 @@ export async function loadHousingDataset(
     cachedSlimmedSnapshotSig = slimSig;
   }
 
-  const filteredProps =
+  const filteredProps = applyListingDeactivations(
     cityFilter && cityFilter !== "ALL"
       ? cachedSlimmedSnapshotProps.filter((p) => p.cityCode === cityFilter)
-      : cachedSlimmedSnapshotProps;
+      : cachedSlimmedSnapshotProps,
+    loadListingDeactivations(),
+  );
 
   const activeCount = filteredProps.filter((p) => p.isActive !== false).length;
   const deactivatedCount = filteredProps.length - activeCount;

@@ -1,4 +1,8 @@
 import { getPropertyFullDetails } from "@/lib/dataset-store";
+import {
+  isQuintoAndarUnavailableHtml,
+  recordListingDeactivation,
+} from "@/lib/listing-deactivations";
 import { logger } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { execFile } from "node:child_process";
@@ -576,6 +580,13 @@ export async function GET(request: Request) {
         for (const targetUrl of candidateUrls) {
           try {
             const html = await fetchHtml(targetUrl);
+            if (html && provider === "quintoandar" && isQuintoAndarUnavailableHtml(html)) {
+              recordListingDeactivation(cacheKey, "QuintoAndar: imóvel indisponível");
+              logger.info("api/photos", "QuintoAndar listing unavailable; recorded as inactive", {
+                provider,
+                id,
+              });
+            }
             if (html) {
               const extracted = extractPhotosFromHtml(
                 provider,

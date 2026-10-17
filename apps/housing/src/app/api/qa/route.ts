@@ -1,6 +1,7 @@
 import { logger } from "@/lib/logger";
 import { PHOTO_AUDIT_OVERRIDES } from "@/lib/photo-audit-overrides";
 import {
+  AC_UNCONFIRMED_TAG,
   DEFAULT_WEIGHTS,
   classifyFurnitureTier,
   computeDynamicNeighborhoods,
@@ -1139,6 +1140,13 @@ export function buildInstantGroundedAnswer(params: {
         "- Na nota: conta como **sem AC (−10 pts)** em vez de +12.",
       );
       visualWarningsShown = acWarnings.length === visualWarnings.length;
+    } else if (prop?.cardTags.warningTags.includes(AC_UNCONFIRMED_TAG)) {
+      lines.push(
+        "### ❄️ Ar-condicionado: **não confirmado**",
+        "- Só aparece marcado no checklist de comodidades do portal; o texto do anúncio e as legendas das fotos não citam ar-condicionado/split.",
+        "- Na nota: **0 pts** até confirmar (com split confirmado seria +12; sem AC, −10).",
+        "- Pergunte ao anunciante se há split instalado (e em quais cômodos) ou só a infraestrutura.",
+      );
     } else if (acLabel) {
       lines.push(
         acLabel === "Ar-condicionado"

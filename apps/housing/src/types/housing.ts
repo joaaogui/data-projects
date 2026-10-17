@@ -186,6 +186,8 @@ export interface EvaluatedProperty extends SlimPropertyRecord {
     noParking: boolean;
     greenTags: string[];
     redTags: string[];
+    /** Amber "check before trusting" pills, e.g. AC only claimed by a portal checkbox. */
+    warningTags: string[];
   };
   nuanceHighlights: string[];
   nuanceWarnings: string[];

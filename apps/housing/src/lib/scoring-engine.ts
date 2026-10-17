@@ -903,7 +903,7 @@ function detectUnitPenthouseOrDuplex(
       " ",
     )
     .replace(
-      /\bna cobertura[ \t]{0,3}[:,\-]?[ \t]{0,3}(?:piscina|lazer|[aá]rea\s+de\s+lazer|sal[aã]o|churrasqueira|sauna|academia|fitness|espa[cç]o gourmet|rooftop|solarium)/gi,
+      /\bna cobertura[ \t]{0,3}[:,-]?[ \t]{0,3}(?:piscina|lazer|[aá]rea\s+de\s+lazer|sal[aã]o|churrasqueira|sauna|academia|fitness|espa[cç]o gourmet|rooftop|solarium)/gi,
       " ",
     )
     .replace(/\bna cobertura do (?:edif[ií]cio|pr[eé]dio|condom[ií]nio)\b/gi, " ")
@@ -1299,6 +1299,7 @@ type ApartmentNuancesEvaluation = {
   hasTrappedParking: boolean;
   greenTags: string[];
   redTags: string[];
+  warningTags: string[];
 };
 
 const nuancesCacheTrue = new WeakMap<
@@ -1327,6 +1328,7 @@ function cloneApartmentNuances(
     hasTrappedParking: cached.hasTrappedParking,
     greenTags: cached.greenTags.slice(),
     redTags: cached.redTags.slice(),
+    warningTags: cached.warningTags.slice(),
   };
 }
 
@@ -1364,6 +1366,75 @@ export function hasActiveSaleListing(
   );
 }
 
+export const AC_ABSENT_TAG = "Sem ar-condicionado";
+export const AC_UNCONFIRMED_TAG = "AC não confirmado";
+
+export type AcStatus = "confirmed" | "unconfirmed" | "absent";
+
+/**
+ * Portal checkboxes (QuintoAndar "Ar condicionado", Zap AIR_CONDITIONING) are often ticked for
+ * AC infrastructure only, so they are not proof of an installed unit. Only the listing's own words
+ * (title, description, photo captions) or a photo audit confirm AC. The scraper's
+ * "Ar-condicionado" positive signal is derived from those same checkboxes, so it counts as a checkbox.
+ */
+export function resolveAcEvidence(
+  prop: Pick<
+    SlimPropertyRecord,
+    | "title"
+    | "description"
+    | "photoCaptions"
+    | "comfortCommodities"
+    | "amenities"
+    | "positiveSignals"
+  >,
+  photoAudit?: PhotoAuditOverride,
+): { acStatus: AcStatus; acLabel: string | null } {
+  if (photoAudit?.falseAC) return { acStatus: "absent", acLabel: null };
+
+  const ownText = [prop.title ?? "", prop.description ?? "", ...(prop.photoCaptions ?? [])]
+    .join(". ")
+    .toLowerCase();
+  const hasOnlyWindowAcText =
+    /\b(ar[- ]?condicionado\s+de\s+(?:janela|parede)|ar\s+de\s+janela|(?:buraco|caixa)\s+para\s+ar)\b/i.test(
+      ownText,
+    ) && !/\b(split|inverter)\b/i.test(ownText);
+  const hasExplicitNoAcText =
+    /\b(sem\s+ar(?:es)?[- ]?condicionados?|n[aã]o\s+(?:possui|tem|h[aá])\s+ar(?:es)?[- ]?condicionados?)\b/i.test(
+      ownText,
+    );
+  if (hasOnlyWindowAcText || hasExplicitNoAcText) {
+    return { acStatus: "absent", acLabel: null };
+  }
+
+  // "Ponto/infraestrutura para ar" is only provision for a future unit.
+  const installedAcText = ownText.replace(
+    /\b(?:pontos?|infra(?:estrutura)?|prepara[cç][aã]o|preparad[oa]|tubula[cç][aã]o)\s+(?:de\s+|para\s+)?(?:o\s+|os\s+)?(?:ar(?:es)?[- ]?condicionados?|ar)(?:\s+split)?\b/gi,
+    " ",
+  );
+  if (/\b(split|inverter)\b/i.test(installedAcText)) {
+    return { acStatus: "confirmed", acLabel: "Ar-condicionado Split" };
+  }
+  if (
+    photoAudit?.verifiedAC ||
+    /\b(ar(?:es)?[- ]?condicionados?|climatizad[oa]s?)\b/i.test(installedAcText)
+  ) {
+    return { acStatus: "confirmed", acLabel: "Ar-condicionado" };
+  }
+
+  const comfort = (prop.comfortCommodities ?? []).map((c) => c.toLowerCase());
+  const amenities = (prop.amenities ?? []).map((c) => c.toLowerCase());
+  const hasPortalOrInfraEvidence =
+    installedAcText !== ownText ||
+    comfort.includes("ar condicionado") ||
+    amenities.some((a) =>
+      ["ar condicionado", "ar-condicionado", "ar_condicionado", "air_conditioning"].includes(a),
+    ) ||
+    prop.positiveSignals.some((s) => s.toLowerCase().includes("ar-condicionado"));
+  return hasPortalOrInfraEvidence
+    ? { acStatus: "unconfirmed", acLabel: null }
+    : { acStatus: "absent", acLabel: null };
+}
+
 export function evaluateApartmentNuances(
   prop: SlimPropertyRecord,
   penalizeMegaCondo: boolean,
@@ -1379,6 +1450,7 @@ export function evaluateApartmentNuances(
   const warnings: string[] = [];
   const greenTags: string[] = [];
   const redTags: string[] = [];
+  const warningTags: string[] = [];
 
   const comfort = new Set(
     (prop.comfortCommodities ?? []).map((c) => c.toLowerCase()),
@@ -1467,62 +1539,61 @@ export function evaluateApartmentNuances(
   const propKey = `${prop.provider}:${prop.id}`;
   const photoAudit: PhotoAuditOverride | undefined = PHOTO_AUDIT_OVERRIDES[propKey];
 
-  // Ar-condicionado detection for card tag & calibration (+12 pts with AC, -10 pts without AC)
-  const hasOnlyWindowAcText =
-    /\b(ar[- ]?condicionado\s+de\s+(?:janela|parede)|ar\s+de\s+janela|(?:buraco|caixa)\s+para\s+ar)\b/i.test(
-      fullDesc,
-    ) && !/\b(split|inverter)\b/i.test(fullDesc);
-
-  let acLabel: string | null = null;
-  if (photoAudit?.falseAC) {
-    acLabel = null;
-    const acWarn =
-      (photoAudit.visualWarnings ?? []).find((w) =>
-        /auditoria visual:.*ar-condicionado/i.test(w),
-      ) ??
-      "Auditoria visual: anúncio marca ar-condicionado mas não há Split instalado nas fotos";
-    if (!warnings.includes(acWarn)) {
-      warnings.push(acWarn);
-    }
-  } else if (
-    /\bsplit\b/i.test(fullDesc) ||
-    prop.positiveSignals.some((s) => s.toLowerCase().includes("split"))
-  ) {
-    acLabel = "Ar-condicionado Split";
-  } else if (
-    !hasOnlyWindowAcText &&
-    (comfort.has("ar condicionado") ||
-      amenities.has("ar condicionado") ||
-      amenities.has("ar-condicionado") ||
-      amenities.has("air_conditioning") ||
-      /\bar[- ]?condicionado\b/i.test(fullDesc) ||
-      prop.positiveSignals.some((s) => s.toLowerCase().includes("ar-condicionado")))
-  ) {
-    acLabel = "Ar-condicionado";
-  }
-  if (acLabel !== null) {
+  // Ar-condicionado: +12 when confirmed by text/photos, 0 when only a portal checkbox claims it, -10 when absent
+  const { acLabel, acStatus } = resolveAcEvidence(prop, photoAudit);
+  if (acStatus === "confirmed") {
     pts += 12.0;
-    greenTags.push(acLabel);
-    highlights.push(acLabel);
+    greenTags.push(acLabel!);
+    highlights.push(acLabel!);
+  } else if (acStatus === "unconfirmed") {
+    warningTags.push(AC_UNCONFIRMED_TAG);
+    warnings.push(
+      "Ar-condicionado só marcado no checklist do portal (texto e fotos não confirmam): 0 pts até confirmar",
+    );
   } else {
     pts -= 10.0;
+    redTags.push(AC_ABSENT_TAG);
+    if (photoAudit?.falseAC) {
+      const acWarn =
+        (photoAudit.visualWarnings ?? []).find((w) =>
+          /auditoria visual:.*ar-condicionado/i.test(w),
+        ) ??
+        "Auditoria visual: anúncio marca ar-condicionado mas não há Split instalado nas fotos";
+      warnings.push(acWarn);
+    } else {
+      warnings.push("Sem ar-condicionado (-10 pts base)");
+    }
   }
 
+  const isMegaCondo =
+    (installs.has("brinquedoteca") &&
+      installs.has("playground") &&
+      installs.has("quadra esportiva") &&
+      installs.has("salão de jogos")) ||
+    /(?<![a-zA-ZÀ-ÿ0-9_])(m[uú]ltiplas torres|\d+ torres|bloco [b-z])(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc);
+
   // 1. Luz, Silêncio e Ventilação (comfort_commodities + texto)
-  const hasFreeView =
+  const hasFreeViewText =
+    /(?<![a-zA-ZÀ-ÿ0-9_])(vista (?:livre|definitiva|panor[aâ]mica|inexplic[aá]vel|incr[ií]vel|permanente|desimpedida|aberta|para\s+(?:o\s+|a\s+)?(?:mar|lagoa|p[aã]o\s+de\s+a[cç][uú]car|cristo|serra|montanha|parque|ba[ií]a|aterro))|bela\s+vista|indevassad[oa]|indevass[aá]vel)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      fullDesc,
+    );
+  const hasFreeViewCheckbox =
     comfort.has("vista livre") ||
     amenities.has("sea_view") ||
     amenities.has("mountain_view") ||
     amenities.has("lake_view") ||
     amenities.has("panoramic_view") ||
-    amenities.has("exterior_view") ||
-    /(?<![a-zA-ZÀ-ÿ0-9_])(vista (?:livre|definitiva|panor[aâ]mica|inexplic[aá]vel|incr[ií]vel|permanente|desimpedida|aberta|para\s+(?:o\s+|a\s+)?(?:mar|lagoa|p[aã]o\s+de\s+a[cç][uú]car|cristo|serra|montanha|parque|ba[ií]a|aterro))|bela\s+vista|indevassad[oa]|indevass[aá]vel)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
-      fullDesc,
-    );
+    amenities.has("exterior_view");
+  const hasFreeView =
+    !photoAudit?.falseFreeView && (hasFreeViewText || hasFreeViewCheckbox);
   const hasMorningSun =
     comfort.has("sol da manhã") || /(?<![a-zA-ZÀ-ÿ0-9_])sol da manh[aã](?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc);
 
-  if (hasFreeView) {
+  if (hasFreeView && !hasFreeViewText && isMegaCondo) {
+    // Sister towers usually block part of an owner-declared view in multi-tower condos.
+    pts += 4.0;
+    highlights.push("Vista livre parcial (megacondomínio)");
+  } else if (hasFreeView) {
     pts += 8.0;
     highlights.push("Vista livre/definitiva");
   }
@@ -1590,7 +1661,6 @@ export function evaluateApartmentNuances(
     ) &&
     ((effectiveTotalFloors !== null && effectiveTotalFloors >= 8) ||
       hasFreeView ||
-      hasMorningSun ||
       /(?<![a-zA-ZÀ-ÿ0-9_])andar\s+(alto|m[eé]dio|intermedi[aá]rio)(?![a-zA-ZÀ-ÿ0-9_])/i.test(sentenceJoinedDesc));
 
   let effectiveFloor =
@@ -1637,6 +1707,7 @@ export function evaluateApartmentNuances(
 
   const minFloor = effectiveFloor ?? normalizedFloorRange?.min ?? null;
   const maxFloor = effectiveFloor ?? normalizedFloorRange?.max ?? null;
+  const floorHint = minFloor === null ? photoAudit?.floorHint : undefined;
 
   const isTopFloor = detectUnitTopFloor(
     sentenceJoinedDesc,
@@ -1710,7 +1781,8 @@ export function evaluateApartmentNuances(
     !highFloorLabel &&
     (amenities.has("andar alto") ||
       comfort.has("andar alto") ||
-      /\bandar alto\b/i.test(fullDesc))
+      /\bandar alto\b/i.test(fullDesc) ||
+      floorHint === "HIGH")
   ) {
     pts += 9.0;
     highFloorLabel = "Andar alto";
@@ -1720,7 +1792,8 @@ export function evaluateApartmentNuances(
     !floorTag &&
     (amenities.has("andar médio") ||
       amenities.has("andar intermediário") ||
-      /(?<![a-zA-ZÀ-ÿ0-9_])andar (m[eé]dio|intermedi[aá]rio)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc))
+      /(?<![a-zA-ZÀ-ÿ0-9_])andar (m[eé]dio|intermedi[aá]rio)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc) ||
+      floorHint === "MID")
   ) {
     pts += 3.5;
     floorTag = { label: "Andar médio", rarity: "rare" };
@@ -1753,7 +1826,7 @@ export function evaluateApartmentNuances(
           : `Andar baixo (${displayMin}º andar)`;
       floorTag = { label: lowFloorLabel, rarity: "uncommon" };
     } else if (minFloor === null) {
-      if (/\bandar baixo\b/i.test(fullDesc)) {
+      if (/\bandar baixo\b/i.test(fullDesc) || floorHint === "LOW") {
         lowFloorLabel = "Andar baixo";
         floorTag = { label: lowFloorLabel, rarity: "uncommon" };
       }
@@ -1876,12 +1949,14 @@ export function evaluateApartmentNuances(
     highlights.push("Varanda");
   }
 
+  // An explicit "no doorman" structured field beats text like "biometria" / "acesso por app".
   const has24hDoorman =
-    prop.doorman === "NightAndDayShift" ||
-    prop.doorman === "24h" ||
-    installs.has("portaria_24h") ||
-    amenities.has("concierge_24h") ||
-    /\b(portaria 24|porteiro 24|portaria virtual|biometria)\b/i.test(fullDesc);
+    prop.doorman !== "NotAvailable" &&
+    (prop.doorman === "NightAndDayShift" ||
+      prop.doorman === "24h" ||
+      installs.has("portaria_24h") ||
+      amenities.has("concierge_24h") ||
+      /\b(portaria 24|porteiro 24|portaria virtual|biometria)\b/i.test(fullDesc));
   if (has24hDoorman) {
     pts += 6.0;
     highlights.push("Portaria 24h / Biometria");
@@ -1961,8 +2036,11 @@ export function evaluateApartmentNuances(
     );
   const isDatedInAudit = photoAudit?.modernityTier === "DATED" || photoAudit?.hardExcludeDated === true;
 
+  const hasNoCabinetsInAudit = photoAudit?.noCabinets === true;
+
   if (
     !isDatedInAudit &&
+    !hasNoCabinetsInAudit &&
     (hasExplicitPlannedCabinetry ||
       (isVerifiedModernInAudit && (hasKitchenCabinetry || hasBedroomOrBathCabinetry)))
   ) {
@@ -1970,6 +2048,7 @@ export function evaluateApartmentNuances(
     highlights.push("Marcenaria / armários planejados");
   } else if (
     !isDatedInAudit &&
+    !hasNoCabinetsInAudit &&
     (hasKitchenCabinetry ||
       hasBedroomOrBathCabinetry ||
       /(?<![a-zA-ZÀ-ÿ0-9_])(com\s+arm[aá]rios|arm[aá]rios\s+embutidos)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc))
@@ -2006,13 +2085,6 @@ export function evaluateApartmentNuances(
   }
 
   // 5. Alerta de Megacondomínio Familiar ("Cidade dentro do condomínio") vs Torre Única
-  const isMegaCondo =
-    (installs.has("brinquedoteca") &&
-      installs.has("playground") &&
-      installs.has("quadra esportiva") &&
-      installs.has("salão de jogos")) ||
-    /(?<![a-zA-ZÀ-ÿ0-9_])(m[uú]ltiplas torres|\d+ torres|bloco [b-z])(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc);
-
   const isReservedBuilding =
     /(?<![a-zA-ZÀ-ÿ0-9_])(torre [uú]nica|pr[eé]dio pequeno|poucos moradores|1 por andar|2 por andar)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullDesc,
@@ -2093,6 +2165,7 @@ export function evaluateApartmentNuances(
     hasTrappedParking,
     greenTags,
     redTags,
+    warningTags,
   };
   cache.set(prop, {
     ...result,
@@ -2102,6 +2175,7 @@ export function evaluateApartmentNuances(
     mallsNearby: [...result.mallsNearby],
     greenTags: [...result.greenTags],
     redTags: [...result.redTags],
+    warningTags: [...result.warningTags],
   });
   return result;
 }
@@ -3408,6 +3482,52 @@ export const PHOTO_VERIFIED_SEMI_OR_CABINETRY_KEYS = new Set<string>([]);
 
 const furnitureTierCache = new WeakMap<SlimPropertyRecord, FurnitureTier>();
 
+const APART_HOTEL_BRAND_REGEX =
+  /\b(monet|max savassi|savassi hotel|radisson|mercure|ibis|trypp?|golden tulip|caesar business|manhattan flat|liberty palace|transamerica)\b/i;
+const SERVICED_CONDO_NAME_REGEX =
+  /\b(top life|residence service|apart[- ]?hot(?:el|[eé]is)|apart[- ]?service|flat|hotel|novotel|blue tree|slaviero)\b/i;
+const SERVICED_TEXT_REGEX =
+  /(?<![a-zA-ZÀ-ÿ0-9_])(apart[- ]?hot(?:el|[eé]is)|aparthotel|(?<!tv\s|tela\s|smart\s)flats?(?!\s+screen)|residence service|servi[cç]os?\s+de\s+(?:hotel(?:aria)?|arruma[cç][aã]o|quarto|camareira)|hotelaria|camareiras?|arruma[cç][aã]o\s+(?:di[aá]ria|semanal)|room service|pool de loca[cç][aã]o|lavanderia inclusa)(?![a-zA-ZÀ-ÿ0-9_])/i;
+const RECEPTION_24H_REGEX = /\brecep[cç][aã]o\s+24\s*h/i;
+
+/**
+ * Apart-hotel / serviced flat: a known brand or serviced condo name ("Top Life", "Residence Service",
+ * "Apart Hotel"), or serviced text backed by a hotel-level condo fee (>= R$ 1.200, or >= 50% of the
+ * rent). "Recepção 24h" alone is common in regular condos, so it only counts for furnished units with
+ * both fee conditions. Units explicitly listed as unfurnished are only caught by the brand list.
+ */
+export function isApartHotelListing(
+  prop: Pick<
+    SlimPropertyRecord,
+    | "condominiumName"
+    | "title"
+    | "description"
+    | "installations"
+    | "amenities"
+    | "rent"
+    | "condoFee"
+    | "furnished"
+  >,
+): boolean {
+  const condoName = prop.condominiumName ?? "";
+  if (APART_HOTEL_BRAND_REGEX.test(condoName)) return true;
+  if (prop.furnished === false) return false;
+  if (SERVICED_CONDO_NAME_REGEX.test(condoName)) return true;
+
+  const highFee = prop.condoFee >= 1200;
+  const feeHeavy = prop.rent > 0 && prop.condoFee >= prop.rent * 0.5;
+  if (!highFee && !feeHeavy) return false;
+
+  const text = [
+    prop.title ?? "",
+    prop.description ?? "",
+    ...(prop.installations ?? []),
+    ...(prop.amenities ?? []),
+  ].join(" | ");
+  if (SERVICED_TEXT_REGEX.test(text)) return true;
+  return prop.furnished === true && highFee && feeHeavy && RECEPTION_24H_REGEX.test(text);
+}
+
 export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
   const cached = furnitureTierCache.get(prop);
   if (cached) return cached;
@@ -3431,11 +3551,7 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
     return "FULLY_FURNISHED";
   }
 
-  const isApartHotelCondo =
-    /\b(monet|max savassi|savassi hotel|radisson|mercure|ibis|trypp|golden tulip|caesar business|manhattan flat|liberty palace|transamerica)\b/i.test(
-      prop.condominiumName ?? "",
-    );
-  if (isApartHotelCondo) {
+  if (isApartHotelListing(prop)) {
     furnitureTierCache.set(prop, "FULLY_FURNISHED");
     return "FULLY_FURNISHED";
   }
@@ -4647,6 +4763,7 @@ export function computeDynamicProperties(
       noParking: prop.parkingSpaces < 1,
       greenTags: nuances.greenTags,
       redTags: nuances.redTags,
+      warningTags: nuances.warningTags,
     };
 
     const evaluatedItem = new EvaluatedPropertyImpl(

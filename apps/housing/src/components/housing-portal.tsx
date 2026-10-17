@@ -492,11 +492,12 @@ export function matchesPropertyFeature(
       );
     case "doorman_24h":
       return (
-        prop.doorman === "NightAndDayShift" ||
-        prop.doorman === "24h" ||
-        /\b(portaria_24h|concierge_24h|(?:portaria|porteiro|guarita|portaria remota) 24(?:h|\s*horas)?)\b/i.test(
-          getCachedFeatureText(prop),
-        )
+        prop.doorman !== "NotAvailable" &&
+        (prop.doorman === "NightAndDayShift" ||
+          prop.doorman === "24h" ||
+          /\b(portaria_24h|concierge_24h|(?:portaria|porteiro|guarita|portaria remota) 24(?:h|\s*horas)?)\b/i.test(
+            getCachedFeatureText(prop),
+          ))
       );
     case "pool_gym":
       return /\b(piscina|academia|fitness|gym|pool)\b/i.test(
@@ -1329,6 +1330,7 @@ export function formatTopPropertiesForAiPrompt(
     const allTags = [
       ...(p.cardTags.floorTag ? [p.cardTags.floorTag.label] : []),
       ...p.cardTags.greenTags,
+      ...p.cardTags.warningTags,
       ...p.cardTags.redTags,
     ];
     const furnitureLabel =
@@ -7407,6 +7409,14 @@ export function HousingPortal({
                           <span
                             key={`green-${tag}`}
                             className="rounded-md border border-emerald-600/30 bg-emerald-500/12 px-2.5 py-0.5 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {prop.cardTags.warningTags.map((tag) => (
+                          <span
+                            key={`warn-${tag}`}
+                            className="rounded-md border border-amber-600/30 bg-amber-500/12 px-2.5 py-0.5 text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200"
                           >
                             {tag}
                           </span>
