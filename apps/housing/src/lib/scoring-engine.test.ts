@@ -4512,7 +4512,7 @@ describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only 
     expect(ev("ar-livre").cardTags.redTags).toContain(AC_ABSENT_TAG);
   });
 
-  it("retains rotating, valet and non-demarcated spots even with descriptive words in between", () => {
+  it("retains rotating and valet spots even with descriptive words in between, but not plain non-demarcated ones", () => {
     const byId = evaluate([
       unit({ id: "coberta-rotativa", description: "Conta ainda com 1 vaga de garagem coberta e rotativa no subsolo." }),
       unit({ id: "nao-demarcada-manobrista", description: "1 vaga de garagem, não demarcada, com serviço de manobrista." }),
@@ -4526,11 +4526,11 @@ describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only 
       unit({ id: "livre-demarcada", description: "1 vaga livre e demarcada." }),
       unit({ id: "visitantes", description: "1 vaga livre. Estacionamento com vagas rotativas para visitantes." }),
     ]);
-    for (const id of ["coberta-rotativa", "nao-demarcada-manobrista", "nao-demarcada", "livre-nao-demarcada", "subsolo-manobrista"]) {
+    for (const id of ["coberta-rotativa", "nao-demarcada-manobrista", "subsolo-manobrista"]) {
       expect(byId.get(id)!.eligible, id).toBe(false);
       expect(byId.get(id)!.exclusionReason, id).toContain("Vaga presa, gaveta ou rotativa (eliminado)");
     }
-    for (const id of ["rua-rotativa", "nao-e-rotativa", "livre-nao-rotativa", "sem-manobrista", "livre-demarcada", "visitantes"]) {
+    for (const id of ["rua-rotativa", "nao-e-rotativa", "livre-nao-rotativa", "sem-manobrista", "livre-demarcada", "visitantes", "nao-demarcada", "livre-nao-demarcada"]) {
       expect(byId.get(id)!.eligible, id).toBe(true);
     }
   });
@@ -4590,7 +4590,7 @@ describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only 
         }),
       ]);
       const ev = (id: string) => byId.get(id)!;
-      expect(ev("overlap-used").modernityScore).toBe(90 - 8 - 5 - 8 - 6);
+      expect(ev("overlap-used").modernityScore).toBe(90 - 8 - 5 - 8 - 6 + 12);
       expect(ev("overlap-used").nuanceHighlights).toEqual(
         expect.arrayContaining(["Marcenaria / armários planejados", "Piso moderno (porcelanato/vinílico)"]),
       );
@@ -4600,6 +4600,50 @@ describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only 
       expect(ev("overlap-ac-trust").modernityScore).toBe(80);
       expect(ev("overlap-ac-trust").cardTags.acLabel).toBe("Ar-condicionado");
     });
+  });
+
+  it("does not give the free-and-demarcated bonus to a free but non-demarcated spot", () => {
+    const byId = evaluate([
+      unit({ id: "livre-demarcada", description: "1 vaga livre e demarcada." }),
+      unit({ id: "livre-nao-demarcada", description: "1 vaga livre, não demarcada." }),
+      unit({ id: "sem-demarcacao-manobrista", description: "1 vaga de garagem, sem demarcação, com manobrista." }),
+      unit({ id: "presa-nao-demarcada", description: "01 vaga de garagem descoberta, presa e não demarcada." }),
+    ]);
+    expect(byId.get("livre-demarcada")!.nuanceHighlights).toContain("Vaga livre e demarcada");
+    expect(byId.get("livre-nao-demarcada")!.nuanceHighlights).not.toContain("Vaga livre e demarcada");
+    expect(byId.get("livre-nao-demarcada")!.eligible).toBe(true);
+    expect(byId.get("livre-nao-demarcada")!.nuanceWarnings).not.toContain("Vaga presa / gaveta");
+    expect(byId.get("sem-demarcacao-manobrista")!.eligible).toBe(false);
+    expect(byId.get("presa-nao-demarcada")!.eligible).toBe(false);
+  });
+
+  it("gives back part of the refunded modernity only for concrete modern-unit evidence", () => {
+    const overlap = { modernityScore: 90, positiveSignals: ["Ar-condicionado Split", "Marcenaria planejada / Painel", "Lazer com piscina e academia"] };
+    const base = 90 - 8 - 5 - 6;
+    const byId = evaluate([
+      unit({ id: "c-none", ...overlap, description: "Apartamento lindo, acabamento de alto padrão." }),
+      unit({ id: "c-floor", ...overlap, description: "Sala e quartos com piso vinílico." }),
+      unit({ id: "c-facade", ...overlap, description: "Prédio com fachada em porcelanato." }),
+      unit({ id: "c-floor-kitchen", ...overlap, description: "Piso em porcelanato, cozinha e banheiro reformados." }),
+      unit({
+        id: "c-capped",
+        modernityScore: 75,
+        positiveSignals: [...overlap.positiveSignals, "Porcelanato / Vinílico"],
+        description: "Piso em porcelanato, cozinha reformada.",
+      }),
+      unit({ id: "c-primeira-locacao", ...overlap, description: "Primeira locação." }),
+      unit({ id: "c-negative", ...overlap, negativeSignals: ["Piso antigo"], description: "Primeira locação." }),
+      unit({ id: "c-no-refund", modernityScore: 70, description: "Piso em porcelanato." }),
+    ]);
+    const mod = (id: string) => byId.get(id)!.modernityScore;
+    expect(mod("c-none")).toBe(base);
+    expect(mod("c-facade")).toBe(base);
+    expect(mod("c-floor")).toBe(base + 12);
+    expect(mod("c-primeira-locacao")).toBe(base + 12);
+    expect(mod("c-floor-kitchen")).toBe(88);
+    expect(mod("c-capped")).toBe(75 - 27 + 20);
+    expect(mod("c-negative")).toBe(base);
+    expect(mod("c-no-refund")).toBe(70);
   });
 
   it("ships the round-3 photo audits for the five re-audited Top-20 listings", () => {

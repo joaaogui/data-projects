@@ -1478,8 +1478,10 @@ export function resolveAcEvidence(
 
 // Up to 5 descriptive words may sit between "vaga" and the qualifier ("1 vaga de garagem coberta e rotativa",
 // "1 vaga de garagem, não demarcada, com serviço de manobrista"); a negation inside the gap breaks the match.
+// "Não demarcada" alone is a free spot without a fixed position, so it does not retain.
 const NON_FREE_PARKING_SPOT_RE =
-  /\bvagas?(?:[\s,]+(?!n[aã]o\b(?!\s+demarcad)|sem\b|nem\b)[a-zà-ÿ0-9]+){0,5}?[\s,]+(?:rotativas?|sujeitas?\s+a\s+sorteio|com\s+(?:servi[cç]o\s+de\s+)?(?:manobristas?|valet)|n[aã]o\s+demarcadas?|sem\s+demarca[cç][aã]o)\b/i;
+  /\bvagas?(?:[\s,]+(?!n[aã]o\b(?!\s+demarcad)|sem\b(?!\s+demarca)|nem\b)[a-zà-ÿ0-9]+){0,5}?[\s,]+(?:rotativas?|sujeitas?\s+a\s+sorteio|com\s+(?:servi[cç]o\s+de\s+)?(?:manobristas?|valet))\b/i;
+const NON_DEMARCATED_SPOT_RE = /\bn[aã]o\s+demarcad[ao]s?\b|\bsem\s+demarca[cç][aã]o\b/i;
 
 export function evaluateApartmentNuances(
   prop: SlimPropertyRecord,
@@ -1578,7 +1580,7 @@ export function evaluateApartmentNuances(
     " ",
   );
   const hasTrappedParking =
-    /\b(?:vagas?\s+(?:de\s+garagem\s+)?(?:(?:cobertas?|descobertas?|demarcadas?|fixas?)\s+(?:e\s+)?)?presas?|vaga\s+de\s+garagem\s*\(\s*presa\s*\)|garagem\s+presa|vagas?\s+bloqueadas?|vagas?\s+(?:de\s+garagem\s+)?(?:tipo\s+|em\s+)?gavetas?|garagem\s+(?:tipo\s+|em\s+)?gavetas?|vagas?\s+(?:de\s+garagem\s+)?coletivas?|garagem\s+(?:rotativa|coletiva)|sorteio\s+de\s+vagas?|garagem\s+com\s+(?:servi[cç]o\s+de\s+)?(?:manobrista|valet)|deixar\s+(?:a\s+)?chave\s+na\s+portaria)\b/i.test(
+    /\b(?:vagas?\s+(?:de\s+garagem\s+)?(?:(?:cobertas?|descobertas?|demarcadas?|fixas?)[\s,]+(?:e\s+)?)?presas?|vaga\s+de\s+garagem\s*\(\s*presa\s*\)|garagem\s+presa|vagas?\s+bloqueadas?|vagas?\s+(?:de\s+garagem\s+)?(?:tipo\s+|em\s+)?gavetas?|garagem\s+(?:tipo\s+|em\s+)?gavetas?|vagas?\s+(?:de\s+garagem\s+)?coletivas?|garagem\s+(?:rotativa|coletiva)|sorteio\s+de\s+vagas?|garagem\s+com\s+(?:servi[cç]o\s+de\s+)?(?:manobrista|valet)|deixar\s+(?:a\s+)?chave\s+na\s+portaria)\b/i.test(
       cleanedTrappedSources,
     ) || NON_FREE_PARKING_SPOT_RE.test(cleanedTrappedSources);
 
@@ -2096,7 +2098,8 @@ export function evaluateApartmentNuances(
   }
 
   if (
-    /\bvagas? (de garagem )?(cobertas? e )?(livres?|individuais?|demarcadas?|fixas?)\b/i.test(fullDesc)
+    /\bvagas? (de garagem )?(cobertas? e )?(livres?|individuais?|demarcadas?|fixas?)\b/i.test(fullDesc) &&
+    !NON_DEMARCATED_SPOT_RE.test(fullDesc)
   ) {
     pts += 5.0;
     highlights.push("Vaga livre e demarcada");
@@ -3894,6 +3897,36 @@ const SCRAPER_GENERIC_CONDO_LEISURE_RE =
 // Share of the scraper's cabinetry (+7) and flooring (+12) points taken back because they also score as nuances.
 const MODERNITY_OVERLAP_REFUND = { cabinetry: 5, flooring: 8 } as const;
 
+// Concrete evidence of a modern unit gives back part of the AC/finish/leisure refund, never above the ceiling.
+// Calibrated against the photo-audit scores: rule-only modern units sat ~14 pts low, dated ones must not climb.
+const CONCRETE_MODERNITY_POINTS_PER_SIGNAL = 12;
+const CONCRETE_MODERNITY_MAX_BONUS = 20;
+const CONCRETE_MODERNITY_CEILING = 88;
+
+/** Porcelanato / vinílico mentioned for the unit, not for the facade, lobby or common areas. */
+export function hasUnitModernFlooring(text: string): boolean {
+  for (const m of text.matchAll(/\b(porcelanato|vin[ií]lico)\b/gi)) {
+    const before = text.slice(Math.max(0, m.index - 40), m.index);
+    if (!/(fachada|pr[eé]dio|edif[ií]cio|hall|[aá]reas?\s+comu|portaria|torre)[^.;]*$/i.test(before)) return true;
+  }
+  return false;
+}
+
+/** Unit flooring, a new building (≥ 2015 or explicit first-occupancy wording) and a renovated kitchen/bathroom. */
+export function countConcreteModernitySignals(prop: SlimPropertyRecord, text: string): number {
+  const isNewBuilding =
+    (prop.constructionYear ?? 0) >= 2015 ||
+    prop.positiveSignals.some((s) => /^Construção recente/.test(s)) ||
+    /\b(pr[eé]dio\s+(?:super\s+)?novo|primeira\s+loca[cç][aã]o|1[aª]\s+loca[cç][aã]o|nunca\s+(?:foi\s+)?habitad[oa]|rec[eé]m[- ]?(?:entregue|constru[ií]d[oa])|im[oó]vel\s+novo|apartamento\s+(?:novo|nov[ií]ssimo)|nov[ií]ssimo|novinho)\b/i.test(
+      text,
+    );
+  const hasRenovatedWetAreas =
+    /\b(?:(?:cozinhas?|banheiros?|[aá]reas?\s+molhadas?)\s+(?:e\s+(?:cozinhas?|banheiros?)\s+)?(?:(?:totalmente|completamente|toda|todo|rec[eé]m)[- ]?\s*)?(?:reformad[oa]s?|renovad[oa]s?|modernizad[oa]s?|nov[oa]s?)|reforma\s+(?:completa\s+|total\s+|recente\s+)?(?:d[aeo]s?\s+)?(?:cozinhas?|banheiros?))\b/i.test(
+      text,
+    );
+  return Number(hasUnitModernFlooring(text)) + Number(isNewBuilding) + Number(hasRenovatedWetAreas);
+}
+
 function hasScraperCondoLeisureSignal(prop: SlimPropertyRecord): boolean {
   return (
     prop.positiveSignals.includes("Lazer com piscina e academia") ||
@@ -4114,6 +4147,16 @@ function calibrateRuntimeModernity(
     );
   if (prop.condition !== "NEW_OR_RENOVATED" && !hasConcreteModernEvidence) {
     score = Math.min(score, TEXT_ONLY_MODERNITY_CAP);
+  }
+
+  const concreteSignalCount = countConcreteModernitySignals(prop, fullLocationText);
+  if (concreteSignalCount > 0 && prop.negativeSignals.length === 0 && score < CONCRETE_MODERNITY_CEILING) {
+    const bonus = Math.min(
+      unitFeatureRefund + leisureRefund,
+      concreteSignalCount * CONCRETE_MODERNITY_POINTS_PER_SIGNAL,
+      CONCRETE_MODERNITY_MAX_BONUS,
+    );
+    score = Math.min(CONCRETE_MODERNITY_CEILING, score + bonus);
   }
 
   const clamped = Math.max(0, Math.min(100, score));
