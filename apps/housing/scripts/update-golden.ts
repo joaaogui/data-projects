@@ -20,9 +20,9 @@ const NOW_MS = Date.parse(golden.GOLDEN_NOW);
 
 const RealDate = Date;
 class FrozenDate extends RealDate {
-  constructor(...args: ConstructorParameters<typeof Date>) {
+  constructor(...args: unknown[]) {
     if (args.length === 0) super(NOW_MS);
-    else super(...args);
+    else super(...(args as ConstructorParameters<typeof Date>));
   }
   static now() {
     return NOW_MS;

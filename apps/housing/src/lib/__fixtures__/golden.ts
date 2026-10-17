@@ -47,7 +47,7 @@ export interface GoldenRow {
   finalScore: number;
   exclusionReason: string | null;
   totalMonthly: number;
-  furnitureTier: string;
+  furnitureTier?: string;
   modernityTier: string;
   acLabel: string | null;
   floorTag: string | null;
