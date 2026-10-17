@@ -4,24 +4,26 @@ import type {
   EvaluatedProperty,
   FloorTag,
   FurnitureTier,
+  ModernityTier,
   NeighborhoodEntry,
   ScoringWeights,
   SlimPropertyRecord,
 } from "@/types/moradia";
+import { PHOTO_AUDIT_OVERRIDES, type PhotoAuditOverride } from "./photo-audit-overrides.ts";
 
 export const DEFAULT_WEIGHTS: ScoringWeights = {
-  urbanBreathingWeight: 2.0,
-  commuteLogisticsWeight: 1.8,
-  buildingStockWeight: 1.0,
+  urbanBreathingWeight: 3.0,
+  commuteLogisticsWeight: 1.0,
+  buildingStockWeight: 2.0,
   budgetFitWeight: 1.0,
-  safetyCarWeight: 2.5,
+  safetyCarWeight: 3.0,
   neighborhoodMultiplier: 6.5,
   modernityMultiplier: 0.85,
   nuancesMultiplier: 1.0,
   minModernityScore: 60,
-  budgetIdeal: 5500,
-  budgetMax: 6500,
-  budgetHardCap: 6850,
+  budgetIdeal: 4500,
+  budgetMax: 5000,
+  budgetHardCap: 6500,
   budgetWeight: 1.0,
   unfurnishedBonus: 15,
   furnishedPenalty: -22,
@@ -29,9 +31,9 @@ export const DEFAULT_WEIGHTS: ScoringWeights = {
   parkingBonus2: 8,
   requireParking: true,
   penalizeMegaCondo: true,
-  minAreaM2: 40,
+  minAreaM2: 35,
   maxAreaM2: 95,
-  sweetSpotMinM2: 50,
+  sweetSpotMinM2: 45,
   sweetSpotMaxM2: 72,
 };
 
@@ -127,10 +129,15 @@ export function sanitizeAndMigrateWeights(
 
   if (!isV2) {
     if (result.furnishedPenalty === -5) result.furnishedPenalty = -22;
-    if (result.urbanBreathingWeight === 1) result.urbanBreathingWeight = 2.0;
-    if (result.modernityMultiplier === 0.65) result.modernityMultiplier = 0.85;
+    if (result.urbanBreathingWeight === 1) result.urbanBreathingWeight = 2;
+    if (Math.abs(result.modernityMultiplier - 0.65) < 1e-6) {
+      result.modernityMultiplier = 0.85;
+    }
     if (result.sweetSpotMinM2 === 48) result.sweetSpotMinM2 = 50;
     if (result.sweetSpotMaxM2 === 68) result.sweetSpotMaxM2 = 72;
+  }
+  if (result.minAreaM2 === 40 || result.minAreaM2 === 45) {
+    result.minAreaM2 = 35;
   }
 
   if (result.maxAreaM2 < result.minAreaM2) {
@@ -162,10 +169,29 @@ export const BUILTIN_PRESETS: {
   weights: ScoringWeights;
 }[] = [
   {
+    id: "perfeito",
+    name: "✨ Perfeito (AC · Andar Alto · ≤ R$ 4.500 · ≤ 25 min · Seguro)",
+    description:
+      "Assinala os filtros ideais (Ar-condicionado, Andar Alto/Cobertura, pacote ≤ R$ 4.500, até 25 min do escritório, Não/Semi-mobiliado e Sem problemas de segurança) com pesos calibrados para segurança máxima e conforto.",
+    weights: {
+      ...DEFAULT_WEIGHTS,
+      safetyCarWeight: 3.5,
+      urbanBreathingWeight: 3.0,
+      commuteLogisticsWeight: 1.8,
+      buildingStockWeight: 2.2,
+      budgetFitWeight: 1.5,
+      budgetIdeal: 4200,
+      budgetMax: 4500,
+      budgetHardCap: 5000,
+      unfurnishedBonus: 18,
+      furnishedPenalty: -28,
+    },
+  },
+  {
     id: "balanced-original",
     name: "Equilíbrio Original (Padrão)",
     description:
-      "Pesos calibrados: segurança ao sair na rua como fator prioritário (2.5x), peso do bairro 6.5x, teto ideal R$ 5.500 (máx R$ 6.500), 40–95 m², foco em modernidade e respiração urbana.",
+      "Pesos calibrados: Segurança (30%) e Respiração Urbana (30%) como fatores dominantes (3.0x), Estoque Predial (20%, 2.0x), Logística (10%, 1.0x) e Orçamento (10%, 1.0x).",
     weights: DEFAULT_WEIGHTS,
   },
   {
@@ -175,7 +201,7 @@ export const BUILTIN_PRESETS: {
       "Dobra o peso do Score de Modernidade (1.1x) e exige mínimo de 72/100 (apenas prédios novos ou 100% reformados), mantendo rigor em segurança.",
     weights: {
       ...DEFAULT_WEIGHTS,
-      buildingStockWeight: 1.6,
+      buildingStockWeight: 2.0,
       modernityMultiplier: 1.1,
       minModernityScore: 72,
       neighborhoodMultiplier: 5.0,
@@ -221,6 +247,8 @@ export const BUILTIN_PRESETS: {
   },
 ];
 
+export const WEIGHT_PRESETS = BUILTIN_PRESETS;
+
 export interface NeighborhoodSafetyMetrics {
   cityCode: CityHubCode;
   commute: string;
@@ -249,17 +277,17 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "RJ:Jardim Oceânico": { cityCode: "RJ", commute: "60-90 min do Nubank", urbanBreathing: 9.4, commuteLogistics: 2.5, buildingStock: 8.8, budgetFit: 7.5, safetyCar: 8.0 },
   "RJ:Jardim Oceanico": { cityCode: "RJ", commute: "60-90 min do Nubank", urbanBreathing: 9.4, commuteLogistics: 2.5, buildingStock: 8.8, budgetFit: 7.5, safetyCar: 8.0 },
   "RJ:Barra da Tijuca": { cityCode: "RJ", commute: "60-90 min do Nubank", urbanBreathing: 9.4, commuteLogistics: 2.5, buildingStock: 8.8, budgetFit: 7.5, safetyCar: 8.0 },
-  // Moderate-good Zona Sul / Niterói (safetyCar: 7.0–8.0)
-  "RJ:Flamengo": { cityCode: "RJ", commute: "15 min do Nubank (Porto Maravilha)", urbanBreathing: 9.6, commuteLogistics: 9.2, buildingStock: 5.8, budgetFit: 6.5, safetyCar: 7.8 },
-  "RJ:Humaitá": { cityCode: "RJ", commute: "20 min do Nubank via Túnel Rebouças", urbanBreathing: 8.0, commuteLogistics: 8.0, buildingStock: 6.5, budgetFit: 6.5, safetyCar: 7.8 },
+  // Moderate-good Zona Sul / Niterói (safetyCar: 7.0–8.3)
+  "RJ:Laranjeiras": { cityCode: "RJ", commute: "15-20 min do Nubank", urbanBreathing: 8.8, commuteLogistics: 8.5, buildingStock: 7.5, budgetFit: 7.8, safetyCar: 8.3 },
+  "RJ:Humaitá": { cityCode: "RJ", commute: "20 min do Nubank via Túnel Rebouças", urbanBreathing: 8.5, commuteLogistics: 8.2, buildingStock: 7.2, budgetFit: 7.0, safetyCar: 8.2 },
+  "RJ:Flamengo": { cityCode: "RJ", commute: "15 min do Nubank (Porto Maravilha)", urbanBreathing: 9.6, commuteLogistics: 9.2, buildingStock: 6.8, budgetFit: 6.8, safetyCar: 8.1 },
+  "RJ:Botafogo": { cityCode: "RJ", commute: "10-15 min do Nubank (Porto Maravilha)", urbanBreathing: 8.2, commuteLogistics: 9.0, buildingStock: 7.6, budgetFit: 7.2, safetyCar: 8.0 },
+  "RJ:Botafogo (Orla)": { cityCode: "RJ", commute: "10-15 min do Nubank (Porto Maravilha)", urbanBreathing: 8.2, commuteLogistics: 9.0, buildingStock: 7.6, budgetFit: 7.2, safetyCar: 8.0 },
   "RJ:Leme": { cityCode: "RJ", commute: "20-25 min do Nubank", urbanBreathing: 9.0, commuteLogistics: 8.0, buildingStock: 5.5, budgetFit: 6.2, safetyCar: 7.8 },
   "RJ:Ingá": { cityCode: "RJ", commute: "30-40 min do Nubank via Ponte", urbanBreathing: 8.0, commuteLogistics: 6.0, buildingStock: 7.8, budgetFit: 8.2, safetyCar: 7.8 },
-  "RJ:Laranjeiras": { cityCode: "RJ", commute: "15-20 min do Nubank", urbanBreathing: 7.8, commuteLogistics: 8.2, buildingStock: 6.0, budgetFit: 6.8, safetyCar: 7.6 },
   "RJ:Santa Rosa": { cityCode: "RJ", commute: "35-45 min do Nubank via Ponte", urbanBreathing: 7.8, commuteLogistics: 5.6, buildingStock: 8.2, budgetFit: 8.4, safetyCar: 7.6 },
   "RJ:São Domingos": { cityCode: "RJ", commute: "30-35 min do Nubank via Ponte", urbanBreathing: 7.8, commuteLogistics: 6.0, buildingStock: 7.5, budgetFit: 8.0, safetyCar: 7.6 },
   "RJ:Cosme Velho": { cityCode: "RJ", commute: "18-22 min do Nubank", urbanBreathing: 8.2, commuteLogistics: 7.8, buildingStock: 5.8, budgetFit: 6.8, safetyCar: 7.5 },
-  "RJ:Botafogo": { cityCode: "RJ", commute: "10-15 min do Nubank (Porto Maravilha)", urbanBreathing: 7.2, commuteLogistics: 9.0, buildingStock: 6.8, budgetFit: 6.0, safetyCar: 7.3 },
-  "RJ:Botafogo (Orla)": { cityCode: "RJ", commute: "10-15 min do Nubank (Porto Maravilha)", urbanBreathing: 7.2, commuteLogistics: 9.0, buildingStock: 6.8, budgetFit: 6.0, safetyCar: 7.3 },
   "RJ:Copacabana": { cityCode: "RJ", commute: "20-25 min do Nubank", urbanBreathing: 7.5, commuteLogistics: 7.8, buildingStock: 5.5, budgetFit: 6.2, safetyCar: 7.0 },
   // Transition / Center-South (safetyCar: 5.6–6.4)
   "RJ:Catete": { cityCode: "RJ", commute: "10-12 min do Nubank (Porto Maravilha)", urbanBreathing: 7.2, commuteLogistics: 9.2, buildingStock: 5.8, budgetFit: 7.4, safetyCar: 6.3 },
@@ -287,15 +315,16 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "RJ:Estácio": { cityCode: "RJ", commute: "10-15 min do Nubank", urbanBreathing: 5.2, commuteLogistics: 8.8, buildingStock: 6.0, budgetFit: 8.5, safetyCar: 3.5 },
 
   // === BH (Belo Horizonte & Nova Lima) ===
-  // Truly safe Zona Sul / Nova Lima (safetyCar: 8.3–9.2)
-  "BH:Lourdes": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 9.2, commuteLogistics: 9.2, buildingStock: 9.0, budgetFit: 9.0, safetyCar: 9.1 },
+  // Truly safe Zona Sul / Nova Lima (safetyCar: 8.3–9.6)
+  "BH:Lourdes": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 9.6, commuteLogistics: 9.3, buildingStock: 9.5, budgetFit: 9.0, safetyCar: 9.6 },
+  "BH:Funcionários": { cityCode: "BH", commute: "10 min do Nubank", urbanBreathing: 9.5, commuteLogistics: 9.8, buildingStock: 8.8, budgetFit: 9.2, safetyCar: 9.1 },
   "BH:Belvedere": { cityCode: "BH", commute: "25-35 min do Nubank", urbanBreathing: 8.8, commuteLogistics: 6.2, buildingStock: 6.0, budgetFit: 5.5, safetyCar: 9.0 },
   "BH:Vale do Sereno": { cityCode: "BH", commute: "25-35 min do Nubank", urbanBreathing: 9.2, commuteLogistics: 6.2, buildingStock: 8.8, budgetFit: 7.6, safetyCar: 9.0 },
-  "BH:Sion": { cityCode: "BH", commute: "15-20 min do Nubank", urbanBreathing: 8.8, commuteLogistics: 8.4, buildingStock: 8.5, budgetFit: 9.4, safetyCar: 8.9 },
+  "BH:Santo Agostinho": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.8, buildingStock: 8.6, budgetFit: 8.4, safetyCar: 8.9 },
   "BH:Anchieta": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.5, buildingStock: 8.2, budgetFit: 8.0, safetyCar: 8.9 },
+  "BH:Savassi": { cityCode: "BH", commute: "10-12 min do Nubank", urbanBreathing: 8.9, commuteLogistics: 9.5, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.8 },
+  "BH:Sion": { cityCode: "BH", commute: "15-20 min do Nubank", urbanBreathing: 8.7, commuteLogistics: 8.4, buildingStock: 8.0, budgetFit: 9.2, safetyCar: 8.8 },
   "BH:Carmo": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.8, commuteLogistics: 8.8, buildingStock: 8.6, budgetFit: 8.8, safetyCar: 8.8 },
-  "BH:Funcionários": { cityCode: "BH", commute: "10 min do Nubank", urbanBreathing: 9.5, commuteLogistics: 9.8, buildingStock: 9.4, budgetFit: 9.5, safetyCar: 8.8 },
-  "BH:Santo Agostinho": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 8.8, buildingStock: 8.5, budgetFit: 8.2, safetyCar: 8.8 },
   "BH:Santo Antônio": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.8, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.7 },
   "BH:Cruzeiro": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 8.5, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.7 },
   "BH:Vila da Serra": { cityCode: "BH", commute: "25-35 min do Nubank", urbanBreathing: 9.2, commuteLogistics: 6.2, buildingStock: 8.8, budgetFit: 7.8, safetyCar: 8.7 },
@@ -304,11 +333,10 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "BH:Gutierrez": { cityCode: "BH", commute: "18-22 min do Nubank", urbanBreathing: 8.0, commuteLogistics: 7.8, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.5 },
   "BH:Mangabeiras": { cityCode: "BH", commute: "15-20 min do Nubank", urbanBreathing: 9.0, commuteLogistics: 8.0, buildingStock: 7.5, budgetFit: 7.5, safetyCar: 8.5 },
   "BH:São Pedro": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 8.6, buildingStock: 8.0, budgetFit: 8.0, safetyCar: 8.4 },
-  "BH:Savassi": { cityCode: "BH", commute: "10-12 min do Nubank", urbanBreathing: 7.6, commuteLogistics: 9.4, buildingStock: 8.0, budgetFit: 7.6, safetyCar: 8.4 },
   "BH:Luxemburgo": { cityCode: "BH", commute: "18-22 min do Nubank", urbanBreathing: 8.2, commuteLogistics: 7.6, buildingStock: 8.2, budgetFit: 8.2, safetyCar: 8.4 },
   "BH:Santa Lúcia": { cityCode: "BH", commute: "18-25 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 7.4, buildingStock: 8.0, budgetFit: 8.0, safetyCar: 8.4 },
   "BH:Serra": { cityCode: "BH", commute: "10-12 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 9.0, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.3 },
-  "BH:Buritis": { cityCode: "BH", commute: "25-35 min do Nubank", urbanBreathing: 7.8, commuteLogistics: 6.2, buildingStock: 8.4, budgetFit: 8.8, safetyCar: 8.3 },
+  "BH:Buritis": { cityCode: "BH", commute: "35-45 min do Nubank (saída única com gargalo no pico)", urbanBreathing: 7.8, commuteLogistics: 4.8, buildingStock: 8.4, budgetFit: 8.8, safetyCar: 8.3 },
   // Transition / Near Nubank & Central BH
   "BH:Santa Efigênia": { cityCode: "BH", commute: "5 min do Nubank (mesmo bairro)", urbanBreathing: 8.6, commuteLogistics: 9.9, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 7.8 },
   "BH:Boa Viagem": { cityCode: "BH", commute: "8-12 min do Nubank", urbanBreathing: 7.6, commuteLogistics: 9.2, buildingStock: 7.5, budgetFit: 8.4, safetyCar: 7.6 },
@@ -326,9 +354,9 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "CP:Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 9.6, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
   "CP:Parque Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 9.6, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
   "CP:Mansões Santo Antônio": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 8.0, commuteLogistics: 7.2, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.6 },
-  "CP:Jd. Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.0, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.5 },
-  "CP:Jardim Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.0, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.5 },
-  "CP:Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.0, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.5 },
+  "CP:Jd. Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
+  "CP:Jardim Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
+  "CP:Guanabara": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
   "CP:Chácara Primavera": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 8.2, commuteLogistics: 7.4, buildingStock: 8.4, budgetFit: 8.4, safetyCar: 8.5 },
   "CP:Chácara da Barra": { cityCode: "CP", commute: "25-30 min do Nubank (Viracopos)", urbanBreathing: 8.2, commuteLogistics: 7.6, buildingStock: 8.2, budgetFit: 8.2, safetyCar: 8.5 },
   "CP:Jd. Chapadão": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 7.8, commuteLogistics: 6.5, buildingStock: 6.5, budgetFit: 7.8, safetyCar: 8.5 },
@@ -337,7 +365,7 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "CP:Parque Prado": { cityCode: "CP", commute: "15 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 9.4, buildingStock: 7.5, budgetFit: 8.5, safetyCar: 8.5 },
   "CP:Vila Itapura": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.0, buildingStock: 7.8, budgetFit: 8.2, safetyCar: 8.0 },
   "CP:Jardim Proença": { cityCode: "CP", commute: "15-20 min do Nubank (Viracopos)", urbanBreathing: 7.6, commuteLogistics: 8.8, buildingStock: 7.6, budgetFit: 8.2, safetyCar: 8.0 },
-  "CP:Bosque": { cityCode: "CP", commute: "15-20 min do Nubank (Viracopos)", urbanBreathing: 7.4, commuteLogistics: 8.5, buildingStock: 7.8, budgetFit: 8.2, safetyCar: 7.9 },
+  "CP:Bosque": { cityCode: "CP", commute: "15-20 min do Nubank (Viracopos)", urbanBreathing: 7.4, commuteLogistics: 8.8, buildingStock: 8.2, budgetFit: 8.5, safetyCar: 8.5 },
   "CP:Botafogo": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 6.4, commuteLogistics: 8.0, buildingStock: 7.2, budgetFit: 8.6, safetyCar: 6.8 },
   "CP:Centro": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 5.5, commuteLogistics: 8.2, buildingStock: 6.5, budgetFit: 8.8, safetyCar: 5.5 },
 
@@ -345,11 +373,11 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "SP:Vila Nova Conceição": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 9.2, commuteLogistics: 7.8, buildingStock: 6.5, budgetFit: 4.5, safetyCar: 8.9 },
   "SP:Jardim América": { cityCode: "SP", commute: "10-20 min do Nubank (Pinheiros)", urbanBreathing: 9.0, commuteLogistics: 8.8, buildingStock: 6.8, budgetFit: 5.2, safetyCar: 8.8 },
   "SP:Jardim America": { cityCode: "SP", commute: "10-20 min do Nubank (Pinheiros)", urbanBreathing: 9.0, commuteLogistics: 8.8, buildingStock: 6.8, budgetFit: 5.2, safetyCar: 8.8 },
-  "SP:Moema": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 9.0, commuteLogistics: 8.0, buildingStock: 8.5, budgetFit: 8.2, safetyCar: 8.7 },
-  "SP:Indianópolis": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 8.8, commuteLogistics: 7.8, buildingStock: 8.4, budgetFit: 8.0, safetyCar: 8.7 },
+  "SP:Moema": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 8.8, commuteLogistics: 7.8, buildingStock: 8.2, budgetFit: 7.8, safetyCar: 8.7 },
+  "SP:Indianópolis": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 8.8, commuteLogistics: 7.8, buildingStock: 8.2, budgetFit: 7.8, safetyCar: 8.7 },
   "SP:Vila Uberabinha": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 8.5, commuteLogistics: 7.8, buildingStock: 8.2, budgetFit: 8.0, safetyCar: 8.6 },
-  "SP:Jardim Paulista": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 8.0, commuteLogistics: 8.5, buildingStock: 6.8, budgetFit: 6.8, safetyCar: 8.6 },
-  "SP:Jardins": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 8.0, commuteLogistics: 8.5, buildingStock: 6.8, budgetFit: 6.8, safetyCar: 8.6 },
+  "SP:Jardim Paulista": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 8.0, commuteLogistics: 8.5, buildingStock: 7.0, budgetFit: 6.8, safetyCar: 8.6 },
+  "SP:Jardins": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 8.0, commuteLogistics: 8.5, buildingStock: 7.0, budgetFit: 6.8, safetyCar: 8.6 },
   "SP:Paraíso": { cityCode: "SP", commute: "25-35 min do Nubank (Pinheiros)", urbanBreathing: 7.6, commuteLogistics: 7.4, buildingStock: 7.8, budgetFit: 7.0, safetyCar: 8.4 },
   "SP:Alto de Pinheiros": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 9.2, commuteLogistics: 8.5, buildingStock: 5.5, budgetFit: 5.0, safetyCar: 8.4 },
   "SP:Itaim Bibi": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 6.8, commuteLogistics: 8.4, buildingStock: 7.0, budgetFit: 4.8, safetyCar: 8.3 },
@@ -513,7 +541,7 @@ export function computeDynamicNeighborhoods(
         ? Math.min(n.commuteLogisticsScore, calibrated.commuteLogistics)
         : n.commuteLogisticsScore;
 
-    const dynamicScore = computeWeightedNeighborhoodScore(
+    const rawDynamicScore = computeWeightedNeighborhoodScore(
       {
         urbanBreathing: effectiveUrbanBreathing,
         commuteLogistics: effectiveCommuteLogistics,
@@ -524,6 +552,11 @@ export function computeDynamicNeighborhoods(
       weights,
     );
 
+    const dynamicScore =
+      n.cityCode === "SP"
+        ? Math.round(Math.max(1.0, rawDynamicScore - 1.5) * 100) / 100
+        : rawDynamicScore;
+
     const safetyPenaltyNote =
       effectiveSafetyCar < 6.5
         ? ` [Penalidade severa de segurança ao sair na rua aplicada: nota ${effectiveSafetyCar.toFixed(1)}/10]`
@@ -532,6 +565,8 @@ export function computeDynamicNeighborhoods(
           : effectiveSafetyCar >= 8.5
             ? ` [Bônus de bolha caminhável segura: +0.3]`
             : "";
+    const spDiscountNote =
+      n.cityCode === "SP" ? " [Desconto SP Capital: -1.50]" : "";
 
     const dynamicJustification =
       `Nota Dinâmica ${dynamicScore.toFixed(2)}/10 (Base original: ${n.baseScore.toFixed(1)}) — ` +
@@ -539,7 +574,7 @@ export function computeDynamicNeighborhoods(
       `Logística Nubank ${effectiveCommuteLogistics.toFixed(1)} (peso ${weights.commuteLogisticsWeight.toFixed(1)}x), ` +
       `Estoque Predial ${n.buildingStockFitScore.toFixed(1)} (peso ${weights.buildingStockWeight.toFixed(1)}x), ` +
       `Adequação Orçamento ${n.budgetFitScore.toFixed(1)} (peso ${weights.budgetFitWeight.toFixed(1)}x), ` +
-      `Segurança & Carro ${effectiveSafetyCar.toFixed(1)} (peso ${weights.safetyCarWeight.toFixed(1)}x).${safetyPenaltyNote} ` +
+      `Segurança & Carro ${effectiveSafetyCar.toFixed(1)} (peso ${weights.safetyCarWeight.toFixed(1)}x).${safetyPenaltyNote}${spDiscountNote} ` +
       n.detailedJustification;
 
     return {
@@ -622,8 +657,20 @@ export function normalizeNeighborhoodKey(
   if (trimmed === "Jardim America") return "Jardim América";
   if (trimmed === "Vila Olimpia") return "Vila Olímpia";
   if (trimmed === "Grajau") return "Grajaú";
+  if (trimmed === "Humaita") return "Humaitá";
   return trimmed;
 }
+
+const SINGLE_EXIT_BOTTLENECK_NEIGHBORHOODS = new Set<string>([
+  "bh:buritis",
+  "rj:icaraí",
+  "rj:icarai",
+  "rj:santa rosa",
+  "rj:ingá",
+  "rj:inga",
+  "rj:são domingos",
+  "rj:sao domingos",
+]);
 
 const SLOPED_HILLSIDE_NEIGHBORHOODS = new Set<string>([
   "bh:sion",
@@ -672,7 +719,7 @@ const ORDINAL_FLOOR_MAP: Record<string, number> = {
 };
 
 const CONDO_OR_GARAGE_FLOOR_CONTEXT =
-  /\b(garagem|vagas?|estacionamento|box|lazer|piscina|academia|fitness|gin[aá]stica|quadra|sal[aã]o|festas|jogos|churrasqueira|gourmet|sky\s*lounge|sky\s*gourmet|lounge|rooftop|cobertura|terra[cç]o|coworking|office|trabalho|lavanderia|portaria|hall|recep[cç][aã]o|pilotis|lojas?|com[eé]rcio|padaria|mercearia|mercado|restaurante|cafeteria|galeteria|[aá]reas?\s+comuns?|brinquedoteca|brinquedos|playground|biciclet[aá]rio|lances?\s+de\s+escada|de\s+escada|elevadores?\s+por|unidades?\s+por|apartamentos?\s+por|aptos?\s+por|por\s+andar|por\s+pavimento|dropbox|chaves)\b/i;
+  /(?<![a-zA-ZÀ-ÿ0-9_])(garagem|vagas?|estacionamento|box|lazer|piscina|academia|fitness|gin[aá]stica|quadra|sal[aã]o|festas|jogos|churrasqueira|gourmet|sky\s*lounge|sky\s*gourmet|lounge|rooftop|cobertura|terra[cç]o|coworking|office|trabalho|lavanderia|portaria|hall|recep[cç][aã]o|pilotis|lojas?|com[eé]rcio|padaria|mercearia|mercado|restaurante|cafeteria|galeteria|[aá]reas?\s+comuns?|brinquedoteca|brinquedos|playground|biciclet[aá]rio|lances?\s+de\s+escada|de\s+escada|elevadores?\s+por|unidades?\s+por|apartamentos?\s+por|aptos?\s+por|por\s+andar|por\s+pavimento|dropbox|chaves)(?![a-zA-ZÀ-ÿ0-9_])/i;
 
 /**
  * Determines whether free-text description explicitly states the apartment unit itself
@@ -742,7 +789,7 @@ export function extractExplicitFloorFromText(rawText: string): number | null {
 
   // 1. Prioritize explicit physical height equivalences ("no 1º andar (equivalente ao 4º andar)")
   const equivMatch = rawText.match(
-    /\b(?:equivalente|corresponde)\s+a(?:o)?\s+(\d{1,2})\s*(?:[º°ªo]?\s*(?:andar|pavimento))?\b/i,
+    /\b(?:equivalente|corresponde)\s+a(?:o)?\s+(\d{1,2})\b/i,
   );
   if (equivMatch?.[1]) {
     const n = Number(equivMatch[1]);
@@ -762,7 +809,7 @@ export function extractExplicitFloorFromText(rawText: string): number | null {
 
   // 3. Explicit numeric floor mentions ("12º andar", "8° andar", "5º pavimento", "no 11 andar")
   const numRegex =
-    /\b(\d{1,2})\s*([º°ªo])?\s*(andar|pavimento)\b(?!\s*(?:alto|baixo|m[eé]dio|intermedi[aá]rio))/gi;
+    /\b(\d{1,2})[ \t]{0,3}([º°ªo])?[ \t]{0,3}(andar|pavimento)\b(?![ \t]{0,3}(?:alto|baixo|m[eé]dio|intermedi[aá]rio))/gi;
   for (const m of rawText.matchAll(numRegex)) {
     const n = Number(m[1]);
     if (!Number.isFinite(n) || n < 1 || n > 45) continue;
@@ -851,20 +898,24 @@ function detectUnitPenthouseOrDuplex(
 ): { isPenthouse: boolean; isDuplex: boolean } {
   const cleanedForCobertura = rawText
     .replace(
-      /\b(?:piscina|lazer|sal[aã]o(?: de festas)?|churrasqueira|sauna|academia|fitness|espa[cç]o gourmet|rooftop|terra[cç]o|jardim|solarium|lavanderia|coworking|vista)[^.;,\n]{0,45}\bna cobertura\b/gi,
+      /(?<![a-zA-ZÀ-ÿ0-9_])(?:piscina|lazer|[aá]rea\s+de\s+lazer|sal[aã]o(?: de festas)?|churrasqueira|sauna|academia|fitness|espa[cç]o gourmet|rooftop|terra[cç]o|jardim|solarium|lavanderia|coworking|vista)[^.;,\n]{0,45}\bna cobertura\b/gi,
       " ",
     )
     .replace(
-      /\bna cobertura\s*(?::|-|,)?\s*(?:piscina|lazer|sal[aã]o|churrasqueira|sauna|academia|fitness|espa[cç]o gourmet|rooftop|solarium)/gi,
+      /\bna cobertura[ \t]{0,3}[:,\-]?[ \t]{0,3}(?:piscina|lazer|[aá]rea\s+de\s+lazer|sal[aã]o|churrasqueira|sauna|academia|fitness|espa[cç]o gourmet|rooftop|solarium)/gi,
       " ",
     )
     .replace(/\bna cobertura do (?:edif[ií]cio|pr[eé]dio|condom[ií]nio)\b/gi, " ")
     .replace(
-      /\bcobertura (?:coletiva|do pr[eé]dio|do edif[ií]cio|do condom[ií]nio|das [aá]reas|sky view|de vidro|retr[aá]til|met[aá]lica|inclusive)\b/gi,
+      /\b(?:condom[ií]nio|pr[eé]dio|edif[ií]cio)\s+(?:conta\s+com|possui|tem|disp[oõ]e\s+de)\s+cobertura\b/gi,
       " ",
     )
     .replace(
-      /\b(?:sacada|varanda|vaga|garagem|seguro|[aá]rea)[^.;,\n]{0,35}\bcobertura\b/gi,
+      /\bcobertura\s+(?:coletiva|do\s+pr[eé]dio|do\s+edif[ií]cio|do\s+condom[ií]nio|das\s+[aá]reas|sky\s+view|de\s+vidro|retr[aá]til|met[aá]lica|inclusive|de\s+celular|de\s+sinal|de\s+internet|do\s+seguro|de\s+garantia|de\s+policarbonato|de\s+lona|de\s+telha)\b/gi,
+      " ",
+    )
+    .replace(
+      /(?<![a-zA-ZÀ-ÿ0-9_])(?:sacada|varanda|vaga|garagem|seguro|[aá]rea|sinal|celular|internet)[^.;,\n]{0,35}\bcobertura\b/gi,
       " ",
     );
 
@@ -877,7 +928,7 @@ function detectUnitPenthouseOrDuplex(
     amenities.has("apartamento cobertura") ||
     /\bcobertura\b/i.test(cleanedForCobertura);
   const isDuplex =
-    /\b(duplex|triplex|loft duplex|p[eé][- ]direito duplo)\b/i.test(
+    /(?<![a-zA-ZÀ-ÿ0-9_])(duplex|triplex|loft duplex|p[eé][- ]direito duplo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       cleanedForDuplex,
     );
 
@@ -898,11 +949,13 @@ function detectUnitTopFloor(
     return false;
   }
   const cleanedTopFloor = rawText.replace(
-    /\b(?:sal[aã]o|sal[oõ]es|festas?|lazer|piscina|academia|rooftop|terra[cç]o|churrasqueira|gourmet)[^.;,\n]{0,35}\b(?:[uú]ltimo andar|andar topo)\b/gi,
+    /\b(?:sal[aã]o|sal[oõ]es|festas?|lazer|piscina|academia|rooftop|terra[cç]o|churrasqueira|gourmet)[^.;,\n]{0,35}(?<![a-zA-ZÀ-ÿ0-9_])(?:[uú]ltimo andar|andar topo)(?![a-zA-ZÀ-ÿ0-9_])/gi,
     " ",
   );
   return (
-    /\b([uú]ltimo andar|andar topo)\b/i.test(cleanedTopFloor) ||
+    /(?<![a-zA-ZÀ-ÿ0-9_])([uú]ltimo andar|andar topo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      cleanedTopFloor,
+    ) ||
     (effectiveFloor !== null &&
       totalFloors !== null &&
       totalFloors >= 3 &&
@@ -949,6 +1002,7 @@ export function evaluateStreetMicroEnvironment(
       .replace(/[\u0300-\u036f]/g, "");
 
   const street = normText(prop.street ?? "").trim();
+  const streetNorm = street;
   const nb = normText(prop.neighborhood ?? "").trim();
   const numStr = (prop.streetNumber ?? "").replace(/\D/g, "");
   const streetNum = numStr ? Number(numStr) : null;
@@ -982,17 +1036,21 @@ export function evaluateStreetMicroEnvironment(
   if (prop.cityCode === "CP") {
     const isCpExpressOrBorderStreet =
       /\b(aquidaba|viaduto\s+cury|rua\s+uruguaiana|duque\s+de\s+caxias|francisco\s+glicerio|senador\s+saraiva|av(?:enida|\.)?\s+anchieta)\b/i.test(
-        combinedMicroText,
+        streetNorm,
       ) ||
-      (/\bmoraes\s+salles\b/i.test(street) &&
+      (/\bmoraes\s+salles\b/i.test(streetNorm) &&
         (/\b(centro|bosque)\b/i.test(nb) ||
           (streetNum !== null && streetNum < 1500) ||
           /\b(viaduto|centro|aquidaba|terminal)\b/i.test(combinedMicroText))) ||
       (/\b(bosque|centro)\b/i.test(nb) &&
         /\b(rua\s+jose\s+paulino|rua\s+boaventura\s+do\s+amaral|rua\s+luzitana|rua\s+doutor\s+quirino|rua\s+barao\s+de\s+jaguara)\b/i.test(
-          street,
+          streetNorm,
         ));
     const hasJaraguaOrAquidabaSpoof =
+      /\b(bosque|centro)\b/i.test(nb) &&
+      /\bmoraes\s+salles|aquidaba|jose\s+paulino|boaventura\s+do\s+amaral|luzitana|doutor\s+quirino|barao\s+de\s+jaguara\b/i.test(
+        streetNorm,
+      ) &&
       /\b(shopping\s+jaragua|aquidaba)\b/i.test(combinedMicroText);
 
     if (isCpExpressOrBorderStreet || hasJaraguaOrAquidabaSpoof) {
@@ -1001,27 +1059,32 @@ export function evaluateStreetMicroEnvironment(
   } else if (prop.cityCode === "BH") {
     const isNobleBhTag =
       /\b(lourdes|funcionarios|santo\s+agostinho|savassi)\b/i.test(nb);
+    const isBhBorderCandidateStreet =
+      /\b(rua\s+sao\s+paulo|rua\s+rio\s+de\s+janeiro|rua\s+espirito\s+santo|rua\s+da\s+bahia|rua\s+santa\s+catarina|rua\s+curitiba|rua\s+dos\s+guajajaras|rua\s+dos\s+goitacazes|rua\s+dos\s+tupis|rua\s+dos\s+tamoios|rua\s+dos\s+carijos|rua\s+dos\s+tupinambas|rua\s+dos\s+caetes|av(?:enida|\.)?\s+augusto\s+de\s+lima|av(?:enida|\.)?\s+amazonas|av(?:enida|\.)?\s+afonso\s+pena|av(?:enida|\.)?\s+olegario\s+maciel)\b/i.test(
+        streetNorm,
+      );
     const hasExplicitCentroLandmark =
-      /\b(shopping\s+cidade|mercado\s+central|praca\s+raul\s+soares|sesc\s+palladium|praca\s+sete|shopping\s+popular\s+oiapoque|shopping\s+oiapoque|minas\s+centro|rodoviaria)\b/i.test(
-        combinedMicroText,
-      ) ||
+      (isBhBorderCandidateStreet &&
+        /\b(shopping\s+cidade|mercado\s+central|praca\s+raul\s+soares|sesc\s+palladium|praca\s+sete|shopping\s+popular\s+oiapoque|shopping\s+oiapoque|minas\s+centro|rodoviaria)\b/i.test(
+          combinedMicroText,
+        )) ||
       /\b(otima\s+localizacao\s+no\s+centro|localizado\s+no\s+centro)\b/i.test(
         coreText,
       );
     const isAmazonas =
-      /\bav(?:enida|\.)?\s+amazonas\b/i.test(street) ||
+      /\bav(?:enida|\.)?\s+amazonas\b/i.test(streetNorm) ||
       /\b(esquina\s+com\s+av(?:enida|\.)?\s+amazonas|na\s+av(?:enida|\.)?\s+amazonas)\b/i.test(
         coreText,
       );
     const isAfonsoPenaCentro =
-      /\bav(?:enida|\.)?\s+afonso\s+pena\b/i.test(street) &&
+      /\bav(?:enida|\.)?\s+afonso\s+pena\b/i.test(streetNorm) &&
       (/\b(centro|lourdes)\b/i.test(nb) ||
         (streetNum !== null && streetNum < 1600) ||
         /\b(centro|shopping\s+cidade|mercado\s+central|sesc\s+palladium|parque\s+municipal|praca\s+sete|rodoviaria)\b/i.test(
           combinedMicroText,
         ));
     const isOlegarioCentro =
-      /\bav(?:enida|\.)?\s+olegario\s+maciel\b/i.test(street) &&
+      /\bav(?:enida|\.)?\s+olegario\s+maciel\b/i.test(streetNorm) &&
       (/\bcentro\b/i.test(nb) ||
         (streetNum !== null && streetNum < 1400) ||
         /\b(centro|shopping\s+cidade|mercado\s+central|raul\s+soares|amazonas|rodoviaria)\b/i.test(
@@ -1030,11 +1093,11 @@ export function evaluateStreetMicroEnvironment(
     const isBhDowntownBorderStreetNumber =
       isNobleBhTag &&
       /\b(rua\s+sao\s+paulo|rua\s+rio\s+de\s+janeiro|rua\s+espirito\s+santo|rua\s+da\s+bahia|rua\s+santa\s+catarina|rua\s+curitiba|rua\s+dos\s+guajajaras|rua\s+dos\s+goitacazes|rua\s+dos\s+tupis|rua\s+dos\s+tamoios|rua\s+dos\s+carijos|rua\s+dos\s+tupinambas|rua\s+dos\s+caetes|av(?:enida|\.)?\s+augusto\s+de\s+lima)\b/i.test(
-        street,
+        streetNorm,
       ) &&
       ((streetNum !== null && streetNum > 0 && streetNum <= 1350) ||
         /\b(rua\s+dos\s+guajajaras|rua\s+dos\s+goitacazes|rua\s+dos\s+tupis|rua\s+dos\s+tamoios|rua\s+dos\s+carijos|rua\s+dos\s+tupinambas|rua\s+dos\s+caetes|av(?:enida|\.)?\s+augusto\s+de\s+lima)\b/i.test(
-          street,
+          streetNorm,
         ));
 
     if (
@@ -1049,9 +1112,9 @@ export function evaluateStreetMicroEnvironment(
   } else if (prop.cityCode === "RJ") {
     const isRjExpressCorridor =
       /\b(presidente\s+vargas|binario\s+do\s+porto|av(?:enida|\.)?\s+brasil|conde\s+de\s+bonfim|rua\s+pinheiro\s+machado)\b/i.test(
-        combinedMicroText,
+        streetNorm,
       ) ||
-      (/\bbarata\s+ribeiro\b/i.test(street) &&
+      (/\bbarata\s+ribeiro\b/i.test(streetNorm) &&
         (/\b(tunel|inhanga)\b/i.test(combinedMicroText) ||
           (streetNum !== null && streetNum <= 220)));
     if (isRjExpressCorridor) {
@@ -1060,7 +1123,7 @@ export function evaluateStreetMicroEnvironment(
   } else if (prop.cityCode === "SP") {
     const isSpExpressCorridor =
       /\b(23\s+de\s+maio|vinte\s+e\s+tres\s+de\s+maio|rubem\s+berta|moreira\s+guimaraes|av(?:enida|\.)?\s+dos\s+bandeirantes|av(?:enida|\.)?\s+santo\s+amaro|av(?:enida|\.)?\s+reboucas|nove\s+de\s+julho|9\s+de\s+julho|brigadeiro\s+lui[sz]\s+antonio|minhocao|elevado\s+presidente\s+joao\s+goulart|elevado\s+costa\s+e\s+silva|rua\s+amaral\s+gurgel)\b/i.test(
-        combinedMicroText,
+        streetNorm,
       );
     if (isSpExpressCorridor) {
       isCategoryA = true;
@@ -1156,7 +1219,7 @@ export function evaluateStreetMicroEnvironment(
     }
   } else if (prop.cityCode === "RJ") {
     const isRjPrimeStreet =
-      /\b(praia\s+do\s+flamengo|rua\s+cruz\s+lima|rua\s+tucuma|rua\s+oswaldo\s+cruz|barao\s+de\s+icarai|epitacio\s+pessoa|borges\s+de\s+medeiros|joao\s+luiz\s+alves|candido\s+gaffree|praia\s+da\s+urca|rua\s+jardim\s+botanico|rua\s+lopes\s+quintas|rua\s+maria\s+angelica|rua\s+faro|rua\s+pio\s+correia|delfim\s+moreira|vieira\s+souto|prudente\s+de\s+morais|nascimento\s+silva|rua\s+redentor|barao\s+da\s+torre|dias\s+ferreira|general\s+urquiza|venancio\s+flores|anibal\s+de\s+mendonca|garcia\s+d['’]?avila|maria\s+quiteria|joana\s+angelica|visconde\s+de\s+piraja)\b/i.test(
+      /\b(praia\s+do\s+flamengo|rua\s+cruz\s+lima|rua\s+tucuma|(?:rua|av(?:enida|\.)?)\s+oswaldo\s+cruz|rua\s+paulo\s+barreto|barao\s+de\s+icarai|epitacio\s+pessoa|borges\s+de\s+medeiros|joao\s+luiz\s+alves|candido\s+gaffree|praia\s+da\s+urca|rua\s+jardim\s+botanico|rua\s+lopes\s+quintas|rua\s+maria\s+angelica|rua\s+faro|rua\s+pio\s+correia|delfim\s+moreira|vieira\s+souto|prudente\s+de\s+morais|nascimento\s+silva|rua\s+redentor|barao\s+da\s+torre|dias\s+ferreira|general\s+urquiza|venancio\s+flores|anibal\s+de\s+mendonca|garcia\s+d['’]?avila|maria\s+quiteria|joana\s+angelica|visconde\s+de\s+piraja|francisco\s+otaviano)\b/i.test(
         street,
       ) ||
       (/\b(flamengo|lagoa|urca|jardim\s+botanico|leblon|ipanema)\b/i.test(
@@ -1332,9 +1395,11 @@ export function evaluateApartmentNuances(
     .replace(
       /\bacesso\s+por\s+escada\s+(?:em\s+madeira|interna|caracol|privativa)\b/gi,
       " ",
-    );
+    )
+    .replace(/\bsem\s+elevador\s+de\s+servi[cç]o\b/gi, " ");
   const hasExplicitNoElevatorText =
-    /\b(sem elevador|n[aã]o\s+(?:possui|tem|disp[oõ]e\s+de|conta\s+com)\s+(?:portaria\s+(?:ou|e|nem)\s+)?elevador|pr[eé]dio\s+(?:sem\s+elevador|escada)|\d+\s*(?:lances?|andares?)\s+de\s+escada|acesso\s+(?:somente\s+)?por\s+escadas?)\b/i.test(
+    !/sem\s+elevador\s+de\s+servi[cç]o/i.test(elevatorSources) &&
+    /(?<![a-zA-ZÀ-ÿ0-9_])(sem elevador|n[aã]o\s+(?:possui|tem|disp[oõ]e\s+de|conta\s+com)\s+(?:portaria\s+(?:ou|e|nem)\s+)?elevador|pr[eé]dio\s+(?:sem\s+elevador|escada)|\d+\s*(?:lances?|andares?)\s+de\s+escada|acesso\s+(?:somente\s+)?por\s+escadas?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       cleanedElevatorSources,
     );
   const hasElevatorMention = /elevador|elevator/i.test(elevatorSources);
@@ -1349,45 +1414,78 @@ export function evaluateApartmentNuances(
   const hasNoElevator =
     hasExplicitNoElevatorText || hasLowBuildingNoElevatorEvidence;
   const cleanedTrappedSources = elevatorSources.replace(
-    /\b(?:n[aã]o\s+[eé]\s+(?:vaga\s+)?presa|sem\s+vagas?\s+presas?|vaga\s+livre\s*\(\s*n[aã]o\s+[eé]\s+(?:vaga\s+)?presa\s*\)|\d+\s*vagas?\s+livres?\s+e\s+\d+\s*(?:vagas?\s+)?presas?|\d+\s*(?:vagas?\s+)?presas?\s+e\s+\d+\s*vagas?\s+livres?)\b/gi,
+    /\b(?:n[aã]o\s+(?:[eé]|s[aã]o)\s+(?:vagas?\s+)?(?:presas?|gavetas?|rotativas?)|sem\s+vagas?\s+(?:presas?|gavetas?|rotativas?)|sem\s+manobrista|vagas?\s+livres?\s*\(\s*n[aã]o\s+(?:[eé]|s[aã]o)\s+(?:vagas?\s+)?(?:presas?|gavetas?|rotativas?)\s*\)|\d+\s*vagas?\s+livres?\s+e\s+\d+\s*(?:vagas?\s+)?(?:presas?|gavetas?)|\d+\s*(?:vagas?\s+)?(?:presas?|gavetas?)\s+e\s+\d+\s*vagas?\s+livres?)\b/gi,
     " ",
   );
   const hasTrappedParking =
-    /\b(vagas?\s+(?:de\s+garagem\s+)?(?:(?:cobertas?|descobertas?|demarcadas?|fixas?)\s+(?:e\s+)?)?presas?|vaga\s+de\s+garagem\s*\(\s*presa\s*\)|garagem\s+presa|vaga\s+bloqueada)\b/i.test(
+    /\b(?:vagas?\s+(?:de\s+garagem\s+)?(?:(?:cobertas?|descobertas?|demarcadas?|fixas?)\s+(?:e\s+)?)?presas?|vaga\s+de\s+garagem\s*\(\s*presa\s*\)|garagem\s+presa|vagas?\s+bloqueadas?|vagas?\s+(?:de\s+garagem\s+)?(?:tipo\s+|em\s+)?gavetas?|garagem\s+(?:tipo\s+|em\s+)?gavetas?|vagas?\s+(?:de\s+garagem\s+)?(?:rotativas?|coletivas?|sujeitas?\s+a\s+sorteio)|garagem\s+(?:rotativa|coletiva)|sorteio\s+de\s+vagas?|vagas?\s+(?:de\s+garagem\s+)?com\s+(?:servi[cç]o\s+de\s+)?(?:manobrista|valet)|garagem\s+com\s+(?:servi[cç]o\s+de\s+)?(?:manobrista|valet)|deixar\s+(?:a\s+)?chave\s+na\s+portaria)\b/i.test(
       cleanedTrappedSources,
     );
 
-  // Ar-condicionado detection for card tag
+  const propKey = `${prop.provider}:${prop.id}`;
+  const photoAudit: PhotoAuditOverride | undefined = PHOTO_AUDIT_OVERRIDES[propKey];
+
+  // Ar-condicionado detection for card tag & calibration (+12 pts with AC, -10 pts without AC)
+  const hasOnlyWindowAcText =
+    /\b(ar[- ]?condicionado\s+de\s+(?:janela|parede)|ar\s+de\s+janela|(?:buraco|caixa)\s+para\s+ar)\b/i.test(
+      fullDesc,
+    ) && !/\b(split|inverter)\b/i.test(fullDesc);
+
   let acLabel: string | null = null;
-  if (/\bsplit\b/i.test(fullDesc) || prop.positiveSignals.some((s) => s.toLowerCase().includes("split"))) {
+  if (photoAudit?.falseAC) {
+    acLabel = null;
+    const acWarn =
+      (photoAudit.visualWarnings ?? []).find((w) =>
+        /auditoria visual:.*ar-condicionado/i.test(w),
+      ) ??
+      "Auditoria visual: anúncio marca ar-condicionado mas não há Split instalado nas fotos";
+    if (!warnings.includes(acWarn)) {
+      warnings.push(acWarn);
+    }
+  } else if (
+    /\bsplit\b/i.test(fullDesc) ||
+    prop.positiveSignals.some((s) => s.toLowerCase().includes("split"))
+  ) {
     acLabel = "Ar-condicionado Split";
   } else if (
-    comfort.has("ar condicionado") ||
-    amenities.has("ar condicionado") ||
-    amenities.has("ar-condicionado") ||
-    amenities.has("air_conditioning") ||
-    /\bar[- ]?condicionado\b/i.test(fullDesc) ||
-    prop.positiveSignals.some((s) => s.toLowerCase().includes("ar-condicionado"))
+    !hasOnlyWindowAcText &&
+    (comfort.has("ar condicionado") ||
+      amenities.has("ar condicionado") ||
+      amenities.has("ar-condicionado") ||
+      amenities.has("air_conditioning") ||
+      /\bar[- ]?condicionado\b/i.test(fullDesc) ||
+      prop.positiveSignals.some((s) => s.toLowerCase().includes("ar-condicionado")))
   ) {
     acLabel = "Ar-condicionado";
   }
-  if (acLabel) {
+  if (acLabel !== null) {
+    pts += 12.0;
     greenTags.push(acLabel);
+    highlights.push(acLabel);
+  } else {
+    pts -= 10.0;
   }
 
   // 1. Luz, Silêncio e Ventilação (comfort_commodities + texto)
   const hasFreeView =
     comfort.has("vista livre") ||
-    /\bvista (livre|definitiva|panor[aâ]mica|inexplic[aá]vel)\b/i.test(fullDesc);
+    amenities.has("sea_view") ||
+    amenities.has("mountain_view") ||
+    amenities.has("lake_view") ||
+    amenities.has("panoramic_view") ||
+    amenities.has("exterior_view") ||
+    /(?<![a-zA-ZÀ-ÿ0-9_])(vista (?:livre|definitiva|panor[aâ]mica|inexplic[aá]vel|incr[ií]vel|permanente|desimpedida|aberta|para\s+(?:o\s+|a\s+)?(?:mar|lagoa|p[aã]o\s+de\s+a[cç][uú]car|cristo|serra|montanha|parque|ba[ií]a|aterro))|bela\s+vista|indevassad[oa]|indevass[aá]vel)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      fullDesc,
+    );
   const hasMorningSun =
-    comfort.has("sol da manhã") || /\bsol da manh[aã]\b/i.test(fullDesc);
+    comfort.has("sol da manhã") || /(?<![a-zA-ZÀ-ÿ0-9_])sol da manh[aã](?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc);
 
   if (hasFreeView) {
-    pts += 3.5;
+    pts += 8.0;
     highlights.push("Vista livre/definitiva");
   }
   if (hasMorningSun) {
-    pts += 3.0;
+    pts += 4.5;
     highlights.push("Sol da manhã");
   }
   if (comfort.has("rua silenciosa") || /\brua (tranquila|silenciosa|calma)\b/i.test(fullDesc)) {
@@ -1398,7 +1496,7 @@ export function evaluateApartmentNuances(
     pts += 2.0;
     highlights.push("Janelas amplas");
   }
-  if (comfort.has("janela anti-ruído") || /\b(antirru[ií]do|anti-ru[ií]do|ac[uú]stic[oa])\b/i.test(fullDesc)) {
+  if (comfort.has("janela anti-ruído") || /(?<![a-zA-ZÀ-ÿ0-9_])(antirru[ií]do|anti-ru[ií]do|ac[uú]stic[oa])(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc)) {
     pts += 3.0;
     highlights.push("Janela antirruído");
   }
@@ -1445,12 +1543,13 @@ export function evaluateApartmentNuances(
       prop.provider === "zap") &&
     textFloor === null &&
     !explicitGroundText &&
-    !/\b(1[º°ªo]?\s*(?:andar|pavimento)|primeiro\s+(?:andar|pavimento)|andar\s+baixo|[aá]rea\s+privativa(?!\s*(?:de\s*)?\d)|garden|quintal)\b/i.test(
+    !/(?<![a-zA-ZÀ-ÿ0-9_])(1[º°ªo]?\s*(?:andar|pavimento)|primeiro\s+(?:andar|pavimento)|andar\s+baixo|[aá]rea\s+privativa(?!\s*(?:de\s*)?\d)|garden|quintal)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       sentenceJoinedDesc,
     ) &&
     ((effectiveTotalFloors !== null && effectiveTotalFloors >= 8) ||
       hasFreeView ||
-      /\bandar\s+(alto|m[eé]dio|intermedi[aá]rio)\b/i.test(sentenceJoinedDesc));
+      hasMorningSun ||
+      /(?<![a-zA-ZÀ-ÿ0-9_])andar\s+(alto|m[eé]dio|intermedi[aá]rio)(?![a-zA-ZÀ-ÿ0-9_])/i.test(sentenceJoinedDesc));
 
   let effectiveFloor =
     isOlxZeroFloorPlaceholder || isZapFirstFloorPlaceholder
@@ -1509,17 +1608,17 @@ export function evaluateApartmentNuances(
   const isPenthouseOrDuplex = isPenthouse || isDuplex;
 
   if (isPenthouseOrDuplex && isTopFloor) {
-    pts += 11.0;
+    pts += 18.0;
     highFloorLabel = "Cobertura / Duplex (Último andar)";
     floorTag = { label: highFloorLabel, rarity: "legendary" };
     highlights.push(highFloorLabel);
   } else if (isPenthouseOrDuplex) {
-    pts += 9.0;
+    pts += 15.0;
     highFloorLabel = isPenthouse ? "Cobertura" : "Duplex / Pé-direito duplo";
     floorTag = { label: highFloorLabel, rarity: "legendary" };
     highlights.push(highFloorLabel);
   } else if (isTopFloor) {
-    pts += 9.0;
+    pts += 15.0;
     highFloorLabel = minFloor
       ? `Último andar (${minFloor}º andar)`
       : "Último andar";
@@ -1529,7 +1628,7 @@ export function evaluateApartmentNuances(
 
   if (minFloor !== null) {
     if (minFloor >= 8) {
-      pts += 6.0;
+      pts += 11.0;
       const floorText = effectiveFloor
         ? `Andar alto (${effectiveFloor}º andar)`
         : `Andar alto (${minFloor}º–${maxFloor}º andar)`;
@@ -1541,12 +1640,12 @@ export function evaluateApartmentNuances(
       comfort.has("andar alto") ||
       /\bandar alto\b/i.test(fullDesc)
     ) {
-      pts += 5.0;
+      pts += 9.0;
       if (!highFloorLabel) highFloorLabel = "Andar alto";
       if (!floorTag) floorTag = { label: "Andar alto", rarity: "epic" };
       highlights.push("Andar alto");
     } else if (minFloor >= 4) {
-      pts += 2.5;
+      pts += 3.5;
       const midFloorText =
         effectiveFloor !== null
           ? `Andar médio (${effectiveFloor}º andar)`
@@ -1559,9 +1658,9 @@ export function evaluateApartmentNuances(
       !floorTag &&
       (amenities.has("andar médio") ||
         amenities.has("andar intermediário") ||
-        /\bandar (m[eé]dio|intermedi[aá]rio)\b/i.test(fullDesc))
+        /(?<![a-zA-ZÀ-ÿ0-9_])andar (m[eé]dio|intermedi[aá]rio)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc))
     ) {
-      pts += 2.5;
+      pts += 3.5;
       floorTag = { label: "Andar médio", rarity: "rare" };
       highlights.push("Andar médio");
     }
@@ -1571,7 +1670,7 @@ export function evaluateApartmentNuances(
       comfort.has("andar alto") ||
       /\bandar alto\b/i.test(fullDesc))
   ) {
-    pts += 5.0;
+    pts += 9.0;
     highFloorLabel = "Andar alto";
     if (!floorTag) floorTag = { label: "Andar alto", rarity: "epic" };
     highlights.push("Andar alto");
@@ -1579,9 +1678,9 @@ export function evaluateApartmentNuances(
     !floorTag &&
     (amenities.has("andar médio") ||
       amenities.has("andar intermediário") ||
-      /\bandar (m[eé]dio|intermedi[aá]rio)\b/i.test(fullDesc))
+      /(?<![a-zA-ZÀ-ÿ0-9_])andar (m[eé]dio|intermedi[aá]rio)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc))
   ) {
-    pts += 2.5;
+    pts += 3.5;
     floorTag = { label: "Andar médio", rarity: "rare" };
     highlights.push("Andar médio");
   }
@@ -1624,28 +1723,28 @@ export function evaluateApartmentNuances(
     } else if (floorTag?.rarity === "uncommon") {
       const isFirstFloor =
         effectiveFloor === 1 ||
-        minFloor === 1 ||
-        /\b1[º°]\s*andar\b/i.test(lowFloorLabel ?? "");
+        (minFloor !== null && minFloor <= 1) ||
+        /\b1[º°](?:\s*[–-]\s*\d+[º°])?\s*andar\b/i.test(lowFloorLabel ?? "");
       const hasPrivatePatio =
         amenities.has("área privativa") ||
         amenities.has("area privativa") ||
         amenities.has("garden") ||
         amenities.has("quintal") ||
-        /\b([aá]rea privativa(?!\s*(?:de\s*)?\d)|apartamento garden|apto garden|tipo garden|quintal privativo|terra[cç]o privativo)\b/i.test(
+        /(?<![a-zA-ZÀ-ÿ0-9_])([aá]rea privativa(?!\s*(?:de\s*)?\d)|apartamento garden|apto garden|tipo garden|quintal privativo|terra[cç]o privativo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
           fullDesc,
         );
       const isSlopedNeighborhood = SLOPED_HILLSIDE_NEIGHBORHOODS.has(
         `${prop.cityCode.toLowerCase()}:${prop.neighborhood.trim().toLowerCase()}`,
       );
 
-      let lowFloorPenalty = isFirstFloor ? 18.0 : 14.0;
+      let lowFloorPenalty = isFirstFloor ? 22.0 : 18.0;
       if (hasFreeView && isSlopedNeighborhood) {
-        lowFloorPenalty = 2.0;
+        lowFloorPenalty = isFirstFloor ? 9.0 : 5.0;
         warnings.push(
           `${lowFloorLabel ?? "Andar baixo"} compensado por topografia em desnível e vista livre (-${lowFloorPenalty} pts base)`,
         );
       } else if (hasFreeView || hasPrivatePatio) {
-        lowFloorPenalty = 6.0;
+        lowFloorPenalty = 16.0;
         warnings.push(
           `${lowFloorLabel ?? "Andar baixo"} atenuado por ${hasFreeView ? "vista livre" : "área privativa/garden"} (-${lowFloorPenalty} pts base)`,
         );
@@ -1702,20 +1801,36 @@ export function evaluateApartmentNuances(
     amenities.has("service_area") ||
     practicality.has("tanque") ||
     captions.includes("área de serviço") ||
-    /\b[aá]rea de servi[cç]o\b/i.test(fullDesc);
+    /(?<![a-zA-ZÀ-ÿ0-9_])[aá]rea de servi[cç]o(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc);
   if (hasServiceArea) {
     pts += 2.0;
     highlights.push("Área de serviço p/ máquinas");
   }
 
-  const hasBalcony =
-    amenities.has("varanda") ||
+  const rawHasGourmetBalcony =
     amenities.has("varanda gourmet") ||
-    amenities.has("balcony") ||
-    captions.includes("varanda") ||
-    /\b(varanda|sacada)\b/i.test(fullDesc);
-  if (hasBalcony) {
-    pts += 2.0;
+    amenities.has("gourmet_balcony") ||
+    /\b(varanda\s+gourmet|sacada\s+gourmet|churrasqueira\s+na\s+varanda)\b/i.test(
+      fullDesc,
+    );
+  const hasGourmetBalcony = !photoAudit?.falseGourmet && rawHasGourmetBalcony;
+  const hasNoBalconyInAudit =
+    photoAudit?.falseGourmet === true &&
+    (photoAudit.visualWarnings ?? []).some((w) =>
+      /n[aã]o possui varanda|sem varanda gourmet\s*\(\s*n[aã]o possui varanda/i.test(w),
+    );
+  const hasBalcony =
+    !hasNoBalconyInAudit &&
+    (hasGourmetBalcony ||
+      amenities.has("varanda") ||
+      amenities.has("balcony") ||
+      captions.includes("varanda") ||
+      /\b(varanda|sacada)\b/i.test(fullDesc));
+  if (hasGourmetBalcony) {
+    pts += 6.5;
+    highlights.push("Varanda gourmet");
+  } else if (hasBalcony) {
+    pts += 5.0;
     highlights.push("Varanda");
   }
 
@@ -1726,7 +1841,7 @@ export function evaluateApartmentNuances(
     amenities.has("concierge_24h") ||
     /\b(portaria 24|porteiro 24|portaria virtual|biometria)\b/i.test(fullDesc);
   if (has24hDoorman) {
-    pts += 2.5;
+    pts += 6.0;
     highlights.push("Portaria 24h / Biometria");
   } else if (prop.doorman === "NotAvailable") {
     const noDoormanPenalty =
@@ -1737,22 +1852,115 @@ export function evaluateApartmentNuances(
     warnings.push(`Sem portaria 24h (-${noDoormanPenalty} pts base)`);
   }
 
+  const hasPoolOrGym =
+    installs.has("piscina") ||
+    installs.has("academia") ||
+    amenities.has("pool") ||
+    amenities.has("piscina") ||
+    amenities.has("gym") ||
+    amenities.has("fitness_room") ||
+    amenities.has("academia") ||
+    prop.positiveSignals.some((s) =>
+      /piscina\s+e\s+academia/i.test(s),
+    ) ||
+    /\b(piscina|academia|espa[cç]o\s+fitness)\b/i.test(fullDesc);
+  if (hasPoolOrGym) {
+    pts += 1.5;
+  }
+
   if (prop.salePrice !== null && prop.salePrice > 0) {
     pts -= 4.0;
     warnings.push("Imóvel também à venda (-4 pts base)");
   }
 
   if (/\bvagas? (de garagem )?(livres?|individuais?|demarcadas?)\b/i.test(fullDesc)) {
-    pts += 3.0;
+    pts += 5.0;
     highlights.push("Vaga livre e demarcada");
   } else if (hasTrappedParking) {
     pts -= 4.0;
-    warnings.push("Vaga presa");
+    warnings.push("Vaga presa / gaveta");
   }
 
-  if (/\b([aá]gua e g[aá]s inclusos|g[aá]s incluso)\b/i.test(fullDesc)) {
+  if (/(?<![a-zA-ZÀ-ÿ0-9_])([aá]gua e g[aá]s(?: inclusos)?|g[aá]s incluso)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc)) {
     pts += 2.5;
     highlights.push("Água/gás inclusos no condomínio");
+  }
+
+  // Interior Finish Priority: Planned Cabinetry + Modern Bath/Kitchen + Good Flooring
+  const hasKitchenCabinetry =
+    amenities.has("armários na cozinha") ||
+    amenities.has("kitchen_cabinets") ||
+    practicality.has("armários na cozinha") ||
+    /(?<![a-zA-ZÀ-ÿ0-9_])arm[aá]rios?\s+(?:planejados?\s+)?na\s+cozinha\b/i.test(fullDesc);
+  const hasBedroomOrBathCabinetry =
+    amenities.has("armários no quarto") ||
+    amenities.has("armários no banheiro") ||
+    amenities.has("builtin_wardrobe") ||
+    amenities.has("bedroom_wardrobe") ||
+    amenities.has("bathroom_cabinets") ||
+    practicality.has("armários no quarto") ||
+    practicality.has("armários no banheiro") ||
+    /(?<![a-zA-ZÀ-ÿ0-9_])arm[aá]rios?\s+(?:planejados?\s+)?(?:nos?\s+quartos?|na\s+su[ií]te|nos?\s+banheiros?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      fullDesc,
+    );
+  const hasExplicitPlannedCabinetry =
+    amenities.has("marcenaria planejada") ||
+    amenities.has("planned_furniture") ||
+    prop.positiveSignals.includes("Marcenaria planejada / Painel") ||
+    /(?<![a-zA-ZÀ-ÿ0-9_])(marcenaria\s+planejada|arm[aá]rios?\s+planejados?|m[oó]veis\s+planejados?|arm[aá]rios?\s+sob\s+medida)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      fullDesc,
+    );
+  const isVerifiedModernInAudit =
+    photoAudit?.modernityTier === "MODERN_OR_RENOVATED" &&
+    !(photoAudit.visualWarnings ?? []).some((w) =>
+      /aus[eê]ncia total de arm[aá]rios|sem nenhum arm[aá]rio|quartos sem arm[aá]rios/i.test(
+        w,
+      ),
+    );
+  const isDatedInAudit = photoAudit?.modernityTier === "DATED" || photoAudit?.hardExcludeDated === true;
+
+  if (
+    !isDatedInAudit &&
+    (hasExplicitPlannedCabinetry ||
+      (isVerifiedModernInAudit && (hasKitchenCabinetry || hasBedroomOrBathCabinetry)))
+  ) {
+    pts += 5.0;
+    highlights.push("Marcenaria / armários planejados");
+  } else if (
+    !isDatedInAudit &&
+    (hasKitchenCabinetry ||
+      hasBedroomOrBathCabinetry ||
+      /(?<![a-zA-ZÀ-ÿ0-9_])(com\s+arm[aá]rios|arm[aá]rios\s+embutidos)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc))
+  ) {
+    pts += 2.0;
+    highlights.push("Armários instalados");
+  }
+
+  const hasModernFlooring =
+    amenities.has("porcelain") ||
+    amenities.has("laminated_floor") ||
+    amenities.has("vinyl_floor") ||
+    prop.positiveSignals.includes("Porcelanato / Vinílico") ||
+    /(?<![a-zA-ZÀ-ÿ0-9_])(porcelanato|piso\s+vin[ií]lico|vin[ií]lico|piso\s+laminado|laminado)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      fullDesc,
+    );
+  const hasBlindexAndCountertop =
+    (amenities.has("box") ||
+      amenities.has("blindex_box") ||
+      practicality.has("box") ||
+      practicality.has("box blindex") ||
+      /\b(box\s+blindex|blindex|box\s+de\s+vidro)\b/i.test(fullDesc)) &&
+    /(?<![a-zA-ZÀ-ÿ0-9_])(bancada\s+(?:em\s+|de\s+)?(?:granito|quartzo|m[aá]rmore|silestone|nanoglass)|granito|quartzo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      fullDesc,
+    );
+
+  if (hasModernFlooring || hasBlindexAndCountertop) {
+    pts += 3.5;
+    if (hasModernFlooring) {
+      highlights.push("Piso moderno (porcelanato/vinílico)");
+    } else {
+      highlights.push("Box blindex e bancada moderna");
+    }
   }
 
   // 5. Alerta de Megacondomínio Familiar ("Cidade dentro do condomínio") vs Torre Única
@@ -1761,10 +1969,10 @@ export function evaluateApartmentNuances(
       installs.has("playground") &&
       installs.has("quadra esportiva") &&
       installs.has("salão de jogos")) ||
-    /\b(m[uú]ltiplas torres|\d+ torres|bloco [b-z])\b/i.test(fullDesc);
+    /(?<![a-zA-ZÀ-ÿ0-9_])(m[uú]ltiplas torres|\d+ torres|bloco [b-z])(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc);
 
   const isReservedBuilding =
-    /\b(torre [uú]nica|pr[eé]dio pequeno|poucos moradores|1 por andar|2 por andar)\b/i.test(
+    /(?<![a-zA-ZÀ-ÿ0-9_])(torre [uú]nica|pr[eé]dio pequeno|poucos moradores|1 por andar|2 por andar)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullDesc,
     );
 
@@ -1780,7 +1988,7 @@ export function evaluateApartmentNuances(
   if (prop.constructionYear && prop.constructionYear >= 2010) {
     greenTags.push(`Prédio Novo (${prop.constructionYear})`);
   } else if (
-    /\b(primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|rec[eé]m[- ]entregue|pr[eé]dio (super )?novo)\b/i.test(
+    /(?<![a-zA-ZÀ-ÿ0-9_])(primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|rec[eé]m[- ]entregue|pr[eé]dio (super )?novo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullDesc,
     )
   ) {
@@ -1816,7 +2024,17 @@ export function evaluateApartmentNuances(
     redTags.push("Sem elevador");
   }
   if (hasTrappedParking) {
-    redTags.push("Vaga presa");
+    redTags.push("Vaga presa / gaveta");
+  }
+  if (photoAudit?.visualWarnings && photoAudit.visualWarnings.length > 0) {
+    for (const vw of photoAudit.visualWarnings) {
+      if (!warnings.includes(vw)) {
+        warnings.push(vw);
+      }
+    }
+  }
+  if (photoAudit?.hasMaintenanceIssue && !redTags.includes("Infiltração / Manutenção Crítica")) {
+    redTags.push("Infiltração / Manutenção Crítica");
   }
 
   const result: ApartmentNuancesEvaluation = {
@@ -1961,7 +2179,7 @@ export function categorizePropertyFeatures(prop: SlimPropertyRecord): {
   ]);
 
   const condoKeywords =
-    /\b(elevador|portaria|piscina|academia|fitness|sauna|sal[aã]o|churrasqueira|gourmet|playground|quadra|brinquedoteca|jogos|jardim|[aá]rea verde|biciclet[aá]rio|coworking|lavanderia|corrim[aã]o|rampa|acess[ií]vel|g[aá]s encanado|guarita|seguran[cç]a|port[aã]o|interfone|condom[ií]nio|pets)\b/i;
+    /(?<![a-zA-ZÀ-ÿ0-9_])(elevador|portaria|piscina|academia|fitness|sauna|sal[aã]o|churrasqueira|gourmet|playground|quadra|brinquedoteca|jogos|jardim|[aá]rea verde|biciclet[aá]rio|coworking|lavanderia|corrim[aã]o|rampa|acess[ií]vel|g[aá]s encanado|guarita|seguran[cç]a|port[aã]o|interfone|condom[ií]nio|pets)(?![a-zA-ZÀ-ÿ0-9_])/i;
 
   const addItem = (raw: string, preferredBucket: "interior" | "condo") => {
     const trimmed = raw.trim();
@@ -2015,6 +2233,33 @@ export function categorizePropertyFeatures(prop: SlimPropertyRecord): {
   return result;
 }
 
+function stripParentheticalClauses(
+  input: string,
+  predicate?: (inner: string) => boolean,
+): string {
+  let out = "";
+  let i = 0;
+  while (i < input.length) {
+    const open = input.indexOf("(", i);
+    if (open === -1) {
+      out += input.slice(i);
+      break;
+    }
+    const close = input.indexOf(")", open + 1);
+    if (close === -1) {
+      out += input.slice(i);
+      break;
+    }
+    out += input.slice(i, open);
+    const inner = input.slice(open + 1, close);
+    if (predicate && !predicate(inner)) {
+      out += input.slice(open, close + 1);
+    }
+    i = close + 1;
+  }
+  return out;
+}
+
 function resolveOfficeReference(
   cityCode: CityHubCode,
   catalogNb: ComputedNeighborhood | undefined,
@@ -2027,13 +2272,16 @@ function resolveOfficeReference(
     SP: "escritório na Capote Valente",
     BSB: "Parque de Águas Claras (Referência BSB)",
   };
-  const rawTime = catalogNb
-    ? catalogNb.commuteTime
-    : nbCommute
-        .replace(/\s*\([^)]*\)/g, "")
-        .replace(/\s*do Nubank.*/i, "")
-        .replace(/^~/, "")
-        .trim();
+  let rawTime = "";
+  if (catalogNb) {
+    rawTime = catalogNb.commuteTime;
+  } else {
+    const withoutParens = stripParentheticalClauses(nbCommute);
+    const nubankIdx = withoutParens.toLowerCase().indexOf("do nubank");
+    const beforeNubank =
+      nubankIdx === -1 ? withoutParens : withoutParens.slice(0, nubankIdx);
+    rawTime = beforeNubank.replace(/^~/, "").trim();
+  }
 
   return {
     commuteTimeText: rawTime || "20 min",
@@ -2058,19 +2306,60 @@ export function parseCommuteMinutes(
   if (hit) return hit;
 
   const raw = cacheKey.trim();
-  if (/benchmark|[aá]guas claras|\bbsb\b/i.test(raw) && !/\d+\s*min/i.test(raw)) {
+  if (/benchmark|[aá]guas claras|\bbsb\b/i.test(raw) && !/\b\d{1,3}[ \t]{0,3}min/i.test(raw)) {
     const res = { minutes: null, label: "Ref. BSB" };
     commuteMinutesCache.set(cacheKey, res);
     return res;
   }
 
-  const cleaned = raw
-    .replace(/\s*\([^)]*\)/g, "")
-    .replace(/\s*do Nubank.*/i, "")
+  const withoutParens = stripParentheticalClauses(raw);
+  const nubankIdx = withoutParens.toLowerCase().indexOf("do nubank");
+  const cleaned = (
+    nubankIdx === -1 ? withoutParens : withoutParens.slice(0, nubankIdx)
+  )
     .replace(/^~/, "")
     .trim();
 
-  const rangeMatch = cleaned.match(/(\d+)\s*(?:[-–a]|a)\s*(\d+)\s*min/i);
+  // Hour range notation: e.g. "1h a 1h30", "1h-1h30"
+  const hourRangeMatch = cleaned.match(
+    /\b(\d{1,2})[ \t]{0,2}h(?:oras?)?[ \t]{0,2}(\d{1,2})?(?:[ \t]{0,2}min(?:utos?)?)?[ \t]{0,3}[-–a][ \t]{0,3}(\d{1,2})[ \t]{0,2}h(?:oras?)?[ \t]{0,2}(\d{1,2})?(?:[ \t]{0,2}min(?:utos?)?)?/i,
+  );
+  if (hourRangeMatch) {
+    const h1 = Number(hourRangeMatch[1]);
+    const m1 = hourRangeMatch[2] ? Number(hourRangeMatch[2]) : 0;
+    const h2 = Number(hourRangeMatch[3]);
+    const m2 = hourRangeMatch[4] ? Number(hourRangeMatch[4]) : 0;
+    const total1 = h1 * 60 + m1;
+    const total2 = h2 * 60 + m2;
+    if (Number.isFinite(total1) && Number.isFinite(total2)) {
+      const res = {
+        minutes: Math.round((total1 + total2) / 2),
+        label: `${total1}–${total2} min`,
+      };
+      commuteMinutesCache.set(cacheKey, res);
+      return res;
+    }
+  }
+
+  // Single hour notation: e.g. "1h 20min", "1h30", "1 hora"
+  const hourSingleMatch = cleaned.match(
+    /\b(\d{1,2})[ \t]{0,2}(?:h\b|horas?\b|h(?=\d))(?:[ \t]{0,2}e)?(?:[ \t]{0,2}(\d{1,2})(?:[ \t]{0,2}min(?:utos?)?)?)?/i,
+  );
+  if (hourSingleMatch) {
+    const h = Number(hourSingleMatch[1]);
+    const m = hourSingleMatch[2] ? Number(hourSingleMatch[2]) : 0;
+    const total = h * 60 + m;
+    if (Number.isFinite(total) && total > 0) {
+      const res = {
+        minutes: total,
+        label: `${total} min`,
+      };
+      commuteMinutesCache.set(cacheKey, res);
+      return res;
+    }
+  }
+
+  const rangeMatch = cleaned.match(/\b(\d{1,3})[ \t]{0,3}[-–a][ \t]{0,3}(\d{1,3})[ \t]{0,3}min/i);
   if (rangeMatch) {
     const a = Number(rangeMatch[1]);
     const b = Number(rangeMatch[2]);
@@ -2084,7 +2373,7 @@ export function parseCommuteMinutes(
     }
   }
 
-  const singleMatch = cleaned.match(/(\d+)\s*min/i);
+  const singleMatch = cleaned.match(/\b(\d{1,3})[ \t]{0,3}min/i);
   if (singleMatch) {
     const m = Number(singleMatch[1]);
     if (Number.isFinite(m)) {
@@ -2100,6 +2389,36 @@ export function parseCommuteMinutes(
   const res = { minutes: null, label: cleaned || "Ref. BSB" };
   commuteMinutesCache.set(cacheKey, res);
   return res;
+}
+
+export function computeListingAge(
+  publishedAt: string | null | undefined,
+  updatedAt?: string | null | undefined,
+  referenceDateMs?: number,
+): { days: number | null; label: string | null } {
+  const rawTs = (publishedAt ?? updatedAt ?? "").trim();
+  if (!rawTs) {
+    return { days: null, label: null };
+  }
+  const pubMs = Date.parse(rawTs);
+  if (!Number.isFinite(pubMs)) {
+    return { days: null, label: null };
+  }
+  const refMs = referenceDateMs ?? Date.now();
+  const days = Math.max(0, Math.floor((refMs - pubMs) / 86_400_000));
+  let label: string;
+  if (days === 0) {
+    label = "Hoje";
+  } else if (days === 1) {
+    label = "Há 1 dia";
+  } else if (days < 30) {
+    label = `Há ${days} dias`;
+  } else if (days < 60) {
+    label = `Há 1 mês (${days}d)`;
+  } else {
+    label = `Há ${Math.floor(days / 30)} meses (${days}d)`;
+  }
+  return { days, label };
 }
 
 /**
@@ -2144,14 +2463,14 @@ function extractNonRedundantHighlights(
   // 1. Interior finishes & equipment (excluding AC, Vista livre, Sol da manhã, Prédio Novo, Andar)
   if (
     prop.positiveSignals.includes("Porcelanato / Vinílico") ||
-    /\b(porcelanato|piso vin[ií]lico)\b/i.test(fullText)
+    /(?<![a-zA-ZÀ-ÿ0-9_])(porcelanato|piso vin[ií]lico)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullText)
   ) {
     addFeature("piso em porcelanato/vinílico");
   }
 
   if (
     prop.positiveSignals.includes("Fechadura eletrônica / USB") ||
-    /\bfechadura (eletr[oô]nica|digital|biom[eé]trica)\b/i.test(fullText)
+    /(?<![a-zA-ZÀ-ÿ0-9_])fechadura (eletr[oô]nica|digital|biom[eé]trica)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullText)
   ) {
     addFeature("fechadura eletrônica");
   }
@@ -2165,7 +2484,7 @@ function extractNonRedundantHighlights(
 
   if (
     prop.positiveSignals.includes("Marcenaria planejada / Painel") ||
-    /\b(marcenaria|arm[aá]rios (planejados|sob medida|na cozinha|no quarto)|builtin_wardrobe|kitchen_cabinets|planned_furniture)\b/i.test(
+    /(?<![a-zA-ZÀ-ÿ0-9_])(marcenaria|arm[aá]rios (planejados|sob medida|na cozinha|no quarto)|builtin_wardrobe|kitchen_cabinets|planned_furniture)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullText,
     )
   ) {
@@ -2174,7 +2493,7 @@ function extractNonRedundantHighlights(
 
   if (
     prop.positiveSignals.includes("Projeto de iluminação / Gesso") ||
-    /\b(projeto de ilumina[cç][aã]o|ilumina[cç][aã]o planejada|rebaixamento em gesso)\b/i.test(
+    /(?<![a-zA-ZÀ-ÿ0-9_])(projeto de ilumina[cç][aã]o|ilumina[cç][aã]o planejada|rebaixamento em gesso)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullText,
     )
   ) {
@@ -2208,7 +2527,7 @@ function extractNonRedundantHighlights(
     addFeature("lavabo");
   }
 
-  if (/\b(home[- ]?office|escrit[oó]rio)\b/i.test(fullText)) {
+  if (/(?<![a-zA-ZÀ-ÿ0-9_])(home[- ]?office|escrit[oó]rio)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullText)) {
     addFeature("espaço home office");
   }
 
@@ -2220,7 +2539,7 @@ function extractNonRedundantHighlights(
     addFeature("área de serviço separada");
   }
 
-  if (/\b(g[aá]s encanado|chuveiro a g[aá]s|gas_shower|aquecimento a g[aá]s)\b/i.test(fullText)) {
+  if (/(?<![a-zA-ZÀ-ÿ0-9_])(g[aá]s encanado|chuveiro a g[aá]s|gas_shower|aquecimento a g[aá]s)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullText)) {
     addFeature("gás encanado");
   }
 
@@ -2261,7 +2580,7 @@ function extractNonRedundantHighlights(
     addSurrounding("rua silenciosa");
   }
 
-  if (/\b(trecho plano|[aá]rea plana|rua plana|100% plano)\b/i.test(prop.description ?? "")) {
+  if (/(?<![a-zA-ZÀ-ÿ0-9_])(trecho plano|[aá]rea plana|rua plana|100% plano)(?![a-zA-ZÀ-ÿ0-9_])/i.test(prop.description ?? "")) {
     addSurrounding("trecho plano");
   }
 
@@ -2369,12 +2688,18 @@ function resolveNeighborhoodDrawback(
 
   if (catalogNb?.cons) {
     for (const rawCon of catalogNb.cons) {
-      const cleaned = rawCon
-        .replace(/\s*\((?:[^)]*R\$|[^)]*m²|ex\.:)[^)]*\)/gi, "")
+      const cleaned = stripParentheticalClauses(
+        rawCon,
+        (inner) =>
+          inner.includes("R$") ||
+          inner.includes("m²") ||
+          inner.toLowerCase().includes("ex.:"),
+      )
+        .replace(/\s+/g, " ")
         .replace(/\.$/, "")
         .trim();
       if (cleaned.length < 15) continue;
-      if (/R\$|\bm²\b|\d+\s*quartos?|\d+\s*vagas?/i.test(cleaned)) continue;
+      if (/R\$|\bm²\b|\b\d{1,2}[ \t]{0,3}quartos?|\b\d{1,2}[ \t]{0,3}vagas?/i.test(cleaned)) continue;
       if (
         /\b(oferta|flats?\s+antigos?|pr[eé]dios?\s+pequenos?\s+sem\s+elevador|unidades?\s+abaixo|quase\s+inexistente)\b/i.test(
           cleaned,
@@ -2413,20 +2738,33 @@ function extractConservationDrawbacks(prop: SlimPropertyRecord): string[] {
     if (!result.includes(text)) result.push(text);
   };
 
+  const propKey = `${prop.provider}:${prop.id}`;
+  const photoAudit = PHOTO_AUDIT_OVERRIDES[propKey];
+
   const hasRenovationEvidence = prop.positiveSignals.some(
     (p) =>
-      p.includes("Reformado") ||
-      p.includes("novo") ||
-      p.includes("Porcelanato") ||
-      p.includes("Construção 20"),
+      p !== "Flag Novo/Reformado" &&
+      (p.includes("Reformado") ||
+        p.includes("novo") ||
+        p.includes("Porcelanato") ||
+        p.includes("Construção 20")),
   );
 
-  for (const sig of prop.negativeSignals) {
+  const allNegSignals = [
+    ...prop.negativeSignals,
+    ...(photoAudit?.visualWarnings ?? []),
+  ];
+
+  for (const sig of allNegSignals) {
     if (/sem elevador|pr[eé]dio escada/i.test(sig)) continue;
     if (/venda|comprad/i.test(sig)) continue;
     if (/descri[cç][aã]o gen[eé]rica/i.test(sig)) continue;
 
-    if (/piso antigo|cer[aâ]mica|t[aá]bua corrida|taco/i.test(sig)) {
+    if (/infiltra[cç][aã]o|umidade|mofo|trinca/i.test(sig)) {
+      addUnique("infiltração ou problema de manutenção visível nas fotos");
+    } else if (/depend[eê]ncia de servi[cç]o|\bdce\b/i.test(sig)) {
+      addUnique("planta antiga com dependência de serviço (DCE) sem reforma declarada");
+    } else if (/piso antigo|cer[aâ]mica|t[aá]bua corrida|taco|ard[oó]sia/i.test(sig)) {
       addUnique("piso antigo de cerâmica ou taco");
     } else if (/constru[cç][aã]o antiga/i.test(sig)) {
       addUnique("prédio mais antigo sem reforma recente");
@@ -2434,11 +2772,11 @@ function extractConservationDrawbacks(prop: SlimPropertyRecord): string[] {
       addUnique("estrutura predial antiga sem reforma recente");
     } else if (/azulejo/i.test(sig)) {
       addUnique("azulejos e revestimentos datados");
-    } else if (/arm[aá]rios? antigos?/i.test(sig)) {
+    } else if (/arm[aá]rios? (?:embutidos? )?antigos?|marcenaria.*antig|madeira avermelhada|mogno|cerejeira|f[oó]rmica/i.test(sig)) {
       addUnique("armários antigos");
     } else if (!/R\$|\bm²\b/i.test(sig)) {
       const cleanSig = sig.trim().replace(/\.$/, "");
-      if (cleanSig) {
+      if (cleanSig && cleanSig.length <= 95) {
         addUnique(cleanSig.charAt(0).toLowerCase() + cleanSig.slice(1));
       }
     }
@@ -2451,7 +2789,10 @@ function extractConservationDrawbacks(prop: SlimPropertyRecord): string[] {
       !hasRenovationEvidence
     ) {
       addUnique("prédio mais antigo sem reforma recente");
-    } else if (prop.modernityTier === "DATED") {
+    } else if (
+      prop.modernityTier === "DATED" ||
+      photoAudit?.modernityTier === "DATED"
+    ) {
       addUnique("acabamento original sem sinais de reforma recente");
     }
   }
@@ -2570,11 +2911,12 @@ function buildShortJustification(params: {
   // 1. Hard eligibility exclusions
   if (!eligible) {
     const filterReasons: string[] = [];
-    const effectiveMinMod =
-      prop.cityCode === "RJ"
-        ? Math.max(48, weights.minModernityScore - 8)
-        : weights.minModernityScore;
-    if (prop.modernityScore < effectiveMinMod) {
+    const effectiveMinMod = weights.minModernityScore;
+    if (
+      staticMeta.photoAudit?.hardExcludeDated ||
+      staticMeta.photoAudit?.hasMaintenanceIssue ||
+      staticMeta.effectiveModernityScore < effectiveMinMod
+    ) {
       filterReasons.push("acabamento original sem reforma registrada");
     }
     if (nuances.hasNoElevator) {
@@ -2586,22 +2928,30 @@ function buildShortJustification(params: {
     if (weights.requireParking && prop.parkingSpaces < 1) {
       filterReasons.push("ausência de garagem privativa");
     }
-    if (area < weights.minAreaM2 || area > weights.maxAreaM2) {
-      filterReasons.push("planta fora do intervalo ativo");
+    if (area < weights.minAreaM2) {
+      filterReasons.push("planta abaixo da metragem mínima");
     }
-    const effectiveHardCap =
-      prop.cityCode === "RJ" || prop.cityCode === "SP"
-        ? Math.max(weights.budgetHardCap, weights.budgetMax + 350)
-        : weights.budgetHardCap;
-    if (!total || total < 1500 || total > effectiveHardCap) {
-      filterReasons.push("acima do teto máximo configurado");
+    const parsedCommuteReason = parseCommuteMinutes(
+      catalogNb?.commuteTime ?? nbCommute,
+      staticMeta.isDeepWestBarra,
+    );
+    if (
+      prop.cityCode !== "BSB" &&
+      parsedCommuteReason.minutes !== null &&
+      parsedCommuteReason.minutes > 50
+    ) {
+      filterReasons.push("tempo até o escritório acima de 50 min");
     }
 
-    const reasonText =
-      filterReasons.length > 0
-        ? formatListPt(filterReasons)
-        : "critérios ativos do calibrador";
-    primaryDrawbacks.push(`retido pelos filtros (${reasonText})`);
+    if (filterReasons.length > 0) {
+      primaryDrawbacks.push(
+        `retido pelos filtros (${formatListPt(filterReasons)})`,
+      );
+    } else if (furnitureTier !== "FULLY_FURNISHED") {
+      primaryDrawbacks.push(
+        "retido pelos filtros (critérios ativos do calibrador)",
+      );
+    }
   }
 
   // 2. Street safety risks
@@ -2615,10 +2965,6 @@ function buildShortJustification(params: {
   if (prop.cityCode === "SP") {
     primaryDrawbacks.push(
       "penalizado pelo trânsito, custo de vida e caos urbano de São Paulo Capital",
-    );
-  } else if (prop.cityCode === "CP") {
-    primaryDrawbacks.push(
-      "leva desconto por ficar no interior de SP (dependente de carro e rodovia até Viracopos)",
     );
   }
 
@@ -2880,7 +3226,7 @@ function buildNarrativeJustification(params: {
   }
   if (catalogNb?.cons?.[0] && visitCaveats.length < 2) {
     const nbCon = catalogNb.cons[0];
-    if (!/R\$|\d+\s*m²/i.test(nbCon)) {
+    if (!/R\$|\b\d{1,4}[ \t]{0,3}m²/i.test(nbCon)) {
       visitCaveats.push(
         `observar a dinâmica local (${nbCon.charAt(0).toLowerCase() + nbCon.slice(1)})`,
       );
@@ -2955,16 +3301,15 @@ export const FULL_FURNITURE_COMMODITY_ITEMS = new Set<string>([
 ]);
 
 export const SEMI_FURNISHED_APPLIANCE_ITEMS = new Set<string>([
-  "fogão",
-  "cooktop",
-  "forno",
-  "forno embutido",
   "geladeira",
   "refrigerador",
+  "frigobar",
   "microondas",
   "micro-ondas",
   "máquina de lavar",
   "lava e seca",
+  "lava-louças",
+  "lava louças",
   "utensílios de cozinha",
 ]);
 
@@ -2972,6 +3317,20 @@ export const FURNISHED_COMMODITY_ITEMS = new Set<string>([
   ...FULL_FURNITURE_COMMODITY_ITEMS,
   ...SEMI_FURNISHED_APPLIANCE_ITEMS,
 ]);
+
+const FURNITURE_REMOVAL_NEGOTIABLE_REGEX =
+  /\b(retirad[oa]s?\s+(?:de\s+|da\s+)?mob[ií]lia|poss[ií]vel\s+retirar\s+(?:a\s+)?mob[ií]lia|pode\s+retirar\s+(?:a\s+|os\s+)?(?:mob[ií]lia|m[oó]veis)|propriet[aá]ri[oa]\s+retira\s+(?:a\s+|os\s+)?(?:mob[ií]lia|m[oó]veis)|op[cç][aã]o\s+(?:de\s+)?alugar\s+sem\s+mob[ií]lia|com\s+ou\s+sem\s+mob[ií]lia|negocia\s+retirada\s+de\s+m[oó]veis|m[oó]veis\s+podem\s+ser\s+retirados)\b/i;
+
+export function canNegotiateFurnitureRemoval(
+  prop: SlimPropertyRecord,
+): boolean {
+  const text = [
+    prop.title ?? "",
+    prop.description ?? "",
+    prop.generatedDescription ?? "",
+  ].join(" ");
+  return FURNITURE_REMOVAL_NEGOTIABLE_REGEX.test(text);
+}
 
 /**
  * Classifies a property into a 3-tier furniture scale tailored for the user's
@@ -2981,6 +3340,19 @@ export const FURNISHED_COMMODITY_ITEMS = new Set<string>([
  * - "SEMI_FURNISHED": Kitchen/laundry appliances or explicit "semi-mobiliado" WITHOUT bed or sofa
  * - "FULLY_FURNISHED": Has bed, sofa, living/bedroom furniture set, apart-hotel, or full furnished flag
  */
+export const PHOTO_VERIFIED_UNFURNISHED_KEYS = new Set<string>([
+  "zapimoveis:2917858063",
+  "zapimoveis:2917860437",
+  "zapimoveis:2869993530",
+  "zapimoveis:2907744516",
+  "zapimoveis:2912507363",
+  "quintoandar:895702014",
+  "quintoandar:895752152",
+  "quintoandar:895694297",
+]);
+
+export const PHOTO_VERIFIED_SEMI_OR_CABINETRY_KEYS = new Set<string>([]);
+
 const furnitureTierCache = new WeakMap<SlimPropertyRecord, FurnitureTier>();
 
 export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
@@ -2988,16 +3360,29 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
   if (cached) return cached;
 
   const propKey = `${prop.provider}:${prop.id}`;
+  if (PHOTO_VERIFIED_UNFURNISHED_KEYS.has(propKey)) {
+    furnitureTierCache.set(prop, "UNFURNISHED");
+    return "UNFURNISHED";
+  }
+  const photoAudit = PHOTO_AUDIT_OVERRIDES[propKey];
+  if (photoAudit?.furnishedTier) {
+    const tier: FurnitureTier =
+      photoAudit.furnishedTier === "FULLY_FURNISHED"
+        ? "FULLY_FURNISHED"
+        : "UNFURNISHED";
+    furnitureTierCache.set(prop, tier);
+    return tier;
+  }
   if (PHOTO_DETECTED_FURNISHED_KEYS.has(propKey)) {
     furnitureTierCache.set(prop, "FULLY_FURNISHED");
     return "FULLY_FURNISHED";
   }
 
-  if (
+  const isApartHotelCondo =
     /\b(monet|max savassi|savassi hotel|radisson|mercure|ibis|trypp|golden tulip|caesar business|manhattan flat|liberty palace|transamerica)\b/i.test(
       prop.condominiumName ?? "",
-    )
-  ) {
+    );
+  if (isApartHotelCondo) {
     furnitureTierCache.set(prop, "FULLY_FURNISHED");
     return "FULLY_FURNISHED";
   }
@@ -3008,24 +3393,7 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
     ...(prop.amenities ?? []),
   ].map((c) => c.trim().toLowerCase());
 
-  const hasCommodityBedOrSofa = structuredCommoditiesLower.some(
-    (c) =>
-      FULL_FURNITURE_COMMODITY_ITEMS.has(c) ||
-      /\b(cama|sof[aá]|poltrona|mesa com cadeiras|mesas e cadeiras)\b/i.test(c),
-  );
-  const hasCommodityAppliance = structuredCommoditiesLower.some((c) =>
-    SEMI_FURNISHED_APPLIANCE_ITEMS.has(c),
-  );
-
   const captionsText = (prop.photoCaptions ?? []).join(" ");
-  const hasCaptionBedOrSofa =
-    /\b(quarto com arm[aá]rios e cama|quarto mobiliado|sala de estar mobiliada|cama (de )?(casal|solteiro)|cama box|sof[aá])\b/i.test(
-      captionsText,
-    );
-  const hasCaptionAppliance =
-    /\b(geladeira|micro[- ]?ondas|cozinha mobiliada|cozinha \(arm[aá]rios e fog[aã]o\)|cozinha \(fog[aã]o\))\b/i.test(
-      captionsText,
-    );
 
   const rawDescText = [
     prop.title ?? "",
@@ -3033,55 +3401,47 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
     prop.generatedDescription ?? "",
   ].join("\n");
 
-  const strippedSpacePhrases = rawDescText.replace(
-    /\b(?:espa[cç]o|lugar|local|ponto|prepara[cç][aã]o|espera|cabe|cabem|comporta|acomoda|previsto)\s+(?:para\s+|p\/\s+)?(?:uma?\s+)?(?:cama(?:\s+(?:de\s+)?(?:casal|solteiro|box|queen|king))*|sof[aá](?:[- ]?cama|\s+retr[aá]til|\s+de\s+\d+\s+lugares)*|geladeira|refrigerador|m[aá]quina de lavar|lava[- ]?lou[cç]as|lava[- ]?e[- ]?seca|fog[aã]o|micro[- ]?ondas|mesa(?:\s+(?:de\s+jantar|com\s+cadeiras))*|tv)/gi,
-    " ",
-  );
+  const strippedSpacePhrases = rawDescText
+    .replace(
+      /(?<![a-zA-ZÀ-ÿ0-9_])(?:ser[aá]\s+alugad[oa]\s+sem\s+(?:mob[ií]lias?|m[oó]veis)|alugad[oa]\s+sem\s+(?:mob[ií]lias?|m[oó]veis)|n[aã]o\s+(?:est[aá]|[eé]|ser[aá]|vai)\s+mobiliad[oa]|sem\s+(?:mob[ií]lias?|m[oó]veis)(?:\s+solt[oa]s?)?|sem\s+(?:cama(?:\s+e\s+sem\s+sof[aá])?|sof[aá](?:\s+e\s+sem\s+cama)?|geladeira|fog[aã]o|m[aá]quina\s+de\s+lavar|eletrodom[eé]sticos?))(?![a-zA-ZÀ-ÿ0-9_])/gi,
+      " ",
+    )
+    .replace(
+      /\b(?:espa[cç]o|lugar|local|ponto|prepara[cç][aã]o|espera|cabe|cabem|comporta|acomoda|previsto)\s+(?:para\s+|p\/\s+)?(?:uma?\s+)?(?:cama(?:\s+(?:de\s+)?(?:casal|solteiro|box|queen|king))*|sof[aá](?:[- ]?cama|\s+retr[aá]til|\s+de\s+\d+\s+lugares)*|geladeira|refrigerador|m[aá]quina de lavar|lava[- ]?lou[cç]as|lava[- ]?e[- ]?seca|fog[aã]o|micro[- ]?ondas|mesa(?:\s+(?:de\s+jantar|com\s+cadeiras))*|tv)/gi,
+      " ",
+    );
 
   const affirmativeClauses = strippedSpacePhrases
     .split(/[.;!\n]+|,\s*(?=mas\b|por[eé]m\b|contudo\b|entretanto\b)/i)
     .filter(
       (clause) =>
-        !/ser[aã]o removid|n[aã]o fica|retirad|sem mob[ií]lia|n[aã]o mobiliad/i.test(
+        !/ser[aã]o removid|n[aã]o fica|retirad|sem mob[ií]lia|sem m[oó]veis|n[aã]o\s+(?:est[aá]\s+|[eé]\s+|ser[aá]\s+)?mobiliad/i.test(
           clause,
         ),
     );
   const descText = affirmativeClauses.join(". ");
 
-  const hasTextBedOrSofa =
-    /\b(cama (de )?(casal|solteiro)|cama box|cama queen|cama king|\bcama\b|sof[aá][- ]?cama|sof[aá] e cama|\bsof[aá]\b|\bpoltrona\b|mesa com cadeiras|mesas? e cadeiras de jantar|porteira fechada|totalmente mobiliad[oa]|100%\s*mobiliad[oa])\b/i.test(
-      descText,
+  const combinedEvidence = [
+    ...structuredCommoditiesLower,
+    captionsText,
+    descText,
+  ].join(" ");
+
+  const hasGeladeira =
+    /(?<![a-zA-ZÀ-ÿ0-9_])(geladeiras?|refrigerador(?:es)?|frigobar|refrigerators?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      combinedEvidence,
+    );
+  const hasSofa =
+    /(?<![a-zA-ZÀ-ÿ0-9_])(sof[aá]s?|sofa|couch)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      combinedEvidence,
+    );
+  const hasCama =
+    /(?<![a-zA-ZÀ-ÿ0-9_])(camas?|colch[aã]o|colch[oõ]es|beds?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      combinedEvidence,
     );
 
-  const hasExplicitSemiFurnished = /\bsemi[- ]?mobiliad[oa]\b/i.test(descText);
-
-  const hasTextGeneralFurnished =
-    !hasExplicitSemiFurnished &&
-    !/\b(?:aluguel|valor)\s+mobiliad[oa]\s+a\s+consultar\b/i.test(descText) &&
-    /\b((?:apartamento|apto\.?|im[oó]vel|flat|loft|studio|kitnet)\s+(?:[^.,;!\n]{0,40}\s+)?mobiliad[oa]|(?:todo|totalmente|completamente|inteiramente|100%)\s+mobiliad[oa]|vai\s+ser\s+alugad[oa]\s+mobiliad[oa]|loca[cç][aã]o\s+mobiliad[oa]|mobiliad[oa]\s+para\s+(?:loca[cç][aã]o|aluguel|venda)|apartamento:\s*mobiliad[oa])\b/i.test(
-      descText,
-    );
-
-  const hasTextAppliance =
-    /\b(geladeira|refrigerador|m[aá]quina de lavar|lava[- ]?e[- ]?seca|micro[- ]?ondas|fog[aã]o|forno|cooktop|cozinha equipada|cozinha mobiliada|utens[ií]lios de cozinha)\b/i.test(
-      descText,
-    );
-
-  let tier: FurnitureTier = "UNFURNISHED";
-  if (hasCommodityBedOrSofa || hasCaptionBedOrSofa || hasTextBedOrSofa) {
-    tier = "FULLY_FURNISHED";
-  } else if (hasExplicitSemiFurnished) {
-    tier = "SEMI_FURNISHED";
-  } else if (hasTextGeneralFurnished) {
-    tier = "FULLY_FURNISHED";
-  } else if (prop.furnished === true) {
-    tier =
-      hasCommodityAppliance || hasCaptionAppliance || hasTextAppliance
-        ? "SEMI_FURNISHED"
-        : "FULLY_FURNISHED";
-  } else if (hasCommodityAppliance || hasCaptionAppliance || hasTextAppliance) {
-    tier = "SEMI_FURNISHED";
-  }
+  const tier: FurnitureTier =
+    hasGeladeira && hasSofa && hasCama ? "FULLY_FURNISHED" : "UNFURNISHED";
 
   furnitureTierCache.set(prop, tier);
   return tier;
@@ -3094,8 +3454,12 @@ interface StaticPropertyScoringMeta {
   calibratedMeta: ReturnType<typeof resolveNeighborhoodSafetyAndMetrics>;
   microEnv: StreetMicroEnvironmentEvaluation;
   isDeepWestBarra: boolean;
-  effectiveProp: SlimPropertyRecord;
+  effectiveFurnished: boolean | null;
   furnitureTier: FurnitureTier;
+  isUnconfirmedNullFurniture: boolean;
+  photoAudit: PhotoAuditOverride | undefined;
+  effectiveModernityScore: number;
+  effectiveModernityTier: ModernityTier;
   signalsSummary: string;
   negSummary: string;
   hasLegacyFinishSignals: boolean;
@@ -3117,12 +3481,142 @@ const staticPropertyMetaCache = new WeakMap<
   StaticPropertyScoringMeta
 >();
 
+function calibrateRuntimeModernity(
+  prop: SlimPropertyRecord,
+  photoAudit: PhotoAuditOverride | undefined,
+  fullLocationText: string,
+): {
+  effectiveModernityScore: number;
+  effectiveModernityTier: ModernityTier;
+} {
+  if (photoAudit) {
+    return {
+      effectiveModernityScore: photoAudit.modernityScore,
+      effectiveModernityTier: photoAudit.modernityTier,
+    };
+  }
+
+  let score = prop.modernityScore;
+  const year = prop.constructionYear;
+  const hasExplicitRenovationOrNewText =
+    /\b(reformad[oa]|im[oó]vel novo|apartamento novo|pr[eé]dio (?:super )?novo|rec[eé]m[- ]?(?:reformad[oa]|entregue|constru[ií]do)|primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|novinho|retrofit|modernizad[oa]|porcelanato|piso vin[ií]lico|vin[ií]lico)\b/i.test(
+      fullLocationText,
+    ) ||
+    (year !== null && year !== undefined && year >= 2015) ||
+    prop.positiveSignals.some(
+      (s) =>
+        s !== "Flag Novo/Reformado" &&
+        /Reformado|Porcelanato|Construção recente|Construção 201[5-9]|Construção 202/i.test(
+          s,
+        ),
+    );
+
+  const hasDceProxy =
+    /\b(depend[eê]ncia\s+(?:completa\s+)?de\s+empregada|\bdce\b|quarto\s+de\s+(?:servi[cç]o|empregada)|banheiro\s+de\s+(?:servi[cç]o|empregada)|quarto\s+extra\s+revers[ií]vel)\b/i.test(
+      fullLocationText,
+    );
+  const hasOldFloorsProxy =
+    /\b(piso\s+em\s+cer[aâ]mica|cer[aâ]mica\s+(?:antiga|fria)|piso\s+frio|t[aá]bua\s+corrida|(?:piso\s+(?:de|em)\s+)?taco[s]?|\bparquet\b|\bsinteco\b|\bard[oó]sia\b|\bgranilite\b|carpete\s+de\s+madeira|\bcarpete\b|\blajota[s]?)\b/i.test(
+      fullLocationText,
+    );
+  const hasOldFramesOrWindowAc =
+    /\b((?:esquadrias?|janelas?)\s+de\s+ferro|(?:janelas?|venezianas?)\s+de\s+madeira|vitr[oô]\s+de\s+ferro|ar[- ]?condicionado\s+de\s+(?:janela|parede)|ar\s+de\s+janela|(?:buraco|caixa)\s+para\s+ar)\b/i.test(
+      fullLocationText,
+    );
+
+  // Discount uncorroborated Flag Novo/Reformado
+  const hasInteriorModernSignal =
+    prop.positiveSignals.some((s) =>
+      /Porcelanato|Iluminação|Fechadura|Cooktop|Split|Marcenaria|Bancada|Imóvel\/prédio novo|Reformado \/ Moderno/i.test(
+        s,
+      ),
+    ) ||
+    /\b(im[oó]vel novo|apartamento novo|pr[eé]dio (?:super )?novo|rec[eé]m[- ]?(?:reformad[oa]|entregue|constru[ií]do)|primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|novinho|reformad[oa]|retrofit|modernizad[oa]|porcelanato|piso vin[ií]lico|vin[ií]lico|bancada[s]?\s+(?:em\s+|de\s+)?(?:quartzo|silestone|nanoglass|granito\s+preto|s[aã]o\s+gabriel)|(?:varanda|sacada)\s+envidra[cç]ada|cortina\s+de\s+vidro|fechamento\s+em\s+vidro|projeto\s+(?:de\s+ilumina[cç][aã]o|luminot[eé]cnico)|ilumina[cç][aã]o\s+(?:planejada|em\s+led|indireta|embutida)|sanca|rebaixamento\s+em\s+gesso|teto\s+rebaixado|forro\s+de\s+gesso|spots?\s+de\s+led|fechadura\s+(?:eletr[oô]nica|digital|biom[eé]trica)|tomadas?\s+usb|cooktop|cook\s+top|forno\s+embutido|coifa|indu[cç][aã]o|split|inverter|infraestrutura\s+para\s+ar|arm[aá]rios?\s+planejados?|marcenaria(?:\s+planejada)?|m[oó]veis\s+planejados?|arm[aá]rios?\s+sob\s+medida|planned_furniture|painel\s+de\s+tv)\b/i.test(
+      fullLocationText,
+    );
+
+  if (
+    prop.positiveSignals.includes("Flag Novo/Reformado") ||
+    prop.condition === "NEW_OR_RENOVATED"
+  ) {
+    const isCorroborated =
+      hasInteriorModernSignal ||
+      (year !== null && year !== undefined && year >= 2016);
+    const isContradicted =
+      !hasExplicitRenovationOrNewText && (hasDceProxy || hasOldFloorsProxy);
+    if (isContradicted && score >= 70) {
+      score -= 10;
+    } else if (!isCorroborated && score >= 74) {
+      score = Math.min(score, 74);
+    }
+  }
+
+  // Stricter tier gate for MODERN_OR_RENOVATED (score >= 78)
+  const qualifiesForModernTier =
+    hasInteriorModernSignal ||
+    (year !== null && year !== undefined && year >= 2015) ||
+    prop.positiveSignals.length === 0;
+  if (!qualifiesForModernTier && score >= 78) {
+    score = 74;
+  }
+
+  // Cap double condo leisure bonus if both were added in legacy snapshot
+  if (
+    prop.positiveSignals.includes("Lazer com piscina e academia") &&
+    prop.positiveSignals.includes("Rooftop / Gourmet / Lavanderia")
+  ) {
+    score -= 6;
+  }
+
+  // Apply old interior proxies if not already reflected in negativeSignals
+  if (!hasExplicitRenovationOrNewText) {
+    if (
+      hasDceProxy &&
+      !prop.negativeSignals.some((s) => /depend[eê]ncia|dce/i.test(s))
+    ) {
+      score -= 12;
+    }
+    if (
+      hasOldFloorsProxy &&
+      !prop.negativeSignals.some((s) => /piso antigo|cer[aâ]mica|taco/i.test(s))
+    ) {
+      score -= 14;
+    }
+    if (
+      hasOldFramesOrWindowAc &&
+      !prop.negativeSignals.some((s) => /esquadrias|ar de janela/i.test(s))
+    ) {
+      score -= 12;
+    }
+  }
+
+  const clamped = Math.max(0, Math.min(100, score));
+  let tier: ModernityTier = prop.modernityTier;
+  if (score !== prop.modernityScore) {
+    tier =
+      clamped >= 78
+        ? "MODERN_OR_RENOVATED"
+        : clamped >= 65
+          ? "WELL_MAINTAINED"
+          : clamped >= 50
+            ? "STANDARD"
+            : "DATED";
+  }
+
+  return {
+    effectiveModernityScore: clamped,
+    effectiveModernityTier: tier,
+  };
+}
+
 function getStaticPropertyScoringMeta(
   prop: SlimPropertyRecord,
 ): StaticPropertyScoringMeta {
   const cached = staticPropertyMetaCache.get(prop);
   if (cached) return cached;
 
+  const propKey = `${prop.provider}:${prop.id}`;
+  const photoAudit = PHOTO_AUDIT_OVERRIDES[propKey];
   const normNb = normalizeNeighborhoodKey(prop.neighborhood, prop.cityCode);
   const normNbLower = normNb.toLowerCase();
   const nbLower = `${prop.cityCode}:${prop.neighborhood.toLowerCase()}`;
@@ -3142,46 +3636,56 @@ function getStaticPropertyScoringMeta(
     ...(prop.installations ?? []),
     ...(prop.photoCaptions ?? []),
   ].join(" ");
+  const { effectiveModernityScore, effectiveModernityTier } =
+    calibrateRuntimeModernity(prop, photoAudit, fullLocationText);
   const isDeepWestBarra =
     prop.cityCode === "RJ" &&
     /\b(barra ol[ií]mpica|estrada dos bandeirantes|shopping metropolitano|curicica|jacarepagu[aá]|recreio|riocentro|abelardo bueno|salvador allende|ad[ií]lio de oliveira)\b/i.test(
       fullLocationText,
     );
   const furnitureTier = classifyFurnitureTier(prop);
+  const hasExplicitUnfurnishedOrCabinetryEvidence =
+    prop.furnished === false ||
+    prop.positiveSignals.includes("Marcenaria planejada / Painel") ||
+    /(?<![a-zA-ZÀ-ÿ0-9_])(sem\s+(?:mob[ií]lias?|m[oó]veis)|n[aã]o\s+(?:est[aá]\s+|[eé]\s+|ser[aá]\s+)?mobiliad[oa]|vazio|arm[aá]rios?|marcenaria|planejad[oa]s?|closet|builtin_wardrobe|kitchen_cabinets|planned_furniture)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      fullLocationText,
+    );
+  const isUnconfirmedNullFurniture =
+    furnitureTier === "UNFURNISHED" &&
+    prop.furnished === null &&
+    !hasExplicitUnfurnishedOrCabinetryEvidence;
   const effectiveFurnished: boolean | null =
     furnitureTier === "FULLY_FURNISHED"
       ? true
       : furnitureTier === "UNFURNISHED"
-        ? false
+        ? isUnconfirmedNullFurniture
+          ? null
+          : false
         : prop.furnished;
-  const effectiveProp: SlimPropertyRecord =
-    effectiveFurnished !== prop.furnished
-      ? { ...prop, furnished: effectiveFurnished }
-      : prop;
   const signalsSummary =
     prop.positiveSignals.length > 0
       ? prop.positiveSignals.join(", ")
       : "padrão conservado";
-  const filteredNegativeSignals = prop.negativeSignals.filter(
-    (s) => !/venda|comprad|visita[cç][aã]o/i.test(s),
-  );
+  const filteredNegativeSignals = [
+    ...prop.negativeSignals.filter(
+      (s) => !/venda|comprad|visita[cç][aã]o/i.test(s),
+    ),
+    ...(photoAudit?.visualWarnings ?? []),
+  ];
   const negSummary =
     filteredNegativeSignals.length > 0
       ? ` | Alertas: ${filteredNegativeSignals.join(", ")}`
       : "";
-  const hasLegacyFinishSignals = prop.negativeSignals.some((s) =>
-    /antig|cer[aâ]mica|t[aá]bua|taco|anos 80/i.test(s),
-  );
+  const hasLegacyFinishSignals =
+    prop.negativeSignals.some((s) =>
+      /antig|cer[aâ]mica|t[aá]bua|taco|anos 80/i.test(s),
+    ) ||
+    effectiveModernityTier === "DATED" ||
+    Boolean(photoAudit?.hasMaintenanceIssue);
   const nuancesTrue = evaluateApartmentNuancesFast(prop, true);
   const nuancesFalse = evaluateApartmentNuancesFast(prop, false);
   const hl = extractNonRedundantHighlights(prop, nuancesFalse);
-  const cd = extractConservationDrawbacks(prop);
-  if (effectiveProp !== prop) {
-    streetMicroCache.set(effectiveProp, microEnv);
-    furnitureTierCache.set(effectiveProp, furnitureTier);
-    nonRedundantHighlightsCache.set(effectiveProp, hl);
-    conservationDrawbacksCache.set(effectiveProp, cd);
-  }
+  extractConservationDrawbacks(prop);
   const topFeatures = hl.featureHighlights.slice(0, 5);
   const topSurroundings = hl.surroundingHighlights.slice(0, 3);
   const topFeaturesFormatted = formatListPt(topFeatures);
@@ -3220,8 +3724,12 @@ function getStaticPropertyScoringMeta(
     calibratedMeta,
     microEnv,
     isDeepWestBarra,
-    effectiveProp,
+    effectiveFurnished,
     furnitureTier,
+    isUnconfirmedNullFurniture,
+    photoAudit,
+    effectiveModernityScore,
+    effectiveModernityTier,
     signalsSummary,
     negSummary,
     hasLegacyFinishSignals,
@@ -3238,9 +3746,6 @@ function getStaticPropertyScoringMeta(
     isMegaCondoFalse,
   };
   staticPropertyMetaCache.set(prop, meta);
-  if (effectiveProp !== prop) {
-    staticPropertyMetaCache.set(effectiveProp, meta);
-  }
   return meta;
 }
 
@@ -3365,7 +3870,7 @@ function buildDetailedJustificationFromContext(
   return [
     `Score Final ${finalScore.toFixed(1)} pts (${eligible ? "Qualificado" : `Filtrado: ${exclusionReason}`}):`,
     `[Bairro ${fmtSign(neighborhoodPoints)} pts] ${prop.neighborhood} (${prop.cityCode}) tem nota dinâmica ${nbScore.toFixed(2)}/10 × peso ${weights.neighborhoodMultiplier.toFixed(1)} (${nbCommute});${safetyClause}${cityPrefClause}`,
-    `[Modernidade ${fmtSign(modernityPoints)} pts] Score ${prop.modernityScore}/100 (${prop.modernityTier}: ${staticMeta.signalsSummary}${staticMeta.negSummary}) × peso ${weights.modernityMultiplier.toFixed(2)}${modernityCurveNote};`,
+    `[Modernidade ${fmtSign(modernityPoints)} pts] Score ${staticMeta.effectiveModernityScore}/100 (${staticMeta.effectiveModernityTier}: ${staticMeta.signalsSummary}${staticMeta.negSummary}) × peso ${weights.modernityMultiplier.toFixed(2)}${modernityCurveNote};`,
     `[Nuances & Micro-Localização ${fmtSign(nuancesPoints)} pts] (${nuancesSummary}${nuancesWarnSummary}) × peso ${(weights.nuancesMultiplier ?? 1).toFixed(1)};`,
     `[Orçamento ${fmtSign(budgetPoints)} pts] ${budgetDesc};`,
     `[Mobília ${fmtSign(furniturePoints)} pts] ${furnitureDesc};`,
@@ -3420,11 +3925,15 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
   generatedDescription: string | null;
   sourceSearch: string | null;
   isNewEntry: boolean;
+  publishedAt?: string | null;
+  listingUpdatedAt?: string | null;
   isActive?: boolean;
   deactivatedAt?: string | null;
   furnitureTier: FurnitureTier;
   commuteMinutes: number | null;
   commuteLabel: string;
+  listingAgeDays: number | null;
+  listingAgeLabel: string | null;
   eligible: boolean;
   exclusionReason: string | null;
   finalScore: number;
@@ -3475,7 +3984,7 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
     this.floor = p.floor;
     this.floorRange = p.floorRange;
     this.totalFloors = p.totalFloors;
-    this.furnished = p.furnished;
+    this.furnished = ctx.staticMeta.effectiveFurnished;
     this.acceptsPets = p.acceptsPets;
     this.nearSubway = p.nearSubway;
     this.constructionYear = p.constructionYear;
@@ -3487,8 +3996,8 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
     this.placesNearby = p.placesNearby;
     this.photoCaptions = p.photoCaptions;
     this.photosCount = p.photosCount;
-    this.modernityScore = p.modernityScore;
-    this.modernityTier = p.modernityTier;
+    this.modernityScore = ctx.staticMeta.effectiveModernityScore;
+    this.modernityTier = ctx.staticMeta.effectiveModernityTier;
     this.positiveSignals = p.positiveSignals;
     this.negativeSignals = p.negativeSignals;
     this.samplePhotos = p.samplePhotos;
@@ -3496,11 +4005,16 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
     this.generatedDescription = p.generatedDescription;
     this.sourceSearch = p.sourceSearch;
     this.isNewEntry = p.isNewEntry;
+    this.publishedAt = p.publishedAt ?? null;
+    this.listingUpdatedAt = p.listingUpdatedAt ?? null;
     this.isActive = p.isActive;
     this.deactivatedAt = p.deactivatedAt;
     this.furnitureTier = ctx.furnitureTier;
     this.commuteMinutes = commuteMinutes;
     this.commuteLabel = commuteLabel;
+    const age = computeListingAge(p.publishedAt, p.listingUpdatedAt);
+    this.listingAgeDays = age.days;
+    this.listingAgeLabel = age.label;
     this.eligible = ctx.eligible;
     this.exclusionReason = ctx.exclusionReason;
     this.finalScore = ctx.finalScore;
@@ -3512,9 +4026,29 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
     this.parksNearby = ctx.nuances.parksNearby;
     this.mallsNearby = ctx.nuances.mallsNearby;
     this.#ctx = ctx;
+
+    // Define lazy-cached own enumerable getters on each instance so `{ ...prop }` object spread
+    // always copies shortJustification, narrativeJustification, and detailedJustification.
+    Object.defineProperties(this, {
+      shortJustification: {
+        enumerable: true,
+        configurable: true,
+        get: () => this.#getShortJustification(),
+      },
+      narrativeJustification: {
+        enumerable: true,
+        configurable: true,
+        get: () => this.#getNarrativeJustification(),
+      },
+      detailedJustification: {
+        enumerable: true,
+        configurable: true,
+        get: () => this.#getDetailedJustification(),
+      },
+    });
   }
 
-  get shortJustification(): string {
+  #getShortJustification(): string {
     if (this.#short === undefined) {
       this.#short = buildShortJustification({
         prop: this.#ctx.prop,
@@ -3532,7 +4066,7 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
     return this.#short;
   }
 
-  get narrativeJustification(): string {
+  #getNarrativeJustification(): string {
     if (this.#narrative === undefined) {
       this.#narrative = buildNarrativeJustification({
         prop: this.#ctx.prop,
@@ -3548,11 +4082,23 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
     return this.#narrative;
   }
 
-  get detailedJustification(): string {
+  #getDetailedJustification(): string {
     if (this.#detailed === undefined) {
       this.#detailed = buildDetailedJustificationFromContext(this.#ctx);
     }
     return this.#detailed;
+  }
+
+  get shortJustification(): string {
+    return this.#getShortJustification();
+  }
+
+  get narrativeJustification(): string {
+    return this.#getNarrativeJustification();
+  }
+
+  get detailedJustification(): string {
+    return this.#getDetailedJustification();
   }
 }
 
@@ -3592,7 +4138,6 @@ export function computeDynamicProperties(
       calibratedMeta,
       microEnv,
       isDeepWestBarra,
-      effectiveProp,
       furnitureTier,
     } = staticMeta;
     const catalogNb =
@@ -3627,18 +4172,34 @@ export function computeDynamicProperties(
 
     let nbScore = 6.2;
     let nbCommute = "~20-35 min do Nubank";
+    const {
+      photoAudit,
+      effectiveModernityScore,
+      effectiveModernityTier,
+    } = staticMeta;
+    const isIndividualModernRjOrCp =
+      (prop.cityCode === "RJ" || prop.cityCode === "CP") &&
+      effectiveModernityScore >= 75;
     if (catalogNb) {
       nbCommute = `${catalogNb.commuteTime} (${catalogNb.nubankHub})`;
+      const effectiveBuildingStock = isIndividualModernRjOrCp
+        ? Math.max(catalogNb.buildingStockFitScore, 9.2)
+        : catalogNb.buildingStockFitScore;
+      const effectiveBudgetFit = isIndividualModernRjOrCp
+        ? Math.max(catalogNb.budgetFitScore, 9.0)
+        : catalogNb.budgetFitScore;
       if (
         microEnv.safetyCarCap !== null ||
-        microEnv.urbanBreathingCap !== null
+        microEnv.urbanBreathingCap !== null ||
+        effectiveBuildingStock !== catalogNb.buildingStockFitScore ||
+        effectiveBudgetFit !== catalogNb.budgetFitScore
       ) {
         nbScore = computeWeightedNeighborhoodScore(
           {
             urbanBreathing: effectiveUrbanBreathing,
             commuteLogistics: catalogNb.commuteLogisticsScore,
-            buildingStock: catalogNb.buildingStockFitScore,
-            budgetFit: catalogNb.budgetFitScore,
+            buildingStock: effectiveBuildingStock,
+            budgetFit: effectiveBudgetFit,
             safetyCar: nbSafetyCar,
           },
           weights,
@@ -3647,12 +4208,18 @@ export function computeDynamicProperties(
         nbScore = catalogNb.dynamicScore;
       }
     } else if (calibratedMeta) {
+      const effectiveBuildingStock = isIndividualModernRjOrCp
+        ? Math.max(calibratedMeta.buildingStock, 9.2)
+        : calibratedMeta.buildingStock;
+      const effectiveBudgetFit = isIndividualModernRjOrCp
+        ? Math.max(calibratedMeta.budgetFit, 9.0)
+        : calibratedMeta.budgetFit;
       nbScore = computeWeightedNeighborhoodScore(
         {
           urbanBreathing: effectiveUrbanBreathing,
           commuteLogistics: calibratedMeta.commuteLogistics,
-          buildingStock: calibratedMeta.buildingStock,
-          budgetFit: calibratedMeta.budgetFit,
+          buildingStock: effectiveBuildingStock,
+          budgetFit: effectiveBudgetFit,
           safetyCar: nbSafetyCar,
         },
         weights,
@@ -3663,8 +4230,8 @@ export function computeDynamicProperties(
         {
           urbanBreathing: effectiveUrbanBreathing,
           commuteLogistics: 6.5,
-          buildingStock: 6.2,
-          budgetFit: 7.0,
+          buildingStock: isIndividualModernRjOrCp ? 9.2 : 6.2,
+          budgetFit: isIndividualModernRjOrCp ? 9.0 : 7.0,
           safetyCar: nbSafetyCar,
         },
         weights,
@@ -3702,7 +4269,7 @@ export function computeDynamicProperties(
         ? calibratedMeta.commuteLogistics
         : 6.5;
 
-    // Direct Commute-Distance Impact (heavily penalize far-away neighborhoods like Barra da Tijuca / Barra Olímpica / Ponte Rio-Niterói)
+    // Direct Commute-Distance Impact (heavily penalize far-away neighborhoods like Barra da Tijuca / Barra Olímpica / Ponte Rio-Niterói, and apply distance discount to Taquaral ~38 min)
     const commuteWeightScale = weights.commuteLogisticsWeight / 1.8;
     let rawCommutePts = 0;
     if (isDeepWestBarra) {
@@ -3711,43 +4278,63 @@ export function computeDynamicProperties(
       rawCommutePts = -32.0;
     } else if (nbCommuteLogistics < 6.5) {
       rawCommutePts = -((6.5 - nbCommuteLogistics) * 6.5);
+    } else if (
+      prop.cityCode === "CP" &&
+      (normNbLower === "taquaral" || normNbLower === "parque taquaral")
+    ) {
+      rawCommutePts = -11.0 / Math.max(0.5, commuteWeightScale);
     } else if (nbCommuteLogistics >= 9.2) {
       rawCommutePts = 4.0;
     }
     const commuteDistanceAdjustment =
       Math.round(rawCommutePts * commuteWeightScale * 10) / 10;
 
-    // Non-linear interior quality & modernity curve (+8 pts >= 82; negative curve only when there is actual negative conservation evidence)
+    // Non-linear interior quality & modernity curve (+8 pts >= 82; strong negative curve for dated/infiltrated apartments)
     const hasRenovationEvidence = prop.positiveSignals.some(
       (p) =>
-        p.includes("Reformado") ||
-        p.includes("novo") ||
-        p.includes("Porcelanato") ||
-        p.includes("Construção 20"),
+        p !== "Flag Novo/Reformado" &&
+        (p.includes("Reformado") ||
+          p.includes("novo") ||
+          p.includes("Porcelanato") ||
+          p.includes("Construção 20")),
     );
     const hasNegativeConservationEvidence =
       prop.negativeSignals.some(
         (s) =>
           !/descri[cç][aã]o gen[eé]rica|venda|comprad|visita[cç][aã]o/i.test(s),
       ) ||
-      prop.modernityTier === "DATED" ||
+      effectiveModernityTier === "DATED" ||
+      Boolean(photoAudit?.hardExcludeDated) ||
+      Boolean(photoAudit?.hasMaintenanceIssue) ||
       (prop.constructionYear !== null &&
         prop.constructionYear < 1995 &&
         !hasRenovationEvidence);
 
-    const modernityCurveBonus =
-      weights.modernityMultiplier > 0
-        ? prop.modernityScore >= 82
-          ? 8.0
-          : hasNegativeConservationEvidence && prop.modernityScore < 58
-            ? -18.0
-            : hasNegativeConservationEvidence && prop.modernityScore < 68
-              ? -10.0
-              : 0
-        : 0;
+    let rawModernityCurve = 0;
+    if (weights.modernityMultiplier > 0) {
+      if (
+        effectiveModernityScore >= 82 &&
+        effectiveModernityTier === "MODERN_OR_RENOVATED"
+      ) {
+        rawModernityCurve = 8.0;
+      } else if (effectiveModernityScore < 45) {
+        rawModernityCurve = -40.0;
+      } else if (effectiveModernityScore < 60) {
+        rawModernityCurve = -25.0;
+      } else if (
+        hasNegativeConservationEvidence &&
+        effectiveModernityScore < 68
+      ) {
+        rawModernityCurve = -10.0;
+      }
+      if (photoAudit?.hasMaintenanceIssue === true) {
+        rawModernityCurve -= 15.0;
+      }
+    }
+    const modernityCurveBonus = rawModernityCurve;
     const modernityPoints =
       Math.round(
-        (prop.modernityScore * weights.modernityMultiplier +
+        (effectiveModernityScore * weights.modernityMultiplier +
           modernityCurveBonus) *
           10,
       ) / 10;
@@ -3757,16 +4344,59 @@ export function computeDynamicProperties(
       prop,
       weights.penalizeMegaCondo,
     );
+    const isFurnishedClassified = furnitureTier === "FULLY_FURNISHED";
+    const failsFurnished = false;
+    const isBunkerExcluded = false;
+    const failsBunker = isBunkerExcluded;
+    const parsedCommute = parseCommuteMinutes(
+      catalogNb?.commuteTime ?? nbCommute,
+      isDeepWestBarra,
+    );
+    const commuteMinutes = parsedCommute.minutes;
+    const isCommuteBottleneckExcluded =
+      prop.cityCode !== "BSB" &&
+      commuteMinutes !== null &&
+      commuteMinutes > 50;
+    const failsCommuteBottleneck = isCommuteBottleneckExcluded;
     const needsDistTag = isDeepWestBarra || nbCommuteLogistics <= 4.0;
     const needsSafetyTag = nbSafetyCar < 6.0;
+    const hasPhotoAuditWarnings =
+      photoAudit &&
+      (photoAudit.hardExcludeDated ||
+        photoAudit.hasMaintenanceIssue ||
+        photoAudit.falseAC) &&
+      (photoAudit.visualWarnings ?? []).length > 0;
     const nuances: ApartmentNuancesEvaluation =
-      needsDistTag || needsSafetyTag
+      needsDistTag ||
+      needsSafetyTag ||
+      isFurnishedClassified ||
+      failsCommuteBottleneck ||
+      hasPhotoAuditWarnings
         ? {
             ...baseNuances,
             redTags: baseNuances.redTags.slice(),
             nuanceWarnings: baseNuances.nuanceWarnings.slice(),
           }
         : baseNuances;
+    if (hasPhotoAuditWarnings && photoAudit) {
+      for (const w of (photoAudit.visualWarnings ?? []).slice(0, 2)) {
+        if (w && !nuances.nuanceWarnings.includes(w)) {
+          nuances.nuanceWarnings.push(w);
+        }
+      }
+    }
+    if (
+      isFurnishedClassified &&
+      !nuances.redTags.includes("Totalmente mobiliado")
+    ) {
+      nuances.redTags.push("Totalmente mobiliado");
+    }
+    if (failsCommuteBottleneck) {
+      const bottleneckTag = `Tempo > 50 min (${parsedCommute.label})`;
+      if (!nuances.redTags.includes(bottleneckTag)) {
+        nuances.redTags.push(bottleneckTag);
+      }
+    }
     if (needsDistTag) {
       const distTag = isDeepWestBarra
         ? "Barra Olímpica / Muito Longe do Nubank (75–100 min)"
@@ -3791,23 +4421,28 @@ export function computeDynamicProperties(
 
     const total = prop.totalMonthly;
     let rawBudgetPts = 0;
-    const comfortFloor = Math.max(3500, weights.budgetIdeal - 1000);
+    const comfortFloor = Math.max(1500, weights.budgetIdeal - 500);
+    const midToleranceCap = Math.min(weights.budgetHardCap, weights.budgetMax + 500);
     if (total > 0 && total <= comfortFloor) {
-      rawBudgetPts = 12;
+      rawBudgetPts = 11;
     } else if (total > 0 && total <= weights.budgetIdeal) {
       rawBudgetPts = 10;
     } else if (total <= weights.budgetMax) {
-      rawBudgetPts = 6;
+      rawBudgetPts = 8;
+    } else if (total <= midToleranceCap) {
+      rawBudgetPts = 0;
     } else if (total <= weights.budgetHardCap) {
-      rawBudgetPts = -4;
+      rawBudgetPts = -8;
     } else {
-      rawBudgetPts = -12;
+      rawBudgetPts = -16;
     }
     const budgetPoints =
       Math.round(rawBudgetPts * weights.budgetWeight * 10) / 10;
 
     // 3-tier Furniture classification & points
-    let furniturePoints = weights.unfurnishedBonus;
+    let furniturePoints = staticMeta.isUnconfirmedNullFurniture
+      ? Math.round(weights.unfurnishedBonus * 0.6)
+      : weights.unfurnishedBonus;
     if (furnitureTier === "SEMI_FURNISHED") {
       furniturePoints = Math.round(weights.furnishedPenalty * 0.35);
     } else if (furnitureTier === "FULLY_FURNISHED") {
@@ -3819,7 +4454,7 @@ export function computeDynamicProperties(
     let areaPoints = 0;
     const compactFloorM2 = Math.min(
       weights.sweetSpotMinM2,
-      Math.max(weights.minAreaM2, weights.sweetSpotMinM2 - 4),
+      Math.max(43, weights.minAreaM2, weights.sweetSpotMinM2 - 4),
     );
     if (area >= weights.sweetSpotMinM2 && area <= weights.sweetSpotMaxM2) {
       areaPoints = 10;
@@ -3827,7 +4462,7 @@ export function computeDynamicProperties(
       areaPoints = 6;
     } else if (area >= compactFloorM2 && area < weights.sweetSpotMinM2) {
       areaPoints = 0;
-    } else if (area >= weights.minAreaM2 && area < compactFloorM2) {
+    } else if (area >= Math.max(40, weights.minAreaM2) && area < compactFloorM2) {
       areaPoints = -10;
     } else {
       areaPoints = -18;
@@ -3844,9 +4479,8 @@ export function computeDynamicProperties(
       parkingPoints = isRJ ? -8 : -18;
     }
 
-    // City Preference Adjustment (User preference: penalize São Paulo Capital heavily, and Campinas moderately for being in SP state)
-    const cityPreferencePoints =
-      prop.cityCode === "SP" ? -18.0 : prop.cityCode === "CP" ? -7.0 : 0;
+    // City Preference Adjustment (User preference: penalize São Paulo Capital heavily; since SP neighborhoods already carry a -1.5 dynamicScore discount [-9.75 pts], add -10.0 pts so total SP property penalty is ~-19.8 pts; BH, RJ, and CP compete on equal footing)
+    const cityPreferencePoints = prop.cityCode === "SP" ? -10.0 : 0;
 
     const breakdown = {
       neighborhoodPoints: Math.round(neighborhoodPoints * 10) / 10,
@@ -3876,38 +4510,28 @@ export function computeDynamicProperties(
           10,
       ) / 10;
 
-    // Eligibility checks
-    const effectiveHardCap =
-      prop.cityCode === "RJ" || prop.cityCode === "SP"
-        ? Math.max(weights.budgetHardCap, weights.budgetMax + 350)
-        : weights.budgetHardCap;
-    const effectiveMinMod =
-      prop.cityCode === "RJ"
-        ? Math.max(48, weights.minModernityScore - 8)
-        : weights.minModernityScore;
-    const failsBudget = !total || total < 1500 || total > effectiveHardCap;
-    const failsArea = area < weights.minAreaM2 || area > weights.maxAreaM2;
+    // Eligibility checks (strictly per user retention rules: NO budget retention, NO furniture retention, NO modernity retention, NO bunker retention; retain ONLY on area < minAreaM2, commute > 50 min, no parking, no elevator, trapped parking)
+    const failsBudget = false;
+    const failsArea = area < weights.minAreaM2;
     const failsParking = weights.requireParking && prop.parkingSpaces < 1;
-    const failsMod = prop.modernityScore < effectiveMinMod;
+    const failsMod = false;
     const eligible =
       !failsBudget &&
       !failsArea &&
       !failsParking &&
       !nuances.hasNoElevator &&
       !nuances.hasTrappedParking &&
-      !failsMod;
+      !failsMod &&
+      !failsFurnished &&
+      !failsBunker &&
+      !failsCommuteBottleneck;
 
     let exclusionReason: string | null = null;
     if (!eligible) {
       const exclusions: string[] = [];
-      if (failsBudget) {
-        exclusions.push(
-          `Total mensal R$ ${fmtIntPtBr(total)} fora do teto (máx R$ ${fmtIntPtBr(effectiveHardCap)})`,
-        );
-      }
       if (failsArea) {
         exclusions.push(
-          `Área ${area} m² fora do intervalo ${weights.minAreaM2}–${weights.maxAreaM2} m²`,
+          `Área ${area} m² abaixo do mínimo de ${weights.minAreaM2} m² (eliminado)`,
         );
       }
       if (failsParking) {
@@ -3917,20 +4541,15 @@ export function computeDynamicProperties(
         exclusions.push("Sem elevador (eliminado)");
       }
       if (nuances.hasTrappedParking) {
-        exclusions.push("Vaga presa (eliminado)");
+        exclusions.push("Vaga presa, gaveta ou rotativa (eliminado)");
       }
-      if (failsMod) {
+      if (failsCommuteBottleneck) {
         exclusions.push(
-          `Modernidade ${prop.modernityScore}/100 abaixo do mínimo (${effectiveMinMod}/100)`,
+          `Tempo até o escritório (${commuteMinutes} min) acima do limite de 50 min (eliminado)`,
         );
       }
       exclusionReason = exclusions.join(" · ");
     }
-
-    const parsedCommute = parseCommuteMinutes(
-      catalogNb?.commuteTime ?? nbCommute,
-      isDeepWestBarra,
-    );
 
     const cardTags: EvaluatedProperty["cardTags"] = {
       acLabel: nuances.acLabel,
@@ -3943,13 +4562,13 @@ export function computeDynamicProperties(
     };
 
     const evaluatedItem = new EvaluatedPropertyImpl(
-      effectiveProp,
+      prop,
       parsedCommute.minutes,
       parsedCommute.label,
       cardTags,
       breakdown,
       {
-        prop: effectiveProp,
+        prop,
         staticMeta,
         furnitureTier,
         catalogNb,

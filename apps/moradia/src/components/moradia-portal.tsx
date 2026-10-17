@@ -5,16 +5,21 @@ import { PropertyMapView } from "@/components/property-map-view";
 import {
   fetchPropertyPhotosShared,
   getCardPhotoUrl,
+  getClientDescriptionCached,
+  getThumbPhotoUrl,
   handleImgError,
+  isRecentlyPublishedListing,
   PropertyCardPhotoShowcase,
   PropertyPhotoGalleryModal,
 } from "@/components/property-photo-showcase";
+export { isRecentlyPublishedListing } from "@/components/property-photo-showcase";
 import {
   BUILTIN_PRESETS,
   categorizePropertyFeatures,
   classifyFurnitureTier,
   computeDynamicNeighborhoods,
   computeDynamicProperties,
+  computeListingAge,
   DEFAULT_WEIGHTS,
   normalizeNeighborhoodKey,
   sanitizeAndMigrateWeights,
@@ -23,6 +28,7 @@ import type {
   CityHubCode,
   EvaluatedProperty,
   FloorRarity,
+  FurnitureTier,
   ModernityTier,
   MoradiaDatasetPayload,
   PropertyQuestionItem,
@@ -89,7 +95,9 @@ export type SortByOption =
   | "modernity_desc"
   | "price_per_m2_asc"
   | "floor_desc"
-  | "commute_asc";
+  | "commute_asc"
+  | "age_asc"
+  | "age_desc";
 
 export type FurnishedFilterOption =
   | "ALL"
@@ -120,7 +128,8 @@ export type PropertyFeatureKey =
   | "suite"
   | "doorman_24h"
   | "pool_gym"
-  | "pets";
+  | "pets"
+  | "safe_street";
 
 export interface PropertyExplorerFilters {
   selectedCity?: CityHubCode | "ALL";
@@ -136,6 +145,10 @@ export interface PropertyExplorerFilters {
   selectedNeighborhoods: string[];
   minAreaM2: number | null;
   maxAreaM2: number | null;
+  minListingAgeDays?: number | null;
+  maxListingAgeDays?: number | null;
+  listingDateFrom?: string;
+  listingDateTo?: string;
   selectedBedrooms?: number[];
   selectedBathrooms?: number[];
   selectedParking?: number[];
@@ -144,15 +157,18 @@ export interface PropertyExplorerFilters {
   minParking?: number | null;
   modernityTiers: ModernityTier[];
   minModernityScore: number | null;
-  furnishedFilter: FurnishedFilterOption;
+  furnishedFilter?: FurnishedFilterOption;
+  selectedFurnitureTiers?: FurnitureTier[];
   requiredFeatures: PropertyFeatureKey[];
   hideMegaCondo: boolean;
   hideForSale: boolean;
   onlyNewEntries: boolean;
   showIneligible: boolean;
+  onlyIneligible?: boolean;
   providerFilter: ProviderFilterOption;
   onlyFavorites: boolean;
   onlyTop20Neighborhoods?: boolean;
+  onlySafeStreets?: boolean;
   enableBsbBenchmark?: boolean;
   deactivatedFilter: DeactivatedFilterOption;
   favoriteKeys?: string[];
@@ -172,6 +188,10 @@ export const DEFAULT_EXPLORER_FILTERS: PropertyExplorerFilters = {
   selectedNeighborhoods: [],
   minAreaM2: null,
   maxAreaM2: null,
+  minListingAgeDays: null,
+  maxListingAgeDays: null,
+  listingDateFrom: "",
+  listingDateTo: "",
   selectedBedrooms: [],
   selectedBathrooms: [],
   selectedParking: [],
@@ -181,17 +201,31 @@ export const DEFAULT_EXPLORER_FILTERS: PropertyExplorerFilters = {
   modernityTiers: [],
   minModernityScore: null,
   furnishedFilter: "ALL",
+  selectedFurnitureTiers: [],
   requiredFeatures: [],
   hideMegaCondo: false,
   hideForSale: false,
   onlyNewEntries: false,
   showIneligible: false,
+  onlyIneligible: false,
   providerFilter: "ALL",
   onlyFavorites: false,
   onlyTop20Neighborhoods: false,
+  onlySafeStreets: false,
   enableBsbBenchmark: false,
   deactivatedFilter: "ACTIVE_ONLY",
   favoriteKeys: [],
+};
+
+export const PERFEITO_EXPLORER_FILTERS: Partial<PropertyExplorerFilters> = {
+  requiredFeatures: ["ac"],
+  floorFilters: ["HIGH_OR_TOP"],
+  minTotalMonthly: null,
+  maxTotalMonthly: 4500,
+  maxCommuteMinutes: 25,
+  selectedFurnitureTiers: ["UNFURNISHED"],
+  furnishedFilter: "UNFURNISHED",
+  onlySafeStreets: true,
 };
 
 export const FLOOR_FILTER_OPTIONS: {
@@ -272,6 +306,16 @@ export const SORT_BY_OPTIONS: {
     label: "Menor Tempo até o Escritório (min)",
     shortLabel: "Tempo ↑",
   },
+  {
+    value: "age_asc",
+    label: "Anúncio Mais Recente (Menor Idade)",
+    shortLabel: "Mais Recente",
+  },
+  {
+    value: "age_desc",
+    label: "Anúncio Mais Antigo (Maior Idade)",
+    shortLabel: "Mais Antigo",
+  },
 ];
 
 export const PROPERTY_FEATURE_OPTIONS: {
@@ -287,7 +331,21 @@ export const PROPERTY_FEATURE_OPTIONS: {
   { key: "doorman_24h", label: "Portaria 24h" },
   { key: "pool_gym", label: "Piscina / Academia" },
   { key: "pets", label: "Aceita Pet" },
+  { key: "safe_street", label: "Sem problemas de segurança" },
 ];
+
+export function hasNoSafetyProblems(prop: EvaluatedProperty): boolean {
+  if (
+    prop.cardTags.redTags.includes("Alerta de Segurança na Rua") ||
+    prop.cardTags.redTags.includes("Via Arterial / Efeito Bunker")
+  ) {
+    return false;
+  }
+  if ((prop.breakdown?.safetyPoints ?? 0) < 0) {
+    return false;
+  }
+  return true;
+}
 
 export function matchesFloorFilter(
   prop: EvaluatedProperty,
@@ -352,27 +410,33 @@ function getCachedFeatureText(prop: EvaluatedProperty): string {
   return text;
 }
 
+function stripDiacritics(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function getCachedSearchHaystack(prop: EvaluatedProperty): string {
   const hit = searchHaystackCache.get(prop);
   if (hit !== undefined) return hit;
-  const hay = [
-    prop.neighborhood,
-    prop.street,
-    prop.condominiumName ?? "",
-    prop.title,
-    prop.description ?? "",
-    prop.generatedDescription ?? "",
-    ...prop.positiveSignals,
-    ...prop.nuanceHighlights,
-    ...prop.installations,
-    ...prop.amenities,
-    ...prop.comfortCommodities,
-    ...prop.practicalityCommodities,
-    ...prop.placesNearby.map((pl) => pl.name),
-    prop.id,
-  ]
-    .join(" ")
-    .toLowerCase();
+  const hay = stripDiacritics(
+    [
+      prop.neighborhood,
+      prop.street,
+      prop.condominiumName ?? "",
+      prop.title,
+      prop.description ?? "",
+      prop.generatedDescription ?? "",
+      ...prop.positiveSignals,
+      ...prop.nuanceHighlights,
+      ...prop.installations,
+      ...prop.amenities,
+      ...prop.comfortCommodities,
+      ...prop.practicalityCommodities,
+      ...prop.placesNearby.map((pl) => pl.name),
+      prop.id,
+    ]
+      .join(" ")
+      .toLowerCase(),
+  );
   searchHaystackCache.set(prop, hay);
   return hay;
 }
@@ -442,6 +506,8 @@ export function matchesPropertyFeature(
       );
     case "pets":
       return prop.acceptsPets === true;
+    case "safe_street":
+      return hasNoSafetyProblems(prop);
   }
 }
 
@@ -467,13 +533,14 @@ export const STRICT_TOP_20_NEIGHBORHOODS_BY_CITY: Record<
   ReadonlySet<string>
 > = {
   BH: new Set([
+    "lourdes",
     "funcionários",
     "funcionarios",
-    "lourdes",
-    "santa efigênia",
-    "santa efigenia",
+    "savassi",
     "santo agostinho",
     "sion",
+    "santa efigênia",
+    "santa efigenia",
     "vila da serra",
   ]),
   CP: new Set([
@@ -505,13 +572,17 @@ export const STRICT_TOP_20_NEIGHBORHOODS_BY_CITY: Record<
     "leme",
     "botafogo",
     "botafogo (orla)",
-    "tijuca",
-    "tijuca (pç uruguai)",
-    "jd. oceânico",
-    "jd. oceanico",
-    "jardim oceânico",
-    "jardim oceanico",
-    "barra da tijuca",
+    "laranjeiras",
+    "humaitá",
+    "humaita",
+    "ipanema",
+    "leblon",
+    "lagoa",
+    "jardim botânico",
+    "jardim botanico",
+    "gavea",
+    "gávea",
+    "urca",
   ]),
   BSB: new Set([
     "águas claras",
@@ -559,12 +630,58 @@ export function isStrictlyInTop20Neighborhoods(
   return true;
 }
 
+export function resolvePropertyListingAgeAndDate(p: EvaluatedProperty): {
+  ageDays: number | null;
+  dateIso: string | null;
+} {
+  const ext = p as EvaluatedProperty & {
+    listingPublishedAt?: string | null;
+    firstSeenAt?: string | null;
+  };
+  const rawIso = (
+    ext.listingPublishedAt ??
+    p.publishedAt ??
+    ext.firstSeenAt ??
+    p.listingUpdatedAt ??
+    ""
+  ).trim();
+
+  const ageDays =
+    p.listingAgeDays !== undefined && p.listingAgeDays !== null
+      ? p.listingAgeDays
+      : rawIso
+        ? computeListingAge(rawIso, p.listingUpdatedAt).days
+        : null;
+
+  let dateIso: string | null = null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(rawIso)) {
+    dateIso = rawIso.slice(0, 10);
+  } else if (rawIso) {
+    const parsedMs = Date.parse(rawIso);
+    if (Number.isFinite(parsedMs)) {
+      dateIso = new Date(parsedMs).toISOString().slice(0, 10);
+    }
+  }
+  if (
+    !dateIso &&
+    ageDays !== null &&
+    ageDays !== undefined &&
+    Number.isFinite(ageDays)
+  ) {
+    dateIso = new Date(Date.now() - ageDays * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  return { ageDays: ageDays ?? null, dateIso };
+}
+
 export function filterAndSortProperties(
   properties: EvaluatedProperty[],
   filters: PropertyExplorerFilters,
   favoriteKeysArg?: Iterable<string>,
 ): EvaluatedProperty[] {
-  const q = filters.searchQuery.trim().toLowerCase();
+  const q = stripDiacritics(filters.searchQuery.trim().toLowerCase());
   const favSet = new Set<string>([
     ...(filters.favoriteKeys ?? []),
     ...(favoriteKeysArg ?? []),
@@ -573,6 +690,19 @@ export function filterAndSortProperties(
   const enableBsbBenchmark = filters.enableBsbBenchmark ?? false;
   const deactivatedFilter: DeactivatedFilterOption =
     filters.deactivatedFilter ?? "ACTIVE_ONLY";
+  const activeFurnitureTiers =
+    filters.selectedFurnitureTiers &&
+    filters.selectedFurnitureTiers.length > 0
+      ? filters.selectedFurnitureTiers
+      : null;
+  const allowFullyFurnishedIneligible = activeFurnitureTiers
+    ? activeFurnitureTiers.includes("FULLY_FURNISHED")
+    : filters.furnishedFilter === "FURNISHED";
+  const allowCommuteBottleneckIneligible =
+    filters.selectedNeighborhoods.length > 0 ||
+    (filters.maxCommuteMinutes !== null &&
+      filters.maxCommuteMinutes !== undefined &&
+      filters.maxCommuteMinutes >= 40);
 
   const filtered = properties.filter((p) => {
     if (!enableBsbBenchmark && p.cityCode === "BSB") {
@@ -637,7 +767,33 @@ export function filterAndSortProperties(
         return false;
       }
     }
-    if (!filters.showIneligible && !onlyFavorites && !p.eligible) {
+    if (filters.onlyIneligible && p.eligible) {
+      return false;
+    }
+    const furnitureTier = p.furnitureTier ?? classifyFurnitureTier(p);
+    const exclusionParts = p.exclusionReason
+      ? p.exclusionReason.split(" · ")
+      : [];
+    const isAllowedIneligibleOverride =
+      !p.eligible &&
+      exclusionParts.length > 0 &&
+      exclusionParts.every(
+        (reason) =>
+          (allowFullyFurnishedIneligible &&
+            furnitureTier === "FULLY_FURNISHED" &&
+            /totalmente mobiliado/i.test(reason)) ||
+          (allowCommuteBottleneckIneligible &&
+            /(?:gargalo pendular cr[ií]tico|tempo at[eé] o escrit[oó]rio.*acima do limite de 50 min)/i.test(
+              reason,
+            )),
+      );
+    if (
+      !filters.showIneligible &&
+      !filters.onlyIneligible &&
+      !onlyFavorites &&
+      !p.eligible &&
+      !isAllowedIneligibleOverride
+    ) {
       return false;
     }
     const activeFloorFilters: FloorFilterOption[] =
@@ -679,6 +835,36 @@ export function filterAndSortProperties(
     }
     if (filters.maxAreaM2 !== null && p.areaM2 > filters.maxAreaM2) {
       return false;
+    }
+    const minListingAgeDays = filters.minListingAgeDays ?? null;
+    const maxListingAgeDays = filters.maxListingAgeDays ?? null;
+    const listingDateFrom = (filters.listingDateFrom ?? "").trim();
+    const listingDateTo = (filters.listingDateTo ?? "").trim();
+    if (
+      minListingAgeDays !== null ||
+      maxListingAgeDays !== null ||
+      listingDateFrom !== "" ||
+      listingDateTo !== ""
+    ) {
+      const { ageDays, dateIso } = resolvePropertyListingAgeAndDate(p);
+      if (
+        minListingAgeDays !== null &&
+        (ageDays === null || ageDays === undefined || ageDays < minListingAgeDays)
+      ) {
+        return false;
+      }
+      if (
+        maxListingAgeDays !== null &&
+        (ageDays === null || ageDays === undefined || ageDays > maxListingAgeDays)
+      ) {
+        return false;
+      }
+      if (listingDateFrom !== "" && (!dateIso || dateIso < listingDateFrom)) {
+        return false;
+      }
+      if (listingDateTo !== "" && (!dateIso || dateIso > listingDateTo)) {
+        return false;
+      }
     }
     if (filters.selectedBedrooms && filters.selectedBedrooms.length > 0) {
       const matchesBed = filters.selectedBedrooms.some((b) =>
@@ -728,31 +914,36 @@ export function filterAndSortProperties(
     ) {
       return false;
     }
-    const furnitureTier = p.furnitureTier ?? classifyFurnitureTier(p);
-    if (
-      filters.furnishedFilter === "UNFURNISHED" &&
-      furnitureTier !== "UNFURNISHED"
-    ) {
-      return false;
-    }
-    if (
-      filters.furnishedFilter === "UNFURNISHED_OR_SEMI" &&
-      furnitureTier === "FULLY_FURNISHED"
-    ) {
-      return false;
-    }
-    if (
-      filters.furnishedFilter === "SEMI_FURNISHED" &&
-      furnitureTier !== "SEMI_FURNISHED"
-    ) {
-      return false;
-    }
-    if (
-      filters.furnishedFilter === "FURNISHED" &&
-      furnitureTier !== "FULLY_FURNISHED" &&
-      furnitureTier !== "SEMI_FURNISHED"
-    ) {
-      return false;
+    if (activeFurnitureTiers) {
+      if (!activeFurnitureTiers.includes(furnitureTier)) {
+        return false;
+      }
+    } else {
+      if (
+        filters.furnishedFilter === "UNFURNISHED" &&
+        furnitureTier !== "UNFURNISHED"
+      ) {
+        return false;
+      }
+      if (
+        filters.furnishedFilter === "UNFURNISHED_OR_SEMI" &&
+        furnitureTier === "FULLY_FURNISHED"
+      ) {
+        return false;
+      }
+      if (
+        filters.furnishedFilter === "SEMI_FURNISHED" &&
+        furnitureTier !== "SEMI_FURNISHED"
+      ) {
+        return false;
+      }
+      if (
+        filters.furnishedFilter === "FURNISHED" &&
+        furnitureTier !== "FULLY_FURNISHED" &&
+        furnitureTier !== "SEMI_FURNISHED"
+      ) {
+        return false;
+      }
     }
     if (filters.providerFilter !== "ALL") {
       if (filters.providerFilter === "zapimoveis") {
@@ -763,7 +954,7 @@ export function filterAndSortProperties(
         return false;
       }
     }
-    if (filters.onlyNewEntries && !p.isNewEntry) {
+    if (filters.onlyNewEntries && !isRecentlyPublishedListing(p)) {
       return false;
     }
     if (
@@ -775,6 +966,9 @@ export function filterAndSortProperties(
     }
     if (filters.hideForSale) {
       if (getCachedForSaleFlag(p)) return false;
+    }
+    if (filters.onlySafeStreets && !hasNoSafetyProblems(p)) {
+      return false;
     }
     if (filters.requiredFeatures.length > 0) {
       for (const feat of filters.requiredFeatures) {
@@ -834,6 +1028,46 @@ export function filterAndSortProperties(
           (a.commuteMinutes ?? 99) - (b.commuteMinutes ?? 99) ||
           b.finalScore - a.finalScore;
         break;
+      case "age_asc": {
+        const aAge =
+          a.listingAgeDays !== undefined
+            ? a.listingAgeDays
+            : computeListingAge(a.publishedAt, a.listingUpdatedAt).days;
+        const bAge =
+          b.listingAgeDays !== undefined
+            ? b.listingAgeDays
+            : computeListingAge(b.publishedAt, b.listingUpdatedAt).days;
+        if (aAge === null && bAge === null) {
+          cmp = b.finalScore - a.finalScore;
+        } else if (aAge === null) {
+          cmp = 1;
+        } else if (bAge === null) {
+          cmp = -1;
+        } else {
+          cmp = aAge - bAge || b.finalScore - a.finalScore;
+        }
+        break;
+      }
+      case "age_desc": {
+        const aAge =
+          a.listingAgeDays !== undefined
+            ? a.listingAgeDays
+            : computeListingAge(a.publishedAt, a.listingUpdatedAt).days;
+        const bAge =
+          b.listingAgeDays !== undefined
+            ? b.listingAgeDays
+            : computeListingAge(b.publishedAt, b.listingUpdatedAt).days;
+        if (aAge === null && bAge === null) {
+          cmp = b.finalScore - a.finalScore;
+        } else if (aAge === null) {
+          cmp = 1;
+        } else if (bAge === null) {
+          cmp = -1;
+        } else {
+          cmp = bAge - aAge || b.finalScore - a.finalScore;
+        }
+        break;
+      }
       case "score_desc":
       default:
         cmp = b.finalScore - a.finalScore || a.totalMonthly - b.totalMonthly;
@@ -978,7 +1212,7 @@ export function buildBenchmarkStats(evaluatedProperties: EvaluatedProperty[]) {
       const tier = p.furnitureTier ?? classifyFurnitureTier(p);
       if (tier === "FULLY_FURNISHED") return false;
       if (p.areaM2 < 45 || p.areaM2 > 72) return false;
-      if (p.totalMonthly > DEFAULT_WEIGHTS.budgetIdeal) return false;
+      if (p.totalMonthly > 5500) return false;
       if (p.totalMonthly / Math.max(1, p.areaM2) < 42) return false;
       const normNb = normalizeNeighborhoodKey(
         p.neighborhood ?? "",
@@ -1292,6 +1526,10 @@ export interface ParsedExplorerFiltersState {
   sortBy: SortByOption;
   minAreaM2: number | null;
   maxAreaM2: number | null;
+  minListingAgeDays: number | null;
+  maxListingAgeDays: number | null;
+  listingDateFrom: string;
+  listingDateTo: string;
   selectedBedrooms: number[];
   selectedBathrooms: number[];
   selectedParking: number[];
@@ -1301,18 +1539,65 @@ export interface ParsedExplorerFiltersState {
   modernityTiers: ModernityTier[];
   minModernityScore: number | null;
   furnishedFilter: FurnishedFilterOption;
+  selectedFurnitureTiers: FurnitureTier[];
   requiredFeatures: PropertyFeatureKey[];
   hideMegaCondo: boolean;
   hideForSale: boolean;
   onlyNewEntries: boolean;
   showIneligible: boolean;
+  onlyIneligible: boolean;
   providerFilter: ProviderFilterOption;
   onlyFavorites: boolean;
   onlyTop20Neighborhoods: boolean;
+  onlySafeStreets: boolean;
   enableBsbBenchmark: boolean;
   deactivatedFilter: DeactivatedFilterOption;
   showAdvancedFilters: boolean;
   viewMode: "split" | "list" | "map";
+}
+
+function deriveLegacyFurnishedFilter(
+  tiers: FurnitureTier[],
+): FurnishedFilterOption {
+  if (tiers.length === 0 || tiers.length >= 3) return "ALL";
+  const set = new Set(tiers);
+  if (set.size === 1) {
+    if (set.has("UNFURNISHED")) return "UNFURNISHED";
+    if (set.has("SEMI_FURNISHED")) return "SEMI_FURNISHED";
+    if (set.has("FULLY_FURNISHED")) return "FURNISHED";
+  }
+  if (
+    set.size === 2 &&
+    set.has("UNFURNISHED") &&
+    set.has("SEMI_FURNISHED")
+  ) {
+    return "UNFURNISHED_OR_SEMI";
+  }
+  if (
+    set.size === 2 &&
+    set.has("SEMI_FURNISHED") &&
+    set.has("FULLY_FURNISHED")
+  ) {
+    return "FURNISHED";
+  }
+  return "ALL";
+}
+
+function deriveFurnitureTiersFromLegacyFilter(
+  furnishedFilter: FurnishedFilterOption | undefined,
+): FurnitureTier[] {
+  switch (furnishedFilter) {
+    case "UNFURNISHED":
+      return ["UNFURNISHED"];
+    case "UNFURNISHED_OR_SEMI":
+      return ["UNFURNISHED", "SEMI_FURNISHED"];
+    case "SEMI_FURNISHED":
+      return ["SEMI_FURNISHED"];
+    case "FURNISHED":
+      return ["SEMI_FURNISHED", "FULLY_FURNISHED"];
+    default:
+      return [];
+  }
 }
 
 export function parseExplorerFiltersObject(
@@ -1402,6 +1687,37 @@ export function parseExplorerFiltersObject(
       ].sort((a, b) => a - b)
     : [];
 
+  const validLegacyFurnishedFilter: FurnishedFilterOption =
+    parsed.furnishedFilter === "ALL" ||
+    parsed.furnishedFilter === "UNFURNISHED" ||
+    parsed.furnishedFilter === "UNFURNISHED_OR_SEMI" ||
+    parsed.furnishedFilter === "SEMI_FURNISHED" ||
+    parsed.furnishedFilter === "FURNISHED"
+      ? parsed.furnishedFilter
+      : "ALL";
+
+  let selectedFurnitureTiers: FurnitureTier[] = [];
+  if (Array.isArray(parsed.selectedFurnitureTiers)) {
+    const validTiers = parsed.selectedFurnitureTiers.filter(
+      (t): t is FurnitureTier =>
+        t === "UNFURNISHED" ||
+        t === "SEMI_FURNISHED" ||
+        t === "FULLY_FURNISHED",
+    );
+    const uniqueTiers = [...new Set(validTiers)];
+    selectedFurnitureTiers = uniqueTiers.length >= 3 ? [] : uniqueTiers;
+  } else if (validLegacyFurnishedFilter !== "ALL") {
+    selectedFurnitureTiers = deriveFurnitureTiersFromLegacyFilter(
+      validLegacyFurnishedFilter,
+    );
+  }
+
+  const furnishedFilter: FurnishedFilterOption = Array.isArray(
+    parsed.selectedFurnitureTiers,
+  )
+    ? deriveLegacyFurnishedFilter(selectedFurnitureTiers)
+    : validLegacyFurnishedFilter;
+
   return {
     selectedCities,
     selectedNeighborhoods: Array.isArray(parsed.selectedNeighborhoods)
@@ -1415,7 +1731,11 @@ export function parseExplorerFiltersObject(
     minTotalMonthly:
       typeof parsed.minTotalMonthly === "number" ? parsed.minTotalMonthly : null,
     maxTotalMonthly:
-      typeof parsed.maxTotalMonthly === "number" ? parsed.maxTotalMonthly : null,
+      "maxTotalMonthly" in parsed
+        ? typeof parsed.maxTotalMonthly === "number"
+          ? parsed.maxTotalMonthly
+          : null
+        : 5000,
     maxCommuteMinutes:
       typeof parsed.maxCommuteMinutes === "number"
         ? parsed.maxCommuteMinutes
@@ -1428,6 +1748,20 @@ export function parseExplorerFiltersObject(
         : "score_desc",
     minAreaM2: typeof parsed.minAreaM2 === "number" ? parsed.minAreaM2 : null,
     maxAreaM2: typeof parsed.maxAreaM2 === "number" ? parsed.maxAreaM2 : null,
+    minListingAgeDays:
+      typeof parsed.minListingAgeDays === "number" &&
+      Number.isFinite(parsed.minListingAgeDays)
+        ? parsed.minListingAgeDays
+        : null,
+    maxListingAgeDays:
+      typeof parsed.maxListingAgeDays === "number" &&
+      Number.isFinite(parsed.maxListingAgeDays)
+        ? parsed.maxListingAgeDays
+        : null,
+    listingDateFrom:
+      typeof parsed.listingDateFrom === "string" ? parsed.listingDateFrom : "",
+    listingDateTo:
+      typeof parsed.listingDateTo === "string" ? parsed.listingDateTo : "",
     selectedBedrooms,
     selectedBathrooms,
     selectedParking,
@@ -1449,14 +1783,8 @@ export function parseExplorerFiltersObject(
       typeof parsed.minModernityScore === "number"
         ? parsed.minModernityScore
         : null,
-    furnishedFilter:
-      parsed.furnishedFilter === "ALL" ||
-      parsed.furnishedFilter === "UNFURNISHED" ||
-      parsed.furnishedFilter === "UNFURNISHED_OR_SEMI" ||
-      parsed.furnishedFilter === "SEMI_FURNISHED" ||
-      parsed.furnishedFilter === "FURNISHED"
-        ? parsed.furnishedFilter
-        : "ALL",
+    furnishedFilter,
+    selectedFurnitureTiers,
     requiredFeatures: Array.isArray(parsed.requiredFeatures)
       ? parsed.requiredFeatures.filter((f): f is PropertyFeatureKey =>
           PROPERTY_FEATURE_OPTIONS.some((opt) => opt.key === f),
@@ -1470,6 +1798,8 @@ export function parseExplorerFiltersObject(
       typeof parsed.onlyNewEntries === "boolean" ? parsed.onlyNewEntries : false,
     showIneligible:
       typeof parsed.showIneligible === "boolean" ? parsed.showIneligible : false,
+    onlyIneligible:
+      typeof parsed.onlyIneligible === "boolean" ? parsed.onlyIneligible : false,
     providerFilter:
       parsed.providerFilter === "ALL" ||
       parsed.providerFilter === "quintoandar" ||
@@ -1484,6 +1814,10 @@ export function parseExplorerFiltersObject(
     onlyTop20Neighborhoods:
       typeof parsed.onlyTop20Neighborhoods === "boolean"
         ? parsed.onlyTop20Neighborhoods
+        : false,
+    onlySafeStreets:
+      typeof parsed.onlySafeStreets === "boolean"
+        ? parsed.onlySafeStreets
         : false,
     enableBsbBenchmark,
     deactivatedFilter:
@@ -1522,6 +1856,10 @@ function serializeExplorerFilters(state: ParsedExplorerFiltersState) {
     sortBy: state.sortBy,
     minAreaM2: state.minAreaM2,
     maxAreaM2: state.maxAreaM2,
+    minListingAgeDays: state.minListingAgeDays,
+    maxListingAgeDays: state.maxListingAgeDays,
+    listingDateFrom: state.listingDateFrom,
+    listingDateTo: state.listingDateTo,
     selectedBedrooms: state.selectedBedrooms,
     selectedBathrooms: state.selectedBathrooms,
     selectedParking: state.selectedParking,
@@ -1531,19 +1869,46 @@ function serializeExplorerFilters(state: ParsedExplorerFiltersState) {
     modernityTiers: state.modernityTiers,
     minModernityScore: state.minModernityScore,
     furnishedFilter: state.furnishedFilter,
+    selectedFurnitureTiers: state.selectedFurnitureTiers,
     requiredFeatures: state.requiredFeatures,
     hideMegaCondo: state.hideMegaCondo,
     hideForSale: state.hideForSale,
     onlyNewEntries: state.onlyNewEntries,
     showIneligible: state.showIneligible,
+    onlyIneligible: state.onlyIneligible,
     providerFilter: state.providerFilter,
     onlyFavorites: state.onlyFavorites,
     onlyTop20Neighborhoods: state.onlyTop20Neighborhoods,
+    onlySafeStreets: state.onlySafeStreets,
     enableBsbBenchmark: state.enableBsbBenchmark,
     deactivatedFilter: state.deactivatedFilter,
     showAdvancedFilters: state.showAdvancedFilters,
     viewMode: state.viewMode,
   };
+}
+
+export const MAX_EXTRA_PHOTOS_CACHE_ENTRIES = 25;
+
+export function upsertBoundedRecord<T>(
+  prev: Record<string, T>,
+  key: string,
+  value: T,
+  maxEntries = MAX_EXTRA_PHOTOS_CACHE_ENTRIES,
+): Record<string, T> {
+  const next: Record<string, T> = {};
+  for (const [k, v] of Object.entries(prev)) {
+    if (k !== key) {
+      next[k] = v;
+    }
+  }
+  next[key] = value;
+  const keys = Object.keys(next);
+  if (keys.length > maxEntries) {
+    for (let i = 0; i < keys.length - maxEntries; i++) {
+      delete next[keys[i]!];
+    }
+  }
+  return next;
 }
 
 export function MoradiaPortal({
@@ -1574,8 +1939,7 @@ export function MoradiaPortal({
   );
   const initialCompareKeys = useMemo(
     () =>
-      resolvedInitialPrefs?.compareKeys &&
-      resolvedInitialPrefs.compareKeys.length > 0
+      Array.isArray(resolvedInitialPrefs?.compareKeys)
         ? resolvedInitialPrefs.compareKeys
         : DEFAULT_COMPARE_KEYS,
     [resolvedInitialPrefs],
@@ -1624,6 +1988,18 @@ export function MoradiaPortal({
   const [maxAreaM2, setMaxAreaM2] = useState<number | null>(
     initialParsedFilters.maxAreaM2,
   );
+  const [minListingAgeDays, setMinListingAgeDays] = useState<number | null>(
+    initialParsedFilters.minListingAgeDays,
+  );
+  const [maxListingAgeDays, setMaxListingAgeDays] = useState<number | null>(
+    initialParsedFilters.maxListingAgeDays,
+  );
+  const [listingDateFrom, setListingDateFrom] = useState<string>(
+    initialParsedFilters.listingDateFrom,
+  );
+  const [listingDateTo, setListingDateTo] = useState<string>(
+    initialParsedFilters.listingDateTo,
+  );
   const [selectedBedrooms, setSelectedBedrooms] = useState<number[]>(
     initialParsedFilters.selectedBedrooms,
   );
@@ -1650,6 +2026,9 @@ export function MoradiaPortal({
   );
   const [furnishedFilter, setFurnishedFilter] =
     useState<FurnishedFilterOption>(initialParsedFilters.furnishedFilter);
+  const [selectedFurnitureTiers, setSelectedFurnitureTiers] = useState<
+    FurnitureTier[]
+  >(initialParsedFilters.selectedFurnitureTiers);
   const [requiredFeatures, setRequiredFeatures] = useState<
     PropertyFeatureKey[]
   >(initialParsedFilters.requiredFeatures);
@@ -1665,6 +2044,9 @@ export function MoradiaPortal({
   const [showIneligible, setShowIneligible] = useState<boolean>(
     initialParsedFilters.showIneligible,
   );
+  const [onlyIneligible, setOnlyIneligible] = useState<boolean>(
+    initialParsedFilters.onlyIneligible ?? false,
+  );
   const [providerFilter, setProviderFilter] =
     useState<ProviderFilterOption>(initialParsedFilters.providerFilter);
   const [onlyFavorites, setOnlyFavorites] = useState<boolean>(
@@ -1672,6 +2054,9 @@ export function MoradiaPortal({
   );
   const [onlyTop20Neighborhoods, setOnlyTop20Neighborhoods] = useState<boolean>(
     initialParsedFilters.onlyTop20Neighborhoods,
+  );
+  const [onlySafeStreets, setOnlySafeStreets] = useState<boolean>(
+    initialParsedFilters.onlySafeStreets,
   );
   const [enableBsbBenchmark, setEnableBsbBenchmark] = useState<boolean>(
     initialParsedFilters.enableBsbBenchmark,
@@ -1707,9 +2092,20 @@ export function MoradiaPortal({
   const [extraPhotosByKey, setExtraPhotosByKey] = useState<
     Record<string, Array<{ room: string | null; url: string }>>
   >({});
+  const [extraDescriptionsByKey, setExtraDescriptionsByKey] = useState<
+    Record<string, string>
+  >({});
   const fetchedPhotoKeysRef = useRef<Set<string>>(new Set());
   const [compareKeys, setCompareKeys] = useState<string[]>(initialCompareKeys);
   const [visibleCount, setVisibleCount] = useState<number>(30);
+  const [focusedPropertyKey, setFocusedPropertyKey] = useState<string | null>(
+    null,
+  );
+  const [mountedWindow, setMountedWindow] = useState<{
+    start: number;
+    end: number;
+  }>({ start: 0, end: 16 });
+  const cardsListRef = useRef<HTMLDivElement | null>(null);
   const [viewMode, setViewMode] = useState<"split" | "list" | "map">(
     initialParsedFilters.viewMode,
   );
@@ -1740,31 +2136,16 @@ export function MoradiaPortal({
     const idx = filteredPropertiesRef.current.findIndex(
       (p) => `${p.provider}:${p.id}` === key,
     );
-    let scrollDelayMs = 100;
-    if (idx >= 0) {
-      setVisibleCount((prev) =>
-        idx >= prev ? Math.max(prev, idx + 10) : prev,
-      );
+    // Never expand visibleCount to thousands of items!
+    // If the target card is outside the initial 30-card slice (or filtered out),
+    // pin it via focusedPropertyKey at index 0 of displayedCards and keep the window small.
+    if (idx < 0 || idx >= 30) {
+      setFocusedPropertyKey(key);
+      setMountedWindow({ start: 0, end: 16 });
     } else {
-      const targetProp = evaluatedPropertiesRef.current.find(
-        (p) => `${p.provider}:${p.id}` === key,
-      );
-      if (targetProp) {
-        resetAllFiltersRef.current();
-        if (targetProp.cityCode === "BSB") {
-          setEnableBsbBenchmark(true);
-        }
-        if (!targetProp.eligible) {
-          setShowIneligible(true);
-        }
-        if (targetProp.isActive === false) {
-          setDeactivatedFilter("ALL");
-        }
-        setVisibleCount((prev) =>
-          Math.max(prev, evaluatedPropertiesRef.current.length + 10),
-        );
-        scrollDelayMs = 180;
-      }
+      setFocusedPropertyKey(null);
+      const start = Math.max(0, idx - 4);
+      setMountedWindow({ start, end: start + 16 });
     }
     setExpandedId(key);
     setSelectedMapPropertyKey(key);
@@ -1774,7 +2155,7 @@ export function MoradiaPortal({
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }, scrollDelayMs);
+    }, 100);
   }, []);
   const [filtersHydrated, setFiltersHydrated] = useState<boolean>(false);
   const lastSyncedUpdatedAtRef = useRef<string>(
@@ -1809,6 +2190,10 @@ export function MoradiaPortal({
       setSortBy(parsed.sortBy);
       setMinAreaM2(parsed.minAreaM2);
       setMaxAreaM2(parsed.maxAreaM2);
+      setMinListingAgeDays(parsed.minListingAgeDays);
+      setMaxListingAgeDays(parsed.maxListingAgeDays);
+      setListingDateFrom(parsed.listingDateFrom);
+      setListingDateTo(parsed.listingDateTo);
       setSelectedBedrooms(parsed.selectedBedrooms);
       setSelectedBathrooms(parsed.selectedBathrooms);
       setSelectedParking(parsed.selectedParking);
@@ -1818,14 +2203,17 @@ export function MoradiaPortal({
       setModernityTiers(parsed.modernityTiers);
       setMinModernityScore(parsed.minModernityScore);
       setFurnishedFilter(parsed.furnishedFilter);
+      setSelectedFurnitureTiers(parsed.selectedFurnitureTiers);
       setRequiredFeatures(parsed.requiredFeatures);
       setHideMegaCondo(parsed.hideMegaCondo);
       setHideForSale(parsed.hideForSale);
       setOnlyNewEntries(parsed.onlyNewEntries);
       setShowIneligible(parsed.showIneligible);
+      setOnlyIneligible(parsed.onlyIneligible ?? false);
       setProviderFilter(parsed.providerFilter);
       setOnlyFavorites(parsed.onlyFavorites);
       setOnlyTop20Neighborhoods(parsed.onlyTop20Neighborhoods);
+      setOnlySafeStreets(parsed.onlySafeStreets);
       setEnableBsbBenchmark(parsed.enableBsbBenchmark);
       setDeactivatedFilter(parsed.deactivatedFilter);
       setShowAdvancedFilters(parsed.showAdvancedFilters);
@@ -1845,10 +2233,9 @@ export function MoradiaPortal({
       const nextFavorites = Array.isArray(prefs.favorites)
         ? prefs.favorites
         : [];
-      const nextCompareKeys =
-        Array.isArray(prefs.compareKeys) && prefs.compareKeys.length > 0
-          ? prefs.compareKeys
-          : DEFAULT_COMPARE_KEYS;
+      const nextCompareKeys = Array.isArray(prefs.compareKeys)
+        ? prefs.compareKeys
+        : DEFAULT_COMPARE_KEYS;
 
       const serializedFilters = serializeExplorerFilters(parsedFilters);
       isApplyingRemotePrefsRef.current = true;
@@ -1879,6 +2266,10 @@ export function MoradiaPortal({
         localStorage.setItem(
           "moradia_favorites_v1",
           JSON.stringify(nextFavorites),
+        );
+        localStorage.setItem(
+          "moradia_compare_v1",
+          JSON.stringify(nextCompareKeys),
         );
         localStorage.setItem(
           "moradia_preferences_updated_at_v1",
@@ -1971,12 +2362,16 @@ export function MoradiaPortal({
     setSearchQuery("");
     setFloorFilters([]);
     setMinTotalMonthly(null);
-    setMaxTotalMonthly(null);
+    setMaxTotalMonthly(5000);
     setMaxCommuteMinutes(null);
     setMinScore(null);
     setSortBy("score_desc");
     setMinAreaM2(null);
     setMaxAreaM2(null);
+    setMinListingAgeDays(null);
+    setMaxListingAgeDays(null);
+    setListingDateFrom("");
+    setListingDateTo("");
     setSelectedBedrooms([]);
     setSelectedBathrooms([]);
     setSelectedParking([]);
@@ -1986,18 +2381,54 @@ export function MoradiaPortal({
     setModernityTiers([]);
     setMinModernityScore(null);
     setFurnishedFilter("ALL");
+    setSelectedFurnitureTiers([]);
     setRequiredFeatures([]);
     setHideMegaCondo(false);
     setHideForSale(false);
     setOnlyNewEntries(false);
     setShowIneligible(false);
+    setOnlyIneligible(false);
     setProviderFilter("ALL");
     setOnlyFavorites(false);
     setOnlyTop20Neighborhoods(false);
+    setOnlySafeStreets(false);
     setDeactivatedFilter("ACTIVE_ONLY");
     setVisibleCount(30);
   };
   resetAllFiltersRef.current = resetAllFilters;
+
+  const isPerfeitoPresetActive =
+    requiredFeatures.includes("ac") &&
+    (floorFilters.includes("HIGH_OR_TOP") ||
+      (floorFilters.includes("LEGENDARY") && floorFilters.includes("EPIC"))) &&
+    maxTotalMonthly === 4500 &&
+    maxCommuteMinutes === 25 &&
+    (onlySafeStreets || requiredFeatures.includes("safe_street")) &&
+    ((selectedFurnitureTiers.includes("UNFURNISHED") &&
+      !selectedFurnitureTiers.includes("FULLY_FURNISHED")) ||
+      furnishedFilter === "UNFURNISHED" ||
+      furnishedFilter === "UNFURNISHED_OR_SEMI");
+
+  const applyPerfeitoFilterPreset = () => {
+    if (isPerfeitoPresetActive) {
+      resetAllFilters();
+      return;
+    }
+    setRequiredFeatures((prev) => [
+      ...new Set<PropertyFeatureKey>([
+        ...prev.filter((f) => f !== "safe_street"),
+        "ac",
+      ]),
+    ]);
+    setFloorFilters(["HIGH_OR_TOP"]);
+    setMinTotalMonthly(null);
+    setMaxTotalMonthly(4500);
+    setMaxCommuteMinutes(25);
+    setSelectedFurnitureTiers(["UNFURNISHED"]);
+    setFurnishedFilter("UNFURNISHED");
+    setOnlySafeStreets(true);
+    setVisibleCount(30);
+  };
 
   useEffect(() => {
     try {
@@ -2062,6 +2493,18 @@ export function MoradiaPortal({
           );
           if (localFavs.length > 0) {
             setFavoriteKeys((prev) => [...new Set([...prev, ...localFavs])]);
+          }
+        }
+
+        const rawCompare = localStorage.getItem("moradia_compare_v1");
+        if (rawCompare) {
+          const parsedCompare = JSON.parse(rawCompare) as unknown;
+          if (Array.isArray(parsedCompare)) {
+            setCompareKeys(
+              parsedCompare.filter(
+                (x): x is string => typeof x === "string" && x.trim().length > 0,
+              ),
+            );
           }
         }
       } else if (resolvedInitialPrefs) {
@@ -2156,6 +2599,10 @@ export function MoradiaPortal({
       sortBy,
       minAreaM2,
       maxAreaM2,
+      minListingAgeDays,
+      maxListingAgeDays,
+      listingDateFrom,
+      listingDateTo,
       selectedBedrooms,
       selectedBathrooms,
       selectedParking,
@@ -2165,14 +2612,17 @@ export function MoradiaPortal({
       modernityTiers,
       minModernityScore,
       furnishedFilter,
+      selectedFurnitureTiers,
       requiredFeatures,
       hideMegaCondo,
       hideForSale,
       onlyNewEntries,
       showIneligible,
+      onlyIneligible,
       providerFilter,
       onlyFavorites,
       onlyTop20Neighborhoods,
+      onlySafeStreets,
       enableBsbBenchmark,
       deactivatedFilter,
       showAdvancedFilters,
@@ -2191,6 +2641,10 @@ export function MoradiaPortal({
       localStorage.setItem(
         "moradia_favorites_v1",
         JSON.stringify(favoriteKeys),
+      );
+      localStorage.setItem(
+        "moradia_compare_v1",
+        JSON.stringify(compareKeys),
       );
     } catch {
       // Ignore storage errors
@@ -2289,6 +2743,10 @@ export function MoradiaPortal({
     sortBy,
     minAreaM2,
     maxAreaM2,
+    minListingAgeDays,
+    maxListingAgeDays,
+    listingDateFrom,
+    listingDateTo,
     selectedBedrooms,
     selectedBathrooms,
     selectedParking,
@@ -2298,14 +2756,17 @@ export function MoradiaPortal({
     modernityTiers,
     minModernityScore,
     furnishedFilter,
+    selectedFurnitureTiers,
     requiredFeatures,
     hideMegaCondo,
     hideForSale,
     onlyNewEntries,
     showIneligible,
+    onlyIneligible,
     providerFilter,
     onlyFavorites,
     onlyTop20Neighborhoods,
+    onlySafeStreets,
     enableBsbBenchmark,
     deactivatedFilter,
     showAdvancedFilters,
@@ -2350,6 +2811,22 @@ export function MoradiaPortal({
     if (!found) return;
     setActivePresetId(found.id);
     setWeights(found.weights);
+    if (presetId === "perfeito") {
+      setRequiredFeatures((prev) => [
+        ...new Set<PropertyFeatureKey>([
+          ...prev.filter((f) => f !== "safe_street"),
+          "ac",
+        ]),
+      ]);
+      setFloorFilters(["HIGH_OR_TOP"]);
+      setMinTotalMonthly(null);
+      setMaxTotalMonthly(4500);
+      setMaxCommuteMinutes(25);
+      setSelectedFurnitureTiers(["UNFURNISHED"]);
+      setFurnishedFilter("UNFURNISHED");
+      setOnlySafeStreets(true);
+      setVisibleCount(30);
+    }
   };
 
   const toggleCompare = (key: string) => {
@@ -2459,7 +2936,7 @@ export function MoradiaPortal({
   );
 
   useEffect(() => {
-    if (!hasPendingQa && !showChatDrawer) return;
+    if ((!hasPendingQa && !showChatDrawer) || isSubmittingChatQuestion) return;
     const interval = setInterval(
       () => {
         if (
@@ -2473,7 +2950,7 @@ export function MoradiaPortal({
       hasPendingQa ? 1500 : 3500,
     );
     return () => clearInterval(interval);
-  }, [hasPendingQa, showChatDrawer, fetchQaItems]);
+  }, [hasPendingQa, showChatDrawer, isSubmittingChatQuestion, fetchQaItems]);
 
   const openChatForProperty = useCallback(
     (propertyKey: string, scrollToMessages = false) => {
@@ -2486,14 +2963,24 @@ export function MoradiaPortal({
     [],
   );
 
+  const handleClearPinnedChatProperty = useCallback(() => {
+    setPinnedChatPropertyKey(null);
+  }, []);
+
+  const handleConsumeChatScrollTarget = useCallback(() => {
+    setChatScrollTargetKey(null);
+  }, []);
+
   const deletePropertyQuestion = useCallback(async (id: string) => {
     qaMutationSeqRef.current += 1;
+    setQaItems((prev) => prev.filter((item) => item.id !== id));
     try {
       const res = await fetch("/api/qa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete", id }),
       });
+      qaMutationSeqRef.current += 1;
       if (res.ok) {
         const data = (await res.json()) as {
           ok?: boolean;
@@ -2510,12 +2997,14 @@ export function MoradiaPortal({
 
   const clearChatHistory = useCallback(async () => {
     qaMutationSeqRef.current += 1;
+    setQaItems([]);
     try {
       const res = await fetch("/api/qa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "clear" }),
       });
+      qaMutationSeqRef.current += 1;
       if (res.ok) {
         setQaItems([]);
       }
@@ -2611,26 +3100,7 @@ export function MoradiaPortal({
       ),
     [dataset.properties, dynamicNeighborhoods, weights, enableBsbBenchmark],
   );
-
-  const allEvaluatedProperties = useMemo(
-    () =>
-      enableBsbBenchmark
-        ? evaluatedProperties
-        : computeDynamicProperties(
-            dataset.properties,
-            dynamicNeighborhoods,
-            weights,
-            { includeBsbBenchmark: true },
-          ),
-    [
-      enableBsbBenchmark,
-      evaluatedProperties,
-      dataset.properties,
-      dynamicNeighborhoods,
-      weights,
-    ],
-  );
-  evaluatedPropertiesRef.current = allEvaluatedProperties;
+  evaluatedPropertiesRef.current = evaluatedProperties;
 
   const bsbBenchmarkStats = useMemo(
     () => buildBenchmarkStats(evaluatedProperties),
@@ -2644,12 +3114,47 @@ export function MoradiaPortal({
     >();
     for (const p of evaluatedProperties) {
       if (!enableBsbBenchmark && p.cityCode === "BSB") continue;
-      if (!showIneligible && !p.eligible) continue;
+      if (onlyIneligible && p.eligible) continue;
+      const isOnlyCommuteExcluded =
+        !p.eligible &&
+        Boolean(p.exclusionReason) &&
+        p.exclusionReason!
+          .split(" · ")
+          .every((r) => /gargalo pendular cr[ií]tico > 35 min/i.test(r));
+      if (!showIneligible && !onlyIneligible && !p.eligible && !isOnlyCommuteExcluded) continue;
       if (selectedCities.length > 0 && !selectedCities.includes(p.cityCode)) {
         continue;
       }
       if (onlyTop20Neighborhoods && !isStrictlyInTop20Neighborhoods(p)) {
         continue;
+      }
+      if (
+        minListingAgeDays !== null ||
+        maxListingAgeDays !== null ||
+        listingDateFrom.trim() !== "" ||
+        listingDateTo.trim() !== ""
+      ) {
+        const { ageDays, dateIso } = resolvePropertyListingAgeAndDate(p);
+        if (
+          minListingAgeDays !== null &&
+          (ageDays === null || ageDays === undefined || ageDays < minListingAgeDays)
+        ) {
+          continue;
+        }
+        if (
+          maxListingAgeDays !== null &&
+          (ageDays === null || ageDays === undefined || ageDays > maxListingAgeDays)
+        ) {
+          continue;
+        }
+        const fromTrim = listingDateFrom.trim();
+        if (fromTrim && (!dateIso || dateIso < fromTrim)) {
+          continue;
+        }
+        const toTrim = listingDateTo.trim();
+        if (toTrim && (!dateIso || dateIso > toTrim)) {
+          continue;
+        }
       }
       const mapKey = `${p.cityCode}:${p.neighborhood}`;
       const prev = countMap.get(mapKey);
@@ -2703,7 +3208,12 @@ export function MoradiaPortal({
     enableBsbBenchmark,
     selectedCities,
     showIneligible,
+    onlyIneligible,
     onlyTop20Neighborhoods,
+    minListingAgeDays,
+    maxListingAgeDays,
+    listingDateFrom,
+    listingDateTo,
     dynamicNeighborhoods,
   ]);
 
@@ -2722,6 +3232,10 @@ export function MoradiaPortal({
       selectedNeighborhoods,
       minAreaM2,
       maxAreaM2,
+      minListingAgeDays,
+      maxListingAgeDays,
+      listingDateFrom,
+      listingDateTo,
       selectedBedrooms,
       selectedBathrooms,
       selectedParking,
@@ -2731,14 +3245,17 @@ export function MoradiaPortal({
       modernityTiers,
       minModernityScore,
       furnishedFilter,
+      selectedFurnitureTiers,
       requiredFeatures,
       hideMegaCondo,
       hideForSale,
       onlyNewEntries,
       showIneligible,
+      onlyIneligible,
       providerFilter,
       onlyFavorites,
       onlyTop20Neighborhoods,
+      onlySafeStreets,
       enableBsbBenchmark,
       deactivatedFilter,
       favoriteKeys,
@@ -2756,6 +3273,10 @@ export function MoradiaPortal({
       selectedNeighborhoods,
       minAreaM2,
       maxAreaM2,
+      minListingAgeDays,
+      maxListingAgeDays,
+      listingDateFrom,
+      listingDateTo,
       selectedBedrooms,
       selectedBathrooms,
       selectedParking,
@@ -2765,14 +3286,17 @@ export function MoradiaPortal({
       modernityTiers,
       minModernityScore,
       furnishedFilter,
+      selectedFurnitureTiers,
       requiredFeatures,
       hideMegaCondo,
       hideForSale,
       onlyNewEntries,
       showIneligible,
+      onlyIneligible,
       providerFilter,
       onlyFavorites,
       onlyTop20Neighborhoods,
+      onlySafeStreets,
       enableBsbBenchmark,
       deactivatedFilter,
       favoriteKeys,
@@ -2790,6 +3314,11 @@ export function MoradiaPortal({
   );
   filteredPropertiesRef.current = filteredProperties;
 
+  const mapProperties = useMemo(
+    () => filteredProperties.slice(0, visibleCount),
+    [filteredProperties, visibleCount],
+  );
+
   const pinnedChatProperty = useMemo(() => {
     if (!pinnedChatPropertyKey) return null;
     const found =
@@ -2799,7 +3328,13 @@ export function MoradiaPortal({
     if (!found) return null;
     const extraPhotos = extraPhotosByKey[pinnedChatPropertyKey];
     if (extraPhotos && extraPhotos.length > found.samplePhotos.length) {
-      return { ...found, samplePhotos: extraPhotos };
+      return {
+        ...found,
+        samplePhotos: extraPhotos,
+        shortJustification: found.shortJustification,
+        narrativeJustification: found.narrativeJustification,
+        detailedJustification: found.detailedJustification,
+      };
     }
     return found;
   }, [pinnedChatPropertyKey, evaluatedProperties, extraPhotosByKey]);
@@ -2824,8 +3359,93 @@ export function MoradiaPortal({
         )
         .join("\n");
 
+      const propertySnapshotPayload = property
+        ? {
+            title: property.title,
+            neighborhood: property.neighborhood,
+            cityCode: property.cityCode,
+            street: property.street,
+            streetNumber: property.streetNumber,
+            condominiumName: property.condominiumName,
+            totalMonthly: property.totalMonthly,
+            rent: property.rent,
+            condoFee: property.condoFee,
+            iptu: property.iptu,
+            areaM2: property.areaM2,
+            bedrooms: property.bedrooms,
+            bathrooms: property.bathrooms,
+            parkingSpaces: property.parkingSpaces,
+            floor: property.floor,
+            floorLabel: property.cardTags.floorTag?.label ?? null,
+            furnished: property.furnished,
+            modernityScore: property.modernityScore,
+            finalScore: property.finalScore,
+            overallRank: property.overallRank,
+            cityRank: property.cityRank,
+            furnitureTier: property.furnitureTier,
+            url: property.url,
+            shortJustification: property.shortJustification,
+            description:
+              property.description ?? property.generatedDescription ?? null,
+            thumbnailUrl: property.samplePhotos[0]?.url ?? null,
+            suites: property.suites,
+            totalFloors: property.totalFloors,
+            floorRange: property.floorRange,
+            constructionYear: property.constructionYear,
+            doorman: property.doorman,
+            acLabel: property.cardTags.acLabel,
+            greenTags: property.cardTags.greenTags,
+            redTags: property.cardTags.redTags,
+            nuanceHighlights: property.nuanceHighlights,
+            nuanceWarnings: property.nuanceWarnings,
+            breakdown: property.breakdown,
+          }
+        : undefined;
+
+      const optimisticId = `optimistic-${Date.now()}-${
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID().slice(0, 8)
+          : String(Date.now()).slice(-4)
+      }`;
+      const nowIso = new Date().toISOString();
+      const optimisticItem: PropertyQuestionItem = {
+        id: optimisticId,
+        propertyKey: key,
+        question: trimmed,
+        status: "pending",
+        answer: null,
+        createdAt: nowIso,
+        answeredAt: null,
+        propertySnapshot: propertySnapshotPayload ?? {
+          title: "Contexto Geral (Top imóveis filtrados)",
+          neighborhood: "",
+          cityCode: "",
+          street: "",
+          streetNumber: null,
+          condominiumName: null,
+          totalMonthly: 0,
+          rent: 0,
+          condoFee: 0,
+          iptu: 0,
+          areaM2: 0,
+          bedrooms: 0,
+          bathrooms: 0,
+          parkingSpaces: 0,
+          floor: null,
+          floorLabel: null,
+          furnished: null,
+          modernityScore: 0,
+          finalScore: 0,
+          overallRank: null,
+          url: "",
+          shortJustification: "",
+          description: null,
+        },
+      };
+
       qaMutationSeqRef.current += 1;
       setIsSubmittingChatQuestion(true);
+      setQaItems((prev) => [...prev, optimisticItem]);
       try {
         const res = await fetch("/api/qa", {
           method: "POST",
@@ -2838,58 +3458,18 @@ export function MoradiaPortal({
               filteredProperties.length > 0
                 ? `Filtro atual na tela (${filteredProperties.length} imóveis):\n${topContextLines}`
                 : undefined,
-            propertySnapshot: property
-              ? {
-                  title: property.title,
-                  neighborhood: property.neighborhood,
-                  cityCode: property.cityCode,
-                  street: property.street,
-                  streetNumber: property.streetNumber,
-                  condominiumName: property.condominiumName,
-                  totalMonthly: property.totalMonthly,
-                  rent: property.rent,
-                  condoFee: property.condoFee,
-                  iptu: property.iptu,
-                  areaM2: property.areaM2,
-                  bedrooms: property.bedrooms,
-                  bathrooms: property.bathrooms,
-                  parkingSpaces: property.parkingSpaces,
-                  floor: property.floor,
-                  floorLabel: property.cardTags.floorTag?.label ?? null,
-                  furnished: property.furnished,
-                  modernityScore: property.modernityScore,
-                  finalScore: property.finalScore,
-                  overallRank: property.overallRank,
-                  cityRank: property.cityRank,
-                  furnitureTier: property.furnitureTier,
-                  url: property.url,
-                  shortJustification: property.shortJustification,
-                  description:
-                    property.description ??
-                    property.generatedDescription ??
-                    null,
-                  thumbnailUrl: property.samplePhotos[0]?.url ?? null,
-                  suites: property.suites,
-                  totalFloors: property.totalFloors,
-                  floorRange: property.floorRange,
-                  constructionYear: property.constructionYear,
-                  doorman: property.doorman,
-                  acLabel: property.cardTags.acLabel,
-                  greenTags: property.cardTags.greenTags,
-                  redTags: property.cardTags.redTags,
-                  nuanceHighlights: property.nuanceHighlights,
-                  nuanceWarnings: property.nuanceWarnings,
-                  breakdown: property.breakdown,
-                }
-              : undefined,
+            propertySnapshot: propertySnapshotPayload,
           }),
         });
+        qaMutationSeqRef.current += 1;
         const data = (await res.json()) as {
           ok?: boolean;
           error?: string;
+          item?: PropertyQuestionItem;
           items?: PropertyQuestionItem[];
         };
         if (!res.ok || data.ok === false) {
+          setQaItems((prev) => prev.filter((item) => item.id !== optimisticId));
           throw new Error(
             data.error ??
               "Não foi possível enviar sua pergunta. Tente novamente.",
@@ -2897,8 +3477,16 @@ export function MoradiaPortal({
         }
         if (Array.isArray(data.items)) {
           setQaItems(data.items);
+        } else if (data.item) {
+          setQaItems((prev) =>
+            prev.map((item) => (item.id === optimisticId ? data.item! : item)),
+          );
         }
         return true;
+      } catch (err) {
+        qaMutationSeqRef.current += 1;
+        setQaItems((prev) => prev.filter((item) => item.id !== optimisticId));
+        throw err;
       } finally {
         setIsSubmittingChatQuestion(false);
       }
@@ -2916,6 +3504,18 @@ export function MoradiaPortal({
     [evaluatedProperties, enableBsbBenchmark],
   );
 
+  const ineligibleActiveCount = useMemo(
+    () =>
+      evaluatedProperties.filter(
+        (p) =>
+          (enableBsbBenchmark || p.cityCode !== "BSB") &&
+          (selectedCities.length === 0 || selectedCities.includes(p.cityCode)) &&
+          p.isActive !== false &&
+          !p.eligible,
+      ).length,
+    [evaluatedProperties, enableBsbBenchmark, selectedCities],
+  );
+
   const totalBasePoolCount = useMemo(
     () =>
       evaluatedProperties.filter((p) => {
@@ -2926,9 +3526,10 @@ export function MoradiaPortal({
         if (deactivatedFilter === "DEACTIVATED_ONLY" && p.isActive !== false) {
           return false;
         }
+        if (onlyIneligible) return !p.eligible;
         return showIneligible || onlyFavorites ? true : p.eligible;
       }).length,
-    [evaluatedProperties, enableBsbBenchmark, showIneligible, deactivatedFilter, onlyFavorites],
+    [evaluatedProperties, enableBsbBenchmark, showIneligible, onlyIneligible, deactivatedFilter, onlyFavorites],
   );
 
   const activeAdvancedFilterCount = useMemo(() => {
@@ -2939,19 +3540,26 @@ export function MoradiaPortal({
     if (maxCommuteMinutes !== null) count += 1;
     if (minScore !== null) count += 1;
     if (minAreaM2 !== null || maxAreaM2 !== null) count += 1;
+    if (minListingAgeDays !== null || maxListingAgeDays !== null) count += 1;
+    if (listingDateFrom.trim() !== "" || listingDateTo.trim() !== "") count += 1;
     if (selectedBedrooms.length > 0 || minBedrooms !== null) count += 1;
     if (selectedBathrooms.length > 0 || minBathrooms !== null) count += 1;
     if (selectedParking.length > 0 || minParking !== null) count += 1;
     if (modernityTiers.length > 0) count += modernityTiers.length;
     if (minModernityScore !== null) count += 1;
-    if (furnishedFilter !== "ALL") count += 1;
+    if (selectedFurnitureTiers.length > 0) {
+      count += selectedFurnitureTiers.length;
+    } else if (furnishedFilter !== "ALL") {
+      count += 1;
+    }
     if (requiredFeatures.length > 0) count += requiredFeatures.length;
     if (hideMegaCondo) count += 1;
     if (hideForSale) count += 1;
     if (onlyNewEntries) count += 1;
-    if (showIneligible) count += 1;
+    if (showIneligible || onlyIneligible) count += 1;
     if (providerFilter !== "ALL") count += 1;
     if (onlyTop20Neighborhoods) count += 1;
+    if (onlySafeStreets && !requiredFeatures.includes("safe_street")) count += 1;
     if (deactivatedFilter !== "ACTIVE_ONLY") count += 1;
     return count;
   }, [
@@ -2963,6 +3571,10 @@ export function MoradiaPortal({
     minScore,
     minAreaM2,
     maxAreaM2,
+    minListingAgeDays,
+    maxListingAgeDays,
+    listingDateFrom,
+    listingDateTo,
     selectedBedrooms,
     selectedBathrooms,
     selectedParking,
@@ -2972,13 +3584,16 @@ export function MoradiaPortal({
     modernityTiers,
     minModernityScore,
     furnishedFilter,
+    selectedFurnitureTiers,
     requiredFeatures,
     hideMegaCondo,
     hideForSale,
     onlyNewEntries,
     showIneligible,
+    onlyIneligible,
     providerFilter,
     onlyTop20Neighborhoods,
+    onlySafeStreets,
     deactivatedFilter,
   ]);
 
@@ -3071,6 +3686,40 @@ export function MoradiaPortal({
         },
       });
     }
+    if (minListingAgeDays !== null || maxListingAgeDays !== null) {
+      const label =
+        minListingAgeDays !== null && maxListingAgeDays !== null
+          ? `Idade: ${minListingAgeDays}–${maxListingAgeDays} dias`
+          : maxListingAgeDays !== null
+            ? `Idade do anúncio: ≤ ${maxListingAgeDays} dias`
+            : `Idade do anúncio: ≥ ${minListingAgeDays} dias`;
+      pills.push({
+        id: "listing-age",
+        label,
+        onClear: () => {
+          setMinListingAgeDays(null);
+          setMaxListingAgeDays(null);
+        },
+      });
+    }
+    if (listingDateFrom.trim() !== "" || listingDateTo.trim() !== "") {
+      const fromStr = listingDateFrom.trim();
+      const toStr = listingDateTo.trim();
+      const label =
+        fromStr && toStr
+          ? `Data do anúncio: ${fromStr} → ${toStr}`
+          : fromStr
+            ? `Data do anúncio: a partir de ${fromStr}`
+            : `Data do anúncio: até ${toStr}`;
+      pills.push({
+        id: "listing-date",
+        label,
+        onClear: () => {
+          setListingDateFrom("");
+          setListingDateTo("");
+        },
+      });
+    }
     if (selectedBedrooms.length > 0) {
       const labelNums = [...selectedBedrooms]
         .sort((a, b) => a - b)
@@ -3148,7 +3797,26 @@ export function MoradiaPortal({
         onClear: () => setMinModernityScore(null),
       });
     }
-    if (furnishedFilter !== "ALL") {
+    if (selectedFurnitureTiers.length > 0) {
+      const furnitureTierPillLabels: Record<FurnitureTier, string> = {
+        UNFURNISHED: "Não mobiliado",
+        SEMI_FURNISHED: "Não mobiliado",
+        FULLY_FURNISHED: "Mobiliado",
+      };
+      for (const tier of selectedFurnitureTiers) {
+        pills.push({
+          id: `furn-${tier}`,
+          label: furnitureTierPillLabels[tier],
+          onClear: () => {
+            setSelectedFurnitureTiers((prev) => {
+              const next = prev.filter((t) => t !== tier);
+              setFurnishedFilter(deriveLegacyFurnishedFilter(next));
+              return next;
+            });
+          },
+        });
+      }
+    } else if (furnishedFilter !== "ALL") {
       const furnishedPillLabels: Record<
         Exclude<FurnishedFilterOption, "ALL">,
         string
@@ -3161,7 +3829,10 @@ export function MoradiaPortal({
       pills.push({
         id: "furnished",
         label: furnishedPillLabels[furnishedFilter],
-        onClear: () => setFurnishedFilter("ALL"),
+        onClear: () => {
+          setSelectedFurnitureTiers([]);
+          setFurnishedFilter("ALL");
+        },
       });
     }
     for (const feat of requiredFeatures) {
@@ -3169,8 +3840,19 @@ export function MoradiaPortal({
       pills.push({
         id: `feat-${feat}`,
         label: fOpt?.label ?? feat,
-        onClear: () =>
-          setRequiredFeatures((prev) => prev.filter((f) => f !== feat)),
+        onClear: () => {
+          setRequiredFeatures((prev) => prev.filter((f) => f !== feat));
+          if (feat === "safe_street") {
+            setOnlySafeStreets(false);
+          }
+        },
+      });
+    }
+    if (onlySafeStreets && !requiredFeatures.includes("safe_street")) {
+      pills.push({
+        id: "only-safe-streets",
+        label: "Sem problemas de segurança",
+        onClear: () => setOnlySafeStreets(false),
       });
     }
     if (hideMegaCondo) {
@@ -3194,7 +3876,16 @@ export function MoradiaPortal({
         onClear: () => setOnlyNewEntries(false),
       });
     }
-    if (showIneligible) {
+    if (onlyIneligible) {
+      pills.push({
+        id: "only-ineligible",
+        label: "Só reprovados / retidos",
+        onClear: () => {
+          setOnlyIneligible(false);
+          setShowIneligible(false);
+        },
+      });
+    } else if (showIneligible) {
       pills.push({
         id: "show-ineligible",
         label: "Incluindo reprovados",
@@ -3247,6 +3938,10 @@ export function MoradiaPortal({
     selectedNeighborhoods,
     minAreaM2,
     maxAreaM2,
+    minListingAgeDays,
+    maxListingAgeDays,
+    listingDateFrom,
+    listingDateTo,
     selectedBedrooms,
     selectedBathrooms,
     selectedParking,
@@ -3256,14 +3951,17 @@ export function MoradiaPortal({
     modernityTiers,
     minModernityScore,
     furnishedFilter,
+    selectedFurnitureTiers,
     requiredFeatures,
     hideMegaCondo,
     hideForSale,
     onlyNewEntries,
     showIneligible,
+    onlyIneligible,
     providerFilter,
     onlyFavorites,
     onlyTop20Neighborhoods,
+    onlySafeStreets,
     favoriteKeys.length,
     deactivatedFilter,
   ]);
@@ -3312,6 +4010,66 @@ export function MoradiaPortal({
     [compareKeys, evaluatedProperties],
   );
 
+  const displayedProperties = useMemo(() => {
+    const baseSlice = filteredProperties.slice(0, visibleCount);
+    if (!focusedPropertyKey) return baseSlice;
+    if (baseSlice.some((p) => `${p.provider}:${p.id}` === focusedPropertyKey)) {
+      return baseSlice;
+    }
+    const target = evaluatedProperties.find(
+      (p) => `${p.provider}:${p.id}` === focusedPropertyKey,
+    );
+    if (!target) return baseSlice;
+    return [target, ...baseSlice];
+  }, [
+    filteredProperties,
+    visibleCount,
+    focusedPropertyKey,
+    evaluatedProperties,
+  ]);
+
+  // Viewport-windowed virtualization: keep only ~16 cards around the scroll position fully mounted
+  useEffect(() => {
+    let rafId = 0;
+    const updateWindowFromScroll = () => {
+      rafId = 0;
+      const listEl = cardsListRef.current;
+      if (!listEl) return;
+      const articles = listEl.querySelectorAll<HTMLElement>(
+        "article[data-card-index]",
+      );
+      if (articles.length === 0) return;
+      let firstNear = 0;
+      for (let i = 0; i < articles.length; i++) {
+        const rect = articles[i]!.getBoundingClientRect();
+        if (rect.bottom >= -320) {
+          firstNear = i;
+          break;
+        }
+      }
+      const start = Math.max(0, firstNear - 2);
+      const end = start + 16;
+      setMountedWindow((prev) =>
+        prev.start === start && prev.end === end ? prev : { start, end },
+      );
+    };
+
+    const onScrollOrResize = () => {
+      if (rafId === 0) {
+        rafId = window.requestAnimationFrame(updateWindowFromScroll);
+      }
+    };
+
+    updateWindowFromScroll();
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize, { passive: true });
+    return () => {
+      if (rafId !== 0) window.cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [displayedProperties.length, viewMode, activeTab]);
+
   useEffect(() => {
     if (!expandedId || fetchedPhotoKeysRef.current.has(expandedId)) return;
     const prop = evaluatedProperties.find(
@@ -3321,7 +4079,14 @@ export function MoradiaPortal({
     const currentPhotos =
       extraPhotosByKey[expandedId] ?? prop.samplePhotos ?? [];
     const expectedCount = prop.photosCount ?? 0;
-    if (expectedCount <= currentPhotos.length && currentPhotos.length > 6) {
+    const hasDesc = Boolean(
+      extraDescriptionsByKey[expandedId] || prop.description,
+    );
+    if (
+      expectedCount <= currentPhotos.length &&
+      currentPhotos.length > 6 &&
+      hasDesc
+    ) {
       return;
     }
 
@@ -3335,11 +4100,23 @@ export function MoradiaPortal({
       .then((photos) => {
         if (cancelled) return;
         fetchedPhotoKeysRef.current.add(key);
+        const cachedDesc = getClientDescriptionCached(key);
+        if (cachedDesc) {
+          setExtraDescriptionsByKey((prev) =>
+            upsertBoundedRecord(prev, key, cachedDesc),
+          );
+        }
         if (photos.length > currentPhotos.length) {
-          setExtraPhotosByKey((prev) => ({
-            ...prev,
-            [key]: photos,
-          }));
+          setExtraPhotosByKey((prev) => {
+            const next = upsertBoundedRecord(prev, key, photos);
+            const activeKeys = new Set(Object.keys(next));
+            for (const fk of fetchedPhotoKeysRef.current) {
+              if (!activeKeys.has(fk)) {
+                fetchedPhotoKeysRef.current.delete(fk);
+              }
+            }
+            return next;
+          });
         }
       })
       .catch(() => {});
@@ -3347,7 +4124,12 @@ export function MoradiaPortal({
     return () => {
       cancelled = true;
     };
-  }, [expandedId, evaluatedProperties, extraPhotosByKey]);
+  }, [
+    expandedId,
+    evaluatedProperties,
+    extraPhotosByKey,
+    extraDescriptionsByKey,
+  ]);
 
   const cityTop3ByCode = useMemo(() => {
     const map = new Map<
@@ -3425,25 +4207,33 @@ export function MoradiaPortal({
                   className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9.5px] font-medium text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200 sm:gap-1.5 sm:px-2 sm:text-[10px]"
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                  <span className="sm:hidden">
+                  <span className="sm:hidden" suppressHydrationWarning>
                     {dataset.properties.length.toLocaleString("pt-BR")} apês ·{" "}
                     {new Date(dataset.updatedAt).toLocaleDateString("pt-BR", {
                       day: "2-digit",
                       month: "2-digit",
+                      timeZone: "America/Sao_Paulo",
                     })}
                   </span>
-                  <span className="hidden sm:inline">
+                  <span className="hidden sm:inline" suppressHydrationWarning>
                     Base:{" "}
                     {new Date(dataset.updatedAt).toLocaleString("pt-BR", {
                       day: "2-digit",
                       month: "2-digit",
                       hour: "2-digit",
                       minute: "2-digit",
+                      timeZone: "America/Sao_Paulo",
                     })}{" "}
                     · {dataset.properties.length.toLocaleString("pt-BR")}{" "}
                     imóveis
-                    {dataset.properties.some((p) => p.isNewEntry) &&
-                      ` (${dataset.properties.filter((p) => p.isNewEntry).length} novos)`}
+                    {evaluatedProperties.some((p) =>
+                      isRecentlyPublishedListing(p),
+                    ) &&
+                      ` (${
+                        evaluatedProperties.filter((p) =>
+                          isRecentlyPublishedListing(p),
+                        ).length
+                      } novos)`}
                   </span>
                 </span>
               )}
@@ -3896,15 +4686,18 @@ export function MoradiaPortal({
               </h3>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Peso da Nota do Bairro</span>
+                    <label htmlFor="weight-neighborhood-multiplier">
+                      Peso da Nota do Bairro
+                    </label>
                     <span className="font-mono text-primary">
                       {weights.neighborhoodMultiplier.toFixed(1)}x (até{" "}
                       {(10 * weights.neighborhoodMultiplier).toFixed(0)} pts)
                     </span>
                   </div>
                   <input
+                    id="weight-neighborhood-multiplier"
                     type="range"
                     min={0}
                     max={10}
@@ -3918,17 +4711,20 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Peso Anti-Velharia (Modernidade)</span>
+                    <label htmlFor="weight-modernity-multiplier">
+                      Peso Anti-Velharia (Modernidade)
+                    </label>
                     <span className="font-mono text-primary">
                       {weights.modernityMultiplier.toFixed(2)}x (até{" "}
                       {(100 * weights.modernityMultiplier).toFixed(0)} pts)
                     </span>
                   </div>
                   <input
+                    id="weight-modernity-multiplier"
                     type="range"
                     min={0}
                     max={1.4}
@@ -3942,16 +4738,19 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Peso das Nuances (Sol, Vista, Andar, Parques)</span>
+                    <label htmlFor="weight-nuances-multiplier">
+                      Peso das Nuances (Sol, Vista, Andar, Parques)
+                    </label>
                     <span className="font-mono text-primary">
                       {(weights.nuancesMultiplier ?? 1).toFixed(1)}x
                     </span>
                   </div>
                   <input
+                    id="weight-nuances-multiplier"
                     type="range"
                     min={0}
                     max={2.5}
@@ -3962,16 +4761,19 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Corte Mínimo Modernidade (0–100)</span>
+                    <label htmlFor="weight-min-modernity-score">
+                      Corte Mínimo Modernidade (0–100)
+                    </label>
                     <span className="font-mono text-primary">
                       ≥ {weights.minModernityScore}/100
                     </span>
                   </div>
                   <input
+                    id="weight-min-modernity-score"
                     type="range"
                     min={30}
                     max={85}
@@ -3982,16 +4784,19 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Teto Ideal All-in (R$)</span>
+                    <label htmlFor="weight-budget-ideal">
+                      Teto Ideal All-in (R$)
+                    </label>
                     <span className="font-mono text-primary">
                       R$ {weights.budgetIdeal.toLocaleString("pt-BR")}
                     </span>
                   </div>
                   <input
+                    id="weight-budget-ideal"
                     type="range"
                     min={3200}
                     max={7000}
@@ -3999,45 +4804,64 @@ export function MoradiaPortal({
                     value={weights.budgetIdeal}
                     onChange={(e) => {
                       const val = Number(e.target.value);
+                      const nextMax = Math.max(weights.budgetMax, val);
+                      const nextHardCap = Math.max(
+                        weights.budgetHardCap,
+                        nextMax + 350,
+                      );
                       updateWeight("budgetIdeal", val);
-                      if (weights.budgetMax < val) {
-                        updateWeight("budgetMax", val + 500);
+                      if (nextMax !== weights.budgetMax) {
+                        updateWeight("budgetMax", nextMax);
+                      }
+                      if (nextHardCap !== weights.budgetHardCap) {
+                        updateWeight("budgetHardCap", nextHardCap);
                       }
                     }}
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Teto Limite Tolerado (R$)</span>
+                    <label htmlFor="weight-budget-max">
+                      Teto Limite Tolerado (R$)
+                    </label>
                     <span className="font-mono text-primary">
                       R$ {weights.budgetMax.toLocaleString("pt-BR")}
                     </span>
                   </div>
                   <input
+                    id="weight-budget-max"
                     type="range"
                     min={3600}
                     max={8000}
                     step={100}
                     value={weights.budgetMax}
                     onChange={(e) => {
-                      const val = Number(e.target.value);
+                      const rawVal = Number(e.target.value);
+                      const val = Math.max(rawVal, weights.budgetIdeal);
+                      const nextHardCap = Math.max(
+                        weights.budgetHardCap,
+                        val + 350,
+                      );
                       updateWeight("budgetMax", val);
-                      updateWeight("budgetHardCap", val + 350);
+                      updateWeight("budgetHardCap", nextHardCap);
                     }}
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Bônus Não-Mobiliado (p/ Mobília BSB)</span>
+                    <label htmlFor="weight-unfurnished-bonus">
+                      Bônus Não-Mobiliado (p/ Mobília BSB)
+                    </label>
                     <span className="font-mono text-primary">
                       +{weights.unfurnishedBonus} pts
                     </span>
                   </div>
                   <input
+                    id="weight-unfurnished-bonus"
                     type="range"
                     min={0}
                     max={25}
@@ -4048,16 +4872,19 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Penalidade Imóvel Mobiliado</span>
+                    <label htmlFor="weight-furnished-penalty">
+                      Penalidade Imóvel Mobiliado
+                    </label>
                     <span className="font-mono text-rose-600 dark:text-rose-400">
                       {weights.furnishedPenalty} pts
                     </span>
                   </div>
                   <input
+                    id="weight-furnished-penalty"
                     type="range"
                     min={-40}
                     max={0}
@@ -4068,16 +4895,19 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Área Útil Mínima (m²)</span>
+                    <label htmlFor="weight-min-area-m2">
+                      Área Útil Mínima (m²)
+                    </label>
                     <span className="font-mono text-primary">
                       {weights.minAreaM2} m² a {weights.maxAreaM2} m²
                     </span>
                   </div>
                   <input
+                    id="weight-min-area-m2"
                     type="range"
                     min={35}
                     max={65}
@@ -4088,13 +4918,14 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
                 <div className="flex items-center justify-between pt-3 text-xs">
-                  <span className="font-medium">
+                  <label htmlFor="weight-require-parking" className="font-medium">
                     Exigir ≥ 1 Vaga de Garagem
-                  </span>
+                  </label>
                   <input
+                    id="weight-require-parking"
                     type="checkbox"
                     checked={weights.requireParking}
                     onChange={(e) =>
@@ -4105,10 +4936,11 @@ export function MoradiaPortal({
                 </div>
 
                 <div className="flex items-center justify-between pt-3 text-xs">
-                  <span className="font-medium">
+                  <label htmlFor="weight-penalize-mega-condo" className="font-medium">
                     Penalizar Megacondomínio Familiar
-                  </span>
+                  </label>
                   <input
+                    id="weight-penalize-mega-condo"
                     type="checkbox"
                     checked={weights.penalizeMegaCondo ?? true}
                     onChange={(e) =>
@@ -4127,17 +4959,20 @@ export function MoradiaPortal({
               </h3>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Respiração Urbana (Vibe Setor Marista)</span>
+                    <label htmlFor="weight-urban-breathing">
+                      Respiração Urbana (Vibe Setor Marista)
+                    </label>
                     <span className="font-mono text-primary">
                       {weights.urbanBreathingWeight.toFixed(1)}x
                     </span>
                   </div>
                   <input
+                    id="weight-urban-breathing"
                     type="range"
                     min={0}
-                    max={2.5}
+                    max={3.5}
                     step={0.1}
                     value={weights.urbanBreathingWeight}
                     onChange={(e) =>
@@ -4148,19 +4983,22 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Logística & Tempo p/ Escritório Nubank</span>
+                    <label htmlFor="weight-commute-logistics">
+                      Logística & Tempo p/ Escritório Nubank
+                    </label>
                     <span className="font-mono text-primary">
                       {weights.commuteLogisticsWeight.toFixed(1)}x
                     </span>
                   </div>
                   <input
+                    id="weight-commute-logistics"
                     type="range"
                     min={0}
-                    max={2.5}
+                    max={3.5}
                     step={0.1}
                     value={weights.commuteLogisticsWeight}
                     onChange={(e) =>
@@ -4171,19 +5009,22 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Oferta de Prédios Bons c/ Vaga</span>
+                    <label htmlFor="weight-building-stock">
+                      Oferta de Prédios Bons c/ Vaga
+                    </label>
                     <span className="font-mono text-primary">
                       {weights.buildingStockWeight.toFixed(1)}x
                     </span>
                   </div>
                   <input
+                    id="weight-building-stock"
                     type="range"
                     min={0}
-                    max={2.5}
+                    max={3.5}
                     step={0.1}
                     value={weights.buildingStockWeight}
                     onChange={(e) =>
@@ -4194,19 +5035,22 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <span>Poder de Compra no Orçamento</span>
+                    <label htmlFor="weight-budget-fit">
+                      Poder de Compra no Orçamento
+                    </label>
                     <span className="font-mono text-primary">
                       {weights.budgetFitWeight.toFixed(1)}x
                     </span>
                   </div>
                   <input
+                    id="weight-budget-fit"
                     type="range"
                     min={0}
-                    max={2.5}
+                    max={3.5}
                     step={0.1}
                     value={weights.budgetFitWeight}
                     onChange={(e) =>
@@ -4214,19 +5058,22 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
 
-                <label className="space-y-1 text-xs sm:col-span-2">
+                <div className="space-y-1 text-xs sm:col-span-2">
                   <div className="flex justify-between font-medium">
-                    <span>Segurança Pública & Facilidade de Dirigir</span>
+                    <label htmlFor="weight-safety-car">
+                      Segurança Pública & Facilidade de Dirigir
+                    </label>
                     <span className="font-mono text-primary">
                       {weights.safetyCarWeight.toFixed(1)}x
                     </span>
                   </div>
                   <input
+                    id="weight-safety-car"
                     type="range"
                     min={0}
-                    max={2.5}
+                    max={3.5}
                     step={0.1}
                     value={weights.safetyCarWeight}
                     onChange={(e) =>
@@ -4234,7 +5081,7 @@ export function MoradiaPortal({
                     }
                     className="w-full accent-primary"
                   />
-                </label>
+                </div>
               </div>
             </div>
           </div>
@@ -4745,6 +5592,28 @@ export function MoradiaPortal({
                 <span>({favoriteKeys.length})</span>
               </button>
 
+              {/* 1-Click Perfeito Filter Preset Toggle */}
+              <button
+                type="button"
+                onClick={applyPerfeitoFilterPreset}
+                aria-pressed={isPerfeitoPresetActive}
+                title="Assinala os filtros ideais: Ar-condicionado · Andar Alto/Cobertura · ≤ R$ 4.500 · ≤ 25 min do escritório · Não/Semi-mobiliado · Sem problemas de segurança"
+                className={`order-3 sm:order-2 inline-flex shrink-0 items-center gap-1 rounded-lg border px-1.5 py-1 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-2.5 ${
+                  isPerfeitoPresetActive
+                    ? "border-amber-500/60 bg-amber-500/15 text-amber-800 dark:border-amber-400/60 dark:bg-amber-500/20 dark:text-amber-200"
+                    : "border-amber-500/40 bg-amber-500/5 text-foreground hover:bg-amber-500/15"
+                }`}
+              >
+                <Sparkles
+                  className={`h-3.5 w-3.5 shrink-0 ${
+                    isPerfeitoPresetActive
+                      ? "fill-amber-500 text-amber-500"
+                      : "text-amber-500"
+                  }`}
+                />
+                <span>Perfeito</span>
+              </button>
+
               {/* 1-Click Top 20 Bairros Strict Filter Toggle */}
               <button
                 type="button"
@@ -4856,16 +5725,23 @@ export function MoradiaPortal({
                   <span className="font-bold uppercase tracking-wider text-foreground">
                     Destaques & Comodidades
                   </span>
-                  {requiredFeatures.length > 0 ? (
+                  {requiredFeatures.length > 0 || onlySafeStreets ? (
                     <button
                       type="button"
                       onClick={() => {
                         setRequiredFeatures([]);
+                        setOnlySafeStreets(false);
                         setVisibleCount(30);
                       }}
                       className="font-mono font-semibold text-primary hover:underline"
                     >
-                      Limpar ({requiredFeatures.length})
+                      Limpar (
+                      {requiredFeatures.length +
+                        (onlySafeStreets &&
+                        !requiredFeatures.includes("safe_street")
+                          ? 1
+                          : 0)}
+                      )
                     </button>
                   ) : (
                     <span className="font-mono font-semibold text-primary">
@@ -4875,17 +5751,33 @@ export function MoradiaPortal({
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {PROPERTY_FEATURE_OPTIONS.map((feat) => {
-                    const active = requiredFeatures.includes(feat.key);
+                    const active =
+                      requiredFeatures.includes(feat.key) ||
+                      (feat.key === "safe_street" && onlySafeStreets);
                     return (
                       <button
                         key={feat.key}
                         type="button"
                         onClick={() => {
-                          setRequiredFeatures((prev) =>
-                            prev.includes(feat.key)
-                              ? prev.filter((f) => f !== feat.key)
-                              : [...prev, feat.key],
-                          );
+                          if (feat.key === "safe_street") {
+                            const isCurrentlyActive =
+                              requiredFeatures.includes("safe_street") ||
+                              onlySafeStreets;
+                            if (isCurrentlyActive) {
+                              setOnlySafeStreets(false);
+                              setRequiredFeatures((prev) =>
+                                prev.filter((f) => f !== "safe_street"),
+                              );
+                            } else {
+                              setOnlySafeStreets(true);
+                            }
+                          } else {
+                            setRequiredFeatures((prev) =>
+                              prev.includes(feat.key)
+                                ? prev.filter((f) => f !== feat.key)
+                                : [...prev, feat.key],
+                            );
+                          }
                           setVisibleCount(30);
                         }}
                         className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
@@ -4921,9 +5813,10 @@ export function MoradiaPortal({
                   {[
                     { label: "Qualquer", max: null },
                     { label: "≤ 4.000", max: 4000 },
-                    { label: "≤ 4.500", max: 4500 },
-                    { label: "≤ 5.500 (Ideal)", max: 5500 },
-                    { label: "≤ 6.500 (Teto)", max: 6500 },
+                    { label: "≤ 4.500 (Ideal)", max: 4500 },
+                    { label: "≤ 5.000 (Teto)", max: 5000 },
+                    { label: "≤ 5.500", max: 5500 },
+                    { label: "≤ 6.500", max: 6500 },
                   ].map((preset) => {
                     const active =
                       maxTotalMonthly === preset.max &&
@@ -5003,35 +5896,61 @@ export function MoradiaPortal({
                 </div>
               </div>
 
-              {/* 3. Área Útil (m²) Quick Filter + Inputs */}
+              {/* 3. Andar / Cobertura Quick Filter */}
               <div className="rounded-lg border bg-background/60 p-2.5 space-y-1.5">
                 <div className="flex items-center justify-between gap-2 text-[11px]">
                   <span className="font-bold uppercase tracking-wider text-foreground">
-                    Área Útil (m²)
+                    Andar / Cobertura
                   </span>
-                  <span className="font-mono font-semibold text-primary">
-                    {minAreaM2 === null && maxAreaM2 === null
-                      ? "Qualquer área"
-                      : `${minAreaM2 ?? 0}–${maxAreaM2 ?? "∞"} m²`}
+                  <span
+                    className="font-mono font-semibold text-primary truncate max-w-[180px]"
+                    title={
+                      floorFilters.length === 0
+                        ? "Qualquer andar"
+                        : floorFilters
+                            .map(
+                              (ff) =>
+                                FLOOR_FILTER_OPTIONS.find((o) => o.value === ff)
+                                  ?.shortLabel ?? ff,
+                            )
+                            .join(" + ")
+                    }
+                  >
+                    {floorFilters.length === 0
+                      ? "Qualquer andar"
+                      : floorFilters.length === 1
+                        ? (FLOOR_FILTER_OPTIONS.find(
+                            (o) => o.value === floorFilters[0],
+                          )?.label ?? "Qualquer andar")
+                        : floorFilters
+                            .map(
+                              (ff) =>
+                                FLOOR_FILTER_OPTIONS.find((o) => o.value === ff)
+                                  ?.shortLabel ?? ff,
+                            )
+                            .join(" + ")}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {[
-                    { label: "Qualquer", min: null, max: null },
-                    { label: "≥ 45 m²", min: 45, max: null },
-                    { label: "48–68 m² (Ideal)", min: 48, max: 68 },
-                    { label: "≥ 60 m²", min: 60, max: null },
-                    { label: "≥ 75 m²", min: 75, max: null },
-                  ].map((preset) => {
+                  {FLOOR_FILTER_OPTIONS.map((opt) => {
                     const active =
-                      minAreaM2 === preset.min && maxAreaM2 === preset.max;
+                      opt.value === "ALL"
+                        ? floorFilters.length === 0
+                        : floorFilters.includes(opt.value);
                     return (
                       <button
-                        key={preset.label}
+                        key={opt.value}
                         type="button"
                         onClick={() => {
-                          setMinAreaM2(preset.min);
-                          setMaxAreaM2(preset.max);
+                          if (opt.value === "ALL") {
+                            setFloorFilters([]);
+                          } else {
+                            setFloorFilters((prev) =>
+                              prev.includes(opt.value)
+                                ? prev.filter((item) => item !== opt.value)
+                                : [...prev, opt.value],
+                            );
+                          }
                           setVisibleCount(30);
                         }}
                         className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
@@ -5040,63 +5959,10 @@ export function MoradiaPortal({
                             : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
                         }`}
                       >
-                        {preset.label}
+                        {opt.shortLabel}
                       </button>
                     );
                   })}
-                </div>
-                <div className="flex items-center gap-2 pt-0.5">
-                  <input
-                    type="range"
-                    min={20}
-                    max={120}
-                    step={2}
-                    aria-label="Área útil mínima"
-                    value={minAreaM2 ?? 20}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setMinAreaM2(val <= 20 ? null : val);
-                      setVisibleCount(30);
-                    }}
-                    className="h-1.5 flex-1 accent-primary"
-                  />
-                  <div className="flex items-center gap-1 font-mono text-[10px]">
-                    <input
-                      type="number"
-                      min={15}
-                      max={300}
-                      placeholder="Mín m²"
-                      aria-label="Área útil mínima em m²"
-                      value={minAreaM2 ?? ""}
-                      onChange={(e) => {
-                        setMinAreaM2(
-                          e.target.value === ""
-                            ? null
-                            : Number(e.target.value),
-                        );
-                        setVisibleCount(30);
-                      }}
-                      className="w-14 rounded border bg-card px-1.5 py-0.5 text-right"
-                    />
-                    <span className="text-muted-foreground">–</span>
-                    <input
-                      type="number"
-                      min={20}
-                      max={400}
-                      placeholder="Máx m²"
-                      aria-label="Área útil máxima em m²"
-                      value={maxAreaM2 ?? ""}
-                      onChange={(e) => {
-                        setMaxAreaM2(
-                          e.target.value === ""
-                            ? null
-                            : Number(e.target.value),
-                        );
-                        setVisibleCount(30);
-                      }}
-                      className="w-14 rounded border bg-card px-1.5 py-0.5 text-right"
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -5118,6 +5984,7 @@ export function MoradiaPortal({
                     { label: "≤ 10 min", max: 10 },
                     { label: "≤ 15 min", max: 15 },
                     { label: "≤ 20 min", max: 20 },
+                    { label: "≤ 25 min", max: 25 },
                     { label: "≤ 30 min", max: 30 },
                     { label: "≤ 40 min", max: 40 },
                   ].map((preset) => {
@@ -5283,61 +6150,37 @@ export function MoradiaPortal({
                   </div>
                 </div>
 
-                {/* Row B: Andar/Cobertura, Rooms/Bathrooms/Parking, Modernity/Condition, Furniture & Platform */}
+                {/* Row B: Área Útil (m²), Rooms/Bathrooms/Parking, Modernity/Condition, Furniture & Platform */}
                 <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-4">
-                  {/* Andar / Cobertura */}
+                  {/* Área Útil (m²) */}
                   <div className="rounded-lg border bg-background/40 p-2.5 space-y-2">
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="font-bold uppercase tracking-wider">
-                        Andar / Cobertura
+                        Área Útil (m²)
                       </span>
-                      <span className="font-mono text-primary font-semibold truncate max-w-[180px]" title={
-                        floorFilters.length === 0
-                          ? "Qualquer andar"
-                          : floorFilters
-                              .map(
-                                (ff) =>
-                                  FLOOR_FILTER_OPTIONS.find((o) => o.value === ff)
-                                    ?.shortLabel ?? ff,
-                              )
-                              .join(" + ")
-                      }>
-                        {floorFilters.length === 0
-                          ? "Qualquer andar"
-                          : floorFilters.length === 1
-                            ? (FLOOR_FILTER_OPTIONS.find(
-                                (o) => o.value === floorFilters[0],
-                              )?.label ?? "Qualquer andar")
-                            : floorFilters
-                                .map(
-                                  (ff) =>
-                                    FLOOR_FILTER_OPTIONS.find(
-                                      (o) => o.value === ff,
-                                    )?.shortLabel ?? ff,
-                                )
-                                .join(" + ")}
+                      <span className="font-mono text-primary font-semibold">
+                        {minAreaM2 === null && maxAreaM2 === null
+                          ? "Qualquer área"
+                          : `${minAreaM2 ?? 0}–${maxAreaM2 ?? "∞"} m²`}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {FLOOR_FILTER_OPTIONS.map((opt) => {
+                      {[
+                        { label: "Qualquer", min: null, max: null },
+                        { label: "≥ 45 m²", min: 45, max: null },
+                        { label: "50–72 m² (Ideal)", min: 50, max: 72 },
+                        { label: "≥ 60 m²", min: 60, max: null },
+                        { label: "≥ 75 m²", min: 75, max: null },
+                      ].map((preset) => {
                         const active =
-                          opt.value === "ALL"
-                            ? floorFilters.length === 0
-                            : floorFilters.includes(opt.value);
+                          minAreaM2 === preset.min && maxAreaM2 === preset.max;
                         return (
                           <button
-                            key={opt.value}
+                            key={preset.label}
                             type="button"
                             onClick={() => {
-                              if (opt.value === "ALL") {
-                                setFloorFilters([]);
-                              } else {
-                                setFloorFilters((prev) =>
-                                  prev.includes(opt.value)
-                                    ? prev.filter((item) => item !== opt.value)
-                                    : [...prev, opt.value],
-                                );
-                              }
+                              setMinAreaM2(preset.min);
+                              setMaxAreaM2(preset.max);
                               setVisibleCount(30);
                             }}
                             className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
@@ -5346,10 +6189,63 @@ export function MoradiaPortal({
                                 : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
                             }`}
                           >
-                            {opt.shortLabel}
+                            {preset.label}
                           </button>
                         );
                       })}
+                    </div>
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <input
+                        type="range"
+                        min={20}
+                        max={120}
+                        step={2}
+                        aria-label="Área útil mínima"
+                        value={minAreaM2 ?? 20}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setMinAreaM2(val <= 20 ? null : val);
+                          setVisibleCount(30);
+                        }}
+                        className="h-1.5 flex-1 accent-primary"
+                      />
+                      <div className="flex items-center gap-1 font-mono text-[10px]">
+                        <input
+                          type="number"
+                          min={15}
+                          max={300}
+                          placeholder="Mín m²"
+                          aria-label="Área útil mínima em m²"
+                          value={minAreaM2 ?? ""}
+                          onChange={(e) => {
+                            setMinAreaM2(
+                              e.target.value === ""
+                                ? null
+                                : Number(e.target.value),
+                            );
+                            setVisibleCount(30);
+                          }}
+                          className="w-14 rounded border bg-card px-1.5 py-0.5 text-right"
+                        />
+                        <span className="text-muted-foreground">–</span>
+                        <input
+                          type="number"
+                          min={20}
+                          max={400}
+                          placeholder="Máx m²"
+                          aria-label="Área útil máxima em m²"
+                          value={maxAreaM2 ?? ""}
+                          onChange={(e) => {
+                            setMaxAreaM2(
+                              e.target.value === ""
+                                ? null
+                                : Number(e.target.value),
+                            );
+                            setVisibleCount(30);
+                          }}
+                          className="w-14 rounded border bg-card px-1.5 py-0.5 text-right"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -5580,37 +6476,59 @@ export function MoradiaPortal({
                         Mobília
                       </span>
                       <div className="flex flex-wrap gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedFurnitureTiers([]);
+                            setFurnishedFilter("ALL");
+                            setVisibleCount(30);
+                          }}
+                          className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                            selectedFurnitureTiers.length === 0
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          }`}
+                        >
+                          Todos
+                        </button>
                         {(
                           [
-                            { val: "ALL", label: "Todos" },
-                            { val: "UNFURNISHED", label: "Sem mobília" },
-                            {
-                              val: "UNFURNISHED_OR_SEMI",
-                              label: "Sem mobília ou Semi",
-                            },
-                            {
-                              val: "SEMI_FURNISHED",
-                              label: "Só Semi-mobiliado",
-                            },
-                            { val: "FURNISHED", label: "Mobiliado" },
+                            { val: "UNFURNISHED", label: "Não mobiliado" },
+                            { val: "FULLY_FURNISHED", label: "Mobiliado" },
                           ] as const
-                        ).map((opt) => (
-                          <button
-                            key={opt.val}
-                            type="button"
-                            onClick={() => {
-                              setFurnishedFilter(opt.val);
-                              setVisibleCount(30);
-                            }}
-                            className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
-                              furnishedFilter === opt.val
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+                        ).map((opt) => {
+                          const active = selectedFurnitureTiers.includes(
+                            opt.val,
+                          );
+                          return (
+                            <button
+                              key={opt.val}
+                              type="button"
+                              onClick={() => {
+                                setSelectedFurnitureTiers((prev) => {
+                                  const exists = prev.includes(opt.val);
+                                  const rawNext = exists
+                                    ? prev.filter((t) => t !== opt.val)
+                                    : [...prev, opt.val];
+                                  const next =
+                                    rawNext.length >= 2 ? [] : rawNext;
+                                  setFurnishedFilter(
+                                    deriveLegacyFurnishedFilter(next),
+                                  );
+                                  return next;
+                                });
+                                setVisibleCount(30);
+                              }}
+                              className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                                active
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -5650,10 +6568,10 @@ export function MoradiaPortal({
                   </div>
                 </div>
 
-                {/* Row C: Pontuação (Nota / Score) + Exclusões / Proteções Extras */}
+                {/* Row C: Pontuação (Nota / Score) + Data / Idade do Anúncio + Exclusões / Proteções Extras */}
                 <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
                   {/* Pontuação (Nota / Score) */}
-                  <div className="lg:col-span-2 rounded-lg border bg-background/40 p-2.5 space-y-1.5">
+                  <div className="rounded-lg border bg-background/40 p-2.5 space-y-1.5">
                     <div className="flex items-center justify-between gap-2 text-[11px]">
                       <span className="font-bold uppercase tracking-wider text-foreground">
                         Pontuação (Nota / Score)
@@ -5665,11 +6583,11 @@ export function MoradiaPortal({
                     <div className="flex flex-wrap gap-1">
                       {[
                         { label: "Qualquer", val: null },
-                        { label: "≥ 85 pts", val: 85 },
-                        { label: "≥ 80 pts", val: 80 },
-                        { label: "≥ 75 pts", val: 75 },
-                        { label: "≥ 70 pts", val: 70 },
-                        { label: "≥ 65 pts", val: 65 },
+                        { label: "≥ 200 pts", val: 200 },
+                        { label: "≥ 185 pts", val: 185 },
+                        { label: "≥ 170 pts", val: 170 },
+                        { label: "≥ 155 pts", val: 155 },
+                        { label: "≥ 140 pts", val: 140 },
                       ].map((preset) => {
                         const active = minScore === preset.val;
                         return (
@@ -5695,7 +6613,7 @@ export function MoradiaPortal({
                       <input
                         type="range"
                         min={0}
-                        max={100}
+                        max={240}
                         step={1}
                         aria-label="Nota mínima do imóvel"
                         value={minScore ?? 0}
@@ -5707,8 +6625,147 @@ export function MoradiaPortal({
                         className="h-1.5 flex-1 accent-primary"
                       />
                       <span className="font-mono text-[10px] text-muted-foreground w-14 text-right">
-                        {minScore === null ? "0–100" : `${minScore}/100`}
+                        {minScore === null ? "0–240" : `${minScore}/240`}
                       </span>
+                    </div>
+                  </div>
+
+                  {/* Data / Idade do Anúncio */}
+                  <div className="rounded-lg border bg-background/40 p-2.5 space-y-2">
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="font-bold uppercase tracking-wider text-foreground">
+                        Data / Idade do Anúncio
+                      </span>
+                      <span className="font-mono font-semibold text-primary">
+                        {minListingAgeDays === null &&
+                        maxListingAgeDays === null &&
+                        !listingDateFrom.trim() &&
+                        !listingDateTo.trim()
+                          ? "Qualquer data"
+                          : minListingAgeDays !== null ||
+                              maxListingAgeDays !== null
+                            ? `${minListingAgeDays ?? 0}–${maxListingAgeDays ?? "∞"}d`
+                            : `${listingDateFrom || "…"} → ${listingDateTo || "…"}`}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { label: "Todos", min: null, max: null, clearDates: true },
+                        { label: "≤ 7 dias", min: null, max: 7, clearDates: false },
+                        { label: "≤ 15 dias", min: null, max: 15, clearDates: false },
+                        { label: "≤ 30 dias", min: null, max: 30, clearDates: false },
+                        { label: "≤ 60 dias", min: null, max: 60, clearDates: false },
+                        { label: "≤ 90 dias", min: null, max: 90, clearDates: false },
+                        {
+                          label: "> 60 dias (Antigos p/ negociar)",
+                          min: 61,
+                          max: null,
+                          clearDates: false,
+                        },
+                      ].map((preset) => {
+                        const active =
+                          minListingAgeDays === preset.min &&
+                          maxListingAgeDays === preset.max &&
+                          (!preset.clearDates ||
+                            (!listingDateFrom.trim() && !listingDateTo.trim()));
+                        return (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => {
+                              setMinListingAgeDays(preset.min);
+                              setMaxListingAgeDays(preset.max);
+                              if (preset.clearDates) {
+                                setListingDateFrom("");
+                                setListingDateTo("");
+                              }
+                              setVisibleCount(30);
+                            }}
+                            className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                              active
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 text-[10px]">
+                      <div className="space-y-0.5">
+                        <span className="block font-semibold text-muted-foreground">
+                          Range de Idade (dias)
+                        </span>
+                        <div className="flex items-center gap-1 font-mono">
+                          <input
+                            type="number"
+                            min={0}
+                            max={1000}
+                            placeholder="Mín (dias)"
+                            aria-label="Idade mínima do anúncio em dias"
+                            value={minListingAgeDays ?? ""}
+                            onChange={(e) => {
+                              setMinListingAgeDays(
+                                e.target.value === ""
+                                  ? null
+                                  : Math.max(0, Number(e.target.value)),
+                              );
+                              setVisibleCount(30);
+                            }}
+                            className="w-full rounded border bg-card px-1.5 py-0.5 text-right"
+                          />
+                          <span className="text-muted-foreground">–</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={1000}
+                            placeholder="Máx (dias)"
+                            aria-label="Idade máxima do anúncio em dias"
+                            value={maxListingAgeDays ?? ""}
+                            onChange={(e) => {
+                              setMaxListingAgeDays(
+                                e.target.value === ""
+                                  ? null
+                                  : Math.max(0, Number(e.target.value)),
+                              );
+                              setVisibleCount(30);
+                            }}
+                            className="w-full rounded border bg-card px-1.5 py-0.5 text-right"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-0.5">
+                        <span className="block font-semibold text-muted-foreground">
+                          Range de Data (De / Até)
+                        </span>
+                        <div className="flex items-center gap-1 font-mono">
+                          <input
+                            type="date"
+                            aria-label="Data inicial de publicação do anúncio"
+                            value={listingDateFrom}
+                            onChange={(e) => {
+                              setListingDateFrom(e.target.value);
+                              setVisibleCount(30);
+                            }}
+                            className="w-full rounded border bg-card px-1 py-0.5 text-[10px]"
+                          />
+                          <span className="text-muted-foreground">→</span>
+                          <input
+                            type="date"
+                            aria-label="Data final de publicação do anúncio"
+                            value={listingDateTo}
+                            onChange={(e) => {
+                              setListingDateTo(e.target.value);
+                              setVisibleCount(30);
+                            }}
+                            className="w-full rounded border bg-card px-1 py-0.5 text-[10px]"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -5763,6 +6820,27 @@ export function MoradiaPortal({
                       <label className="inline-flex items-center gap-2 font-medium cursor-pointer">
                         <input
                           type="checkbox"
+                          checked={
+                            onlySafeStreets ||
+                            requiredFeatures.includes("safe_street")
+                          }
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setOnlySafeStreets(checked);
+                            if (!checked) {
+                              setRequiredFeatures((prev) =>
+                                prev.filter((f) => f !== "safe_street"),
+                              );
+                            }
+                            setVisibleCount(30);
+                          }}
+                          className="accent-primary"
+                        />
+                        <span>Sem problemas de segurança na rua</span>
+                      </label>
+                      <label className="inline-flex items-center gap-2 font-medium cursor-pointer">
+                        <input
+                          type="checkbox"
                           checked={onlyTop20Neighborhoods}
                           onChange={(e) => {
                             setOnlyTop20Neighborhoods(e.target.checked);
@@ -5801,15 +6879,35 @@ export function MoradiaPortal({
                       <label className="inline-flex items-center gap-2 font-medium text-muted-foreground cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={showIneligible}
+                          checked={showIneligible && !onlyIneligible}
                           onChange={(e) => {
-                            setShowIneligible(e.target.checked);
+                            const checked = e.target.checked;
+                            setShowIneligible(checked);
+                            if (checked) {
+                              setOnlyIneligible(false);
+                            }
                             setVisibleCount(30);
                           }}
                           className="accent-primary"
                         />
                         <span>
-                          Incluir reprovados (sem elevador / vaga presa)
+                          Incluir reprovados ({ineligibleActiveCount} retidos por modernidade/área &lt;35m²/tempo &gt;50min/vaga/elevador)
+                        </span>
+                      </label>
+                      <label className="inline-flex items-center gap-2 font-medium text-amber-700 dark:text-amber-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={onlyIneligible}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setOnlyIneligible(checked);
+                            setShowIneligible(checked);
+                            setVisibleCount(30);
+                          }}
+                          className="accent-primary"
+                        />
+                        <span>
+                          Só reprovados / retidos ({ineligibleActiveCount})
                         </span>
                       </label>
                     </div>
@@ -5831,6 +6929,23 @@ export function MoradiaPortal({
                     {totalBasePoolCount}
                   </strong>{" "}
                   imóveis
+                  {!showIneligible && !onlyIneligible && ineligibleActiveCount > 0 && (
+                    <span className="ml-1 text-muted-foreground/80">
+                      · {ineligibleActiveCount} filtrados pelas barreiras (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOnlyIneligible(true);
+                          setShowIneligible(true);
+                          setVisibleCount(30);
+                        }}
+                        className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+                      >
+                        ver só retidos
+                      </button>
+                      )
+                    </span>
+                  )}
                 </span>
 
                 {activeFilterPills.map((pill) => (
@@ -5895,7 +7010,7 @@ export function MoradiaPortal({
             <div className="space-y-3">
               <div className="h-[calc(100vh-8rem)] min-h-[600px] w-full">
                 <PropertyMapView
-                  properties={filteredProperties.slice(0, visibleCount)}
+                  properties={mapProperties}
                   totalFilteredCount={filteredProperties.length}
                   onLoadMore={() => setVisibleCount((c) => c + 30)}
                   selectedCity={
@@ -5936,13 +7051,14 @@ export function MoradiaPortal({
           >
           {/* Properties List */}
           <div
+            ref={cardsListRef}
             className={
               viewMode === "split"
                 ? "xl:col-span-7 space-y-3 order-2 xl:order-1"
                 : "space-y-3"
             }
           >
-            {filteredProperties.length === 0 && (
+            {filteredProperties.length === 0 && !focusedPropertyKey && (
               <div className="rounded-xl border border-dashed bg-card p-8 text-center space-y-2.5">
                 <p className="text-sm font-semibold text-foreground">
                   Nenhum imóvel encontrado com a combinação atual de filtros.
@@ -5961,12 +7077,44 @@ export function MoradiaPortal({
                 </button>
               </div>
             )}
-            {filteredProperties.slice(0, visibleCount).map((prop) => {
+            {displayedProperties.map((prop, cardIdx) => {
               const key = `${prop.provider}:${prop.id}`;
               const safeCardDomId = `property-card-${key.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
               const isExpanded = expandedId === key;
               const isMapHighlighted =
                 hoveredPropertyKey === key || selectedMapPropertyKey === key;
+              const isNearViewport =
+                (cardIdx >= mountedWindow.start &&
+                  cardIdx < mountedWindow.end) ||
+                isExpanded ||
+                isMapHighlighted ||
+                key === focusedPropertyKey;
+
+              if (!isNearViewport) {
+                return (
+                  <article
+                    key={key}
+                    id={safeCardDomId}
+                    data-card-index={cardIdx}
+                    onClick={() => setExpandedId(key)}
+                    style={{
+                      minHeight: viewMode === "split" ? "236px" : "248px",
+                    }}
+                    className="flex cursor-pointer items-center justify-between rounded-xl border bg-card/60 px-4 py-3 text-xs text-muted-foreground transition-colors hover:border-primary/40"
+                  >
+                    <span className="truncate font-semibold text-foreground">
+                      #{prop.overallRank ?? "—"} · {prop.neighborhood} (
+                      {prop.cityCode}) — {prop.street}
+                      {prop.streetNumber ? `, ${prop.streetNumber}` : ""}
+                    </span>
+                    <span className="shrink-0 font-mono font-bold text-primary">
+                      {prop.finalScore.toFixed(1)} pts · R${" "}
+                      {prop.totalMonthly.toLocaleString("pt-BR")}/mês
+                    </span>
+                  </article>
+                );
+              }
+
               const inCompare = compareKeys.includes(key);
               const isFav = favoriteKeys.includes(key);
               const isDeactivated = prop.isActive === false;
@@ -5985,6 +7133,9 @@ export function MoradiaPortal({
                       ...prop,
                       samplePhotos: fullPhotos,
                       photosCount: totalGalleryCount,
+                      shortJustification: prop.shortJustification,
+                      narrativeJustification: prop.narrativeJustification,
+                      detailedJustification: prop.detailedJustification,
                     }
                   : prop;
               const tierBadge =
@@ -5996,11 +7147,22 @@ export function MoradiaPortal({
                 <article
                   key={key}
                   id={safeCardDomId}
+                  data-card-index={cardIdx}
                   onMouseEnter={() => setHoveredPropertyKey(key)}
                   onMouseLeave={() =>
                     setHoveredPropertyKey((prev) => (prev === key ? null : prev))
                   }
-                  onClick={() => setExpandedId(isExpanded ? null : key)}
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement | null;
+                    if (target?.closest?.('[data-card-stop-expand="true"]')) {
+                      return;
+                    }
+                    setExpandedId(isExpanded ? null : key);
+                  }}
+                  style={{
+                    contentVisibility: "auto",
+                    containIntrinsicSize: "0 248px",
+                  }}
                   className={`cursor-pointer rounded-xl border bg-card transition-all hover:border-primary/40 ${
                     isMapHighlighted
                       ? "border-primary ring-2 ring-primary/35 shadow-md"
@@ -6045,6 +7207,9 @@ export function MoradiaPortal({
                                   prop.commuteMinutes !== null
                                 ? ` · ${prop.commuteMinutes} min do Nu`
                                 : ""}
+                            {prop.listingAgeLabel
+                              ? ` · 🕒 ${prop.listingAgeLabel}`
+                              : ""}
                           </span>
                           {isDeactivated && (
                             <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/50 bg-rose-500/15 px-2 py-0.5 text-[11px] sm:px-2.5 sm:text-xs font-bold text-rose-800 dark:text-rose-200">
@@ -6178,40 +7343,49 @@ export function MoradiaPortal({
                         </div>
                       </div>
 
-                      {/* Focused Key Tags: Fortnite Floor Rarity Badge + Green & Red Pills */}
-                      {(prop.cardTags.floorTag !== null ||
-                        prop.cardTags.greenTags.length > 0 ||
-                        prop.cardTags.redTags.length > 0) && (
-                        <div className="flex flex-wrap gap-1.5 pt-0.5 text-xs font-semibold">
-                          {prop.cardTags.floorTag && (
-                            <span
-                              className={`rounded-md border px-2.5 py-0.5 ${
-                                FLOOR_RARITY_BADGES[
-                                  prop.cardTags.floorTag.rarity
-                                ].className
-                              }`}
-                            >
-                              {prop.cardTags.floorTag.label}
-                            </span>
-                          )}
-                          {prop.cardTags.greenTags.map((tag) => (
-                            <span
-                              key={`green-${tag}`}
-                              className="rounded-md border border-emerald-600/30 bg-emerald-500/12 px-2.5 py-0.5 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                          {prop.cardTags.redTags.map((tag) => (
-                            <span
-                              key={`red-${tag}`}
-                              className="rounded-md border border-rose-600/30 bg-rose-500/12 px-2.5 py-0.5 text-rose-800 dark:border-rose-400/30 dark:bg-rose-500/15 dark:text-rose-200"
-                            >
-                              {tag}
-                            </span>
-                          ))}
+                      {!prop.eligible && prop.exclusionReason && (
+                        <div className="rounded-lg border border-rose-500/40 bg-rose-500/12 px-2.5 py-1.5 text-xs font-medium text-rose-800 dark:border-rose-400/35 dark:bg-rose-950/35 dark:text-rose-200">
+                          <span className="mr-1 font-bold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+                            Retido pelas barreiras:
+                          </span>
+                          <span>{prop.exclusionReason}</span>
                         </div>
                       )}
+
+                      {/* Focused Key Tags: Fortnite Floor Rarity Badge + Green & Red Pills */}
+                      <div className="flex flex-wrap gap-1.5 pt-0.5 text-xs font-semibold">
+                        {prop.cardTags.floorTag ? (
+                          <span
+                            className={`rounded-md border px-2.5 py-0.5 ${
+                              FLOOR_RARITY_BADGES[
+                                prop.cardTags.floorTag.rarity
+                              ].className
+                            }`}
+                          >
+                            {prop.cardTags.floorTag.label}
+                          </span>
+                        ) : (
+                          <span className="rounded-md border border-dashed border-muted-foreground/35 bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            Andar não informado
+                          </span>
+                        )}
+                        {prop.cardTags.greenTags.map((tag) => (
+                          <span
+                            key={`green-${tag}`}
+                            className="rounded-md border border-emerald-600/30 bg-emerald-500/12 px-2.5 py-0.5 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {prop.cardTags.redTags.map((tag) => (
+                          <span
+                            key={`red-${tag}`}
+                            className="rounded-md border border-rose-600/30 bg-rose-500/12 px-2.5 py-0.5 text-rose-800 dark:border-rose-400/30 dark:bg-rose-500/15 dark:text-rose-200"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
 
                       {/* Complementary Non-Redundant Highlights (Prós & Ressalvas) — collapsed when map is open unless card is expanded */}
                       {(viewMode === "list" || isExpanded) &&
@@ -6226,17 +7400,19 @@ export function MoradiaPortal({
                             consText = restLines
                               .join(" ")
                               .trim()
-                              .replace(/^(?:Por outro lado|Em contrapartida),\s*/i, "");
+                              .replace(/^(?:Por outro lado|Em contrapartida),/i, "")
+                              .trimStart();
                           } else {
                             const legacyIdx = text.search(
-                              /\s+(?:Por outro lado|Em contrapartida),/,
+                              /(?:Por outro lado|Em contrapartida),/,
                             );
-                            if (legacyIdx !== -1) {
+                            if (legacyIdx > 0) {
                               prosText = text.slice(0, legacyIdx).trim();
                               consText = text
                                 .slice(legacyIdx)
                                 .trim()
-                                .replace(/^(?:Por outro lado|Em contrapartida),\s*/i, "");
+                                .replace(/^(?:Por outro lado|Em contrapartida),/i, "")
+                                .trimStart();
                             } else {
                               // Find sentence boundary after the em-dash (—) so abbreviations like "próx." never split the sentence
                               const dashPos = text.indexOf("—");
@@ -6418,7 +7594,7 @@ export function MoradiaPortal({
 
                         return (
                           <div
-                            onClick={(e) => e.stopPropagation()}
+                            data-card-stop-expand="true"
                             className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-purple-500/30 bg-purple-500/8 px-2.5 py-1.5 text-xs dark:border-purple-400/25 dark:bg-purple-950/25"
                           >
                             <button
@@ -6449,7 +7625,7 @@ export function MoradiaPortal({
                   {/* Expanded Drawer: Score Breakdown + Detailed Justification + Photo Gallery */}
                   {isExpanded && (
                     <div
-                      onClick={(e) => e.stopPropagation()}
+                      data-card-stop-expand="true"
                       className="cursor-default border-t bg-muted/30 p-4 space-y-4"
                     >
                       <div className="rounded-lg border bg-card p-3.5 space-y-2.5">
@@ -6502,6 +7678,24 @@ export function MoradiaPortal({
                                   ? `+${prop.breakdown.parkingPoints}`
                                   : prop.breakdown.parkingPoints}
                               </span>
+                              <span className="rounded bg-secondary px-2 py-0.5">
+                                Segurança Rua:{" "}
+                                {prop.breakdown.safetyPoints >= 0
+                                  ? `+${prop.breakdown.safetyPoints}`
+                                  : prop.breakdown.safetyPoints}
+                              </span>
+                              <span className="rounded bg-secondary px-2 py-0.5">
+                                Logística:{" "}
+                                {prop.breakdown.commutePoints >= 0
+                                  ? `+${prop.breakdown.commutePoints}`
+                                  : prop.breakdown.commutePoints}
+                              </span>
+                              <span className="rounded bg-secondary px-2 py-0.5">
+                                Ajuste Praça:{" "}
+                                {prop.breakdown.cityPreferencePoints >= 0
+                                  ? `+${prop.breakdown.cityPreferencePoints}`
+                                  : prop.breakdown.cityPreferencePoints}
+                              </span>
                             </div>
                             <p className="text-xs leading-relaxed text-muted-foreground">
                               {prop.detailedJustification}
@@ -6536,7 +7730,7 @@ export function MoradiaPortal({
                             </button>
                           </div>
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
-                            {fullPhotos.map((ph, idx) => (
+                            {fullPhotos.slice(0, 12).map((ph, idx) => (
                               <button
                                 key={`${ph.url}-${idx}`}
                                 type="button"
@@ -6549,11 +7743,12 @@ export function MoradiaPortal({
                                 className="group relative block h-44 w-full cursor-zoom-in overflow-hidden rounded-lg border bg-muted text-left"
                               >
                                 <img
-                                  src={getCardPhotoUrl(ph.url)}
+                                  src={getThumbPhotoUrl(ph.url)}
                                   referrerPolicy="no-referrer"
                                   onError={(e) => handleImgError(e, ph.url)}
                                   alt={ph.room ?? `Foto ${idx + 1}`}
                                   loading="lazy"
+                                  decoding="async"
                                   className="h-full w-full object-cover transition-transform group-hover:scale-105"
                                 />
                                 <span className="absolute bottom-2 left-2 rounded bg-slate-950/80 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-xs">
@@ -6562,21 +7757,43 @@ export function MoradiaPortal({
                               </button>
                             ))}
                           </div>
+                          {fullPhotos.length > 12 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setGalleryState({
+                                  property: propWithPhotos,
+                                  initialIndex: 12,
+                                })
+                              }
+                              className="w-full rounded-lg border border-dashed bg-background/70 py-2 text-center text-xs font-semibold text-primary hover:bg-secondary"
+                            >
+                              Ver todas as {totalGalleryCount} fotos na galeria em
+                              tela cheia (+{fullPhotos.length - 12} fotos)
+                            </button>
+                          )}
                         </div>
                       )}
 
-                      {(prop.description || prop.generatedDescription) && (
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                            {prop.description
-                              ? "Descrição Original do Anúncio"
-                              : "Descrição do Imóvel"}
-                          </h4>
-                          <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
-                            {prop.description ?? prop.generatedDescription}
-                          </p>
-                        </div>
-                      )}
+                      {(() => {
+                        const resolvedDescription =
+                          extraDescriptionsByKey[key] ??
+                          prop.description ??
+                          prop.generatedDescription;
+                        if (!resolvedDescription) return null;
+                        return (
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                              {extraDescriptionsByKey[key] || prop.description
+                                ? "Descrição Original do Anúncio"
+                                : "Descrição do Imóvel"}
+                            </h4>
+                            <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+                              {resolvedDescription}
+                            </p>
+                          </div>
+                        );
+                      })()}
 
                       {/* Rich Nuances Metadata Grid (Deduplicated & Normalized) */}
                       {(() => {
@@ -6671,7 +7888,7 @@ export function MoradiaPortal({
           {viewMode === "split" && (
             <div className="xl:col-span-5 xl:sticky xl:top-3 h-[360px] sm:h-[420px] xl:h-[calc(100vh-1.5rem)] order-1 xl:order-2">
               <PropertyMapView
-                properties={filteredProperties.slice(0, visibleCount)}
+                properties={mapProperties}
                 selectedCity={
                   selectedCities.length === 1 ? selectedCities[0]! : "ALL"
                 }
@@ -6917,6 +8134,25 @@ export function MoradiaPortal({
       {/* TAB 3: SIDE-BY-SIDE COMPARATOR */}
       {activeTab === "compare" && (
         <section className="space-y-4">
+          {comparedProperties.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-card px-4 py-2.5 text-xs">
+              <span className="font-medium text-muted-foreground">
+                Comparando{" "}
+                <strong className="text-foreground">
+                  {comparedProperties.length}
+                </strong>{" "}
+                de 4 imóveis lado a lado
+              </span>
+              <button
+                type="button"
+                onClick={() => setCompareKeys([])}
+                className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-500/20 dark:border-rose-400/40 dark:text-rose-200"
+              >
+                <X className="h-3.5 w-3.5" />
+                <span>Limpar comparação</span>
+              </button>
+            </div>
+          )}
           {comparedProperties.length === 0 ? (
             <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
               Selecione até 4 imóveis clicando em <strong>Comparar</strong> na
@@ -7056,6 +8292,10 @@ export function MoradiaPortal({
                           <span>Modernidade:</span>
                           <span>{p.modernityScore}/100</span>
                         </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Idade do Anúncio:</span>
+                          <span>{p.listingAgeLabel ?? "Não informada"}</span>
+                        </div>
                       </div>
                       <p className="text-xs leading-relaxed text-foreground">
                         {p.narrativeJustification}
@@ -7100,10 +8340,9 @@ export function MoradiaPortal({
           }
           onPhotosLoaded={(loadedPhotos) => {
             const k = `${galleryState.property.provider}:${galleryState.property.id}`;
-            setExtraPhotosByKey((prev) => ({
-              ...prev,
-              [k]: loadedPhotos,
-            }));
+            setExtraPhotosByKey((prev) =>
+              upsertBoundedRecord(prev, k, loadedPhotos),
+            );
           }}
           onClose={() => setGalleryState(null)}
         />
@@ -7114,7 +8353,7 @@ export function MoradiaPortal({
         onOpenChange={setShowChatDrawer}
         qaItems={qaItems}
         pinnedProperty={pinnedChatProperty}
-        onClearPinnedProperty={() => setPinnedChatPropertyKey(null)}
+        onClearPinnedProperty={handleClearPinnedChatProperty}
         onFocusProperty={(propertyKey) => {
           setPinnedChatPropertyKey(propertyKey);
           focusCardInList(propertyKey);
@@ -7124,7 +8363,7 @@ export function MoradiaPortal({
         onClearHistory={clearChatHistory}
         isSubmitting={isSubmittingChatQuestion}
         scrollTargetPropertyKey={chatScrollTargetKey}
-        onConsumeScrollTarget={() => setChatScrollTargetKey(null)}
+        onConsumeScrollTarget={handleConsumeChatScrollTarget}
         filteredCount={filteredProperties.length}
       />
     </div>

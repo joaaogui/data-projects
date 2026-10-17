@@ -70,28 +70,10 @@ export const NUBANK_HUBS: Record<CityHubCode, NubankHubLocation> = {
   },
 };
 
-/**
- * Additional official Nubank office locations rendered on the map alongside
- * the primary city hubs (e.g. BH's official Edifício Terraço Jardim in Belvedere
- * in addition to the Santa Efigênia / Boulevard reference pole from the report).
- */
-export const ADDITIONAL_NUBANK_HUBS: NubankHubLocation[] = [
-  {
-    id: "bh-terraco-jardim",
-    cityCode: "BH",
-    name: "Nubank BH — Edifício Terraço Jardim (Belvedere)",
-    shortLabel: "Nu BH · Belvedere",
-    bannerSubtitle: "BH · Belvedere (Terraço Jardim)",
-    address:
-      "Av. Paulo Camilo Pena, 432 — Belvedere, Belo Horizonte - MG, 30320-380",
-    lat: -19.970961,
-    lng: -43.942273,
-  },
-];
+export const ADDITIONAL_NUBANK_HUBS: NubankHubLocation[] = [];
 
 export const ALL_NUBANK_HUB_LOCATIONS: NubankHubLocation[] = [
   ...Object.values(NUBANK_HUBS).filter((h) => h.cityCode !== "BSB"),
-  ...ADDITIONAL_NUBANK_HUBS,
 ];
 
 export interface CityBoundingBox {
