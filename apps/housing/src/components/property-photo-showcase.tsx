@@ -1,6 +1,9 @@
 "use client";
 
+import { isRecentlyPublishedListing } from "@/lib/property-filters";
 import type { CityHubCode, EvaluatedProperty } from "@/types/housing";
+
+export { isRecentlyPublishedListing };
 import {
   Camera,
   ChevronLeft,
@@ -300,13 +303,6 @@ const CITY_BADGE_MODAL: Record<
   },
 };
 
-export function isRecentlyPublishedListing(
-  prop: Pick<EvaluatedProperty, "listingAgeDays" | "isNewEntry">,
-): boolean {
-  return prop.listingAgeDays !== null && prop.listingAgeDays !== undefined
-    ? prop.listingAgeDays <= 5
-    : Boolean(prop.isNewEntry);
-}
 
 export function PropertyCardPhotoShowcase({
   property,

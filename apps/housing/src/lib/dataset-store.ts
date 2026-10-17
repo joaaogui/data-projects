@@ -5,10 +5,7 @@ import {
   applyListingDeactivations,
   loadListingDeactivations,
 } from "@/lib/listing-deactivations";
-import {
-  getPrecomputedListings,
-  hashContent,
-} from "@/lib/listing-features-store";
+import { hashContent } from "@/lib/listing-features-store";
 import { cleanListingText } from "@/lib/listing-normalization";
 import { logger } from "@/lib/logger";
 import {
@@ -17,8 +14,8 @@ import {
 } from "@/lib/preferences-store";
 import {
   computeDynamicNeighborhoods,
+  computeDynamicProperties,
   DEFAULT_WEIGHTS,
-  scorePrecomputedListings,
 } from "@/lib/scoring-engine";
 import type {
   CityHubCode,
@@ -249,6 +246,78 @@ let cachedFullByKeyMtimeMs = -1;
 let cachedFullByKeyMap: Map<string, SlimPropertyRecord> | null = null;
 let cachedSlimmedSnapshotSig = "";
 let cachedSlimmedSnapshotProps: SlimPropertyRecord[] | null = null;
+let deferredDescriptionKeys: { snapshotHash: string; keys: Set<string> } | null = null;
+
+/**
+ * Listings whose description changes nothing in the default-weights evaluation are scored
+ * (and were historically shipped) without it.
+ */
+function getDeferredDescriptionKeys(
+  rawProps: SlimPropertyRecord[],
+  rawNbs: NeighborhoodEntry[],
+): Set<string> {
+  if (deferredDescriptionKeys?.snapshotHash === cachedSnapshotHash) {
+    return deferredDescriptionKeys.keys;
+  }
+  const { ranked } = computeDynamicNeighborhoods(rawNbs, DEFAULT_WEIGHTS);
+  const fullEval = computeDynamicProperties(rawProps, ranked, DEFAULT_WEIGHTS, {
+    includeBsbBenchmark: true,
+  });
+  const noDescEval = computeDynamicProperties(
+    rawProps.map((p) => ({ ...p, description: null, generatedDescription: null })),
+    ranked,
+    DEFAULT_WEIGHTS,
+    { includeBsbBenchmark: true },
+  );
+  const noDescByKey = new Map(noDescEval.map((p) => [`${p.provider}:${p.id}`, p]));
+  const keys = new Set<string>();
+  for (const fp of fullEval) {
+    const key = `${fp.provider}:${fp.id}`;
+    const np = noDescByKey.get(key);
+    if (
+      np &&
+      fp.finalScore === np.finalScore &&
+      fp.eligible === np.eligible &&
+      fp.furnitureTier === np.furnitureTier &&
+      JSON.stringify(fp.cardTags) === JSON.stringify(np.cardTags) &&
+      JSON.stringify(fp.nuanceHighlights) === JSON.stringify(np.nuanceHighlights) &&
+      JSON.stringify(fp.nuanceWarnings) === JSON.stringify(np.nuanceWarnings)
+    ) {
+      keys.add(key);
+    }
+  }
+  deferredDescriptionKeys = { snapshotHash: cachedSnapshotHash, keys };
+  return keys;
+}
+
+/** Snapshot listings normalized for the portal (all cached photos; deactivations not applied yet). */
+function getSlimmedSnapshotProps(): SlimPropertyRecord[] {
+  const { data: snap } = loadSnapshotFromDiskOrBundle();
+  const photosCache = loadPhotosCache();
+  const slimSig = `${cachedSnapshotHash}:${mergedPhotosCacheSig}`;
+  if (cachedSlimmedSnapshotProps && cachedSlimmedSnapshotSig === slimSig) {
+    return cachedSlimmedSnapshotProps;
+  }
+  const rawProps = (snap.properties ?? []) as unknown as SlimPropertyRecord[];
+  const rawNbs = (snap.neighborhoods ?? []) as unknown as NeighborhoodEntry[];
+  const deferred = getDeferredDescriptionKeys(rawProps, rawNbs);
+  cachedSlimmedSnapshotProps = rawProps.map((p) => ({
+    ...p,
+    ...mergeCachedPhotos(p, photosCache),
+    placesNearby: capRelevantPlaces(p.placesNearby),
+    description: deferred.has(`${p.provider}:${p.id}`)
+      ? null
+      : cleanListingText(p.description),
+    generatedDescription: null,
+    sourceSearch: null,
+    publishedAt: p.publishedAt ?? null,
+    listingUpdatedAt: p.listingUpdatedAt ?? null,
+    isActive: p.isActive ?? true,
+    deactivatedAt: p.deactivatedAt ?? null,
+  }));
+  cachedSlimmedSnapshotSig = slimSig;
+  return cachedSlimmedSnapshotProps;
+}
 
 export function getPropertyFullDetails(
   provider: string,
@@ -299,6 +368,95 @@ function capRelevantPlaces(
     if (!extras.includes(r)) extras.push(r);
   }
   return [...first6, ...extras].slice(0, 8);
+}
+
+export interface ServedListings {
+  updatedAt: string;
+  source: "neon" | "snapshot";
+  neighborhoods: NeighborhoodEntry[];
+  /** Listings as the engine scores them (full description, all cached photos, deactivations applied). */
+  properties: SlimPropertyRecord[];
+  /** Hash of everything listing features depend on (photos excluded). */
+  featureHash: string;
+  /** Changes whenever `properties` changes (features + photo cache). */
+  servedHash: string;
+}
+
+let servedCache: { sig: string; value: ServedListings } | null = null;
+let neonServedCache: { expiresAt: number; value: ServedListings } | null = null;
+const NEON_SERVED_TTL_MS = 60_000;
+
+function mergeCachedPhotos(
+  p: SlimPropertyRecord,
+  photosCache: PhotosCacheMap,
+): Pick<SlimPropertyRecord, "samplePhotos" | "photosCount"> {
+  const cachedPhotos = photosCache[`${p.provider}:${p.id}`];
+  const basePhotos = p.samplePhotos ?? [];
+  const resolvedPhotos =
+    Array.isArray(cachedPhotos) &&
+    cachedPhotos.length >= basePhotos.length &&
+    cachedPhotos.length > 0
+      ? cachedPhotos
+      : basePhotos;
+  return {
+    samplePhotos: resolvedPhotos,
+    photosCount: Math.max(
+      p.photosCount ?? 0,
+      Array.isArray(cachedPhotos) ? cachedPhotos.length : 0,
+      basePhotos.length,
+    ),
+  };
+}
+
+/**
+ * Listings for server-side scoring. Same field normalization the browser used to receive
+ * (capped nearby places, cleaned description, no generated description), but nothing deferred.
+ */
+export async function loadServedListings(): Promise<ServedListings> {
+  const db = getDb();
+  if (db && process.env.HOUSING_USE_NEON_PROPERTIES === "true") {
+    if (neonServedCache && neonServedCache.expiresAt > Date.now()) {
+      return neonServedCache.value;
+    }
+    const dataset = await loadHousingDataset("ALL");
+    const featureHash = hashContent(
+      dataset.source,
+      dataset.updatedAt,
+      JSON.stringify(dataset.properties.map((p) => [p.provider, p.id, p.isActive, p.totalMonthly])),
+    );
+    const value: ServedListings = {
+      updatedAt: dataset.updatedAt,
+      source: dataset.source,
+      neighborhoods: dataset.neighborhoods,
+      properties: dataset.properties,
+      featureHash,
+      servedHash: featureHash,
+    };
+    neonServedCache = { expiresAt: Date.now() + NEON_SERVED_TTL_MS, value };
+    return value;
+  }
+
+  const { data: snap } = loadSnapshotFromDiskOrBundle();
+  loadPhotosCache();
+  const deactivations = loadListingDeactivations();
+  const deactivationsSig = JSON.stringify(
+    Object.entries(deactivations).sort(([a], [b]) => (a < b ? -1 : 1)),
+  );
+  const sig = `${cachedSnapshotHash}|${mergedPhotosCacheSig}|${deactivationsSig}`;
+  if (servedCache && servedCache.sig === sig) return servedCache.value;
+
+  const properties = applyListingDeactivations(getSlimmedSnapshotProps(), deactivations);
+  const featureHash = hashContent("served-v1", cachedSnapshotHash, deactivationsSig);
+  const value: ServedListings = {
+    updatedAt: snap.updatedAt,
+    source: "snapshot",
+    neighborhoods: (snap.neighborhoods ?? []) as unknown as NeighborhoodEntry[],
+    properties,
+    featureHash,
+    servedHash: hashContent(featureHash, mergedPhotosCacheSig),
+  };
+  servedCache = { sig, value };
+  return value;
 }
 
 export async function loadHousingDataset(
@@ -466,86 +624,16 @@ export async function loadHousingDataset(
   }
 
   const preferences = await preferencesPromise;
-  const rawProps = (snap.properties ?? []) as unknown as SlimPropertyRecord[];
-  const rawNbs = (snap.neighborhoods ?? []) as unknown as NeighborhoodEntry[];
-  const slimSig = `${cachedSnapshotMtimeMs}:${mergedPhotosCacheSig}`;
 
-  if (!cachedSlimmedSnapshotProps || cachedSlimmedSnapshotSig !== slimSig) {
-    const { ranked } = computeDynamicNeighborhoods(rawNbs, DEFAULT_WEIGHTS);
-    const fullEval = scorePrecomputedListings(
-      getPrecomputedListings(hashContent("raw", cachedSnapshotHash), () => rawProps),
-      ranked,
-      DEFAULT_WEIGHTS,
-      { includeBsbBenchmark: true },
-    );
-    const noDescEval = scorePrecomputedListings(
-      getPrecomputedListings(hashContent("raw-no-description", cachedSnapshotHash), () =>
-        rawProps.map((p) => ({
-          ...p,
-          description: null,
-          generatedDescription: null,
-        })),
-      ),
-      ranked,
-      DEFAULT_WEIGHTS,
-      { includeBsbBenchmark: true },
-    );
-    const fullByKey = new Map(
-      fullEval.map((p) => [`${p.provider}:${p.id}`, p]),
-    );
-    const noDescByKey = new Map(
-      noDescEval.map((p) => [`${p.provider}:${p.id}`, p]),
-    );
-
-    cachedSlimmedSnapshotProps = rawProps.map((p) => {
-      const propKey = `${p.provider}:${p.id}`;
-      const cachedPhotos = photosCache[propKey];
-      const basePhotos = p.samplePhotos ?? [];
-      const resolvedPhotos =
-        Array.isArray(cachedPhotos) &&
-        cachedPhotos.length >= basePhotos.length &&
-        cachedPhotos.length > 0
-          ? cachedPhotos
-          : basePhotos;
-
-      const fp = fullByKey.get(propKey);
-      const np = noDescByKey.get(propKey);
-      const canDeferDescription =
-        Boolean(fp && np) &&
-        fp!.finalScore === np!.finalScore &&
-        fp!.eligible === np!.eligible &&
-        fp!.furnitureTier === np!.furnitureTier &&
-        JSON.stringify(fp!.cardTags) === JSON.stringify(np!.cardTags) &&
-        JSON.stringify(fp!.nuanceHighlights) ===
-          JSON.stringify(np!.nuanceHighlights) &&
-        JSON.stringify(fp!.nuanceWarnings) ===
-          JSON.stringify(np!.nuanceWarnings);
-
-      return {
-        ...p,
-        placesNearby: capRelevantPlaces(p.placesNearby),
-        photosCount: Math.max(
-          p.photosCount ?? 0,
-          Array.isArray(cachedPhotos) ? cachedPhotos.length : 0,
-          basePhotos.length,
-        ),
-        samplePhotos: resolvedPhotos.slice(0, MAX_INITIAL_CARD_PHOTOS),
-        description: canDeferDescription ? null : cleanListingText(p.description),
-        generatedDescription: null,
-        sourceSearch: null,
-        publishedAt: p.publishedAt ?? null,
-        listingUpdatedAt: p.listingUpdatedAt ?? null,
-        isActive: p.isActive ?? true,
-        deactivatedAt: p.deactivatedAt ?? null,
-      };
-    });
-    cachedSlimmedSnapshotSig = slimSig;
-  }
-
+  const slimmed = getSlimmedSnapshotProps();
   const filteredProps = applyListingDeactivations(
-    cityFilter && cityFilter !== "ALL"
-      ? cachedSlimmedSnapshotProps.filter((p) => p.cityCode === cityFilter)
-      : cachedSlimmedSnapshotProps,
+    (cityFilter && cityFilter !== "ALL"
+      ? slimmed.filter((p) => p.cityCode === cityFilter)
+      : slimmed
+    ).map((p) => ({
+      ...p,
+      samplePhotos: p.samplePhotos.slice(0, MAX_INITIAL_CARD_PHOTOS),
+    })),
     loadListingDeactivations(),
   );
 
