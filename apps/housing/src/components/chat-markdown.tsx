@@ -3,8 +3,10 @@
 import { memo } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { normalizeChatMarkdown, toPlainPreview } from "@/lib/chat-text";
 
-const LEGACY_BULLET_RE = /^(\s*)•\s+/gm;
+export { normalizeChatMarkdown, toPlainPreview };
+
 
 const components: Components = {
   h1: ({ node: _node, ...props }) => (
@@ -82,21 +84,6 @@ const components: Components = {
   ),
 };
 
-export function normalizeChatMarkdown(text: string): string {
-  return text.replace(LEGACY_BULLET_RE, "$1- ");
-}
-
-export function toPlainPreview(text: string, maxLength: number): string {
-  const plain = normalizeChatMarkdown(text)
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/^\s*(#{1,6}|>|-|\*|\d+\.)\s+/gm, "")
-    .replace(/[*_`|]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return plain.length > maxLength ? `${plain.slice(0, maxLength).trimEnd()}…` : plain;
-}
 
 export const ChatMarkdown = memo(function ChatMarkdown({
   text,

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatMarkdown } from "@/components/chat-markdown";
+import { isAwaitingDetailedAnswer } from "@/lib/chat-text";
 import {
   getThumbPhotoUrl,
   handleImgError,
@@ -37,22 +38,13 @@ import {
 } from "react";
 
 export const GENERAL_THREAD_KEY = "general";
-const DETAILED_ANSWER_WAIT_MS = 30 * 60_000;
 const SEEN_STORAGE_KEY = "housing-chat-seen-answers";
 const MAX_SEEN_KEYS = 300;
 const NEAR_BOTTOM_PX = 120;
 const MAX_QUESTION_LENGTH = 1500;
 const COLLAPSED_ANSWER_PX = 340;
 
-export function isAwaitingDetailedAnswer(
-  item: PropertyQuestionItem,
-  nowMs: number = Date.now(),
-): boolean {
-  if (item.awaitingDetailedAnswer !== true) return false;
-  if (item.answerSource === "cursor_session") return false;
-  const created = Date.parse(item.createdAt);
-  return Number.isFinite(created) && nowMs - created < DETAILED_ANSWER_WAIT_MS;
-}
+export { isAwaitingDetailedAnswer };
 
 export interface PropertyChatDrawerProps {
   open: boolean;
