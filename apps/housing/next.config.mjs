@@ -1,12 +1,37 @@
 import { withSecurityHeaders } from "@data-projects/shared/next-headers";
 
+// Data files are read at runtime with turbopackIgnore'd paths, so each function lists what it reads.
+// Keys are matched with `contains`, so "/" would match every route: "!/api/**" is the page.
+const PREFERENCES_FILES = ["./src/data/user-preferences.json", "./src/data/favorites.json"];
+const DATASET_FILES = [
+  "./src/data/seed-snapshot.json",
+  "./src/data/photos-cache.json",
+  "./src/data/listing-deactivations.json",
+  ...PREFERENCES_FILES,
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = withSecurityHeaders({
   reactCompiler: true,
   serverExternalPackages: ["pino", "pino-pretty"],
   transpilePackages: ["@data-projects/ui", "@data-projects/shared"],
   outputFileTracingIncludes: {
-    "/**": ["./src/data/**"],
+    "!/api/**": DATASET_FILES,
+    "/api/dataset": DATASET_FILES,
+    "/api/photos": DATASET_FILES,
+    "/api/properties": DATASET_FILES,
+    "/api/properties/details": DATASET_FILES,
+    "/api/favorites": PREFERENCES_FILES,
+    "/api/preferences": PREFERENCES_FILES,
+    "/api/geocode": ["./src/data/geocache.json"],
+    "/api/qa": ["./src/data/property-qa.json", "./src/data/seed-snapshot.json"],
+  },
+  outputFileTracingExcludes: {
+    // Only writes to Neon; the files come in through the dataset-store import.
+    "/api/sync": ["./src/data/**"],
+    "/_not-found": ["./src/data/**"],
+    "/_global-error": ["./src/data/**"],
+    "/icon.svg": ["./src/data/**"],
   },
   images: {
     remotePatterns: [
