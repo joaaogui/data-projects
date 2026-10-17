@@ -21,6 +21,40 @@ import {
 } from "./listing-normalization";
 import { PHOTO_AUDIT_OVERRIDES, type PhotoAuditOverride } from "./photo-audit-overrides";
 
+/**
+ * Cheap pre-filters before big case-insensitive regexes: a case-sensitive literal alternation tested on
+ * the already-lowercased text. Every possible match of the guarded regex contains one of the keywords,
+ * so a miss proves the regex cannot match.
+ */
+function keywordRe(keywords: readonly string[]): RegExp {
+  return new RegExp(keywords.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"));
+}
+
+const KW_ANDAR_PAVIMENTO_RE = keywordRe(["andar", "pavimento"]);
+const KW_DUPLEX_TRIPLEX_RE = keywordRe(["duplex", "triplex", "direito duplo"]);
+const KW_LTIMO_ANDAR_ANDAR_TOPO_RE = keywordRe(["ltimo andar", "andar topo"]);
+const KW_JANELA_PAREDE_RE = keywordRe(["janela", "parede", "buraco", "caixa"]);
+const KW_PONTO_INFRA_RE = keywordRe(["ponto", "infra", "prepara", "previs", "tubula"]);
+const KW_SPLIT_INVERTER_RE = keywordRe(["split", "inverter"]);
+const KW_CONDICIONADO_CLIMATIZAD_RE = keywordRe(["condicionado", "climatizad"]);
+const KW_ESCADA_ELEVADOR_RE = keywordRe(["escada", "elevador"]);
+const KW_VAGA_GARAGEM_RE = keywordRe(["vaga", "garagem", "sorteio", "chave"]);
+const KW_TORRES_BLOCO_RE = keywordRe(["torres", "bloco"]);
+const KW_VISTA_INDEVASS_RE = keywordRe(["vista", "indevass"]);
+const KW_ANTIRRU_ANTI_RU_RE = keywordRe(["antirru", "anti-ru", "stic"]);
+const KW_LOFT_MEZANINO_RE = keywordRe(["loft", "mezanino"]);
+const KW_VARANDA_SACADA_RE = keywordRe(["varanda", "sacada", "terra"]);
+const KW_GUA_GAS_RE = keywordRe(["gua", "gas", "gás", "consumo"]);
+const KW_ARM_MARCENARIA_RE = keywordRe(["arm", "marcenaria", "planejad", "closet", "guarda"]);
+const KW_PORCELANATO_VIN_RE = keywordRe(["porcelanato", "vin", "laminado"]);
+const KW_BANCADA_GRANITO_RE = keywordRe(["bancada", "granito", "quartzo"]);
+const KW_TORRE_PEQUENO_RE = keywordRe(["torre", "pequeno", "moradores", "por andar"]);
+const KW_LOCA_ENTREGUE_RE = keywordRe(["loca", "entregue", "novo"]);
+const KW_PORCELANATO_VIN_2_RE = keywordRe(["porcelanato", "vin"]);
+const KW_EMPREGADA_DCE_RE = keywordRe(["empregada", "dce", "servi", "revers"]);
+const KW_FERRO_MADEIRA_RE = keywordRe(["ferro", "madeira", "janela", "parede", "buraco", "caixa"]);
+
+
 export const DEFAULT_WEIGHTS: ScoringWeights = {
   urbanBreathingWeight: 3.0,
   commuteLogisticsWeight: 1.0,
@@ -816,6 +850,11 @@ export function extractExplicitFloorFromText(rawText: string): number | null {
     if (n >= 1 && n <= 45) return n;
   }
 
+  // Steps 2-4 only match text containing "andar" or "pavimento".
+  if (!KW_ANDAR_PAVIMENTO_RE.test(rawText.toLowerCase())) {
+    return inferFloorFromUnitNumber(rawText);
+  }
+
   // 2. Reject duplex internal floor breakdowns ("1º andar: sala... 2º andar: suíte")
   const hasDuplexBreakdown =
     (/\b(?:1[º°ªo]?|primeiro)\s*(?:andar|pavimento)\b/i.test(rawText) &&
@@ -891,7 +930,11 @@ export function extractExplicitFloorFromText(rawText: string): number | null {
     return n;
   }
 
-  // 5. Explicit apartment unit number (e.g. "APTº505" -> 5º andar, "apto 304" -> 3º andar)
+  return inferFloorFromUnitNumber(rawText);
+}
+
+/** 5. Explicit apartment unit number (e.g. "APTº505" -> 5º andar, "apto 304" -> 3º andar). */
+function inferFloorFromUnitNumber(rawText: string): number | null {
   const aptNumMatch = rawText.match(
     /\b(?:apt[oº°]\.?|apartamento)\s*(?:n[º°]\.?\s*)?([1-9]\d{2})\b(?!\s*m)/i,
   );
@@ -912,11 +955,28 @@ export function extractExplicitFloorFromText(rawText: string): number | null {
   return null;
 }
 
-function detectUnitPenthouseOrDuplex(rawText: string): {
+function detectUnitPenthouseOrDuplex(
+  rawText: string,
+  lowerText: string = rawText.toLowerCase(),
+): {
   isPenthouseText: boolean;
   isDuplex: boolean;
 } {
-  const cleanedForCobertura = rawText
+  const isPenthouseText =
+    lowerText.includes("cobertura") && /\bcobertura\b/i.test(stripCommonAreaCobertura(rawText));
+  const isDuplex =
+    KW_DUPLEX_TRIPLEX_RE.test(lowerText) &&
+    /(?<![a-zA-ZÀ-ÿ0-9_])(duplex|triplex|loft duplex|p[eé][- ]direito duplo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      rawText.replace(
+        /\b(?:geladeira|refrigerador|arm[aá]rio|guarda[- ]?roupa|edif[ií]cio york)\s+duplex\b/gi,
+        " ",
+      ),
+    );
+  return { isPenthouseText, isDuplex };
+}
+
+function stripCommonAreaCobertura(rawText: string): string {
+  return rawText
     .replace(
       /(?<![a-zA-ZÀ-ÿ0-9_])(?:piscina|lazer|[aá]rea\s+de\s+lazer|sal[aã]o(?: de festas)?|churrasqueira|sauna|academia|fitness|espa[cç]o gourmet|rooftop|terra[cç]o|jardim|solarium|lavanderia|coworking|vista)[^.;,\n]{0,45}\bna cobertura\b/gi,
       " ",
@@ -938,25 +998,13 @@ function detectUnitPenthouseOrDuplex(rawText: string): {
       /(?<![a-zA-ZÀ-ÿ0-9_])(?:sacada|varanda|vaga|garagem|seguro|[aá]rea|sinal|celular|internet)[^.;,\n]{0,35}\bcobertura\b/gi,
       " ",
     );
-
-  const cleanedForDuplex = rawText.replace(
-    /\b(?:geladeira|refrigerador|arm[aá]rio|guarda[- ]?roupa|edif[ií]cio york)\s+duplex\b/gi,
-    " ",
-  );
-
-  const isPenthouseText = /\bcobertura\b/i.test(cleanedForCobertura);
-  const isDuplex =
-    /(?<![a-zA-ZÀ-ÿ0-9_])(duplex|triplex|loft duplex|p[eé][- ]direito duplo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
-      cleanedForDuplex,
-    );
-
-  return { isPenthouseText, isDuplex };
 }
 
 function detectUnitTopFloor(
   rawText: string,
   effectiveFloor: number | null,
   totalFloors: number | null,
+  lowerText: string = rawText.toLowerCase(),
 ): boolean {
   if (
     effectiveFloor !== null &&
@@ -966,14 +1014,14 @@ function detectUnitTopFloor(
   ) {
     return false;
   }
-  const cleanedTopFloor = rawText.replace(
-    /\b(?:sal[aã]o|sal[oõ]es|festas?|lazer|piscina|academia|rooftop|terra[cç]o|churrasqueira|gourmet)[^.;,\n]{0,35}(?<![a-zA-ZÀ-ÿ0-9_])(?:[uú]ltimo andar|andar topo)(?![a-zA-ZÀ-ÿ0-9_])/gi,
-    " ",
-  );
   return (
-    /(?<![a-zA-ZÀ-ÿ0-9_])([uú]ltimo andar|andar topo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
-      cleanedTopFloor,
-    ) ||
+    (KW_LTIMO_ANDAR_ANDAR_TOPO_RE.test(lowerText) &&
+      /(?<![a-zA-ZÀ-ÿ0-9_])([uú]ltimo andar|andar topo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+        rawText.replace(
+          /\b(?:sal[aã]o|sal[oõ]es|festas?|lazer|piscina|academia|rooftop|terra[cç]o|churrasqueira|gourmet)[^.;,\n]{0,35}(?<![a-zA-ZÀ-ÿ0-9_])(?:[uú]ltimo andar|andar topo)(?![a-zA-ZÀ-ÿ0-9_])/gi,
+          " ",
+        ),
+      )) ||
     (effectiveFloor !== null &&
       totalFloors !== null &&
       totalFloors >= 3 &&
@@ -1369,10 +1417,12 @@ export function resolveAcEvidence(
     .join(". ")
     .toLowerCase();
   const hasOnlyWindowAcText =
+    KW_JANELA_PAREDE_RE.test(ownText) &&
     /\b(ar[- ]?condicionado\s+de\s+(?:janela|parede)|ar\s+de\s+janela|(?:buraco|caixa)\s+para\s+ar)\b/i.test(
       ownText,
     ) && !/\b(split|inverter)\b/i.test(ownText);
   const hasExplicitNoAcText =
+    ownText.includes("condicionado") &&
     /\b(sem\s+ar(?:es)?[- ]?condicionados?|n[aã]o\s+(?:possui|tem|h[aá])\s+ar(?:es)?[- ]?condicionados?)\b/i.test(
       ownText,
     );
@@ -1381,22 +1431,27 @@ export function resolveAcEvidence(
   }
 
   // "Ponto/infraestrutura (pronta) para (instalação de) ar" is only provision for a future unit.
-  const withoutInfraText = ownText.replace(
+  const withoutInfraText = !KW_PONTO_INFRA_RE.test(ownText)
+    ? ownText
+    : ownText.replace(
     /\b(?:pontos?|infra(?:[- ]?estrutura)?|prepara[cç][aã]o|preparad[oa]s?|previs[aã]o|tubula[cç](?:[aã]o|[oõ]es))(?:\s+(?!e\b|com\b|mais\b|al[eé]m\b)[a-zà-ÿ]+){0,4}?\s+(?:ar(?:es)?[- ]?condicionados?|ar(?!\s+(?:livre|puro|fresco|natural))|split)(?:\s+split)?\b/gi,
     " ",
   );
   // "Academia climatizada" describes a shared area, not the unit.
-  const installedAcText = withoutInfraText.replace(
+  const installedAcText = !withoutInfraText.includes("climatizad")
+    ? withoutInfraText
+    : withoutInfraText.replace(
     /\b(?:academia|fitness|coworking|brinquedoteca|lobby|hall|piscina|sauna|sal[aã]o(?:\s+de\s+(?:festas|jogos|eventos))?|sala\s+de\s+(?:jogos|gin[aá]stica|cinema|reuni[oõ]es|reuni[aã]o|estudos?)|espa[cç]o\s+(?:gourmet|fitness|kids|zen|mulher|pet|teen|de\s+(?:festas|jogos|eventos|conviv[eê]ncia))|[aá]reas?\s+(?:comu(?:m|ns)|de\s+lazer))\b(?:(?!apartamento|im[oó]vel|unidade|quartos?|su[ií]tes?|dormit[oó]rios?|living|sala\s+de\s+estar)[^.;!\n]){0,40}?\bclimatizad[oa]s?\b/gi,
     " ",
   );
-  if (/\b(split|inverter)\b/i.test(installedAcText)) {
+  if (KW_SPLIT_INVERTER_RE.test(installedAcText) && /\b(split|inverter)\b/i.test(installedAcText)) {
     return { acStatus: "confirmed", acLabel: "Ar-condicionado Split" };
   }
   if (
     photoAudit?.verifiedAC ||
     prop.twinAcConfirmed ||
-    /\b(ar(?:es)?[- ]?condicionados?|climatizad[oa]s?)\b/i.test(installedAcText)
+    (KW_CONDICIONADO_CLIMATIZAD_RE.test(installedAcText) &&
+      /\b(ar(?:es)?[- ]?condicionados?|climatizad[oa]s?)\b/i.test(installedAcText))
   ) {
     return { acStatus: "confirmed", acLabel: "Ar-condicionado" };
   }
@@ -1429,11 +1484,43 @@ const NON_FREE_PARKING_SPOT_RE =
   /\bvagas?(?:[\s,]+(?!n[aã]o\b(?!\s+demarcad)|sem\b(?!\s+demarca)|nem\b)[a-zà-ÿ0-9]+){0,5}?[\s,]+(?:rotativas?|sujeitas?\s+a\s+sorteio|com\s+(?:servi[cç]o\s+de\s+)?(?:manobristas?|valet))\b/i;
 const NON_DEMARCATED_SPOT_RE = /\bn[aã]o\s+demarcad[ao]s?\b|\bsem\s+demarca[cç][aã]o\b/i;
 
+
+const BUSY_STREET_KEYWORDS = [
+  "bares",
+  "barzinho",
+  "boemi",
+  "boêmi",
+  "noturna",
+  "balada",
+  "posto",
+  "mercado",
+  "padaria",
+  "panificadora",
+];
+const BUSY_STREET_KEYWORDS_RE = keywordRe(BUSY_STREET_KEYWORDS);
+
+const MEGA_CONDO_WARNING =
+  "Perfil megacondomínio familiar (brinquedoteca + playground + quadra + jogos)";
+
 export function evaluateApartmentNuances(
   prop: SlimPropertyRecord,
   penalizeMegaCondo: boolean,
 ): ApartmentNuancesEvaluation {
+  const both = evaluateApartmentNuancesBoth(prop);
+  return penalizeMegaCondo ? both.penalize : both.noPenalize;
+}
+
+/** Both `penalizeMegaCondo` variants in one pass; they differ only by the megacondo -4 pts and its warning. */
+function evaluateApartmentNuancesBoth(
+  prop: SlimPropertyRecord,
+  shared?: { microEnv: StreetMicroEnvironmentEvaluation; checkboxTrustScore: number },
+): {
+  penalize: ApartmentNuancesEvaluation;
+  noPenalize: ApartmentNuancesEvaluation;
+} {
   let pts = 0;
+  let ptsNoMega: number | null = null;
+  let megaWarningIndex = -1;
   const highlights: string[] = [];
   const warnings: string[] = [];
   const greenTags: string[] = [];
@@ -1468,8 +1555,13 @@ export function evaluateApartmentNuances(
     prop.generatedDescription ?? "",
     prop.title ?? "",
   ].join(" ");
+  const elevatorSourcesLower = elevatorSources.toLowerCase();
+  // Every stairs / no-elevator pattern below contains "escada" or "elevador".
+  const mentionsStairsOrElevator = KW_ESCADA_ELEVADOR_RE.test(elevatorSourcesLower);
 
-  const cleanedElevatorSources = elevatorSources
+  const cleanedElevatorSources = !mentionsStairsOrElevator
+    ? ""
+    : elevatorSources
     .replace(/\bacesso\s+sem\s+escadas?\b/gi, " ")
     .replace(/\bpraticidade\s+do\s+acesso\s+sem\s+elevador\b/gi, " ")
     .replace(
@@ -1482,6 +1574,7 @@ export function evaluateApartmentNuances(
     )
     .replace(/\bsem\s+elevador\s+de\s+servi[cç]o\b/gi, " ");
   const hasExplicitNoElevatorText =
+    mentionsStairsOrElevator &&
     !/sem\s+elevador\s+de\s+servi[cç]o/i.test(elevatorSources) &&
     /(?<![a-zA-ZÀ-ÿ0-9_])(sem elevador|n[aã]o\s+(?:possui|tem|disp[oõ]e\s+de|conta\s+com)\s+(?:portaria\s+(?:ou|e|nem)\s+)?elevador|pr[eé]dio\s+(?:sem\s+elevador|escada)|\d+\s*(?:lances?|andares?)\s+de\s+escada|acesso\s+(?:somente\s+)?por\s+escadas?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       cleanedElevatorSources,
@@ -1501,16 +1594,21 @@ export function evaluateApartmentNuances(
     !/piscina|academia|sauna|portaria 24|portaria_24h|concierge_24h|pool|gym|fitness|elevador/i.test(
       elevatorSources,
     );
-  const isGroundFloorUnit =
-    prop.floor === 0 || isExplicitUnitGroundFloor(sentenceJoinedDesc);
+  const explicitGroundText = isExplicitUnitGroundFloor(sentenceJoinedDesc);
+  const isGroundFloorUnit = prop.floor === 0 || explicitGroundText;
   const hasStairsToUnitText =
+    mentionsStairsOrElevator &&
     /(?<![a-zA-ZÀ-ÿ0-9_])(subir\b[^.;!\n]{0,40}\bescadas?|\d+\s*(?:lances?|andares?)\s+de\s+escadas?|lances?\s+de\s+escadas?|acesso\s+(?:somente\s+)?por\s+escadas?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       cleanedElevatorSources,
     );
   const hasNoElevator =
     (hasExplicitNoElevatorText || hasLowBuildingNoElevatorEvidence) &&
     (!isGroundFloorUnit || hasStairsToUnitText);
-  const cleanedTrappedSources = elevatorSources
+  // Every trapped-parking pattern below contains one of these words.
+  const mentionsParkingSpot = KW_VAGA_GARAGEM_RE.test(elevatorSourcesLower);
+  const cleanedTrappedSources = !mentionsParkingSpot
+    ? ""
+    : elevatorSources
     .replace(
       /\b(?:(?:vagas?|estacionamento)\s+rotativ[oa]s?\s+(?:p[uú]blic[oa]s?\s+)?(?:(?:em|na)\s+frente|na\s+(?:rua|cal[cç]ada|via|avenida|quadra)|nas\s+ruas)|zona\s+azul|vagas?\s+(?:rotativas?\s+)?(?:de|para)\s+(?:visitantes?|clientes?)|(?:vagas?|estacionamento)\s+rotativ[oa]s?\s+(?:de|para)\s+(?:visitantes?|clientes?))\b/gi,
       " ",
@@ -1520,20 +1618,19 @@ export function evaluateApartmentNuances(
     " ",
   );
   const hasTrappedParking =
-    /\b(?:vagas?\s+(?:de\s+garagem\s+)?(?:(?:cobertas?|descobertas?|demarcadas?|fixas?)[\s,]+(?:e\s+)?)?presas?|vaga\s+de\s+garagem\s*\(\s*presa\s*\)|garagem\s+presa|vagas?\s+bloqueadas?|vagas?\s+(?:de\s+garagem\s+)?(?:tipo\s+|em\s+)?gavetas?|garagem\s+(?:tipo\s+|em\s+)?gavetas?|vagas?\s+(?:de\s+garagem\s+)?coletivas?|garagem\s+(?:rotativa|coletiva)|sorteio\s+de\s+vagas?|garagem\s+com\s+(?:servi[cç]o\s+de\s+)?(?:manobrista|valet)|deixar\s+(?:a\s+)?chave\s+na\s+portaria)\b/i.test(
+    mentionsParkingSpot &&
+    (/\b(?:vagas?\s+(?:de\s+garagem\s+)?(?:(?:cobertas?|descobertas?|demarcadas?|fixas?)[\s,]+(?:e\s+)?)?presas?|vaga\s+de\s+garagem\s*\(\s*presa\s*\)|garagem\s+presa|vagas?\s+bloqueadas?|vagas?\s+(?:de\s+garagem\s+)?(?:tipo\s+|em\s+)?gavetas?|garagem\s+(?:tipo\s+|em\s+)?gavetas?|vagas?\s+(?:de\s+garagem\s+)?coletivas?|garagem\s+(?:rotativa|coletiva)|sorteio\s+de\s+vagas?|garagem\s+com\s+(?:servi[cç]o\s+de\s+)?(?:manobrista|valet)|deixar\s+(?:a\s+)?chave\s+na\s+portaria)\b/i.test(
       cleanedTrappedSources,
-    ) || NON_FREE_PARKING_SPOT_RE.test(cleanedTrappedSources);
+    ) || NON_FREE_PARKING_SPOT_RE.test(cleanedTrappedSources));
 
   const propKey = `${prop.provider}:${prop.id}`;
   const photoAudit: PhotoAuditOverride | undefined = PHOTO_AUDIT_OVERRIDES[propKey];
 
   // Ar-condicionado: +12 when confirmed by text/photos (or a checkbox on a new/renovated unit with modernity >= 85),
   // 0 when only a portal checkbox claims it, -10 when absent
-  const { checkboxTrustScore } = calibrateRuntimeModernity(
-    prop,
-    photoAudit,
-    buildFullLocationText(prop),
-  );
+  const checkboxTrustScore =
+    shared?.checkboxTrustScore ??
+    calibrateRuntimeModernity(prop, photoAudit, buildFullLocationText(prop)).checkboxTrustScore;
   const isNewOrRenovatedUnit =
     prop.condition === "NEW_OR_RENOVATED" ||
     prop.positiveSignals.includes("Flag Novo/Reformado") ||
@@ -1576,10 +1673,12 @@ export function evaluateApartmentNuances(
       installs.has("playground") &&
       installs.has("quadra esportiva") &&
       installs.has("salão de jogos")) ||
-    /(?<![a-zA-ZÀ-ÿ0-9_])(m[uú]ltiplas torres|\d+ torres|bloco [b-z])(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc);
+    (KW_TORRES_BLOCO_RE.test(fullDesc) &&
+      /(?<![a-zA-ZÀ-ÿ0-9_])(m[uú]ltiplas torres|\d+ torres|bloco [b-z])(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc));
 
   // 1. Luz, Silêncio e Ventilação (comfort_commodities + texto)
   const hasFreeViewText =
+    KW_VISTA_INDEVASS_RE.test(fullDesc) &&
     /(?<![a-zA-ZÀ-ÿ0-9_])(vista (?:livre|definitiva|panor[aâ]mica|inexplic[aá]vel|incr[ií]vel|permanente|desimpedida|aberta|para\s+(?:o\s+|a\s+)?(?:mar|lagoa|p[aã]o\s+de\s+a[cç][uú]car|cristo|serra|montanha|parque|ba[ií]a|aterro))|bela\s+vista|indevassad[oa]|indevass[aá]vel)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullDesc,
     );
@@ -1608,6 +1707,7 @@ export function evaluateApartmentNuances(
     highlights.push("Sol da manhã");
   }
   const hasBusyStreetText =
+    BUSY_STREET_KEYWORDS_RE.test(fullDesc) &&
     /(?<![a-zA-ZÀ-ÿ0-9_])(bares|barzinhos?|bo[eê]mi[oa]s?|vida\s+noturna|baladas?|casas?\s+noturnas?|postos?\s+(?:de\s+gasolina|de\s+combust[ií]vel|br|shell|ipiranga)|em\s+frente\s+(?:a|ao|aos|à|às)\s+(?:supermercados?|mercados?|posto)|(?:padaria|panificadora)[^.;\n]{0,25}24\s*h)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullDesc,
     );
@@ -1622,7 +1722,11 @@ export function evaluateApartmentNuances(
     pts += 2.0;
     highlights.push("Janelas amplas");
   }
-  if (comfort.has("janela anti-ruído") || /(?<![a-zA-ZÀ-ÿ0-9_])(antirru[ií]do|anti-ru[ií]do|ac[uú]stic[oa])(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc)) {
+  if (
+    comfort.has("janela anti-ruído") ||
+    (KW_ANTIRRU_ANTI_RU_RE.test(fullDesc) &&
+      /(?<![a-zA-ZÀ-ÿ0-9_])(antirru[ií]do|anti-ru[ií]do|ac[uú]stic[oa])(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc))
+  ) {
     pts += 3.0;
     highlights.push("Janela antirruído");
   }
@@ -1632,7 +1736,6 @@ export function evaluateApartmentNuances(
   let highFloorLabel: string | null = null;
   let lowFloorLabel: string | null = null;
 
-  const explicitGroundText = isExplicitUnitGroundFloor(sentenceJoinedDesc);
   const textFloor = extractExplicitFloorFromText(sentenceJoinedDesc);
   const effectiveTotalFloors =
     prop.totalFloors !== null && prop.totalFloors > 0 ? prop.totalFloors : null;
@@ -1726,15 +1829,17 @@ export function evaluateApartmentNuances(
     sentenceJoinedDesc,
     effectiveFloor,
     effectiveTotalFloors,
+    fullDesc,
   );
-  const { isPenthouseText, isDuplex } = detectUnitPenthouseOrDuplex(sentenceJoinedDesc);
+  const { isPenthouseText, isDuplex } = detectUnitPenthouseOrDuplex(sentenceJoinedDesc, fullDesc);
   // The portal's "Apartamento cobertura" checkbox needs the text, a top-floor match or a penthouse-sized area.
   const isPenthouse =
     isPenthouseText ||
     (amenities.has("apartamento cobertura") && (isTopFloor || prop.areaM2 >= 70));
   const hasLoftLayout =
     isDuplex ||
-    /(?<![a-zA-ZÀ-ÿ0-9_])(loft|mezanino)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc) ||
+    (KW_LOFT_MEZANINO_RE.test(fullDesc) &&
+      /(?<![a-zA-ZÀ-ÿ0-9_])(loft|mezanino)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc)) ||
     (photoAudit?.visualWarnings ?? []).some((w) => /\b(loft|mezanino)\b/i.test(w));
   const isSmallLoft = hasLoftLayout && prop.areaM2 < 60;
   const knownBuildingFloors =
@@ -1948,7 +2053,8 @@ export function evaluateApartmentNuances(
     amenities.has("service_area") ||
     practicality.has("tanque") ||
     captions.includes("área de serviço") ||
-    /(?<![a-zA-ZÀ-ÿ0-9_])[aá]rea de servi[cç]o(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc);
+    (fullDesc.includes("rea de servi") &&
+      /(?<![a-zA-ZÀ-ÿ0-9_])[aá]rea de servi[cç]o(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc));
   if (hasServiceArea) {
     pts += 2.0;
     highlights.push("Área de serviço p/ máquinas");
@@ -1966,6 +2072,7 @@ export function evaluateApartmentNuances(
       /n[aã]o possui varanda|sem varanda gourmet\s*\(\s*n[aã]o possui varanda/i.test(w),
     );
   const isBalconyIntegratedText =
+    KW_VARANDA_SACADA_RE.test(fullDesc) &&
     /(?<![a-zA-ZÀ-ÿ0-9_])(?:varanda|sacada|terra[cç]o)\s+(?:foi\s+|totalmente\s+)?(?:integrad[oa]|incorporad[oa]|fechad[oa](?!\s+(?:com|em|por)\s+(?:vidro|cortina)))/i.test(
       fullDesc,
     );
@@ -2049,11 +2156,13 @@ export function evaluateApartmentNuances(
   }
 
   const hasIndividualUtilities =
+    KW_GUA_GAS_RE.test(fullDesc) &&
     /(?<![a-zA-ZÀ-ÿ0-9_])(?:(?:[aá]gua|g[aá]s)(?:\s+e\s+(?:de\s+)?(?:[aá]gua|g[aá]s))?\s+(?:individua(?:l|is|lizad[oa]s?)|separad[oa]s?|medid[oa]s?)|consumos?\s+[^.;\n]{0,30}?individua(?:l|is))/i.test(
       fullDesc,
     );
   if (
     !hasIndividualUtilities &&
+    fullDesc.includes("inclu") &&
     /(?<![a-zA-ZÀ-ÿ0-9_])((?:[aá]gua e g[aá]s|[aá]gua|g[aá]s)\s+(?:inclus[oa]s?|inclu[ií]d[oa]s?)|condom[ií]nio\s+(?:j[aá]\s+)?inclui\s+(?:[aá]gua|g[aá]s))(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullDesc,
     )
@@ -2063,11 +2172,14 @@ export function evaluateApartmentNuances(
   }
 
   // Interior Finish Priority: Planned Cabinetry + Modern Bath/Kitchen + Good Flooring
+  // Every cabinet pattern below contains one of these words.
+  const mentionsCabinets = KW_ARM_MARCENARIA_RE.test(fullDesc);
   const hasKitchenCabinetry =
     amenities.has("armários na cozinha") ||
     amenities.has("kitchen_cabinets") ||
     practicality.has("armários na cozinha") ||
-    /(?<![a-zA-ZÀ-ÿ0-9_])arm[aá]rios?\s+(?:planejados?\s+)?na\s+cozinha\b/i.test(fullDesc);
+    (mentionsCabinets &&
+      /(?<![a-zA-ZÀ-ÿ0-9_])arm[aá]rios?\s+(?:planejados?\s+)?na\s+cozinha\b/i.test(fullDesc));
   const hasBedroomOrBathCabinetry =
     amenities.has("armários no quarto") ||
     amenities.has("armários no banheiro") ||
@@ -2076,16 +2188,18 @@ export function evaluateApartmentNuances(
     amenities.has("bathroom_cabinets") ||
     practicality.has("armários no quarto") ||
     practicality.has("armários no banheiro") ||
-    /(?<![a-zA-ZÀ-ÿ0-9_])arm[aá]rios?\s+(?:planejados?\s+)?(?:nos?\s+quartos?|na\s+su[ií]te|nos?\s+banheiros?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
-      fullDesc,
-    );
+    (mentionsCabinets &&
+      /(?<![a-zA-ZÀ-ÿ0-9_])arm[aá]rios?\s+(?:planejados?\s+)?(?:nos?\s+quartos?|na\s+su[ií]te|nos?\s+banheiros?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+        fullDesc,
+      ));
   const hasExplicitPlannedCabinetry =
     amenities.has("marcenaria planejada") ||
     amenities.has("planned_furniture") ||
     prop.positiveSignals.includes("Marcenaria planejada / Painel") ||
-    /(?<![a-zA-ZÀ-ÿ0-9_])(marcenaria\s+planejada|arm[aá]rios?\s+planejados?|m[oó]veis\s+planejados?|arm[aá]rios?\s+sob\s+medida)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
-      fullDesc,
-    );
+    (mentionsCabinets &&
+      /(?<![a-zA-ZÀ-ÿ0-9_])(marcenaria\s+planejada|arm[aá]rios?\s+planejados?|m[oó]veis\s+planejados?|arm[aá]rios?\s+sob\s+medida)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+        fullDesc,
+      ));
   const isVerifiedModernInAudit =
     photoAudit?.modernityTier === "MODERN_OR_RENOVATED" &&
     !(photoAudit.visualWarnings ?? []).some((w) =>
@@ -2110,7 +2224,8 @@ export function evaluateApartmentNuances(
     !hasNoCabinetsInAudit &&
     (hasKitchenCabinetry ||
       hasBedroomOrBathCabinetry ||
-      /(?<![a-zA-ZÀ-ÿ0-9_])(com\s+arm[aá]rios|arm[aá]rios\s+embutidos)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc))
+      (mentionsCabinets &&
+        /(?<![a-zA-ZÀ-ÿ0-9_])(com\s+arm[aá]rios|arm[aá]rios\s+embutidos)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc)))
   ) {
     pts += 2.0;
     highlights.push("Armários instalados");
@@ -2123,9 +2238,10 @@ export function evaluateApartmentNuances(
     hasBedroomOrBathCabinetry ||
     hasExplicitPlannedCabinetry ||
     amenities.has("closet") ||
-    /(?<![a-zA-ZÀ-ÿ0-9_])(arm[aá]rios?|marcenaria|planejad[oa]s?|closet|guarda[- ]?roupas?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
-      fullDesc,
-    );
+    (mentionsCabinets &&
+      /(?<![a-zA-ZÀ-ÿ0-9_])(arm[aá]rios?|marcenaria|planejad[oa]s?|closet|guarda[- ]?roupas?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+        fullDesc,
+      ));
   const isChecklistBareShell =
     prop.provider === "quintoandar" &&
     amenities.size + practicality.size >= 6 &&
@@ -2151,15 +2267,17 @@ export function evaluateApartmentNuances(
     amenities.has("laminated_floor") ||
     amenities.has("vinyl_floor") ||
     prop.positiveSignals.includes("Porcelanato / Vinílico") ||
-    /(?<![a-zA-ZÀ-ÿ0-9_])(porcelanato|piso\s+vin[ií]lico|vin[ií]lico|piso\s+laminado|laminado)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
-      fullDesc,
-    );
+    (KW_PORCELANATO_VIN_RE.test(fullDesc) &&
+      /(?<![a-zA-ZÀ-ÿ0-9_])(porcelanato|piso\s+vin[ií]lico|vin[ií]lico|piso\s+laminado|laminado)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+        fullDesc,
+      ));
   const hasBlindexAndCountertop =
     (amenities.has("box") ||
       amenities.has("blindex_box") ||
       practicality.has("box") ||
       practicality.has("box blindex") ||
       /\b(box\s+blindex|blindex|box\s+de\s+vidro)\b/i.test(fullDesc)) &&
+    KW_BANCADA_GRANITO_RE.test(fullDesc) &&
     /(?<![a-zA-ZÀ-ÿ0-9_])(bancada\s+(?:em\s+|de\s+)?(?:granito|quartzo|m[aá]rmore|silestone|nanoglass)|granito|quartzo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullDesc,
     );
@@ -2175,6 +2293,7 @@ export function evaluateApartmentNuances(
 
   // 5. Alerta de Megacondomínio Familiar ("Cidade dentro do condomínio") vs Torre Única
   const isReservedBuilding =
+    KW_TORRE_PEQUENO_RE.test(fullDesc) &&
     /(?<![a-zA-ZÀ-ÿ0-9_])(torre [uú]nica|pr[eé]dio pequeno|poucos moradores|1 por andar|2 por andar)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullDesc,
     );
@@ -2183,14 +2302,17 @@ export function evaluateApartmentNuances(
     pts += 3.5;
     highlights.push("Torre única / Prédio reservado");
     greenTags.push("Torre única / Reservado");
-  } else if (isMegaCondo && penalizeMegaCondo) {
+  } else if (isMegaCondo) {
+    ptsNoMega = pts;
     pts -= 4.0;
-    warnings.push("Perfil megacondomínio familiar (brinquedoteca + playground + quadra + jogos)");
+    megaWarningIndex = warnings.length;
+    warnings.push(MEGA_CONDO_WARNING);
   }
 
   if (prop.constructionYear && prop.constructionYear >= 2010) {
     greenTags.push(`Prédio Novo (${prop.constructionYear})`);
   } else if (
+    KW_LOCA_ENTREGUE_RE.test(fullDesc) &&
     /(?<![a-zA-ZÀ-ÿ0-9_])(primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|rec[eé]m[- ]entregue|pr[eé]dio (super )?novo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullDesc,
     )
@@ -2199,15 +2321,17 @@ export function evaluateApartmentNuances(
   }
 
   // 6. Micro-localização de Rua: Detector Anti-Bunker / Corredor Arterial vs Eixo Caminhável
-  const microEnv = evaluateStreetMicroEnvironment(prop);
+  const microEnv = shared?.microEnv ?? evaluateStreetMicroEnvironment(prop);
   if (microEnv.pointsDelta !== 0) {
     pts += microEnv.pointsDelta;
+    if (ptsNoMega !== null) ptsNoMega += microEnv.pointsDelta;
   }
   if (microEnv.highlight && !highlights.includes(microEnv.highlight)) {
     highlights.push(microEnv.highlight);
   }
   if (microEnv.warning && !warnings.includes(microEnv.warning)) {
     warnings.unshift(microEnv.warning);
+    if (megaWarningIndex >= 0) megaWarningIndex += 1;
   }
   if (microEnv.greenTag && !greenTags.includes(microEnv.greenTag)) {
     greenTags.push(microEnv.greenTag);
@@ -2221,6 +2345,7 @@ export function evaluateApartmentNuances(
   if (hospitalCluster || auditHospitalWarning) {
     const hospitalPenalty = minFloor !== null && minFloor >= 8 ? 1.5 : 3.0;
     pts -= hospitalPenalty;
+    if (ptsNoMega !== null) ptsNoMega -= hospitalPenalty;
     warnings.push(
       `Entorno hospitalar${hospitalCluster ? ` (${hospitalCluster.name}, ~400 m)` : ""}: sirenes e fluxo de ambulâncias (-${hospitalPenalty} pts base)`,
     );
@@ -2284,7 +2409,7 @@ export function evaluateApartmentNuances(
     redTags.push("Infiltração / Manutenção Crítica");
   }
 
-  return {
+  const penalize: ApartmentNuancesEvaluation = {
     rawNuancePoints: Math.round(pts * 10) / 10,
     nuanceHighlights: highlights,
     nuanceWarnings: warnings,
@@ -2300,6 +2425,17 @@ export function evaluateApartmentNuances(
     greenTags,
     redTags,
     warningTags,
+  };
+  if (ptsNoMega === null) return { penalize, noPenalize: penalize };
+  const noMegaWarnings = warnings.slice();
+  noMegaWarnings.splice(megaWarningIndex, 1);
+  return {
+    penalize,
+    noPenalize: {
+      ...penalize,
+      rawNuancePoints: Math.round(ptsNoMega * 10) / 10,
+      nuanceWarnings: noMegaWarnings,
+    },
   };
 }
 
@@ -3640,13 +3776,15 @@ const FURNITURE_NEGATION_REGEX =
   /semi[- ]?mobiliad[oa]s?|desmobiliad[oa]s?|sem\s+(?:mob[ií]lias?|m[oó]veis)|n[aã]o\s+(?:est[aá]\s+|[eé]\s+|ser[aá]\s+|vem\s+)?mobiliad[oa]s?|(?:apenas|somente|s[oó])\s+(?:com\s+)?(?:os\s+)?arm[aá]rios/gi;
 const FURNITURE_AFFIRMATIVE_REGEX =
   /(?<![a-zA-ZÀ-ÿ0-9_-])mobiliad[oa]s?(?![a-zA-ZÀ-ÿ0-9_])|\bporteira\s+fechada\b/i;
+const FURNITURE_NEGATION_TEST_REGEX = new RegExp(FURNITURE_NEGATION_REGEX.source, "i");
+const KW_FURNITURE_TEXT_RE = keywordRe(["mob", "moveis", "móveis", "arm", "porteira"]);
 
 /** What the owner's own text says about furniture; null when silent or contradictory ("com ou sem mobília"). */
 export function describeFurnitureInText(
   text: string | null | undefined,
 ): "furnished" | "unfurnished" | null {
-  if (!text) return null;
-  const hasNegation = new RegExp(FURNITURE_NEGATION_REGEX.source, "i").test(text);
+  if (!text || !KW_FURNITURE_TEXT_RE.test(text.toLowerCase())) return null;
+  const hasNegation = FURNITURE_NEGATION_TEST_REGEX.test(text);
   const hasAffirmation = FURNITURE_AFFIRMATIVE_REGEX.test(
     text.replace(FURNITURE_NEGATION_REGEX, " "),
   );
@@ -3817,6 +3955,82 @@ const MODERNITY_OVERLAP_REFUND = { cabinetry: 5, flooring: 8 } as const;
 
 // Concrete evidence of a modern unit gives back part of the AC/finish/leisure refund, never above the ceiling.
 // Calibrated against the photo-audit scores: rule-only modern units sat ~14 pts low, dated ones must not climb.
+const FIRST_OCCUPANCY_KEYWORDS = ["locação", "locacao", "locaçao", "locacão"];
+const RENOVATION_OR_NEW_KEYWORDS = [
+  "reformad",
+  "novo",
+  "entregue",
+  "constru",
+  ...FIRST_OCCUPANCY_KEYWORDS,
+  "novinho",
+  "retrofit",
+  "modernizad",
+  "porcelanato",
+  "vin",
+];
+const RENOVATION_OR_NEW_KEYWORDS_RE = keywordRe(RENOVATION_OR_NEW_KEYWORDS);
+const OLD_FLOORS_KEYWORDS = [
+  "mica",
+  "frio",
+  "bua",
+  "taco",
+  "parquet",
+  "sinteco",
+  "sia",
+  "granilite",
+  "carpete",
+  "lajota",
+];
+const OLD_FLOORS_KEYWORDS_RE = keywordRe(OLD_FLOORS_KEYWORDS);
+const INTERIOR_MODERN_KEYWORDS = [
+  ...RENOVATION_OR_NEW_KEYWORDS,
+  "arm",
+  "marcenaria",
+  "planejad",
+  "planned_furniture",
+  "bancada",
+  "envidra",
+  "cortina",
+  "fechamento",
+  "projeto",
+  "ilumina",
+  "sanca",
+  "rebaixa",
+  "forro",
+  "spot",
+  "fechadura",
+  "usb",
+  "forno",
+  "coifa",
+  "indu",
+  "painel",
+];
+const INTERIOR_MODERN_KEYWORDS_RE = keywordRe(INTERIOR_MODERN_KEYWORDS);
+const CONCRETE_MODERN_TEXT_KEYWORDS = [
+  "porcelanato",
+  "vin",
+  "quartzo",
+  "silestone",
+  "nanoglass",
+  "novo",
+  "entregue",
+  "constru",
+  ...FIRST_OCCUPANCY_KEYWORDS,
+  "novinho",
+];
+const CONCRETE_MODERN_TEXT_KEYWORDS_RE = keywordRe(CONCRETE_MODERN_TEXT_KEYWORDS);
+const NEW_BUILDING_KEYWORDS = [
+  "novo",
+  ...FIRST_OCCUPANCY_KEYWORDS,
+  "habitad",
+  "entregue",
+  "constru",
+  "ssimo",
+  "novinho",
+];
+const NEW_BUILDING_KEYWORDS_RE = keywordRe(NEW_BUILDING_KEYWORDS);
+const WET_AREA_RENOVATION_KEYWORDS = ["cozinha", "banheiro", "molhad", "reforma"];
+const WET_AREA_RENOVATION_KEYWORDS_RE = keywordRe(WET_AREA_RENOVATION_KEYWORDS);
 const CONCRETE_MODERNITY_POINTS_PER_SIGNAL = 12;
 const CONCRETE_MODERNITY_MAX_BONUS = 20;
 const CONCRETE_MODERNITY_CEILING = 88;
@@ -3832,17 +4046,22 @@ export function hasUnitModernFlooring(text: string): boolean {
 
 /** Unit flooring, a new building (≥ 2015 or explicit first-occupancy wording) and a renovated kitchen/bathroom. */
 export function countConcreteModernitySignals(prop: SlimPropertyRecord, text: string): number {
+  const lower = text.toLowerCase();
   const isNewBuilding =
     (prop.constructionYear ?? 0) >= 2015 ||
     prop.positiveSignals.some((s) => /^Construção recente/.test(s)) ||
-    /\b(pr[eé]dio\s+(?:super\s+)?novo|primeira\s+loca[cç][aã]o|1[aª]\s+loca[cç][aã]o|nunca\s+(?:foi\s+)?habitad[oa]|rec[eé]m[- ]?(?:entregue|constru[ií]d[oa])|im[oó]vel\s+novo|apartamento\s+(?:novo|nov[ií]ssimo)|nov[ií]ssimo|novinho)\b/i.test(
-      text,
-    );
+    (NEW_BUILDING_KEYWORDS_RE.test(lower) &&
+      /\b(pr[eé]dio\s+(?:super\s+)?novo|primeira\s+loca[cç][aã]o|1[aª]\s+loca[cç][aã]o|nunca\s+(?:foi\s+)?habitad[oa]|rec[eé]m[- ]?(?:entregue|constru[ií]d[oa])|im[oó]vel\s+novo|apartamento\s+(?:novo|nov[ií]ssimo)|nov[ií]ssimo|novinho)\b/i.test(
+        text,
+      ));
   const hasRenovatedWetAreas =
+    WET_AREA_RENOVATION_KEYWORDS_RE.test(lower) &&
     /\b(?:(?:cozinhas?|banheiros?|[aá]reas?\s+molhadas?)\s+(?:e\s+(?:cozinhas?|banheiros?)\s+)?(?:(?:totalmente|completamente|toda|todo|rec[eé]m)[- ]?\s*)?(?:reformad[oa]s?|renovad[oa]s?|modernizad[oa]s?|nov[oa]s?)|reforma\s+(?:completa\s+|total\s+|recente\s+)?(?:d[aeo]s?\s+)?(?:cozinhas?|banheiros?))\b/i.test(
       text,
     );
-  return Number(hasUnitModernFlooring(text)) + Number(isNewBuilding) + Number(hasRenovatedWetAreas);
+  const hasModernFlooring =
+    KW_PORCELANATO_VIN_2_RE.test(lower) && hasUnitModernFlooring(text);
+  return Number(hasModernFlooring) + Number(isNewBuilding) + Number(hasRenovatedWetAreas);
 }
 
 function hasScraperCondoLeisureSignal(prop: SlimPropertyRecord): boolean {
@@ -3927,6 +4146,7 @@ function calibrateRuntimeModernity(
   }
 
   let score = estimateUnclampedScraperModernity(prop);
+  const lowerText = fullLocationText.toLowerCase();
   const year = prop.constructionYear;
   const hasSignal = (signal: string) => prop.positiveSignals.includes(signal);
   // Brokers write "cooktop" for a plain range; without coifa/forno embutido/indução/torre quente or a portal
@@ -3962,9 +4182,10 @@ function calibrateRuntimeModernity(
   if (isCooktopOnly) score -= SCRAPER_SIGNAL_POINTS["Cooktop / Coifa / Forno embutido"]!;
 
   const hasExplicitRenovationOrNewText =
-    /\b(reformad[oa]|im[oó]vel novo|apartamento novo|pr[eé]dio (?:super )?novo|rec[eé]m[- ]?(?:reformad[oa]|entregue|constru[ií]do)|primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|novinho|retrofit|modernizad[oa]|porcelanato|piso vin[ií]lico|vin[ií]lico)\b/i.test(
-      fullLocationText,
-    ) ||
+    (RENOVATION_OR_NEW_KEYWORDS_RE.test(lowerText) &&
+      /\b(reformad[oa]|im[oó]vel novo|apartamento novo|pr[eé]dio (?:super )?novo|rec[eé]m[- ]?(?:reformad[oa]|entregue|constru[ií]do)|primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|novinho|retrofit|modernizad[oa]|porcelanato|piso vin[ií]lico|vin[ií]lico)\b/i.test(
+        fullLocationText,
+      )) ||
     (year !== null && year !== undefined && year >= 2015) ||
     prop.positiveSignals.some(
       (s) =>
@@ -3974,15 +4195,22 @@ function calibrateRuntimeModernity(
         ),
     );
 
+  // The old-interior proxies only matter without explicit renovation/new wording.
   const hasDceProxy =
+    !hasExplicitRenovationOrNewText &&
+    KW_EMPREGADA_DCE_RE.test(lowerText) &&
     /\b(depend[eê]ncia\s+(?:completa\s+)?de\s+empregada|\bdce\b|quarto\s+de\s+(?:servi[cç]o|empregada)|banheiro\s+de\s+(?:servi[cç]o|empregada)|quarto\s+extra\s+revers[ií]vel)\b/i.test(
       fullLocationText,
     );
   const hasOldFloorsProxy =
+    !hasExplicitRenovationOrNewText &&
+    OLD_FLOORS_KEYWORDS_RE.test(lowerText) &&
     /\b(piso\s+em\s+cer[aâ]mica|cer[aâ]mica\s+(?:antiga|fria)|piso\s+frio|t[aá]bua\s+corrida|(?:piso\s+(?:de|em)\s+)?taco[s]?|\bparquet\b|\bsinteco\b|\bard[oó]sia\b|\bgranilite\b|carpete\s+de\s+madeira|\bcarpete\b|\blajota[s]?)\b/i.test(
       fullLocationText,
     );
   const hasOldFramesOrWindowAc =
+    !hasExplicitRenovationOrNewText &&
+    KW_FERRO_MADEIRA_RE.test(lowerText) &&
     /\b((?:esquadrias?|janelas?)\s+de\s+ferro|(?:janelas?|venezianas?)\s+de\s+madeira|vitr[oô]\s+de\s+ferro|ar[- ]?condicionado\s+de\s+(?:janela|parede)|ar\s+de\s+janela|(?:buraco|caixa)\s+para\s+ar)\b/i.test(
       fullLocationText,
     );
@@ -3994,9 +4222,10 @@ function calibrateRuntimeModernity(
         /Porcelanato|Iluminação|Fechadura|Marcenaria|Bancada|Imóvel\/prédio novo|Reformado \/ Moderno/i.test(s) ||
         (/Cooktop/i.test(s) && !isCooktopOnly),
     ) ||
-    /\b(im[oó]vel novo|apartamento novo|pr[eé]dio (?:super )?novo|rec[eé]m[- ]?(?:reformad[oa]|entregue|constru[ií]do)|primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|novinho|reformad[oa]|retrofit|modernizad[oa]|porcelanato|piso vin[ií]lico|vin[ií]lico|bancada[s]?\s+(?:em\s+|de\s+)?(?:quartzo|silestone|nanoglass|granito\s+preto|s[aã]o\s+gabriel)|(?:varanda|sacada)\s+envidra[cç]ada|cortina\s+de\s+vidro|fechamento\s+em\s+vidro|projeto\s+(?:de\s+ilumina[cç][aã]o|luminot[eé]cnico)|ilumina[cç][aã]o\s+(?:planejada|em\s+led|indireta|embutida)|sanca|rebaixamento\s+em\s+gesso|teto\s+rebaixado|forro\s+de\s+gesso|spots?\s+de\s+led|fechadura\s+(?:eletr[oô]nica|digital|biom[eé]trica)|tomadas?\s+usb|forno\s+embutido|coifa|indu[cç][aã]o|arm[aá]rios?\s+planejados?|marcenaria(?:\s+planejada)?|m[oó]veis\s+planejados?|arm[aá]rios?\s+sob\s+medida|planned_furniture|painel\s+de\s+tv)\b/i.test(
-      fullLocationText,
-    );
+    (INTERIOR_MODERN_KEYWORDS_RE.test(lowerText) &&
+      /\b(im[oó]vel novo|apartamento novo|pr[eé]dio (?:super )?novo|rec[eé]m[- ]?(?:reformad[oa]|entregue|constru[ií]do)|primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|novinho|reformad[oa]|retrofit|modernizad[oa]|porcelanato|piso vin[ií]lico|vin[ií]lico|bancada[s]?\s+(?:em\s+|de\s+)?(?:quartzo|silestone|nanoglass|granito\s+preto|s[aã]o\s+gabriel)|(?:varanda|sacada)\s+envidra[cç]ada|cortina\s+de\s+vidro|fechamento\s+em\s+vidro|projeto\s+(?:de\s+ilumina[cç][aã]o|luminot[eé]cnico)|ilumina[cç][aã]o\s+(?:planejada|em\s+led|indireta|embutida)|sanca|rebaixamento\s+em\s+gesso|teto\s+rebaixado|forro\s+de\s+gesso|spots?\s+de\s+led|fechadura\s+(?:eletr[oô]nica|digital|biom[eé]trica)|tomadas?\s+usb|forno\s+embutido|coifa|indu[cç][aã]o|arm[aá]rios?\s+planejados?|marcenaria(?:\s+planejada)?|m[oó]veis\s+planejados?|arm[aá]rios?\s+sob\s+medida|planned_furniture|painel\s+de\s+tv)\b/i.test(
+        fullLocationText,
+      ));
 
   if (
     prop.positiveSignals.includes("Flag Novo/Reformado") ||
@@ -4052,12 +4281,14 @@ function calibrateRuntimeModernity(
     prop.positiveSignals.some((s) =>
       /Porcelanato|Bancada moderna|Projeto de iluminação|Fechadura eletrônica|Construção recente/i.test(s),
     ) ||
-    /\b(porcelanato|vin[ií]lico|quartzo|silestone|nanoglass|im[oó]vel novo|apartamento novo|pr[eé]dio (?:super )?novo|rec[eé]m[- ]?(?:entregue|constru[ií]do)|primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|novinho)\b/i.test(
-      fullLocationText,
-    ) ||
-    /\b(?:(?:cozinhas?|banheiros?|[aá]reas?\s+molhadas?)\s+(?:(?:totalmente|completamente|toda|todo|rec[eé]m)[- ]?\s*)?(?:reformad[oa]s?|renovad[oa]s?|modernizad[oa]s?|nov[oa]s?)|reforma\s+(?:completa\s+|total\s+|recente\s+)?(?:d[aeo]s?\s+)?(?:cozinhas?|banheiros?))\b/i.test(
-      fullLocationText,
-    );
+    (CONCRETE_MODERN_TEXT_KEYWORDS_RE.test(lowerText) &&
+      /\b(porcelanato|vin[ií]lico|quartzo|silestone|nanoglass|im[oó]vel novo|apartamento novo|pr[eé]dio (?:super )?novo|rec[eé]m[- ]?(?:entregue|constru[ií]do)|primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|novinho)\b/i.test(
+        fullLocationText,
+      )) ||
+    (WET_AREA_RENOVATION_KEYWORDS_RE.test(lowerText) &&
+      /\b(?:(?:cozinhas?|banheiros?|[aá]reas?\s+molhadas?)\s+(?:(?:totalmente|completamente|toda|todo|rec[eé]m)[- ]?\s*)?(?:reformad[oa]s?|renovad[oa]s?|modernizad[oa]s?|nov[oa]s?)|reforma\s+(?:completa\s+|total\s+|recente\s+)?(?:d[aeo]s?\s+)?(?:cozinhas?|banheiros?))\b/i.test(
+        fullLocationText,
+      ));
   if (prop.condition !== "NEW_OR_RENOVATED" && !hasConcreteModernEvidence) {
     score = Math.min(score, TEXT_ONLY_MODERNITY_CAP);
   }
@@ -4104,7 +4335,7 @@ export function extractListingFeatures(prop: SlimPropertyRecord): ListingFeature
   );
   const microEnv = evaluateStreetMicroEnvironment(prop);
   const fullLocationText = buildFullLocationText(prop);
-  const { effectiveModernityScore, effectiveModernityTier } =
+  const { effectiveModernityScore, effectiveModernityTier, checkboxTrustScore } =
     calibrateRuntimeModernity(prop, photoAudit, fullLocationText);
   const isDeepWestBarra =
     prop.cityCode === "RJ" &&
@@ -4150,8 +4381,8 @@ export function extractListingFeatures(prop: SlimPropertyRecord): ListingFeature
     ) ||
     effectiveModernityTier === "DATED" ||
     Boolean(photoAudit?.hasMaintenanceIssue);
-  const nuancesTrue = evaluateApartmentNuances(prop, true);
-  const nuancesFalse = evaluateApartmentNuances(prop, false);
+  const { penalize: nuancesTrue, noPenalize: nuancesFalse } =
+    evaluateApartmentNuancesBoth(prop, { microEnv, checkboxTrustScore });
   const hl = extractNonRedundantHighlights(prop, nuancesFalse);
   const conservationDrawbacks = extractConservationDrawbacks(prop);
   const topFeatures = hl.featureHighlights.slice(0, 5);
