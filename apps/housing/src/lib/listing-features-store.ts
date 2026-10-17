@@ -1,5 +1,6 @@
 import "server-only";
 
+import { processScoped } from "@/lib/process-cache";
 import { logger } from "@/lib/logger";
 import {
   precomputeListingFeatures,
@@ -9,7 +10,14 @@ import type { SlimPropertyRecord } from "@/types/housing";
 import { createHash } from "node:crypto";
 
 const MAX_ENTRIES = 3;
-const cache = new Map<string, PrecomputedListing[]>();
+
+interface ListingFeaturesState {
+  cache: Map<string, PrecomputedListing[]>;
+}
+
+const state = processScoped<ListingFeaturesState>("listing-features", () => ({
+  cache: new Map(),
+}));
 
 export function hashContent(...parts: Array<string | Buffer>): string {
   const h = createHash("sha1");
@@ -28,18 +36,18 @@ export function getPrecomputedListings(
   contentHash: string,
   buildInput: () => SlimPropertyRecord[],
 ): PrecomputedListing[] {
-  const hit = cache.get(contentHash);
+  const hit = state.cache.get(contentHash);
   if (hit) {
-    cache.delete(contentHash);
-    cache.set(contentHash, hit);
+    state.cache.delete(contentHash);
+    state.cache.set(contentHash, hit);
     return hit;
   }
   const t0 = performance.now();
   const input = buildInput();
   const listings = precomputeListingFeatures(input);
-  cache.set(contentHash, listings);
-  while (cache.size > MAX_ENTRIES) {
-    cache.delete(cache.keys().next().value!);
+  state.cache.set(contentHash, listings);
+  while (state.cache.size > MAX_ENTRIES) {
+    state.cache.delete(state.cache.keys().next().value!);
   }
   logger.info("listing-features", "precomputed listing features", {
     contentHash: contentHash.slice(0, 12),

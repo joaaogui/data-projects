@@ -1,5 +1,6 @@
 import "server-only";
 
+import { processScoped } from "@/lib/process-cache";
 import { getDb, schema } from "@/db";
 import {
   applyListingDeactivations,
@@ -50,12 +51,40 @@ const TMP_PHOTOS_CACHE_FILE = join(tmpdir(), "housing-photos-cache.json");
 
 type PhotosCacheMap = Record<string, Array<{ room: string | null; url: string }>>;
 
-const photosFileCacheByPath = new Map<
-  string,
-  { mtimeMs: number; data: PhotosCacheMap }
->();
-let mergedPhotosCacheSig = "";
-let mergedPhotosCacheData: PhotosCacheMap | null = null;
+
+interface DatasetStoreState {
+  photosFileCacheByPath: Map<string, { mtimeMs: number; data: PhotosCacheMap }>;
+  mergedPhotosCacheSig: string;
+  mergedPhotosCacheData: PhotosCacheMap | null;
+  cachedSnapshotPath: string | null;
+  cachedSnapshotMtimeMs: number;
+  cachedSnapshotData: SeedSnapshotData | null;
+  cachedSnapshotHash: string;
+  cachedFullByKeyMtimeMs: number;
+  cachedFullByKeyMap: Map<string, SlimPropertyRecord> | null;
+  cachedSlimmedSnapshotSig: string;
+  cachedSlimmedSnapshotProps: SlimPropertyRecord[] | null;
+  deferredDescriptionKeys: { snapshotHash: string; keys: Set<string> } | null;
+  servedCache: { sig: string; value: ServedListings } | null;
+  neonServedCache: { expiresAt: number; value: ServedListings } | null;
+}
+
+const state = processScoped<DatasetStoreState>("dataset-store", () => ({
+  photosFileCacheByPath: new Map(),
+  mergedPhotosCacheSig: "",
+  mergedPhotosCacheData: null,
+  cachedSnapshotPath: null,
+  cachedSnapshotMtimeMs: -1,
+  cachedSnapshotData: null,
+  cachedSnapshotHash: "",
+  cachedFullByKeyMtimeMs: -1,
+  cachedFullByKeyMap: null,
+  cachedSlimmedSnapshotSig: "",
+  cachedSlimmedSnapshotProps: null,
+  deferredDescriptionKeys: null,
+  servedCache: null,
+  neonServedCache: null,
+}));
 
 function readPhotosCacheFile(filePath: string): {
   mtimeMs: number;
@@ -66,7 +95,7 @@ function readPhotosCacheFile(filePath: string): {
   }
   try {
     const mtimeMs = statSync(/*turbopackIgnore: true*/ filePath).mtimeMs;
-    const hit = photosFileCacheByPath.get(filePath);
+    const hit = state.photosFileCacheByPath.get(filePath);
     if (hit && hit.mtimeMs === mtimeMs) {
       return hit;
     }
@@ -78,7 +107,7 @@ function readPhotosCacheFile(filePath: string): {
         ? (raw as PhotosCacheMap)
         : {};
     const entry = { mtimeMs, data };
-    photosFileCacheByPath.set(filePath, entry);
+    state.photosFileCacheByPath.set(filePath, entry);
     return entry;
   } catch {
     return { mtimeMs: -1, data: {} };
@@ -90,16 +119,16 @@ function loadPhotosCache(): PhotosCacheMap {
   const f2 = readPhotosCacheFile(LOCAL_PHOTOS_CACHE_FILE);
   const f3 = readPhotosCacheFile(TMP_PHOTOS_CACHE_FILE);
   const sig = `${f1.mtimeMs}:${f2.mtimeMs}:${f3.mtimeMs}`;
-  if (mergedPhotosCacheData && mergedPhotosCacheSig === sig) {
-    return mergedPhotosCacheData;
+  if (state.mergedPhotosCacheData && state.mergedPhotosCacheSig === sig) {
+    return state.mergedPhotosCacheData;
   }
-  mergedPhotosCacheSig = sig;
-  mergedPhotosCacheData = {
+  state.mergedPhotosCacheSig = sig;
+  state.mergedPhotosCacheData = {
     ...f1.data,
     ...f2.data,
     ...f3.data,
   };
-  return mergedPhotosCacheData;
+  return state.mergedPhotosCacheData;
 }
 
 function parseFavoritesRaw(raw: unknown): string[] {
@@ -189,15 +218,11 @@ interface SeedSnapshotData {
   properties?: unknown[];
 }
 
-let cachedSnapshotPath: string | null = null;
-let cachedSnapshotMtimeMs = -1;
-let cachedSnapshotData: SeedSnapshotData | null = null;
-let cachedSnapshotHash = "";
 
 /** Content hash of the snapshot currently served (stable across instances for the same file). */
 export function getSnapshotContentHash(): string {
   loadSnapshotFromDiskOrBundle();
-  return cachedSnapshotHash;
+  return state.cachedSnapshotHash;
 }
 
 function loadSnapshotFromDiskOrBundle(): {
@@ -209,18 +234,18 @@ function loadSnapshotFromDiskOrBundle(): {
       try {
         const mtimeMs = statSync(/*turbopackIgnore: true*/ candidate).mtimeMs;
         if (
-          cachedSnapshotData &&
-          cachedSnapshotPath === candidate &&
-          cachedSnapshotMtimeMs === mtimeMs
+          state.cachedSnapshotData &&
+          state.cachedSnapshotPath === candidate &&
+          state.cachedSnapshotMtimeMs === mtimeMs
         ) {
-          return { data: cachedSnapshotData, cacheHit: true };
+          return { data: state.cachedSnapshotData, cacheHit: true };
         }
         const rawText = readFileSync(/*turbopackIgnore: true*/ candidate, "utf8");
         const parsed = JSON.parse(rawText) as SeedSnapshotData;
-        cachedSnapshotHash = hashContent(rawText);
-        cachedSnapshotPath = candidate;
-        cachedSnapshotMtimeMs = mtimeMs;
-        cachedSnapshotData = parsed;
+        state.cachedSnapshotHash = hashContent(rawText);
+        state.cachedSnapshotPath = candidate;
+        state.cachedSnapshotMtimeMs = mtimeMs;
+        state.cachedSnapshotData = parsed;
         return { data: parsed, cacheHit: false };
       } catch (err) {
         logger.warn("dataset-store", "Failed reading snapshot candidate", {
@@ -242,11 +267,6 @@ function loadSnapshotFromDiskOrBundle(): {
 
 const MAX_INITIAL_CARD_PHOTOS = 3;
 
-let cachedFullByKeyMtimeMs = -1;
-let cachedFullByKeyMap: Map<string, SlimPropertyRecord> | null = null;
-let cachedSlimmedSnapshotSig = "";
-let cachedSlimmedSnapshotProps: SlimPropertyRecord[] | null = null;
-let deferredDescriptionKeys: { snapshotHash: string; keys: Set<string> } | null = null;
 
 /**
  * Listings whose description changes nothing in the default-weights evaluation are scored
@@ -256,8 +276,8 @@ function getDeferredDescriptionKeys(
   rawProps: SlimPropertyRecord[],
   rawNbs: NeighborhoodEntry[],
 ): Set<string> {
-  if (deferredDescriptionKeys?.snapshotHash === cachedSnapshotHash) {
-    return deferredDescriptionKeys.keys;
+  if (state.deferredDescriptionKeys?.snapshotHash === state.cachedSnapshotHash) {
+    return state.deferredDescriptionKeys.keys;
   }
   const { ranked } = computeDynamicNeighborhoods(rawNbs, DEFAULT_WEIGHTS);
   const fullEval = computeDynamicProperties(rawProps, ranked, DEFAULT_WEIGHTS, {
@@ -286,7 +306,7 @@ function getDeferredDescriptionKeys(
       keys.add(key);
     }
   }
-  deferredDescriptionKeys = { snapshotHash: cachedSnapshotHash, keys };
+  state.deferredDescriptionKeys = { snapshotHash: state.cachedSnapshotHash, keys };
   return keys;
 }
 
@@ -294,14 +314,14 @@ function getDeferredDescriptionKeys(
 function getSlimmedSnapshotProps(): SlimPropertyRecord[] {
   const { data: snap } = loadSnapshotFromDiskOrBundle();
   const photosCache = loadPhotosCache();
-  const slimSig = `${cachedSnapshotHash}:${mergedPhotosCacheSig}`;
-  if (cachedSlimmedSnapshotProps && cachedSlimmedSnapshotSig === slimSig) {
-    return cachedSlimmedSnapshotProps;
+  const slimSig = `${state.cachedSnapshotHash}:${state.mergedPhotosCacheSig}`;
+  if (state.cachedSlimmedSnapshotProps && state.cachedSlimmedSnapshotSig === slimSig) {
+    return state.cachedSlimmedSnapshotProps;
   }
   const rawProps = (snap.properties ?? []) as unknown as SlimPropertyRecord[];
   const rawNbs = (snap.neighborhoods ?? []) as unknown as NeighborhoodEntry[];
   const deferred = getDeferredDescriptionKeys(rawProps, rawNbs);
-  cachedSlimmedSnapshotProps = rawProps.map((p) => ({
+  state.cachedSlimmedSnapshotProps = rawProps.map((p) => ({
     ...p,
     ...mergeCachedPhotos(p, photosCache),
     placesNearby: capRelevantPlaces(p.placesNearby),
@@ -315,8 +335,8 @@ function getSlimmedSnapshotProps(): SlimPropertyRecord[] {
     isActive: p.isActive ?? true,
     deactivatedAt: p.deactivatedAt ?? null,
   }));
-  cachedSlimmedSnapshotSig = slimSig;
-  return cachedSlimmedSnapshotProps;
+  state.cachedSlimmedSnapshotSig = slimSig;
+  return state.cachedSlimmedSnapshotProps;
 }
 
 export function getPropertyFullDetails(
@@ -325,18 +345,18 @@ export function getPropertyFullDetails(
 ): SlimPropertyRecord | null {
   const { data: snap } = loadSnapshotFromDiskOrBundle();
   if (
-    !cachedFullByKeyMap ||
-    cachedFullByKeyMtimeMs !== cachedSnapshotMtimeMs
+    !state.cachedFullByKeyMap ||
+    state.cachedFullByKeyMtimeMs !== state.cachedSnapshotMtimeMs
   ) {
     const rawProps = (snap.properties ?? []) as unknown as SlimPropertyRecord[];
     const map = new Map<string, SlimPropertyRecord>();
     for (const p of rawProps) {
       map.set(`${p.provider}:${String(p.id)}`, p);
     }
-    cachedFullByKeyMap = map;
-    cachedFullByKeyMtimeMs = cachedSnapshotMtimeMs;
+    state.cachedFullByKeyMap = map;
+    state.cachedFullByKeyMtimeMs = state.cachedSnapshotMtimeMs;
   }
-  return cachedFullByKeyMap.get(`${provider}:${id}`) ?? null;
+  return state.cachedFullByKeyMap.get(`${provider}:${id}`) ?? null;
 }
 
 function capRelevantPlaces(
@@ -382,8 +402,6 @@ export interface ServedListings {
   servedHash: string;
 }
 
-let servedCache: { sig: string; value: ServedListings } | null = null;
-let neonServedCache: { expiresAt: number; value: ServedListings } | null = null;
 const NEON_SERVED_TTL_MS = 60_000;
 
 function mergeCachedPhotos(
@@ -415,8 +433,8 @@ function mergeCachedPhotos(
 export async function loadServedListings(): Promise<ServedListings> {
   const db = getDb();
   if (db && process.env.HOUSING_USE_NEON_PROPERTIES === "true") {
-    if (neonServedCache && neonServedCache.expiresAt > Date.now()) {
-      return neonServedCache.value;
+    if (state.neonServedCache && state.neonServedCache.expiresAt > Date.now()) {
+      return state.neonServedCache.value;
     }
     const dataset = await loadHousingDataset("ALL");
     const featureHash = hashContent(
@@ -432,7 +450,7 @@ export async function loadServedListings(): Promise<ServedListings> {
       featureHash,
       servedHash: featureHash,
     };
-    neonServedCache = { expiresAt: Date.now() + NEON_SERVED_TTL_MS, value };
+    state.neonServedCache = { expiresAt: Date.now() + NEON_SERVED_TTL_MS, value };
     return value;
   }
 
@@ -442,20 +460,20 @@ export async function loadServedListings(): Promise<ServedListings> {
   const deactivationsSig = JSON.stringify(
     Object.entries(deactivations).sort(([a], [b]) => (a < b ? -1 : 1)),
   );
-  const sig = `${cachedSnapshotHash}|${mergedPhotosCacheSig}|${deactivationsSig}`;
-  if (servedCache && servedCache.sig === sig) return servedCache.value;
+  const sig = `${state.cachedSnapshotHash}|${state.mergedPhotosCacheSig}|${deactivationsSig}`;
+  if (state.servedCache && state.servedCache.sig === sig) return state.servedCache.value;
 
   const properties = applyListingDeactivations(getSlimmedSnapshotProps(), deactivations);
-  const featureHash = hashContent("served-v1", cachedSnapshotHash, deactivationsSig);
+  const featureHash = hashContent("served-v1", state.cachedSnapshotHash, deactivationsSig);
   const value: ServedListings = {
     updatedAt: snap.updatedAt,
     source: "snapshot",
     neighborhoods: (snap.neighborhoods ?? []) as unknown as NeighborhoodEntry[],
     properties,
     featureHash,
-    servedHash: hashContent(featureHash, mergedPhotosCacheSig),
+    servedHash: hashContent(featureHash, state.mergedPhotosCacheSig),
   };
-  servedCache = { sig, value };
+  state.servedCache = { sig, value };
   return value;
 }
 

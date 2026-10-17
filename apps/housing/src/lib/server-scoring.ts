@@ -1,5 +1,6 @@
 import "server-only";
 
+import { processScoped } from "@/lib/process-cache";
 import { loadServedListings, type ServedListings } from "@/lib/dataset-store";
 import { getPrecomputedListings, hashContent } from "@/lib/listing-features-store";
 import { logger } from "@/lib/logger";
@@ -16,12 +17,21 @@ import {
 import type { CityHubCode, ScoringWeights } from "@/types/housing";
 
 const MAX_SCORED_SETS = 6;
-const scoredSets = new Map<string, ScoredSet>();
-let photoPatched: { servedHash: string; listings: PrecomputedListing[] } | null = null;
-let metaCache: { servedHash: string; meta: DatasetMeta } | null = null;
+
+interface ServerScoringState {
+  scoredSets: Map<string, ScoredSet>;
+  photoPatched: { servedHash: string; listings: PrecomputedListing[] } | null;
+  metaCache: { servedHash: string; meta: DatasetMeta } | null;
+}
+
+const state = processScoped<ServerScoringState>("server-scoring", () => ({
+  scoredSets: new Map(),
+  photoPatched: null,
+  metaCache: null,
+}));
 
 function getListings(served: ServedListings): PrecomputedListing[] {
-  if (photoPatched?.servedHash === served.servedHash) return photoPatched.listings;
+  if (state.photoPatched?.servedHash === served.servedHash) return state.photoPatched.listings;
   const precomputed = getPrecomputedListings(served.featureHash, () => served.properties);
   // Features never depend on photos, so a photo-cache update only swaps the photo fields.
   const listings = precomputed.map((listing, i) => {
@@ -41,7 +51,7 @@ function getListings(served: ServedListings): PrecomputedListing[] {
       features: listing.features,
     };
   });
-  photoPatched = { servedHash: served.servedHash, listings };
+  state.photoPatched = { servedHash: served.servedHash, listings };
   return listings;
 }
 
@@ -56,10 +66,10 @@ export async function getScoredProperties(
     buildWeightsKey(weights),
     options.includeBsbBenchmark ? "bsb" : "",
   );
-  const hit = scoredSets.get(key);
+  const hit = state.scoredSets.get(key);
   if (hit) {
-    scoredSets.delete(key);
-    scoredSets.set(key, hit);
+    state.scoredSets.delete(key);
+    state.scoredSets.set(key, hit);
     return hit;
   }
   const t0 = performance.now();
@@ -75,9 +85,9 @@ export async function getScoredProperties(
     ranked,
     filtered: new Map(),
   };
-  scoredSets.set(key, set);
-  while (scoredSets.size > MAX_SCORED_SETS) {
-    scoredSets.delete(scoredSets.keys().next().value!);
+  state.scoredSets.set(key, set);
+  while (state.scoredSets.size > MAX_SCORED_SETS) {
+    state.scoredSets.delete(state.scoredSets.keys().next().value!);
   }
   logger.info("server-scoring", "scored listings", {
     count: properties.length,
@@ -88,7 +98,7 @@ export async function getScoredProperties(
 
 export async function getDatasetMeta(): Promise<DatasetMeta> {
   const served = await loadServedListings();
-  if (metaCache?.servedHash === served.servedHash) return metaCache.meta;
+  if (state.metaCache?.servedHash === served.servedHash) return state.metaCache.meta;
   const namesByCity: Partial<Record<CityHubCode, Set<string>>> = {};
   for (const p of served.properties) {
     (namesByCity[p.cityCode] ??= new Set()).add(p.neighborhood);
@@ -102,6 +112,6 @@ export async function getDatasetMeta(): Promise<DatasetMeta> {
       Object.entries(namesByCity).map(([city, names]) => [city, [...names]]),
     ),
   };
-  metaCache = { servedHash: served.servedHash, meta };
+  state.metaCache = { servedHash: served.servedHash, meta };
   return meta;
 }
