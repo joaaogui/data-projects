@@ -2,14 +2,8 @@
 
 import { Chip, Field, PriceRange, Section, Segmented } from "@/components/portal/filters/controls";
 import { useSectionState, type SectionContext } from "@/components/portal/filters/sections/shared";
+import { AREA_OPTIONS } from "@/lib/filter-options";
 import { useState } from "react";
-
-export const AREA_PRESETS = [
-  { id: "45-72", label: "45–72 m²", min: 45, max: 72 },
-  { id: "45", label: "≥ 45 m²", min: 45, max: null },
-  { id: "60", label: "≥ 60 m²", min: 60, max: null },
-  { id: "75", label: "≥ 75 m²", min: 75, max: null },
-] as const;
 
 const GROUPS = ["price", "area", "bedrooms", "bathrooms", "parking"] as const;
 
@@ -19,7 +13,7 @@ function toggleNumber(list: number[], v: number): number[] {
 
 export function PriceSizeSection({ ctx }: { ctx: SectionContext }) {
   const { state, set, activeIn } = useSectionState(ctx.store);
-  const isPreset = AREA_PRESETS.some((p) => p.min === state.minAreaM2 && p.max === state.maxAreaM2);
+  const isPreset = AREA_OPTIONS.some((o) => o.isActive(state));
   const [customArea, setCustomArea] = useState(
     !isPreset && (state.minAreaM2 !== null || state.maxAreaM2 !== null),
   );
@@ -41,17 +35,17 @@ export function PriceSizeSection({ ctx }: { ctx: SectionContext }) {
           >
             Qualquer
           </Chip>
-          {AREA_PRESETS.map((p) => (
+          {AREA_OPTIONS.map((o) => (
             <Chip
-              key={p.id}
-              active={!customArea && state.minAreaM2 === p.min && state.maxAreaM2 === p.max}
-              count={ctx.counts?.[`area:${p.id}`]}
+              key={o.id}
+              active={!customArea && o.isActive(state)}
+              count={ctx.counts?.[o.id]}
               onClick={() => {
                 setCustomArea(false);
-                set({ minAreaM2: p.min, maxAreaM2: p.max });
+                set(o.select(state));
               }}
             >
-              {p.label}
+              {o.label}
             </Chip>
           ))}
           <Chip active={customArea} onClick={() => setCustomArea((v) => !v)}>

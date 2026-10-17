@@ -86,6 +86,7 @@ interface ListState {
   items: PropertyCardDTO[];
   total: number;
   facets: PropertyQueryResponse["facets"] | null;
+  relaxations: PropertyQueryResponse["relaxations"];
 }
 
 async function postPropertyQuery(
@@ -1426,6 +1427,7 @@ export function usePortalController({
     items: initialQuery.items,
     total: initialQuery.total,
     facets: initialQuery.facets ?? null,
+    relaxations: initialQuery.relaxations,
   }));
   const listStateRef = useRef<ListState>(listState);
   listStateRef.current = listState;
@@ -1495,6 +1497,7 @@ export function usePortalController({
                   items: data.items,
                   total: data.total,
                   facets: data.facets ?? null,
+                  relaxations: data.relaxations,
                 };
             cache.delete(queryKey);
             cache.set(queryKey, next);
@@ -2117,6 +2120,7 @@ export function usePortalController({
     applyFilterPatch,
     filterState,
     optionCounts: facets?.optionCounts,
+    relaxations: listState.relaxations,
     queryWeights,
     visibleFavoriteCount,
     isPerfeitoPresetActive,

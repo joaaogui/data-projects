@@ -39,6 +39,8 @@ export function ResultsView({ ctl }: { ctl: PortalController }) {
     openChatForProperty,
     pinnedChatPropertyKey,
     qaItemsByPropertyKey,
+    applyFilterPatch,
+    relaxations,
     resetAllFilters,
     selectedCities,
     selectedMapPropertyKey,
@@ -114,17 +116,35 @@ export function ResultsView({ ctl }: { ctl: PortalController }) {
                 <p className="text-sm font-semibold text-foreground">
                   Nenhum imóvel encontrado com a combinação atual de filtros.
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  Experimente relaxar o filtro de andar/cobertura, valor ou
-                  comodidades cumulativas.
-                </p>
+                {relaxations && relaxations.length > 0 && (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Tire um filtro para ver resultados:
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-2" data-testid="relaxations">
+                      {relaxations.map((r) => (
+                        <button
+                          key={r.group}
+                          type="button"
+                          onClick={() => applyFilterPatch(r.patch)}
+                          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3.5 text-xs font-semibold text-primary hover:bg-primary/20 sm:min-h-8"
+                        >
+                          Remover {r.label}
+                          <span className="font-mono text-[11px] font-bold">
+                            → +{r.count.toLocaleString("pt-BR")}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={resetAllFilters}
-                  className="inline-flex items-center gap-1.5 rounded-lg border bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-3.5 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground sm:min-h-8"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  Limpar todos os filtros
+                  Limpar tudo
                 </button>
               </div>
             )}

@@ -620,11 +620,17 @@ export function resolvePropertyListingAgeAndDate(p: EvaluatedProperty): {
   return { ageDays: ageDays ?? null, dateIso };
 }
 
-export function filterAndSortProperties(
-  properties: EvaluatedProperty[],
+export interface FilterConstraint {
+  /** Matches the `group` of the pill(s) that remove it (see `describeActiveFilters`); `pool` is never relaxed. */
+  id: string;
+  test: (p: EvaluatedProperty) => boolean;
+}
+
+/** The active filters as independent constraints: a listing matches when it passes all of them. */
+export function buildFilterConstraints(
   filters: PropertyExplorerFilters,
   favoriteKeysArg?: Iterable<string>,
-): EvaluatedProperty[] {
+): FilterConstraint[] {
   const q = stripDiacritics(filters.searchQuery.trim().toLowerCase());
   const favSet = new Set<string>([
     ...(filters.favoriteKeys ?? []),
@@ -647,22 +653,20 @@ export function filterAndSortProperties(
     (filters.maxCommuteMinutes !== null &&
       filters.maxCommuteMinutes !== undefined &&
       filters.maxCommuteMinutes >= 40);
+  const furnitureTierOf = (p: EvaluatedProperty) =>
+    p.furnitureTier ?? classifyFurnitureTier(p);
 
-  const filtered = properties.filter((p) => {
-    if (!isCityVisible(p.cityCode, enabledHiddenCities)) {
-      return false;
-    }
+  const constraints: FilterConstraint[] = [];
+  const add = (id: string, test: (p: EvaluatedProperty) => boolean) =>
+    constraints.push({ id, test });
 
-    const propKey = `${p.provider}:${p.id}`;
-    const isFav = favSet.has(propKey) || favSet.has(p.id);
+  // Which listings can be shown at all: visible city, active/photos status, favorites, eligibility.
+  add("pool", (p) => {
+    if (!isCityVisible(p.cityCode, enabledHiddenCities)) return false;
+    const isFav = favSet.has(`${p.provider}:${p.id}`) || favSet.has(p.id);
     const isActive = p.isActive !== false;
-
-    if (onlyFavorites && !isFav) {
-      return false;
-    }
-
-    // Important UX rule: when onlyFavorites === true, show ALL favorited properties
-    // including deactivated ones by default unless user explicitly chose DEACTIVATED_ONLY.
+    if (onlyFavorites && !isFav) return false;
+    // When onlyFavorites is on, favorited listings show even if deactivated (unless DEACTIVATED_ONLY).
     if (deactivatedFilter === "DEACTIVATED_ONLY") {
       if (isActive) return false;
     } else if (deactivatedFilter === "ACTIVE_ONLY" && !onlyFavorites) {
@@ -674,28 +678,45 @@ export function filterAndSortProperties(
         return false;
       }
     }
+    if (filters.onlyIneligible && p.eligible) return false;
+    if (filters.showIneligible || filters.onlyIneligible || onlyFavorites || p.eligible) {
+      return true;
+    }
+    const furnitureTier = furnitureTierOf(p);
+    const exclusionParts = p.exclusionReason ? p.exclusionReason.split(" · ") : [];
+    return (
+      exclusionParts.length > 0 &&
+      exclusionParts.every(
+        (reason) =>
+          (allowFullyFurnishedIneligible &&
+            furnitureTier === "FULLY_FURNISHED" &&
+            /totalmente mobiliado/i.test(reason)) ||
+          (allowCommuteBottleneckIneligible &&
+            /(?:gargalo pendular cr[ií]tico|tempo at[eé] o escrit[oó]rio.*acima do limite de 50 min)/i.test(
+              reason,
+            )),
+      )
+    );
+  });
 
-    const activeCities =
-      filters.selectedCities &&
-      filters.selectedCities.length > 0 &&
-      (enabledHiddenCities.length > 0 ||
-        filters.selectedCities.length < selectableCities(enabledHiddenCities).length)
-        ? filters.selectedCities
-        : filters.selectedCity && filters.selectedCity !== "ALL"
-          ? [filters.selectedCity]
-          : null;
-    if (activeCities && !activeCities.includes(p.cityCode)) {
-      return false;
-    }
-    if (
-      filters.onlyTop20Neighborhoods &&
-      !isStrictlyInTop20Neighborhoods(p)
-    ) {
-      return false;
-    }
-    if (filters.selectedNeighborhoods.length > 0) {
+  const activeCities =
+    filters.selectedCities &&
+    filters.selectedCities.length > 0 &&
+    (enabledHiddenCities.length > 0 ||
+      filters.selectedCities.length < selectableCities(enabledHiddenCities).length)
+      ? filters.selectedCities
+      : filters.selectedCity && filters.selectedCity !== "ALL"
+        ? [filters.selectedCity]
+        : null;
+  if (activeCities) add("cities", (p) => activeCities.includes(p.cityCode));
+  if (filters.onlyTop20Neighborhoods) {
+    add("top-neighborhoods", (p) => isStrictlyInTop20Neighborhoods(p));
+  }
+  if (filters.selectedNeighborhoods.length > 0) {
+    const selected = filters.selectedNeighborhoods;
+    add("neighborhoods", (p) => {
       const normNb = normalizeNeighborhoodKey(p.neighborhood, p.cityCode);
-      const matchesNb = filters.selectedNeighborhoods.some((sel) => {
+      return selected.some((sel) => {
         if (sel.includes(":")) {
           const selLower = sel.toLowerCase();
           return (
@@ -708,226 +729,135 @@ export function filterAndSortProperties(
           normalizeNeighborhoodKey(sel, p.cityCode) === normNb
         );
       });
-      if (!matchesNb) {
-        return false;
-      }
+    });
+  }
+  const activeFloorFilters: FloorFilterOption[] =
+    filters.floorFilters && filters.floorFilters.length > 0
+      ? filters.floorFilters.filter((f) => f !== "ALL")
+      : filters.floorFilter && filters.floorFilter !== "ALL"
+        ? [filters.floorFilter]
+        : [];
+  if (activeFloorFilters.length > 0) {
+    add("floor", (p) => matchesFloorFilter(p, activeFloorFilters));
+  }
+  const minTotal = filters.minTotalMonthly;
+  const maxTotal = filters.maxTotalMonthly;
+  if (minTotal !== null || maxTotal !== null) {
+    add(
+      "price",
+      (p) =>
+        (minTotal === null || p.totalMonthly >= minTotal) &&
+        (maxTotal === null || p.totalMonthly <= maxTotal),
+    );
+  }
+  const maxCommute = filters.maxCommuteMinutes;
+  if (maxCommute !== null && maxCommute !== undefined) {
+    add(
+      "commute",
+      (p) =>
+        p.cityCode === "BSB" ||
+        p.commuteMinutes === null ||
+        p.commuteMinutes === undefined ||
+        p.commuteMinutes <= maxCommute,
+    );
+  }
+  const minScore = filters.minScore;
+  if (minScore !== null) add("score", (p) => p.finalScore >= minScore);
+  const minArea = filters.minAreaM2;
+  const maxArea = filters.maxAreaM2;
+  if (minArea !== null || maxArea !== null) {
+    add(
+      "area",
+      (p) =>
+        (minArea === null || p.areaM2 >= minArea) &&
+        (maxArea === null || p.areaM2 <= maxArea),
+    );
+  }
+  const minAge = filters.minListingAgeDays ?? null;
+  const maxAge = filters.maxListingAgeDays ?? null;
+  if (minAge !== null || maxAge !== null) {
+    add("listing-age", (p) => {
+      const { ageDays } = resolvePropertyListingAgeAndDate(p);
+      if (ageDays === null || ageDays === undefined) return false;
+      return (minAge === null || ageDays >= minAge) && (maxAge === null || ageDays <= maxAge);
+    });
+  }
+  const dateFrom = (filters.listingDateFrom ?? "").trim();
+  const dateTo = (filters.listingDateTo ?? "").trim();
+  if (dateFrom !== "" || dateTo !== "") {
+    add("listing-date", (p) => {
+      const { dateIso } = resolvePropertyListingAgeAndDate(p);
+      if (!dateIso) return false;
+      return (dateFrom === "" || dateIso >= dateFrom) && (dateTo === "" || dateIso <= dateTo);
+    });
+  }
+  const countFilter = (
+    id: string,
+    selected: number[] | undefined,
+    plusFrom: number,
+    min: number | null | undefined,
+    valueOf: (p: EvaluatedProperty) => number,
+  ) => {
+    if (selected && selected.length > 0) {
+      add(id, (p) => selected.some((v) => (v >= plusFrom ? valueOf(p) >= plusFrom : valueOf(p) === v)));
+    } else if (min !== undefined && min !== null) {
+      add(id, (p) => valueOf(p) >= min);
     }
-    if (filters.onlyIneligible && p.eligible) {
-      return false;
-    }
-    const furnitureTier = p.furnitureTier ?? classifyFurnitureTier(p);
-    const exclusionParts = p.exclusionReason
-      ? p.exclusionReason.split(" · ")
-      : [];
-    const isAllowedIneligibleOverride =
-      !p.eligible &&
-      exclusionParts.length > 0 &&
-      exclusionParts.every(
-        (reason) =>
-          (allowFullyFurnishedIneligible &&
-            furnitureTier === "FULLY_FURNISHED" &&
-            /totalmente mobiliado/i.test(reason)) ||
-          (allowCommuteBottleneckIneligible &&
-            /(?:gargalo pendular cr[ií]tico|tempo at[eé] o escrit[oó]rio.*acima do limite de 50 min)/i.test(
-              reason,
-            )),
-      );
-    if (
-      !filters.showIneligible &&
-      !filters.onlyIneligible &&
-      !onlyFavorites &&
-      !p.eligible &&
-      !isAllowedIneligibleOverride
-    ) {
-      return false;
-    }
-    const activeFloorFilters: FloorFilterOption[] =
-      filters.floorFilters && filters.floorFilters.length > 0
-        ? filters.floorFilters.filter((f) => f !== "ALL")
-        : filters.floorFilter && filters.floorFilter !== "ALL"
-          ? [filters.floorFilter]
-          : [];
-    if (activeFloorFilters.length > 0 && !matchesFloorFilter(p, activeFloorFilters)) {
-      return false;
-    }
-    if (
-      filters.minTotalMonthly !== null &&
-      p.totalMonthly < filters.minTotalMonthly
-    ) {
-      return false;
-    }
-    if (
-      filters.maxTotalMonthly !== null &&
-      p.totalMonthly > filters.maxTotalMonthly
-    ) {
-      return false;
-    }
-    if (
-      filters.maxCommuteMinutes !== null &&
-      filters.maxCommuteMinutes !== undefined &&
-      p.cityCode !== "BSB" &&
-      p.commuteMinutes !== null &&
-      p.commuteMinutes !== undefined &&
-      p.commuteMinutes > filters.maxCommuteMinutes
-    ) {
-      return false;
-    }
-    if (filters.minScore !== null && p.finalScore < filters.minScore) {
-      return false;
-    }
-    if (filters.minAreaM2 !== null && p.areaM2 < filters.minAreaM2) {
-      return false;
-    }
-    if (filters.maxAreaM2 !== null && p.areaM2 > filters.maxAreaM2) {
-      return false;
-    }
-    const minListingAgeDays = filters.minListingAgeDays ?? null;
-    const maxListingAgeDays = filters.maxListingAgeDays ?? null;
-    const listingDateFrom = (filters.listingDateFrom ?? "").trim();
-    const listingDateTo = (filters.listingDateTo ?? "").trim();
-    if (
-      minListingAgeDays !== null ||
-      maxListingAgeDays !== null ||
-      listingDateFrom !== "" ||
-      listingDateTo !== ""
-    ) {
-      const { ageDays, dateIso } = resolvePropertyListingAgeAndDate(p);
-      if (
-        minListingAgeDays !== null &&
-        (ageDays === null || ageDays === undefined || ageDays < minListingAgeDays)
-      ) {
-        return false;
-      }
-      if (
-        maxListingAgeDays !== null &&
-        (ageDays === null || ageDays === undefined || ageDays > maxListingAgeDays)
-      ) {
-        return false;
-      }
-      if (listingDateFrom !== "" && (!dateIso || dateIso < listingDateFrom)) {
-        return false;
-      }
-      if (listingDateTo !== "" && (!dateIso || dateIso > listingDateTo)) {
-        return false;
-      }
-    }
-    if (filters.selectedBedrooms && filters.selectedBedrooms.length > 0) {
-      const matchesBed = filters.selectedBedrooms.some((b) =>
-        b >= 3 ? p.bedrooms >= 3 : p.bedrooms === b,
-      );
-      if (!matchesBed) return false;
-    } else if (
-      filters.minBedrooms !== undefined &&
-      filters.minBedrooms !== null &&
-      p.bedrooms < filters.minBedrooms
-    ) {
-      return false;
-    }
-    if (filters.selectedBathrooms && filters.selectedBathrooms.length > 0) {
-      const matchesBath = filters.selectedBathrooms.some((b) =>
-        b >= 3 ? p.bathrooms >= 3 : p.bathrooms === b,
-      );
-      if (!matchesBath) return false;
-    } else if (
-      filters.minBathrooms !== undefined &&
-      filters.minBathrooms !== null &&
-      p.bathrooms < filters.minBathrooms
-    ) {
-      return false;
-    }
-    if (filters.selectedParking && filters.selectedParking.length > 0) {
-      const matchesPark = filters.selectedParking.some((v) =>
-        v >= 2 ? p.parkingSpaces >= 2 : p.parkingSpaces === v,
-      );
-      if (!matchesPark) return false;
-    } else if (
-      filters.minParking !== undefined &&
-      filters.minParking !== null &&
-      p.parkingSpaces < filters.minParking
-    ) {
-      return false;
-    }
-    if (
-      filters.modernityTiers.length > 0 &&
-      !filters.modernityTiers.includes(p.modernityTier)
-    ) {
-      return false;
-    }
-    if (
-      filters.minModernityScore !== null &&
-      p.modernityScore < filters.minModernityScore
-    ) {
-      return false;
-    }
-    if (activeFurnitureTiers) {
-      if (!activeFurnitureTiers.includes(furnitureTier)) {
-        return false;
-      }
-    } else {
-      if (
-        filters.furnishedFilter === "UNFURNISHED" &&
-        furnitureTier !== "UNFURNISHED"
-      ) {
-        return false;
-      }
-      if (
-        filters.furnishedFilter === "UNFURNISHED_OR_SEMI" &&
-        furnitureTier === "FULLY_FURNISHED"
-      ) {
-        return false;
-      }
-      if (
-        filters.furnishedFilter === "SEMI_FURNISHED" &&
-        furnitureTier !== "SEMI_FURNISHED"
-      ) {
-        return false;
-      }
-      if (
-        filters.furnishedFilter === "FURNISHED" &&
-        furnitureTier !== "FULLY_FURNISHED" &&
-        furnitureTier !== "SEMI_FURNISHED"
-      ) {
-        return false;
-      }
-    }
-    if (filters.providerFilter !== "ALL") {
-      if (filters.providerFilter === "zapimoveis") {
-        if (p.provider !== "zapimoveis" && p.provider !== "zap") {
-          return false;
-        }
-      } else if (p.provider !== filters.providerFilter) {
-        return false;
-      }
-    }
-    if (filters.onlyNewEntries && !isRecentlyPublishedListing(p)) {
-      return false;
-    }
-    if (
-      filters.hideMegaCondo &&
-      (p.cardTags.redTags.includes("Megacondomínio") ||
-        p.nuanceWarnings.some((w) => w.toLowerCase().includes("megacondomínio")))
-    ) {
-      return false;
-    }
-    if (filters.hideForSale) {
-      if (getCachedForSaleFlag(p)) return false;
-    }
-    if (filters.onlySafeStreets && !hasNoSafetyProblems(p)) {
-      return false;
-    }
-    if (filters.requiredFeatures.length > 0) {
-      for (const feat of filters.requiredFeatures) {
-        if (!matchesPropertyFeature(p, feat)) {
-          return false;
-        }
-      }
-    }
-    if (q) {
-      const hay = getCachedSearchHaystack(p);
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  });
+  };
+  countFilter("bedrooms", filters.selectedBedrooms, 3, filters.minBedrooms, (p) => p.bedrooms);
+  countFilter("bathrooms", filters.selectedBathrooms, 3, filters.minBathrooms, (p) => p.bathrooms);
+  countFilter("parking", filters.selectedParking, 2, filters.minParking, (p) => p.parkingSpaces);
+  if (filters.modernityTiers.length > 0) {
+    const tiers = filters.modernityTiers;
+    add("modernity", (p) => tiers.includes(p.modernityTier));
+  }
+  const minModernity = filters.minModernityScore;
+  if (minModernity !== null) add("min-modernity", (p) => p.modernityScore >= minModernity);
+  if (activeFurnitureTiers) {
+    add("furniture", (p) => activeFurnitureTiers.includes(furnitureTierOf(p)));
+  } else if (filters.furnishedFilter && filters.furnishedFilter !== "ALL") {
+    const furnished = filters.furnishedFilter;
+    add("furniture", (p) => {
+      const tier = furnitureTierOf(p);
+      if (furnished === "UNFURNISHED") return tier === "UNFURNISHED";
+      if (furnished === "UNFURNISHED_OR_SEMI") return tier !== "FULLY_FURNISHED";
+      if (furnished === "SEMI_FURNISHED") return tier === "SEMI_FURNISHED";
+      return tier === "FULLY_FURNISHED" || tier === "SEMI_FURNISHED";
+    });
+  }
+  if (filters.providerFilter !== "ALL") {
+    const provider = filters.providerFilter;
+    add("provider", (p) =>
+      provider === "zapimoveis"
+        ? p.provider === "zapimoveis" || p.provider === "zap"
+        : p.provider === provider,
+    );
+  }
+  if (filters.onlyNewEntries) add("new-entries", (p) => isRecentlyPublishedListing(p));
+  if (filters.hideMegaCondo) {
+    add(
+      "no-megacondo",
+      (p) =>
+        !p.cardTags.redTags.includes("Megacondomínio") &&
+        !p.nuanceWarnings.some((w) => w.toLowerCase().includes("megacondomínio")),
+    );
+  }
+  if (filters.hideForSale) add("no-forsale", (p) => !getCachedForSaleFlag(p));
+  if (filters.onlySafeStreets) add("safe-streets", (p) => hasNoSafetyProblems(p));
+  for (const feat of filters.requiredFeatures) {
+    add(`feat-${feat}`, (p) => matchesPropertyFeature(p, feat));
+  }
+  if (q) add("search", (p) => getCachedSearchHaystack(p).includes(q));
+  return constraints;
+}
+
+export function filterAndSortProperties(
+  properties: EvaluatedProperty[],
+  filters: PropertyExplorerFilters,
+  favoriteKeysArg?: Iterable<string>,
+): EvaluatedProperty[] {
+  const constraints = buildFilterConstraints(filters, favoriteKeysArg);
+  const filtered = properties.filter((p) => constraints.every((c) => c.test(p)));
 
   const sorted = [...filtered];
   sorted.sort((a, b) => {

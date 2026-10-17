@@ -1,4 +1,6 @@
 import { isCityVisible } from "@/lib/city-config";
+import { FacetIndex, suggestRelaxations, type Relaxation } from "@/lib/filter-facets";
+import { PINNED_OPTIONS, SHEET_OPTIONS } from "@/lib/filter-options";
 import {
   buildBenchmarkStats,
   filterAndSortProperties,
@@ -97,6 +99,8 @@ export interface PropertyQueryResponse {
   };
   /** Facet counts for the filter sheet options (`count` mode). */
   optionCounts?: Record<string, number>;
+  /** When nothing matches: the best single-filter relaxations, with their result counts. */
+  relaxations?: Relaxation[];
   meta?: DatasetMeta;
   text?: string;
   keys?: string[];
@@ -404,6 +408,8 @@ export interface ScoredSet {
   /** Cache for filtered+sorted results of this scored set, keyed by query key. */
   filtered: Map<string, EvaluatedProperty[]>;
   byKey?: Map<string, EvaluatedProperty>;
+  /** Live-count results of the filter sheet, keyed by query key. */
+  counts?: Map<string, { total: number; optionCounts: Record<string, number> }>;
 }
 
 const MAX_FILTERED_PER_SET = 24;
@@ -423,6 +429,27 @@ export function filterScoredSet(
   set.filtered.set(key, result);
   while (set.filtered.size > MAX_FILTERED_PER_SET) {
     set.filtered.delete(set.filtered.keys().next().value!);
+  }
+  return result;
+}
+
+const FACET_OPTIONS = [...PINNED_OPTIONS, ...SHEET_OPTIONS];
+
+/** Total + per-option facet counts for a filter state, without sorting (cached per query key). */
+export function countScoredSet(
+  set: ScoredSet,
+  req: PropertyQueryRequest,
+  key: string,
+): { total: number; optionCounts: Record<string, number> } {
+  set.counts ??= new Map();
+  const hit = set.counts.get(key);
+  if (hit) return hit;
+  const state = parseExplorerFiltersObject(req.filters as Record<string, unknown>);
+  const index = new FacetIndex(set.properties, state, req.favorites);
+  const result = { total: index.total, optionCounts: index.optionCounts(FACET_OPTIONS) };
+  set.counts.set(key, result);
+  while (set.counts.size > MAX_FILTERED_PER_SET) {
+    set.counts.delete(set.counts.keys().next().value!);
   }
   return result;
 }
@@ -454,7 +481,8 @@ export function runPropertyQuery(
     };
   }
   if (req.mode === "count") {
-    return { ...base, offset: 0, items: [] };
+    const counted = countScoredSet(set, req, key);
+    return { ...base, total: counted.total, offset: 0, items: [], optionCounts: counted.optionCounts };
   }
   if (req.mode === "activeKeys") {
     return {
@@ -481,7 +509,15 @@ export function runPropertyQuery(
       neighborhoodOptions: buildNeighborhoodOptions(set.properties, state, set.ranked),
       benchmark: state.enabledHiddenCities.includes("BSB") ? buildBenchmarkStats(set.properties) : null,
       favoritesOutsidePool: favoritesOutsidePool(set, req.allFavorites ?? []),
+      optionCounts: countScoredSet(set, req, key).optionCounts,
     };
+  }
+  if (matches.length === 0 && offset === 0) {
+    response.relaxations = suggestRelaxations(
+      set.properties,
+      parseExplorerFiltersObject(req.filters as Record<string, unknown>),
+      req.favorites,
+    );
   }
   return response;
 }
