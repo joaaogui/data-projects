@@ -13,11 +13,6 @@ import {
   loadSharedPreferences,
   toggleSharedFavorite,
 } from "@/lib/preferences-store";
-import {
-  computeDynamicNeighborhoods,
-  computeDynamicProperties,
-  DEFAULT_WEIGHTS,
-} from "@/lib/scoring-engine";
 import type {
   CityHubCode,
   HousingDatasetPayload,
@@ -64,7 +59,6 @@ interface DatasetStoreState {
   cachedFullByKeyMap: Map<string, SlimPropertyRecord> | null;
   cachedSlimmedSnapshotSig: string;
   cachedSlimmedSnapshotProps: SlimPropertyRecord[] | null;
-  deferredDescriptionKeys: { snapshotHash: string; keys: Set<string> } | null;
   servedCache: { sig: string; value: ServedListings } | null;
   neonServedCache: { expiresAt: number; value: ServedListings } | null;
 }
@@ -81,7 +75,6 @@ const state = processScoped<DatasetStoreState>("dataset-store", () => ({
   cachedFullByKeyMap: null,
   cachedSlimmedSnapshotSig: "",
   cachedSlimmedSnapshotProps: null,
-  deferredDescriptionKeys: null,
   servedCache: null,
   neonServedCache: null,
 }));
@@ -268,48 +261,6 @@ function loadSnapshotFromDiskOrBundle(): {
 const MAX_INITIAL_CARD_PHOTOS = 3;
 
 
-/**
- * Listings whose description changes nothing in the default-weights evaluation are scored
- * (and were historically shipped) without it.
- */
-function getDeferredDescriptionKeys(
-  rawProps: SlimPropertyRecord[],
-  rawNbs: NeighborhoodEntry[],
-): Set<string> {
-  if (state.deferredDescriptionKeys?.snapshotHash === state.cachedSnapshotHash) {
-    return state.deferredDescriptionKeys.keys;
-  }
-  const { ranked } = computeDynamicNeighborhoods(rawNbs, DEFAULT_WEIGHTS);
-  const fullEval = computeDynamicProperties(rawProps, ranked, DEFAULT_WEIGHTS, {
-    includeBsbBenchmark: true,
-  });
-  const noDescEval = computeDynamicProperties(
-    rawProps.map((p) => ({ ...p, description: null, generatedDescription: null })),
-    ranked,
-    DEFAULT_WEIGHTS,
-    { includeBsbBenchmark: true },
-  );
-  const noDescByKey = new Map(noDescEval.map((p) => [`${p.provider}:${p.id}`, p]));
-  const keys = new Set<string>();
-  for (const fp of fullEval) {
-    const key = `${fp.provider}:${fp.id}`;
-    const np = noDescByKey.get(key);
-    if (
-      np &&
-      fp.finalScore === np.finalScore &&
-      fp.eligible === np.eligible &&
-      fp.furnitureTier === np.furnitureTier &&
-      JSON.stringify(fp.cardTags) === JSON.stringify(np.cardTags) &&
-      JSON.stringify(fp.nuanceHighlights) === JSON.stringify(np.nuanceHighlights) &&
-      JSON.stringify(fp.nuanceWarnings) === JSON.stringify(np.nuanceWarnings)
-    ) {
-      keys.add(key);
-    }
-  }
-  state.deferredDescriptionKeys = { snapshotHash: state.cachedSnapshotHash, keys };
-  return keys;
-}
-
 /** Snapshot listings normalized for the portal (all cached photos; deactivations not applied yet). */
 function getSlimmedSnapshotProps(): SlimPropertyRecord[] {
   const { data: snap } = loadSnapshotFromDiskOrBundle();
@@ -319,15 +270,11 @@ function getSlimmedSnapshotProps(): SlimPropertyRecord[] {
     return state.cachedSlimmedSnapshotProps;
   }
   const rawProps = (snap.properties ?? []) as unknown as SlimPropertyRecord[];
-  const rawNbs = (snap.neighborhoods ?? []) as unknown as NeighborhoodEntry[];
-  const deferred = getDeferredDescriptionKeys(rawProps, rawNbs);
   state.cachedSlimmedSnapshotProps = rawProps.map((p) => ({
     ...p,
     ...mergeCachedPhotos(p, photosCache),
     placesNearby: capRelevantPlaces(p.placesNearby),
-    description: deferred.has(`${p.provider}:${p.id}`)
-      ? null
-      : cleanListingText(p.description),
+    description: cleanListingText(p.description),
     generatedDescription: null,
     sourceSearch: null,
     publishedAt: p.publishedAt ?? null,
@@ -428,7 +375,7 @@ function mergeCachedPhotos(
 
 /**
  * Listings for server-side scoring. Same field normalization the browser used to receive
- * (capped nearby places, cleaned description, no generated description), but nothing deferred.
+ * (capped nearby places, cleaned description, no generated description).
  */
 export async function loadServedListings(): Promise<ServedListings> {
   const db = getDb();
