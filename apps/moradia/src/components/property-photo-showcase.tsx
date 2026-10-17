@@ -13,7 +13,7 @@ import {
   Minimize2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const clientPhotosCache = new Map<
   string,
@@ -99,21 +99,28 @@ export function getHighResPhotoUrl(url: string): string {
 }
 
 /**
- * Upgrades a property photo URL to crisp high resolution for the inline Bento card showcase.
+ * Right-sizes a property photo URL to fast, crisp medium-high resolution for the inline Bento card
+ * showcase and 96px filmstrip thumbnails (saving ~80% bandwidth vs full-HD while staying sharp).
+ * - QuintoAndar: `/img/med/` (450x300, ~15KB)
+ * - Zap Imóveis / VivaReal: `dimension=800x600` (~25KB WebP)
+ * - ImovelWeb: `/730x532/` (~28KB)
  */
 export function getCardPhotoUrl(url: string): string {
   if (!url) return url;
   if (url.includes("quintoandar.com.br/img/")) {
-    return url.replace(/\/img\/(?:sm|med|lg|xl)\//, "/img/xxl/");
+    return url.replace(/\/img\/(?:sm|med|lg|xl|xxl)\//, "/img/med/");
   }
   if (
     url.includes("resizedimgs.zapimoveis.com.br") ||
     url.includes("resizedimgs.vivareal.com")
   ) {
-    return url.replace(/dimension=\d+x\d+/, "dimension=1280x960");
+    return url.replace(/dimension=\d+x\d+/, "dimension=800x600");
   }
   if (url.includes("imovelwebcdn.com/avisos/")) {
-    return url.replace(/\/(?:360x266|720x532|730x532)\//, "/1200x1200/");
+    return url.replace(
+      /\/(?:360x266|720x532|730x532|1200x1200)\//,
+      "/730x532/",
+    );
   }
   return url;
 }
@@ -139,6 +146,9 @@ export function getFallbackPhotoUrl(
   }
   if (failedUrl.includes("/1200x1200/")) {
     return failedUrl.replace("/1200x1200/", "/720x532/");
+  }
+  if (failedUrl.includes("/730x532/")) {
+    return failedUrl.replace("/730x532/", "/720x532/");
   }
   if (failedUrl.includes("/720x532/")) {
     return failedUrl.replace("/720x532/", "/360x266/");
@@ -281,15 +291,35 @@ export function PropertyCardPhotoShowcase({
     ? "w-full md:w-64 lg:w-72 2xl:w-80"
     : "w-full md:w-76 lg:w-88 xl:w-96";
 
+  const ensureAllPhotosLoadedOnDemand = () => {
+    if (
+      totalAvailablePhotos > totalPhotos &&
+      property.url &&
+      !completedPhotoFetchKeys.has(propKey)
+    ) {
+      void fetchPropertyPhotosShared({
+        provider: property.provider,
+        id: property.id,
+        url: property.url,
+      }).then((fetched) => {
+        if (fetched.length > loadedPhotos.length) {
+          setLoadedPhotos(fetched);
+        }
+      });
+    }
+  };
+
   const handlePrevInline = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (totalPhotos <= 1) return;
+    ensureAllPhotosLoadedOnDemand();
     setActiveMainIdx((prev) => (prev - 1 + totalPhotos) % totalPhotos);
   };
 
   const handleNextInline = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (totalPhotos <= 1) return;
+    ensureAllPhotosLoadedOnDemand();
     setActiveMainIdx((prev) => (prev + 1) % totalPhotos);
   };
 
@@ -392,6 +422,7 @@ export function PropertyCardPhotoShowcase({
           onError={(e) => handleImgError(e, mainPhoto.url)}
           alt={mainPhoto.room ?? property.title}
           loading="lazy"
+          decoding="async"
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/75 via-black/30 to-transparent px-3 pt-6 pb-2.5">
@@ -440,6 +471,7 @@ export function PropertyCardPhotoShowcase({
             onError={(e) => handleImgError(e, mainPhoto.url)}
             alt={mainPhoto.room ?? `${property.title} - Foto ${safeMainIdx + 1}`}
             loading="lazy"
+          decoding="async"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <button
@@ -494,6 +526,7 @@ export function PropertyCardPhotoShowcase({
               `${property.title} - Foto ${secondaryIdx + 1}`
             }
             loading="lazy"
+          decoding="async"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-end bg-gradient-to-t from-black/75 via-black/25 to-transparent p-2">
@@ -542,6 +575,7 @@ export function PropertyCardPhotoShowcase({
           onError={(e) => handleImgError(e, mainPhoto.url)}
           alt={mainPhoto.room ?? `${property.title} - Foto ${safeMainIdx + 1}`}
           loading="lazy"
+          decoding="async"
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
 
@@ -608,6 +642,7 @@ export function PropertyCardPhotoShowcase({
               secondPhoto.room ?? `${property.title} - Foto ${secondIdx + 1}`
             }
             loading="lazy"
+          decoding="async"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           {secondPhoto.room && (
@@ -639,6 +674,7 @@ export function PropertyCardPhotoShowcase({
             onError={(e) => handleImgError(e, thirdPhoto.url)}
             alt={thirdPhoto.room ?? `${property.title} - Foto ${thirdIdx + 1}`}
             loading="lazy"
+          decoding="async"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           <div
@@ -704,6 +740,8 @@ export function PropertyPhotoGalleryModal({
       : 0,
   );
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const expectedCount = property.photosCount ?? 0;
@@ -761,6 +799,20 @@ export function PropertyPhotoGalleryModal({
   }, [totalPhotos]);
 
   useEffect(() => {
+    if (typeof document !== "undefined") {
+      previouslyFocusedRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+    }
+    modalRef.current?.focus();
+
+    return () => {
+      previouslyFocusedRef.current?.focus?.();
+    };
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -775,6 +827,31 @@ export function PropertyPhotoGalleryModal({
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         goPrev();
+      } else if (e.key === "Tab" && modalRef.current) {
+        const focusable = Array.from(
+          modalRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        );
+        if (focusable.length === 0) {
+          e.preventDefault();
+          modalRef.current.focus();
+          return;
+        }
+        const first = focusable[0]!;
+        const last = focusable[focusable.length - 1]!;
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey) {
+          if (!active || active === first || active === modalRef.current) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (!active || active === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       }
     };
 
@@ -806,11 +883,13 @@ export function PropertyPhotoGalleryModal({
 
   return (
     <div
+      ref={modalRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label={`Galeria de fotos — ${property.neighborhood}, ${property.street}`}
       onClick={onClose}
-      className="fixed inset-0 z-50 flex flex-col justify-between bg-slate-950/95 p-1.5 text-white backdrop-blur-md sm:p-3"
+      className="fixed inset-0 z-50 flex flex-col justify-between bg-slate-950/95 p-1.5 text-white backdrop-blur-md outline-hidden sm:p-3"
     >
       {/* Top Header Bar */}
       <div
@@ -950,6 +1029,7 @@ export function PropertyPhotoGalleryModal({
             key={currentPhoto.url}
             src={getHighResPhotoUrl(currentPhoto.url)}
             referrerPolicy="no-referrer"
+            decoding="async"
             onError={(e) => handleImgError(e, currentPhoto.url)}
             onClick={() => setIsZoomed((z) => !z)}
             alt={
@@ -1029,6 +1109,7 @@ export function PropertyPhotoGalleryModal({
                     onError={(e) => handleImgError(e, photo.url)}
                     alt={photo.room ?? `Miniatura ${idx + 1}`}
                     loading="lazy"
+          decoding="async"
                     className="h-full w-full object-cover"
                   />
                   <span className="absolute bottom-1 left-1 max-w-[90%] truncate rounded bg-slate-950/80 px-1.5 py-0.5 text-[9px] font-medium text-white">

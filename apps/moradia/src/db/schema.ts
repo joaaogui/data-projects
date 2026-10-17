@@ -3,6 +3,7 @@ import type {
   ModernityTier,
   PlaceNearby,
   PropertyProvider,
+  PropertyQuestionItem,
   SamplePhoto,
   ScoringWeights,
 } from "@/types/moradia";
@@ -164,3 +165,12 @@ export const userPreferences = moradiaSchema.table("user_preferences", {
     .defaultNow()
     .notNull(),
 });
+
+export const propertyQa = moradiaSchema.table("property_qa", {
+  id: text("id").primaryKey(),
+  items: jsonb("items").$type<PropertyQuestionItem[]>().notNull().default([]),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+

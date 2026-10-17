@@ -4,6 +4,7 @@ import {
   type PropertyCoordinate,
   resolveInstantPropertyCoordinate,
 } from "@/lib/geocoding";
+import { logger } from "@/lib/logger";
 import type { CityHubCode } from "@/types/moradia";
 import { NextResponse } from "next/server";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -16,6 +17,7 @@ const TMP_GEOCACHE_FILE = join(tmpdir(), "moradia-geocache.json");
 interface CachedGeoEntry {
   lat: number;
   lng: number;
+  source?: "nominatim" | "cache";
   updatedAt: string;
 }
 
@@ -75,14 +77,23 @@ const STATE_BY_CITY: Record<CityHubCode, string> = {
   BSB: "Distrito Federal",
 };
 
+const NEGATIVE_RETRY_COOLDOWN_MS = 60_000;
+const negativeGeocodeCooldownUntil = new Map<string, number>();
+const unfoundOsmAddresses = new Set<string>();
+
 async function queryOsmGeocoder(
   item: GeocodeRequestItem,
-): Promise<{ lat: number; lng: number } | null> {
+): Promise<
+  | { status: "found"; lat: number; lng: number }
+  | { status: "not_found" }
+  | { status: "transient_error" }
+> {
   const streetClean = item.street.trim();
-  if (!streetClean) return null;
+  if (!streetClean) return { status: "not_found" };
 
   const numPart = item.streetNumber ? ` ${item.streetNumber.trim()}` : "";
   const query = `${streetClean}${numPart}, ${item.neighborhood}, ${item.city}, ${STATE_BY_CITY[item.cityCode]}, Brasil`;
+  let receivedDefinitiveEmptyResponse = false;
 
   try {
     const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`;
@@ -93,6 +104,7 @@ async function queryOsmGeocoder(
       signal: AbortSignal.timeout(2200),
     });
     if (res.ok) {
+      receivedDefinitiveEmptyResponse = true;
       const data = (await res.json()) as {
         features?: Array<{
           geometry?: { coordinates?: [number, number] };
@@ -103,6 +115,7 @@ async function queryOsmGeocoder(
         const [lng, lat] = coords;
         if (isCoordinateInsideCityBox(item.cityCode, lat, lng)) {
           return {
+            status: "found",
             lat: Number(lat.toFixed(6)),
             lng: Number(lng.toFixed(6)),
           };
@@ -122,6 +135,7 @@ async function queryOsmGeocoder(
       signal: AbortSignal.timeout(2200),
     });
     if (res.ok) {
+      receivedDefinitiveEmptyResponse = true;
       const data = (await res.json()) as Array<{ lat?: string; lon?: string }>;
       const first = data[0];
       if (first?.lat && first?.lon) {
@@ -129,6 +143,7 @@ async function queryOsmGeocoder(
         const lng = Number.parseFloat(first.lon);
         if (isCoordinateInsideCityBox(item.cityCode, lat, lng)) {
           return {
+            status: "found",
             lat: Number(lat.toFixed(6)),
             lng: Number(lng.toFixed(6)),
           };
@@ -139,10 +154,13 @@ async function queryOsmGeocoder(
     // Ignore network timeout / offline mode
   }
 
-  return null;
+  return receivedDefinitiveEmptyResponse
+    ? { status: "not_found" }
+    : { status: "transient_error" };
 }
 
 export async function POST(request: Request) {
+  const t0 = performance.now();
   try {
     const body = (await request.json()) as { items?: GeocodeRequestItem[] };
     const items = Array.isArray(body.items) ? body.items.slice(0, 35) : [];
@@ -153,6 +171,23 @@ export async function POST(request: Request) {
 
     const MAX_LIVE_LOOKUPS_PER_REQUEST = 6;
     let liveLookupsRemaining = MAX_LIVE_LOOKUPS_PER_REQUEST;
+    let cacheHits = 0;
+    let liveLookups = 0;
+    let streetApproximations = 0;
+    let neighborhoodFallbacks = 0;
+    let finalCount = 0;
+    let pendingCount = 0;
+    let deferredByBudgetCount = 0;
+
+    const recordFallbackStats = (
+      instant: PropertyCoordinate,
+      isFinal: boolean,
+    ) => {
+      if (instant.source === "street") streetApproximations++;
+      else neighborhoodFallbacks++;
+      if (isFinal) finalCount++;
+      else pendingCount++;
+    };
 
     for (const item of items) {
       if (!item?.key || !item?.cityCode) continue;
@@ -163,6 +198,8 @@ export async function POST(request: Request) {
         cached &&
         isCoordinateInsideCityBox(item.cityCode, cached.lat, cached.lng)
       ) {
+        cacheHits++;
+        finalCount++;
         coordinates[item.key] = {
           lat: cached.lat,
           lng: cached.lng,
@@ -173,7 +210,10 @@ export async function POST(request: Request) {
       }
 
       const instant = resolveInstantPropertyCoordinate(item);
-      if (instant.source === "street") {
+      const canAttemptLiveLookup =
+        item.street.trim().length > 3 && !unfoundOsmAddresses.has(addrKey);
+      if (!canAttemptLiveLookup) {
+        recordFallbackStats(instant, true);
         coordinates[item.key] = {
           ...instant,
           final: true,
@@ -181,25 +221,31 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const canAttemptLiveLookup = item.street.trim().length > 3;
-      if (!canAttemptLiveLookup) {
+      const nowMs = Date.now();
+      const cooldownUntil = negativeGeocodeCooldownUntil.get(addrKey) ?? 0;
+      if (cooldownUntil > nowMs) {
+        recordFallbackStats(instant, false);
         coordinates[item.key] = {
           ...instant,
-          final: true,
+          final: false,
         };
         continue;
       }
 
       if (liveLookupsRemaining > 0) {
         liveLookupsRemaining -= 1;
+        liveLookups++;
         const resolved = await queryOsmGeocoder(item);
-        if (resolved) {
+        if (resolved.status === "found") {
+          negativeGeocodeCooldownUntil.delete(addrKey);
           cache[addrKey] = {
             lat: resolved.lat,
             lng: resolved.lng,
+            source: "nominatim",
             updatedAt: new Date().toISOString(),
           };
           cacheMutated = true;
+          finalCount++;
           coordinates[item.key] = {
             lat: resolved.lat,
             lng: resolved.lng,
@@ -208,13 +254,30 @@ export async function POST(request: Request) {
           };
           continue;
         }
+        if (resolved.status === "not_found") {
+          unfoundOsmAddresses.add(addrKey);
+          negativeGeocodeCooldownUntil.delete(addrKey);
+          recordFallbackStats(instant, true);
+          coordinates[item.key] = {
+            ...instant,
+            final: true,
+          };
+          continue;
+        }
+        negativeGeocodeCooldownUntil.set(
+          addrKey,
+          Date.now() + NEGATIVE_RETRY_COOLDOWN_MS,
+        );
+        recordFallbackStats(instant, false);
         coordinates[item.key] = {
           ...instant,
-          final: true,
+          final: false,
         };
         continue;
       }
 
+      deferredByBudgetCount++;
+      recordFallbackStats(instant, false);
       coordinates[item.key] = {
         ...instant,
         final: false,
@@ -225,8 +288,32 @@ export async function POST(request: Request) {
       saveGeoCache(cache);
     }
 
-    return NextResponse.json({ ok: true, coordinates });
-  } catch {
+    const nextRetryDelayMs =
+      pendingCount === 0
+        ? null
+        : deferredByBudgetCount > 0
+          ? 800
+          : NEGATIVE_RETRY_COOLDOWN_MS;
+
+    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+    logger.info("api/geocode", "POST completed", {
+      requestedCount: items.length,
+      cacheHits,
+      liveLookups,
+      streetApproximations,
+      neighborhoodFallbacks,
+      finalCount,
+      pendingCount,
+      durationMs,
+    });
+
+    return NextResponse.json({ ok: true, coordinates, nextRetryDelayMs });
+  } catch (err) {
+    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+    logger.error("api/geocode", "POST failed", {
+      durationMs,
+      error: err,
+    });
     return NextResponse.json({ ok: false, coordinates: {} }, { status: 200 });
   }
 }

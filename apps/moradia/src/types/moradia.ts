@@ -162,7 +162,7 @@ export interface ScoreBreakdown {
 
 export interface EvaluatedProperty extends SlimPropertyRecord {
   furnitureTier?: FurnitureTier;
-  commuteMinutes?: number;
+  commuteMinutes?: number | null;
   commuteLabel?: string;
   eligible: boolean;
   exclusionReason: string | null;
@@ -212,6 +212,7 @@ export interface MoradiaDatasetPayload {
 export interface ScrapeJobStatus {
   jobId: string;
   status: "idle" | "running" | "completed" | "failed";
+  workerAvailable?: boolean;
   mode?: "full_sync" | "verify_only" | "custom_url";
   startedAt?: string;
   updatedAt?: string;

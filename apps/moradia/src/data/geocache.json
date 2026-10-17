@@ -113,5 +113,227 @@
     "lat": -19.929685,
     "lng": -43.932842,
     "updatedAt": "2026-10-16T23:24:16.977Z"
+  },
+  "BH|funcionários|rua santa rita durão|466": {
+    "lat": -19.936145,
+    "lng": -43.92781,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:37:54.488Z"
+  },
+  "BH|savassi|rua alagoas|": {
+    "lat": -19.938858,
+    "lng": -43.937121,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:37:54.749Z"
+  },
+  "BH|savassi|rua levindo lopes|": {
+    "lat": -19.937785,
+    "lng": -43.939638,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:37:54.994Z"
+  },
+  "BH|savassi|rua paraíba|1287": {
+    "lat": -19.931424,
+    "lng": -43.932329,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:37:55.606Z"
+  },
+  "BH|savassi|rua tomé de souza|": {
+    "lat": -19.936455,
+    "lng": -43.937244,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:37:55.954Z"
+  },
+  "BH|savassi|rua paraíba|": {
+    "lat": -19.931424,
+    "lng": -43.932329,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:37:56.263Z"
+  },
+  "BH|lourdes|rua curitiba|1500": {
+    "lat": -19.932563,
+    "lng": -43.945023,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:39:41.382Z"
+  },
+  "BH|funcionários|rua sergipe|1000": {
+    "lat": -19.919421,
+    "lng": -43.881075,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:39:41.890Z"
+  },
+  "BH|santa efigênia|rua padre marinho|318": {
+    "lat": -19.925705,
+    "lng": -43.922382,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:13.278Z"
+  },
+  "CP|taquaral|rua otávio machado|": {
+    "lat": -22.883275,
+    "lng": -47.049539,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:13.842Z"
+  },
+  "SP|moema|avenida ibijaú|364": {
+    "lat": -23.606175,
+    "lng": -46.665253,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:14.249Z"
+  },
+  "CP|taquaral|rua não informada|": {
+    "lat": -22.881547,
+    "lng": -47.047212,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:14.879Z"
+  },
+  "SP|vila mariana|rua doutor josé de queirós aranha|18": {
+    "lat": -23.580173,
+    "lng": -46.636236,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:15.957Z"
+  },
+  "RJ|tijuca|rua doutor satamini|292": {
+    "lat": -22.920579,
+    "lng": -43.222335,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:17.110Z"
+  },
+  "SP|jardim paulista|rua ouro branco|129": {
+    "lat": -23.571342,
+    "lng": -46.662196,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:19.495Z"
+  },
+  "CP|taquaral|rua azarias de melo|604": {
+    "lat": -22.883828,
+    "lng": -47.051641,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:20.831Z"
+  },
+  "SP|indianópolis|rua juquis|391": {
+    "lat": -23.608988,
+    "lng": -46.665617,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:21.331Z"
+  },
+  "SP|jardim paulista|alameda casa branca|343": {
+    "lat": -23.56429,
+    "lng": -46.658053,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:21.927Z"
+  },
+  "BH|santa efigênia|praça hugo werneck|537": {
+    "lat": -19.924599,
+    "lng": -43.927008,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:22.496Z"
+  },
+  "CP|jardim guanabara|avenida barão de itapura|1972": {
+    "lat": -22.888464,
+    "lng": -47.060548,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:23.081Z"
+  },
+  "CP|bosque|avenida aquidabã|": {
+    "lat": -22.91041,
+    "lng": -47.054331,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:24.327Z"
+  },
+  "CP|taquaral|rua floriano fernandes lopes|": {
+    "lat": -22.881718,
+    "lng": -47.040814,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:26.538Z"
+  },
+  "SP|moema|avenida rouxinol|762": {
+    "lat": -23.605153,
+    "lng": -46.668354,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:26.902Z"
+  },
+  "SP|moema|alameda dos nhambiquaras|843": {
+    "lat": -23.606627,
+    "lng": -46.65886,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:27.398Z"
+  },
+  "RJ|tijuca|rua valparaíso|80": {
+    "lat": -22.926693,
+    "lng": -43.221279,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:28.397Z"
+  },
+  "CP|bosque|rua riachuelo|320": {
+    "lat": -22.906365,
+    "lng": -47.052081,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:29.669Z"
+  },
+  "SP|vila mariana|rua estela|22": {
+    "lat": -23.577131,
+    "lng": -46.641396,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:29.909Z"
+  },
+  "CP|bosque|avenida francisco glicério|148": {
+    "lat": -22.902981,
+    "lng": -47.060673,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:30.560Z"
+  },
+  "CP|jardim guanabara|rua sacramento|750": {
+    "lat": -22.900374,
+    "lng": -47.060722,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:31.852Z"
+  },
+  "SP|moema|rua juquis|31": {
+    "lat": -23.606662,
+    "lng": -46.663409,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:32.104Z"
+  },
+  "SP|moema|r tuim|101": {
+    "lat": -23.59846,
+    "lng": -46.66696,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:32.351Z"
+  },
+  "SP|vila mariana|rua correia de lemos|": {
+    "lat": -23.607367,
+    "lng": -46.636349,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:40:33.819Z"
+  },
+  "CP|bosque|rua duque de caxias|": {
+    "lat": -22.908858,
+    "lng": -47.055839,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:41:27.548Z"
+  },
+  "CP|taquaral|rua votorantim|81": {
+    "lat": -22.882174,
+    "lng": -47.067422,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:45:18.410Z"
+  },
+  "SP|pinheiros|rua joão moura|1119": {
+    "lat": -23.556295,
+    "lng": -46.681028,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:45:18.755Z"
+  },
+  "BH|funcionários|rua dos inconfidentes|615": {
+    "lat": -19.937682,
+    "lng": -43.926853,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:45:21.023Z"
+  },
+  "SP|vila mariana|rua vergueiro|": {
+    "lat": -23.578068,
+    "lng": -46.640413,
+    "source": "nominatim",
+    "updatedAt": "2026-10-17T00:45:22.008Z"
   }
 }

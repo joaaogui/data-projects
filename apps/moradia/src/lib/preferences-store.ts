@@ -1,5 +1,7 @@
 import "server-only";
 
+import { logger } from "@/lib/logger";
+import { sanitizeAndMigrateWeights } from "@/lib/scoring-engine";
 import type { ScoringWeights, SharedUserPreferences } from "@/types/moradia";
 import { fetchWithRetry } from "@data-projects/shared/db";
 import { neon, neonConfig } from "@neondatabase/serverless";
@@ -62,20 +64,10 @@ function normalizePreferences(
       typeof raw.filters === "object" &&
       !Array.isArray(raw.filters) &&
       (raw.filters as Record<string, unknown>).schemaVersion === 2);
-  const weights: Partial<ScoringWeights> = isV2
-    ? { ...rawWeightsObj }
-    : {
-        ...rawWeightsObj,
-        ...(rawWeightsObj.furnishedPenalty === -5 ? { furnishedPenalty: -22 } : {}),
-        ...(rawWeightsObj.urbanBreathingWeight === 1
-          ? { urbanBreathingWeight: 2.0 }
-          : {}),
-        ...(rawWeightsObj.modernityMultiplier === 0.65
-          ? { modernityMultiplier: 0.85 }
-          : {}),
-        ...(rawWeightsObj.sweetSpotMinM2 === 48 ? { sweetSpotMinM2: 50 } : {}),
-        ...(rawWeightsObj.sweetSpotMaxM2 === 68 ? { sweetSpotMaxM2: 72 } : {}),
-      };
+  const weights: Partial<ScoringWeights> = sanitizeAndMigrateWeights(
+    rawWeightsObj,
+    isV2 ? 2 : 1,
+  );
   const activePresetId =
     typeof raw.activePresetId === "string" && raw.activePresetId.trim()
       ? raw.activePresetId.trim()
@@ -108,25 +100,48 @@ function normalizePreferences(
   };
 }
 
+let memPreferencesCache: SharedUserPreferences | null = null;
+let lastLoadedFromDb = false;
+let lastDbLoadTimeMs = 0;
+const PREFS_DB_CACHE_TTL_MS = 2_500;
+let inFlightLoadPrefsPromise: Promise<SharedUserPreferences> | null = null;
+
 export function loadLocalPreferencesFallback(): SharedUserPreferences {
+  if (memPreferencesCache) {
+    return memPreferencesCache;
+  }
   for (const candidate of [TMP_PREFS_FILE, LOCAL_PREFS_FILE, FALLBACK_PREFS_FILE]) {
     if (existsSync(/*turbopackIgnore: true*/ candidate)) {
       try {
         const parsed = JSON.parse(
           readFileSync(/*turbopackIgnore: true*/ candidate, "utf8"),
         ) as Record<string, unknown>;
-        return normalizePreferences(parsed);
+        const normalized = normalizePreferences(parsed);
+        memPreferencesCache = normalized;
+        return normalized;
       } catch {
         // try next
       }
     }
   }
-  return normalizePreferences(null);
+  const normalized = normalizePreferences(null);
+  memPreferencesCache = normalized;
+  return normalized;
 }
 
 function writeLocalPreferencesMirror(prefs: SharedUserPreferences): void {
-  const serialized = `${JSON.stringify(prefs, null, 2)}\n`;
-  const favsSerialized = `${JSON.stringify(prefs.favorites, null, 2)}\n`;
+  const cleanPrefs: SharedUserPreferences = {
+    schemaVersion: prefs.schemaVersion ?? 2,
+    filters: prefs.filters,
+    weights: prefs.weights,
+    activePresetId: prefs.activePresetId,
+    favorites: prefs.favorites,
+    compareKeys: prefs.compareKeys,
+    updatedAt: prefs.updatedAt,
+  };
+  memPreferencesCache = cleanPrefs;
+  const serialized = `${JSON.stringify(cleanPrefs, null, 2)}\n`;
+  const favsSerialized = `${JSON.stringify(cleanPrefs.favorites, null, 2)}\n`;
   for (const target of [LOCAL_PREFS_FILE, TMP_PREFS_FILE]) {
     try {
       mkdirSync(dirname(target), { recursive: true });
@@ -179,131 +194,224 @@ async function ensurePreferencesTable(): Promise<void> {
   return tableEnsuredPromise;
 }
 
-export async function loadSharedPreferences(): Promise<SharedUserPreferences> {
+export async function loadSharedPreferences(options?: {
+  forceDbRefresh?: boolean;
+}): Promise<SharedUserPreferences> {
   const fallback = loadLocalPreferencesFallback();
   const sql = getSqlClient();
-  if (!sql) return fallback;
-
-  try {
-    await ensurePreferencesTable();
-    const rows = await sql`
-      SELECT id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
-      FROM moradia.user_preferences
-      WHERE id = ${DEFAULT_PREF_ID}
-      LIMIT 1
-    `;
-    if (rows.length > 0) {
-      const prefs = normalizePreferences(
-        rows[0] as Record<string, unknown>,
-        fallback,
-      );
-      writeLocalPreferencesMirror(prefs);
-      return prefs;
-    }
-
-    const seededRows = await sql`
-      INSERT INTO moradia.user_preferences (
-        id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
-      )
-      VALUES (
-        ${DEFAULT_PREF_ID},
-        ${JSON.stringify(fallback.filters)}::jsonb,
-        ${JSON.stringify(fallback.weights)}::jsonb,
-        ${fallback.activePresetId},
-        ${JSON.stringify(fallback.favorites)}::jsonb,
-        ${JSON.stringify(fallback.compareKeys)}::jsonb,
-        now()
-      )
-      ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id
-      RETURNING id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
-    `;
-    const seeded = normalizePreferences(
-      seededRows[0] as Record<string, unknown>,
-      fallback,
-    );
-    writeLocalPreferencesMirror(seeded);
-    return seeded;
-  } catch {
+  if (!sql) {
+    lastLoadedFromDb = false;
     return fallback;
   }
+
+  if (
+    !options?.forceDbRefresh &&
+    memPreferencesCache &&
+    lastLoadedFromDb &&
+    Date.now() - lastDbLoadTimeMs < PREFS_DB_CACHE_TTL_MS
+  ) {
+    return memPreferencesCache;
+  }
+
+  if (!options?.forceDbRefresh && inFlightLoadPrefsPromise) {
+    return inFlightLoadPrefsPromise;
+  }
+
+  const loadPromise = (async (): Promise<SharedUserPreferences> => {
+    try {
+      await ensurePreferencesTable();
+      const rows = await sql`
+        SELECT id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
+        FROM moradia.user_preferences
+        WHERE id = ${DEFAULT_PREF_ID}
+        LIMIT 1
+      `;
+      if (rows.length > 0) {
+        const prefs = normalizePreferences(
+          rows[0] as Record<string, unknown>,
+          fallback,
+        );
+        memPreferencesCache = prefs;
+        lastLoadedFromDb = true;
+        lastDbLoadTimeMs = Date.now();
+        return prefs;
+      }
+
+      const seededRows = await sql`
+        INSERT INTO moradia.user_preferences (
+          id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
+        )
+        VALUES (
+          ${DEFAULT_PREF_ID},
+          ${JSON.stringify(fallback.filters)}::jsonb,
+          ${JSON.stringify(fallback.weights)}::jsonb,
+          ${fallback.activePresetId},
+          ${JSON.stringify(fallback.favorites)}::jsonb,
+          ${JSON.stringify(fallback.compareKeys)}::jsonb,
+          now()
+        )
+        ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id
+        RETURNING id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
+      `;
+      const seeded = normalizePreferences(
+        seededRows[0] as Record<string, unknown>,
+        fallback,
+      );
+      memPreferencesCache = seeded;
+      lastLoadedFromDb = true;
+      lastDbLoadTimeMs = Date.now();
+      return seeded;
+    } catch (err) {
+      logger.warn(
+        "preferences-store",
+        "loadSharedPreferences DB query failed; using local fallback",
+        { error: err },
+      );
+      lastLoadedFromDb = false;
+      return fallback;
+    } finally {
+      inFlightLoadPrefsPromise = null;
+    }
+  })();
+
+  inFlightLoadPrefsPromise = loadPromise;
+  return loadPromise;
 }
 
+export function wasLastPreferencesLoadedFromDb(): boolean {
+  return lastLoadedFromDb;
+}
+
+let saveQueuePromise: Promise<unknown> = Promise.resolve();
+
 export async function saveSharedPreferences(
-  partial: Partial<Omit<SharedUserPreferences, "updatedAt">>,
-): Promise<SharedUserPreferences> {
-  const current = await loadSharedPreferences();
-  const nowIso = new Date().toISOString();
-  const resolvedFilters =
-    partial.filters !== undefined &&
-    partial.filters !== null &&
-    typeof partial.filters === "object" &&
-    !Array.isArray(partial.filters)
-      ? partial.filters
-      : current.filters;
-  const merged: SharedUserPreferences = {
-    schemaVersion: 2,
-    filters: { ...resolvedFilters, schemaVersion: 2 },
-    weights:
+  partial: Partial<Omit<SharedUserPreferences, "updatedAt">> & {
+    clientUpdatedAt?: string;
+  },
+): Promise<SharedUserPreferences & { persistedToDb: boolean }> {
+  const runSave = async (): Promise<
+    SharedUserPreferences & { persistedToDb: boolean }
+  > => {
+    const current = await loadSharedPreferences();
+    const nowMs = Date.now();
+    const currentMs = Date.parse(current.updatedAt || "");
+    const clientMs = partial.clientUpdatedAt
+      ? Date.parse(partial.clientUpdatedAt)
+      : NaN;
+
+    if (
+      Number.isFinite(clientMs) &&
+      Number.isFinite(currentMs) &&
+      clientMs < currentMs
+    ) {
+      logger.warn(
+        "preferences-store",
+        "saveSharedPreferences ignored stale clientUpdatedAt",
+        {
+          clientUpdatedAt: partial.clientUpdatedAt,
+          currentUpdatedAt: current.updatedAt,
+        },
+      );
+      return { ...current, persistedToDb: lastLoadedFromDb };
+    }
+
+    const effectiveMs = Number.isFinite(currentMs)
+      ? Math.max(nowMs, currentMs + 1)
+      : nowMs;
+    const nowIso = new Date(effectiveMs).toISOString();
+    const hasFilters =
+      partial.filters !== undefined &&
+      partial.filters !== null &&
+      typeof partial.filters === "object" &&
+      !Array.isArray(partial.filters);
+    const hasWeights =
       partial.weights !== undefined &&
       partial.weights !== null &&
       typeof partial.weights === "object" &&
-      !Array.isArray(partial.weights)
-        ? partial.weights
-        : current.weights,
-    activePresetId:
-      typeof partial.activePresetId === "string" && partial.activePresetId.trim()
-        ? partial.activePresetId.trim()
+      !Array.isArray(partial.weights);
+    const hasActivePresetId =
+      typeof partial.activePresetId === "string" &&
+      partial.activePresetId.trim().length > 0;
+    const hasFavorites = Array.isArray(partial.favorites);
+    const hasCompareKeys = Array.isArray(partial.compareKeys);
+
+    const resolvedFilters = hasFilters
+      ? (partial.filters as Record<string, unknown>)
+      : current.filters;
+    const next: SharedUserPreferences = {
+      schemaVersion: 2,
+      filters: { ...resolvedFilters, schemaVersion: 2 },
+      weights: hasWeights
+        ? sanitizeAndMigrateWeights(
+            { ...current.weights, ...partial.weights },
+            2,
+          )
+        : sanitizeAndMigrateWeights(current.weights, 2),
+      activePresetId: hasActivePresetId
+        ? partial.activePresetId!.trim()
         : current.activePresetId,
-    favorites: Array.isArray(partial.favorites)
-      ? normalizeStringArray(partial.favorites)
-      : current.favorites,
-    compareKeys: Array.isArray(partial.compareKeys)
-      ? normalizeStringArray(partial.compareKeys)
-      : current.compareKeys,
-    updatedAt: nowIso,
+      favorites: hasFavorites
+        ? normalizeStringArray(partial.favorites)
+        : current.favorites,
+      compareKeys: hasCompareKeys
+        ? normalizeStringArray(partial.compareKeys)
+        : current.compareKeys,
+      updatedAt: nowIso,
+    };
+
+    writeLocalPreferencesMirror(next);
+
+    const sql = getSqlClient();
+    if (!sql) return { ...next, persistedToDb: false };
+
+    try {
+      await ensurePreferencesTable();
+      const rows = await sql`
+        INSERT INTO moradia.user_preferences (
+          id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
+        )
+        VALUES (
+          ${DEFAULT_PREF_ID},
+          ${JSON.stringify(next.filters)}::jsonb,
+          ${JSON.stringify(next.weights)}::jsonb,
+          ${next.activePresetId},
+          ${JSON.stringify(next.favorites)}::jsonb,
+          ${JSON.stringify(next.compareKeys)}::jsonb,
+          ${nowIso}::timestamptz
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          filters = COALESCE(${hasFilters ? JSON.stringify(next.filters) : null}::jsonb, moradia.user_preferences.filters),
+          weights = COALESCE(${hasWeights ? JSON.stringify(next.weights) : null}::jsonb, moradia.user_preferences.weights),
+          active_preset_id = COALESCE(${hasActivePresetId ? next.activePresetId : null}::text, moradia.user_preferences.active_preset_id),
+          favorites = COALESCE(${hasFavorites ? JSON.stringify(next.favorites) : null}::jsonb, moradia.user_preferences.favorites),
+          compare_keys = COALESCE(${hasCompareKeys ? JSON.stringify(next.compareKeys) : null}::jsonb, moradia.user_preferences.compare_keys),
+          updated_at = EXCLUDED.updated_at
+        WHERE moradia.user_preferences.updated_at <= ${nowIso}::timestamptz
+        RETURNING id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
+      `;
+      if (rows.length > 0) {
+        const saved = normalizePreferences(
+          rows[0] as Record<string, unknown>,
+          next,
+        );
+        writeLocalPreferencesMirror(saved);
+        lastLoadedFromDb = true;
+        lastDbLoadTimeMs = Date.now();
+        return { ...saved, persistedToDb: true };
+      }
+    } catch (err) {
+      logger.warn(
+        "preferences-store",
+        "saveSharedPreferences DB write failed; saved to local mirror only",
+        { error: err },
+      );
+    }
+    return { ...next, persistedToDb: false };
   };
 
-  writeLocalPreferencesMirror(merged);
-
-  const sql = getSqlClient();
-  if (!sql) return merged;
-
-  try {
-    await ensurePreferencesTable();
-    const rows = await sql`
-      INSERT INTO moradia.user_preferences (
-        id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
-      )
-      VALUES (
-        ${DEFAULT_PREF_ID},
-        ${JSON.stringify(merged.filters)}::jsonb,
-        ${JSON.stringify(merged.weights)}::jsonb,
-        ${merged.activePresetId},
-        ${JSON.stringify(merged.favorites)}::jsonb,
-        ${JSON.stringify(merged.compareKeys)}::jsonb,
-        ${nowIso}::timestamptz
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        filters = EXCLUDED.filters,
-        weights = EXCLUDED.weights,
-        active_preset_id = EXCLUDED.active_preset_id,
-        favorites = EXCLUDED.favorites,
-        compare_keys = EXCLUDED.compare_keys,
-        updated_at = EXCLUDED.updated_at
-      RETURNING id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
-    `;
-    if (rows.length > 0) {
-      const saved = normalizePreferences(
-        rows[0] as Record<string, unknown>,
-        merged,
-      );
-      writeLocalPreferencesMirror(saved);
-      return saved;
-    }
-  } catch {
-    // Return local mirror state if DB write fails transiently
-  }
-  return merged;
+  const nextTask = saveQueuePromise.then(runSave, runSave);
+  saveQueuePromise = nextTask.catch(() => {});
+  return nextTask;
 }
 
 export async function toggleSharedFavorite(

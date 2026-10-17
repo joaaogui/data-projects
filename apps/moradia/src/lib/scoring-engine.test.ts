@@ -11,8 +11,10 @@ import {
   detectArterialOrBorderBunker,
   evaluateStreetMicroEnvironment,
   parseCommuteMinutes,
+  sanitizeAndMigrateWeights,
 } from "./scoring-engine";
 import {
+  buildBenchmarkStats,
   DEFAULT_EXPLORER_FILTERS,
   filterAndSortProperties,
   formatTopPropertiesForAiPrompt,
@@ -233,7 +235,7 @@ describe("Moradia Dynamic Scoring Engine", () => {
     expect(top.shortJustification).toContain("5 min do escritório do Nubank");
     expect(top.shortJustification).toContain("folga confortável no orçamento.");
     expect(top.shortJustification).not.toMatch(/\b(Por outro lado,|Em contrapartida,)/i);
-    expect(top.shortJustification).toContain("sem ar-condicionado instalado");
+    expect(top.shortJustification).not.toContain("sem ar-condicionado instalado");
     expect(top.shortJustification).toMatch(/metragem mais enxuta para acomodar toda a mudança/i);
     // Must NOT repeat neighborhood, price, area, room/parking counts, or badge labels already on the card
     expect(top.shortJustification).not.toContain("Santa Efigênia");
@@ -273,7 +275,7 @@ describe("Moradia Dynamic Scoring Engine", () => {
 
     expect(dated.eligible).toBe(false);
     expect(dated.exclusionReason).toContain("Modernidade 26/100");
-    expect(dated.exclusionReason).toContain("Sem elevador (eliminado)");
+    expect(dated.exclusionReason).not.toContain("Sem elevador (eliminado)");
     expect(dated.shortJustification).toContain("10 min do escritório do Nubank");
     expect(dated.shortJustification).not.toMatch(/\b(Por outro lado,|Em contrapartida,)/i);
     expect(dated.shortJustification).toMatch(/Retido pelos filtros/i);
@@ -287,7 +289,7 @@ describe("Moradia Dynamic Scoring Engine", () => {
       rarity: "uncommon",
     });
     expect(dated.cardTags.redTags).not.toContain("Andar baixo (2º andar)");
-    expect(dated.cardTags.redTags).toContain("Sem elevador");
+    expect(dated.cardTags.redTags).not.toContain("Sem elevador");
     expect(BUILTIN_PRESETS.length).toBeGreaterThanOrEqual(4);
   });
 
@@ -432,15 +434,34 @@ describe("Moradia Dynamic Scoring Engine", () => {
       amenities: ["Varanda"],
       description: "Lindo apto em prédio escada sem elevador.",
     };
+    const missingElevatorTextProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "missing-elev-text-1",
+      installations: ["Piscina"],
+      amenities: ["Varanda"],
+      floor: 8,
+      totalFloors: null,
+      description: "Apartamento amplo e reformado.",
+    };
     const trappedParkingProp: SlimPropertyRecord = {
       ...baseProp,
       id: "trapped-park-1",
       salePrice: 650000,
       description: "Imóvel novo com 1 vaga presa e torre única.",
     };
+    const negatedTrappedProp: SlimPropertyRecord = {
+      ...baseProp,
+      id: "negated-trapped-1",
+      description: "Imóvel com 1 vaga de garagem ( não é presa).",
+    };
 
     const results = computeDynamicProperties(
-      [noElevatorProp, trappedParkingProp],
+      [
+        noElevatorProp,
+        missingElevatorTextProp,
+        trappedParkingProp,
+        negatedTrappedProp,
+      ],
       nbs,
       DEFAULT_WEIGHTS,
     );
@@ -450,12 +471,20 @@ describe("Moradia Dynamic Scoring Engine", () => {
     expect(evalNoElev.exclusionReason).toContain("Sem elevador (eliminado)");
     expect(evalNoElev.cardTags.redTags).toContain("Sem elevador");
 
+    const evalMissingElev = results.find((p) => p.id === "missing-elev-text-1")!;
+    expect(evalMissingElev.eligible).toBe(true);
+    expect(evalMissingElev.cardTags.redTags).not.toContain("Sem elevador");
+
     const evalTrapped = results.find((p) => p.id === "trapped-park-1")!;
     expect(evalTrapped.eligible).toBe(false);
     expect(evalTrapped.exclusionReason).toContain("Vaga presa (eliminado)");
     expect(evalTrapped.cardTags.redTags).toContain("Vaga presa");
     expect(evalTrapped.cardTags.redTags).not.toContain("À venda (Risco de visitas)");
     expect(evalTrapped.cardTags.greenTags).toContain("Torre única / Reservado");
+
+    const evalNegatedTrapped = results.find((p) => p.id === "negated-trapped-1")!;
+    expect(evalNegatedTrapped.eligible).toBe(true);
+    expect(evalNegatedTrapped.cardTags.redTags).not.toContain("Vaga presa");
   });
 
   it("filters and sorts properties across all Level 1 and Level 2 filter dimensions", () => {
@@ -675,19 +704,23 @@ describe("Moradia Dynamic Scoring Engine", () => {
     expect(getHighResPhotoUrl(qaMed)).toBe(
       "https://www.quintoandar.com.br/img/xxl/894364593-534.1740932910197AlvarengaPeixoto1450401SantoAgostinho19.jpg",
     );
-    expect(getCardPhotoUrl(qaMed)).toBe(
-      "https://www.quintoandar.com.br/img/xxl/894364593-534.1740932910197AlvarengaPeixoto1450401SantoAgostinho19.jpg",
-    );
+    expect(
+      getCardPhotoUrl(
+        "https://www.quintoandar.com.br/img/xxl/894364593-534.1740932910197AlvarengaPeixoto1450401SantoAgostinho19.jpg",
+      ),
+    ).toBe(qaMed);
 
     const zapLow =
       "https://resizedimgs.zapimoveis.com.br/img/vr-listing/504a7a27dfaaba41ec5b0f854e532f49/foto.webp?action=fit-in&dimension=800x600";
     expect(getHighResPhotoUrl(zapLow)).toContain("dimension=1920x1440");
-    expect(getCardPhotoUrl(zapLow)).toContain("dimension=1280x960");
+    expect(getCardPhotoUrl(getHighResPhotoUrl(zapLow))).toContain(
+      "dimension=800x600",
+    );
 
     const iwLow =
       "https://imgbr.imovelwebcdn.com/avisos/2/30/47/93/96/37/720x532/7332859386.jpg?isFirstImage=true";
     expect(getHighResPhotoUrl(iwLow)).toContain("/1200x1200/");
-    expect(getCardPhotoUrl(iwLow)).toContain("/1200x1200/");
+    expect(getCardPhotoUrl(iwLow)).toContain("/730x532/");
 
     // Multi-step fallback chain
     const zap1920 = getHighResPhotoUrl(zapLow);
@@ -792,9 +825,9 @@ describe("Moradia Dynamic Scoring Engine", () => {
 
     const sionRes = extraEval.find((p) => p.id === "sion-no-balcony")!;
     expect(sionRes.shortJustification).not.toContain("Por outro lado,");
-    expect(sionRes.shortJustification).toMatch(/sem ar-condicionado instalado/i);
-    expect(sionRes.shortJustification).toContain("planta sem varanda");
-    expect(sionRes.shortJustification).toContain("ladeiras íngremes nas ruas internas");
+    expect(sionRes.shortJustification).not.toMatch(/sem ar-condicionado instalado/i);
+    expect(sionRes.shortJustification).not.toContain("planta sem varanda");
+    expect(sionRes.shortJustification).toMatch(/ladeiras íngremes nas ruas internas/i);
   });
 
   it("heavily penalizes unsafe street neighborhoods (Tijuca, Santo Cristo, Maracanã) vs safe walkable bubbles (Lourdes, Funcionários, Ipanema, Leblon, Nova Campinas)", () => {
@@ -938,8 +971,8 @@ describe("Moradia Dynamic Scoring Engine", () => {
       favKeys,
     );
     expect(defaultActiveOnly.map((p) => p.id)).toEqual([
-      "active-unfav",
       "active-fav",
+      "active-unfav",
     ]);
 
     // 2. deactivatedFilter: "ALL" includes both active and deactivated listings
@@ -952,8 +985,8 @@ describe("Moradia Dynamic Scoring Engine", () => {
       favKeys,
     );
     expect(allStatuses.map((p) => p.id)).toEqual([
-      "active-unfav",
       "active-fav",
+      "active-unfav",
       "deactivated-fav",
       "deactivated-unfav",
     ]);
@@ -1069,7 +1102,7 @@ describe("Moradia Dynamic Scoring Engine", () => {
     ).toEqual(["iw-1"]);
   });
 
-  it("formats compact map pin prices and de-collides overlapping neighborhood/hub pins via resolveDisplayPoints", () => {
+  it("formats compact map pin prices and applies deterministic micro-fan while preserving true coordinates via resolveDisplayPoints", () => {
     expect(formatPinPriceCompact(4120)).toBe("4,1k");
     expect(formatPinPriceCompact(3980)).toBe("4,0k");
 
@@ -1078,7 +1111,7 @@ describe("Moradia Dynamic Scoring Engine", () => {
       DEFAULT_WEIGHTS,
     );
     const baseProp = SAMPLE_PROPERTIES[0]!;
-    // Create 8 apartments on the exact same street near Nubank BH
+    // Create 8 apartments on the exact same street/address near Nubank BH
     const clusteredProps = Array.from({ length: 8 }, (_, idx) => ({
       ...baseProp,
       id: `cluster-bh-${idx + 1}`,
@@ -1092,11 +1125,22 @@ describe("Moradia Dynamic Scoring Engine", () => {
       DEFAULT_WEIGHTS,
     );
     const displayPoints = resolveDisplayPoints(evaluated);
+    const reversedPoints = resolveDisplayPoints([...evaluated].reverse());
+    const reversedByKey = new Map(reversedPoints.map((p) => [p.key, p]));
 
     expect(displayPoints).toHaveLength(8);
-    // Verify no two pins share identical coordinates or stack within minimum separation
+    // Verify true coordinates (rawLat/rawLng) are preserved, micro-fan stays within ~20-35m,
+    // no two pins share identical coordinates, and positions are invariant to sort order
     for (let i = 0; i < displayPoints.length; i++) {
       const a = displayPoints[i]!;
+      expect(Number.isFinite(a.rawLat)).toBe(true);
+      expect(Number.isFinite(a.rawLng)).toBe(true);
+      expect(Math.hypot(a.coord.lat - a.rawLat, a.coord.lng - a.rawLng)).toBeLessThan(0.0006);
+
+      const rev = reversedByKey.get(a.key)!;
+      expect(rev.coord.lat).toBe(a.coord.lat);
+      expect(rev.coord.lng).toBe(a.coord.lng);
+
       const dHubLat = Math.abs(a.coord.lat - NUBANK_HUBS.BH.lat);
       const dHubLng = Math.abs(a.coord.lng - NUBANK_HUBS.BH.lng);
       expect(dHubLat > 0.001 || dHubLng > 0.002).toBe(true);
@@ -1105,7 +1149,7 @@ describe("Moradia Dynamic Scoring Engine", () => {
         const b = displayPoints[j]!;
         const dLat = Math.abs(b.coord.lat - a.coord.lat);
         const dLng = Math.abs(b.coord.lng - a.coord.lng);
-        expect(dLat > 0.0012 || dLng > 0.0022).toBe(true);
+        expect(Math.hypot(dLat, dLng)).toBeGreaterThan(0.0001);
       }
     }
   });
@@ -2289,7 +2333,16 @@ describe("Moradia Dynamic Scoring Engine", () => {
       ...mod85Prop,
       id: "mod-62",
       modernityScore: 62,
-      modernityTier: "WELL_MAINTAINED",
+      modernityTier: "STANDARD",
+      negativeSignals: ["Piso antigo (cerâmica / tábua corrida / taco)"],
+    };
+    const mod62NeutralProp: SlimPropertyRecord = {
+      ...mod85Prop,
+      id: "mod-62-neutral",
+      modernityScore: 62,
+      modernityTier: "STANDARD",
+      positiveSignals: [],
+      negativeSignals: [],
     };
 
     // Area curve check: 58 m² (+10), 80 m² (+6), 47 m² (0), 42 m² (-10), 35 m² (-18)
@@ -2339,6 +2392,7 @@ describe("Moradia Dynamic Scoring Engine", () => {
         bhFuncionariosPrime,
         mod85Prop,
         mod62Prop,
+        mod62NeutralProp,
         area42Prop,
         area47Prop,
         area80Prop,
@@ -2387,12 +2441,18 @@ describe("Moradia Dynamic Scoring Engine", () => {
     );
     expect(evalBhPrime.finalScore - evalBhSpoof.finalScore).toBeGreaterThan(75);
 
-    // Modernity 85 vs 62 creates ~38-point spread (80.3 vs 42.7 = 37.6 pts)
+    // Modernity 85 vs 62 with negative conservation evidence creates ~38-point spread (80.3 vs 42.7 = 37.6 pts),
+    // while neutral 62 without negative signals has 0 curve penalty (52.7 pts)
     const evalMod85 = byId.get("mod-85")!;
     const evalMod62 = byId.get("mod-62")!;
+    const evalMod62Neutral = byId.get("mod-62-neutral")!;
     expect(
       evalMod85.breakdown.modernityPoints - evalMod62.breakdown.modernityPoints,
     ).toBeCloseTo(37.6, 1);
+    expect(evalMod62Neutral.breakdown.modernityPoints).toBeCloseTo(52.7, 1);
+    expect(evalMod62Neutral.shortJustification).not.toContain(
+      "acabamento padrão sem reforma moderna recente",
+    );
 
     // Area points follow the exact Brasília furniture curve
     expect(evalMod85.breakdown.areaPoints).toBe(10);
@@ -2650,5 +2710,336 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
     );
     expect(evalNiTower!.cardTags.redTags).not.toContain("Sem elevador");
     expect(evalNiTower!.eligible).toBe(true);
+  });
+
+  it("enforces second-pass scoring invariants: exact breakdown reconciliation, permutation-invariant ranks, monotonic positive evidence on 0-3 floor range, continuous decimal area bands, weight sanitization, and uniform benchmark cohorts", () => {
+    const base = SAMPLE_PROPERTIES[0]!;
+
+    // 1. Rounded breakdown component sum equals finalScore for every single property in the dataset
+    for (const p of evaluated) {
+      const exactRoundedSum =
+        Math.round(
+          Object.values(p.breakdown).reduce((sum, val) => sum + val, 0) * 10,
+        ) / 10;
+      expect(exactRoundedSum).toBe(p.finalScore);
+    }
+
+    // 2. Input array permutation cannot change overallRank, cityRank, or neighborhoodRank, and aliases share neighborhoodRank
+    const aliasA: SlimPropertyRecord = {
+      ...base,
+      id: "alias-a",
+      cityCode: "CP",
+      city: "Campinas",
+      neighborhood: "Jd. Guanabara",
+      totalMonthly: 4100,
+    };
+    const aliasB: SlimPropertyRecord = {
+      ...base,
+      id: "alias-b",
+      cityCode: "CP",
+      city: "Campinas",
+      neighborhood: "Jardim Guanabara",
+      totalMonthly: 4100,
+    };
+    const aliasC: SlimPropertyRecord = {
+      ...base,
+      id: "alias-c",
+      cityCode: "CP",
+      city: "Campinas",
+      neighborhood: "Guanabara",
+      totalMonthly: 4250,
+    };
+    const forwardEval = computeDynamicProperties(
+      [aliasA, aliasB, aliasC],
+      rankedNbs,
+      DEFAULT_WEIGHTS,
+    );
+    const reverseEval = computeDynamicProperties(
+      [aliasC, aliasB, aliasA],
+      rankedNbs,
+      DEFAULT_WEIGHTS,
+    );
+    const forwardByKey = new Map(
+      forwardEval.map((p) => [`${p.provider}:${p.id}`, p]),
+    );
+    const reverseByKey = new Map(
+      reverseEval.map((p) => [`${p.provider}:${p.id}`, p]),
+    );
+    for (const [k, fProp] of forwardByKey.entries()) {
+      const rProp = reverseByKey.get(k)!;
+      expect(fProp.overallRank).toBe(rProp.overallRank);
+      expect(fProp.cityRank).toBe(rProp.cityRank);
+      expect(fProp.neighborhoodRank).toBe(rProp.neighborhoodRank);
+    }
+    expect(
+      forwardEval.map((p) => p.neighborhoodRank).sort((a, b) => a! - b!),
+    ).toEqual([1, 2, 3]);
+
+    // 3. Inactive records (isActive: false) never receive or affect active ranks
+    const withInactive = computeDynamicProperties(
+      [
+        { ...aliasA, id: "inactive-top", totalMonthly: 3500, isActive: false },
+        aliasA,
+        aliasB,
+        aliasC,
+      ],
+      rankedNbs,
+      DEFAULT_WEIGHTS,
+    );
+    const inactiveItem = withInactive.find((p) => p.id === "inactive-top")!;
+    expect(inactiveItem.overallRank).toBeNull();
+    expect(inactiveItem.cityRank).toBeNull();
+    expect(inactiveItem.neighborhoodRank).toBeNull();
+    for (const activeId of ["alias-a", "alias-b", "alias-c"]) {
+      const a1 = forwardEval.find((p) => p.id === activeId)!;
+      const a2 = withInactive.find((p) => p.id === activeId)!;
+      expect(a2.overallRank).toBe(a1.overallRank);
+      expect(a2.cityRank).toBe(a1.cityRank);
+      expect(a2.neighborhoodRank).toBe(a1.neighborhoodRank);
+    }
+
+    // 4. Adding verified positive evidence (Vista livre) on a 0–3 floor range increases (never reduces) finalScore in both sloped and flat neighborhoods
+    const range03NoViewSloped: SlimPropertyRecord = {
+      ...base,
+      id: "range03-no-view-sloped",
+      cityCode: "BH",
+      neighborhood: "Sion",
+      floor: null,
+      floorRange: { min: 0, max: 3 },
+      comfortCommodities: [],
+      description: "Apartamento silencioso.",
+    };
+    const range03WithViewSloped: SlimPropertyRecord = {
+      ...range03NoViewSloped,
+      id: "range03-with-view-sloped",
+      comfortCommodities: ["Vista livre"],
+    };
+    const range03NoViewFlat: SlimPropertyRecord = {
+      ...range03NoViewSloped,
+      id: "range03-no-view-flat",
+      neighborhood: "Funcionários",
+      comfortCommodities: [],
+    };
+    const range03WithViewFlat: SlimPropertyRecord = {
+      ...range03NoViewFlat,
+      id: "range03-with-view-flat",
+      comfortCommodities: ["Vista livre"],
+    };
+    const evalRange03 = computeDynamicProperties(
+      [
+        range03NoViewSloped,
+        range03WithViewSloped,
+        range03NoViewFlat,
+        range03WithViewFlat,
+      ],
+      rankedNbs,
+      DEFAULT_WEIGHTS,
+    );
+    const r03Map = new Map(evalRange03.map((p) => [p.id, p]));
+    expect(r03Map.get("range03-with-view-sloped")!.finalScore).toBeGreaterThan(
+      r03Map.get("range03-no-view-sloped")!.finalScore,
+    );
+    expect(r03Map.get("range03-with-view-flat")!.finalScore).toBeGreaterThan(
+      r03Map.get("range03-no-view-flat")!.finalScore,
+    );
+
+    // 5. Every valid decimal area (including 49.5 and 72.5) belongs to a continuous band and respects custom sweetSpotMinM2/sweetSpotMaxM2
+    const area495: SlimPropertyRecord = { ...base, id: "area-49-5", areaM2: 49.5 };
+    const area725: SlimPropertyRecord = { ...base, id: "area-72-5", areaM2: 72.5 };
+    const defaultAreaEval = computeDynamicProperties(
+      [area495, area725],
+      rankedNbs,
+      DEFAULT_WEIGHTS,
+    );
+    expect(
+      defaultAreaEval.find((p) => p.id === "area-49-5")!.breakdown.areaPoints,
+    ).toBe(0);
+    expect(
+      defaultAreaEval.find((p) => p.id === "area-72-5")!.breakdown.areaPoints,
+    ).toBe(6);
+
+    const customAreaWeights = sanitizeAndMigrateWeights(
+      {
+        ...DEFAULT_WEIGHTS,
+        sweetSpotMinM2: 48,
+        sweetSpotMaxM2: 75,
+      },
+      2,
+    );
+    const customAreaEval = computeDynamicProperties(
+      [area495, area725],
+      rankedNbs,
+      customAreaWeights,
+    );
+    expect(
+      customAreaEval.find((p) => p.id === "area-49-5")!.breakdown.areaPoints,
+    ).toBe(10);
+    expect(
+      customAreaEval.find((p) => p.id === "area-72-5")!.breakdown.areaPoints,
+    ).toBe(10);
+
+    // 6. sanitizeAndMigrateWeights rejects invalid strings/NaN and preserves custom v2 overrides
+    const sanitizedInvalid = sanitizeAndMigrateWeights(
+      {
+        modernityMultiplier: "invalid" as unknown as number,
+        urbanBreathingWeight: Number.NaN,
+        requireParking: "yes" as unknown as boolean,
+        minAreaM2: 80,
+        maxAreaM2: 50,
+        budgetIdeal: 7000,
+        budgetMax: 5000,
+        budgetHardCap: 4500,
+      },
+      2,
+    );
+    expect(sanitizedInvalid.modernityMultiplier).toBe(
+      DEFAULT_WEIGHTS.modernityMultiplier,
+    );
+    expect(sanitizedInvalid.urbanBreathingWeight).toBe(
+      DEFAULT_WEIGHTS.urbanBreathingWeight,
+    );
+    expect(sanitizedInvalid.requireParking).toBe(
+      DEFAULT_WEIGHTS.requireParking,
+    );
+    expect(sanitizedInvalid.minAreaM2).toBeLessThanOrEqual(
+      sanitizedInvalid.sweetSpotMinM2,
+    );
+    expect(sanitizedInvalid.sweetSpotMinM2).toBeLessThanOrEqual(
+      sanitizedInvalid.sweetSpotMaxM2,
+    );
+    expect(sanitizedInvalid.sweetSpotMaxM2).toBeLessThanOrEqual(
+      sanitizedInvalid.maxAreaM2,
+    );
+    expect(sanitizedInvalid.budgetIdeal).toBeLessThanOrEqual(
+      sanitizedInvalid.budgetMax,
+    );
+    expect(sanitizedInvalid.budgetMax).toBeLessThanOrEqual(
+      sanitizedInvalid.budgetHardCap,
+    );
+
+    const preservedV2 = sanitizeAndMigrateWeights(
+      {
+        furnishedPenalty: -5,
+        urbanBreathingWeight: 1,
+        modernityMultiplier: 0.65,
+        sweetSpotMinM2: 48,
+        sweetSpotMaxM2: 68,
+      },
+      2,
+    );
+    expect(preservedV2.furnishedPenalty).toBe(-5);
+    expect(preservedV2.urbanBreathingWeight).toBe(1);
+    expect(preservedV2.modernityMultiplier).toBe(0.65);
+    expect(preservedV2.sweetSpotMinM2).toBe(48);
+    expect(preservedV2.sweetSpotMaxM2).toBe(68);
+
+    const migratedV1 = sanitizeAndMigrateWeights(
+      {
+        furnishedPenalty: -5,
+        urbanBreathingWeight: 1,
+        modernityMultiplier: 0.65,
+        sweetSpotMinM2: 48,
+        sweetSpotMaxM2: 68,
+      },
+      1,
+    );
+    expect(migratedV1.furnishedPenalty).toBe(-22);
+    expect(migratedV1.urbanBreathingWeight).toBe(2.0);
+    expect(migratedV1.modernityMultiplier).toBe(0.85);
+    expect(migratedV1.sweetSpotMinM2).toBe(50);
+    expect(migratedV1.sweetSpotMaxM2).toBe(72);
+
+    // 7. buildBenchmarkStats treats SEMI_FURNISHED records identically regardless of raw furnished boolean, and cohortCount matches the population used by its statistics
+    const semiFurnTrue: SlimPropertyRecord = {
+      ...base,
+      id: "bench-semi-true",
+      cityCode: "BH",
+      neighborhood: "Funcionários",
+      areaM2: 58,
+      modernityScore: 80,
+      totalMonthly: 4200,
+      furnished: true,
+      comfortCommodities: [],
+      practicalityCommodities: ["Geladeira", "Fogão"],
+      description: "Apartamento semi-mobiliado com geladeira e fogão.",
+    };
+    const semiFurnFalse: SlimPropertyRecord = {
+      ...semiFurnTrue,
+      id: "bench-semi-false",
+      furnished: false,
+    };
+    const evalBenchPair = computeDynamicProperties(
+      [semiFurnTrue, semiFurnFalse],
+      rankedNbs,
+      DEFAULT_WEIGHTS,
+    );
+    const statsTrue = buildBenchmarkStats([evalBenchPair[0]!]);
+    const statsFalse = buildBenchmarkStats([evalBenchPair[1]!]);
+    const bhTrue = statsTrue.cityComparisons.find((c) => c.code === "BH")!;
+    const bhFalse = statsFalse.cityComparisons.find((c) => c.code === "BH")!;
+    expect(bhTrue.cohortCount).toBe(1);
+    expect(bhFalse.cohortCount).toBe(1);
+    expect(bhTrue.medianMonthly).toBe(bhFalse.medianMonthly);
+    expect(bhTrue.medianPm2).toBe(bhFalse.medianPm2);
+    expect(bhTrue.medianScore).toBe(bhFalse.medianScore);
+
+    // 8. buildBenchmarkStats on full seed-snapshot produces monotonic, distortion-free medians across all 5 cities
+    const snapshotRaw = JSON.parse(
+      readFileSync(resolve(__dirname, "../data/seed-snapshot.json"), "utf8"),
+    ) as {
+      neighborhoods: NeighborhoodEntry[];
+      properties: SlimPropertyRecord[];
+    };
+    const { ranked: snapNbs } = computeDynamicNeighborhoods(
+      snapshotRaw.neighborhoods,
+      DEFAULT_WEIGHTS,
+    );
+    const snapEval = computeDynamicProperties(
+      snapshotRaw.properties,
+      snapNbs,
+      DEFAULT_WEIGHTS,
+    );
+    const fullBench = buildBenchmarkStats(snapEval);
+    const byCode = Object.fromEntries(
+      fullBench.cityComparisons.map((c) => [c.code, c]),
+    ) as Record<string, (typeof fullBench.cityComparisons)[number]>;
+
+    expect(byCode.BSB!.medianMonthly!).toBeGreaterThanOrEqual(3900);
+    expect(byCode.BSB!.medianMonthly!).toBeLessThanOrEqual(4200);
+    expect(byCode.BSB!.medianPm2!).toBeGreaterThanOrEqual(64);
+    expect(byCode.BSB!.medianPm2!).toBeLessThanOrEqual(69);
+
+    expect(byCode.CP!.medianMonthly!).toBeGreaterThanOrEqual(4000);
+    expect(byCode.CP!.medianMonthly!).toBeLessThanOrEqual(4350);
+    expect(byCode.CP!.medianPm2!).toBeGreaterThanOrEqual(68);
+    expect(byCode.CP!.medianPm2!).toBeLessThanOrEqual(74);
+
+    expect(byCode.BH!.medianMonthly!).toBeGreaterThanOrEqual(4400);
+    expect(byCode.BH!.medianMonthly!).toBeLessThanOrEqual(4850);
+    expect(byCode.BH!.medianPm2!).toBeGreaterThanOrEqual(75);
+    expect(byCode.BH!.medianPm2!).toBeLessThanOrEqual(82);
+
+    expect(byCode.RJ!.medianMonthly!).toBeGreaterThanOrEqual(4800);
+    expect(byCode.RJ!.medianMonthly!).toBeLessThanOrEqual(5200);
+    expect(byCode.RJ!.medianPm2!).toBeGreaterThanOrEqual(89);
+    expect(byCode.RJ!.medianPm2!).toBeLessThanOrEqual(96);
+
+    expect(byCode.SP!.medianMonthly!).toBeGreaterThanOrEqual(4900);
+    expect(byCode.SP!.medianMonthly!).toBeLessThanOrEqual(5300);
+    expect(byCode.SP!.medianPm2!).toBeGreaterThanOrEqual(92);
+    expect(byCode.SP!.medianPm2!).toBeLessThanOrEqual(100);
+
+    for (const c of fullBench.cityComparisons) {
+      expect(c.cohortCount).toBe(c.totalEligible);
+      expect(c.cohortCount).toBeGreaterThan(0);
+    }
+
+    // Also verify commuteMinutes is null for non-duration BSB strings
+    expect(
+      parseCommuteMinutes("Benchmark Referência Atual (Águas Claras - DF)"),
+    ).toEqual({
+      minutes: null,
+      label: "Ref. BSB",
+    });
   });
 });

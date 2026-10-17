@@ -106,6 +106,8 @@ interface LeafletMarker {
   on: (event: string, handler: () => void) => LeafletMarker;
   bindTooltip: (html: string, opts?: Record<string, unknown>) => LeafletMarker;
   openTooltip: () => LeafletMarker;
+  setIcon?: (icon: unknown) => LeafletMarker;
+  setZIndexOffset?: (offset: number) => LeafletMarker;
 }
 
 interface LeafletPolyline {
@@ -232,14 +234,18 @@ export interface ResolvedDisplayPoint {
   key: string;
   prop: EvaluatedProperty;
   listIndex: number;
+  rawLat: number;
+  rawLng: number;
   coord: PropertyCoordinate;
   distHubKm: number;
 }
 
 /**
- * Resolves display coordinates for all visible properties using a two-stage
- * Golden-Angle Spiral + Pixel-Aware Elliptical De-Collision algorithm so
- * speech-bubble pins never pile on top of each other or cover the Nubank Office HQ crest.
+ * Resolves display coordinates for all visible properties while preserving each
+ * property's true coordinate (`rawLat`, `rawLng`) for hub distance and connector lines.
+ * Only applies a deterministic micro-fan (~18-25m, 0.00018°) when 2+ properties share
+ * the exact same coordinate or building address so pins never drift across streets
+ * or shift when sort order changes.
  */
 export function resolveDisplayPoints(
   properties: EvaluatedProperty[],
@@ -256,126 +262,217 @@ export function resolveDisplayPoints(
         streetNumber: prop.streetNumber,
         id: prop.id,
       });
+    const rawLat = baseCoord.lat;
+    const rawLng = baseCoord.lng;
     const distHubKm = computeDistanceToNubankHubKm(
       prop.cityCode,
-      baseCoord.lat,
-      baseCoord.lng,
+      rawLat,
+      rawLng,
     );
     return {
       key,
       prop,
       listIndex: idx + 1,
+      rawLat,
+      rawLng,
       coord: { ...baseCoord },
       distHubKm,
     };
   });
 
-  // Stage 1: Group properties in the same neighborhood / micro-block and spread via Golden-Angle Fermat Spiral
-  const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~137.508 deg
-  const clusterGroups = new Map<string, ResolvedDisplayPoint[]>();
-  for (const item of rawItems) {
-    const bucketLat = Math.round(item.coord.lat / 0.0032);
-    const bucketLng = Math.round(item.coord.lng / 0.0048);
-    const bucketKey = `${item.prop.cityCode}:${bucketLat}:${bucketLng}`;
-    const list = clusterGroups.get(bucketKey) ?? [];
-    list.push(item);
-    clusterGroups.set(bucketKey, list);
-  }
+  // Group only co-located properties (Math.hypot(dLat, dLng) < 0.00015 or identical street+number within 0.00065)
+  const visited = new Set<number>();
+  for (let i = 0; i < rawItems.length; i++) {
+    if (visited.has(i)) continue;
+    const seed = rawItems[i]!;
+    const group: ResolvedDisplayPoint[] = [seed];
+    visited.add(i);
 
-  for (const group of clusterGroups.values()) {
+    const seedStreet = seed.prop.street.trim().toLowerCase();
+    const seedNum = (seed.prop.streetNumber ?? "").trim().toLowerCase();
+    const seedNb = seed.prop.neighborhood.trim().toLowerCase();
+
+    for (let j = i + 1; j < rawItems.length; j++) {
+      if (visited.has(j)) continue;
+      const cand = rawItems[j]!;
+      if (cand.prop.cityCode !== seed.prop.cityCode) continue;
+
+      const dLat = cand.rawLat - seed.rawLat;
+      const dLng = cand.rawLng - seed.rawLng;
+      const dist = Math.hypot(dLat, dLng);
+
+      const sameExactAddress =
+        seedStreet.length > 0 &&
+        seedStreet === cand.prop.street.trim().toLowerCase() &&
+        seedNum === (cand.prop.streetNumber ?? "").trim().toLowerCase() &&
+        seedNb === cand.prop.neighborhood.trim().toLowerCase() &&
+        dist < 0.00065;
+
+      if (dist < 0.00015 || sameExactAddress) {
+        group.push(cand);
+        visited.add(j);
+      }
+    }
+
     if (group.length <= 1) continue;
-    const centerLat =
-      group.reduce((acc, it) => acc + it.coord.lat, 0) / group.length;
-    const centerLng =
-      group.reduce((acc, it) => acc + it.coord.lng, 0) / group.length;
 
-    for (let idx = 0; idx < group.length; idx++) {
-      const item = group[idx]!;
-      const theta = idx * goldenAngle;
-      const radiusLat = 0.0022 * Math.sqrt(idx + 0.75);
-      const radiusLng = 0.0038 * Math.sqrt(idx + 0.75);
+    // Sort by key so micro-fan positions are 100% deterministic regardless of current list sort order
+    const sortedGroup = [...group].sort((a, b) => a.key.localeCompare(b.key));
+    const anchorLat =
+      sortedGroup.reduce((acc, it) => acc + it.rawLat, 0) / sortedGroup.length;
+    const anchorLng =
+      sortedGroup.reduce((acc, it) => acc + it.rawLng, 0) / sortedGroup.length;
+
+    for (let idx = 0; idx < sortedGroup.length; idx++) {
+      const item = sortedGroup[idx]!;
+      const ring = Math.floor(idx / 8) + 1;
+      const itemsInRing = Math.min(8, sortedGroup.length - (ring - 1) * 8);
+      const posInRing = idx - (ring - 1) * 8;
+      const angle = (2 * Math.PI * posInRing) / itemsInRing;
+      const radius = 0.00018 * ring;
       item.coord.lat = Number(
-        (centerLat + Math.sin(theta) * radiusLat).toFixed(6),
+        (anchorLat + Math.sin(angle) * radius).toFixed(6),
       );
       item.coord.lng = Number(
-        (centerLng + Math.cos(theta) * radiusLng).toFixed(6),
+        (anchorLng + Math.cos(angle) * radius).toFixed(6),
       );
-    }
-  }
-
-  // Stage 2: Elliptical pairwise repulsion + Nubank Hub beacon clearance zone
-  // Sized for 74x32px speech-bubble pins at city zoom (zoom 12.5–14.5) so zero pins overlap
-  const minLatGap = 0.0044;
-  const minLngGap = 0.0094;
-  const hubClearanceLat = 0.0054;
-  const hubClearanceLng = 0.0112;
-
-  for (let iter = 0; iter < 28; iter++) {
-    // Keep pins from covering any Nubank HQ Beacon & Banner
-    for (let i = 0; i < rawItems.length; i++) {
-      const item = rawItems[i]!;
-      const cityHubs = ALL_NUBANK_HUB_LOCATIONS.filter(
-        (h) => h.cityCode === item.prop.cityCode,
-      );
-      for (const hub of cityHubs) {
-        const dLat = item.coord.lat - hub.lat;
-        const dLng = item.coord.lng - hub.lng;
-        const normDist = Math.hypot(
-          dLat / hubClearanceLat,
-          dLng / hubClearanceLng,
-        );
-        if (normDist < 1) {
-          const angle =
-            normDist < 0.01
-              ? (i + 1) * goldenAngle
-              : Math.atan2(dLat / hubClearanceLat, dLng / hubClearanceLng);
-          const pushFactor = (1 - normDist) * 0.8;
-          item.coord.lat = Number(
-            (
-              item.coord.lat +
-              Math.sin(angle) * hubClearanceLat * pushFactor
-            ).toFixed(6),
-          );
-          item.coord.lng = Number(
-            (
-              item.coord.lng +
-              Math.cos(angle) * hubClearanceLng * pushFactor
-            ).toFixed(6),
-          );
-        }
-      }
-    }
-
-    // Pairwise pin separation
-    for (let i = 0; i < rawItems.length; i++) {
-      for (let j = i + 1; j < rawItems.length; j++) {
-        const a = rawItems[i]!;
-        const b = rawItems[j]!;
-        if (a.prop.cityCode !== b.prop.cityCode) continue;
-        const dLat = b.coord.lat - a.coord.lat;
-        const dLng = b.coord.lng - a.coord.lng;
-        const normY = dLat / minLatGap;
-        const normX = dLng / minLngGap;
-        const ellipticalDist = Math.hypot(normX, normY);
-
-        if (ellipticalDist < 1) {
-          const angle =
-            ellipticalDist < 0.02
-              ? ((i * 5 + j * 11 + iter) * goldenAngle) % (Math.PI * 2)
-              : Math.atan2(normY, normX);
-          const overlap = (1 - ellipticalDist) * 0.55;
-          const pushLat = Math.sin(angle) * minLatGap * overlap;
-          const pushLng = Math.cos(angle) * minLngGap * overlap;
-          a.coord.lat = Number((a.coord.lat - pushLat).toFixed(6));
-          a.coord.lng = Number((a.coord.lng - pushLng).toFixed(6));
-          b.coord.lat = Number((b.coord.lat + pushLat).toFixed(6));
-          b.coord.lng = Number((b.coord.lng + pushLng).toFixed(6));
-        }
-      }
     }
   }
 
   return rawItems;
+}
+
+function getPropertyPinZIndex(
+  item: ResolvedDisplayPoint,
+  isActive: boolean,
+  isFav: boolean,
+): number {
+  const rankNum = item.prop.overallRank ?? item.listIndex;
+  return isActive ? 5000 : isFav ? 2000 : 1000 - rankNum;
+}
+
+function buildPropertyPinIcon(
+  L: LeafletNamespace,
+  item: ResolvedDisplayPoint,
+  isActive: boolean,
+  isFav: boolean,
+): unknown {
+  const { key, prop, listIndex } = item;
+  const rankNum = prop.overallRank ?? listIndex;
+  const priceCompact = formatPinPriceCompact(prop.totalMonthly);
+  const rarity = prop.cardTags.floorTag?.rarity ?? null;
+  const badgeColor = rarity ? FLOOR_RARITY_BADGE_HEX[rarity] : "#475569";
+
+  const pillBg = isActive ? "#1e1b4b" : "#ffffff";
+  const pillText = isActive ? "#ffffff" : "#0f172a";
+  const pillBorder = isActive
+    ? "2px solid #ffffff"
+    : "1.5px solid rgba(15,23,42,0.22)";
+  const pillShadow = isActive
+    ? "0 8px 20px rgba(0,0,0,0.6), 0 0 0 3px rgba(139,92,246,0.55)"
+    : "0 3px 10px rgba(0,0,0,0.45), 0 0 0 1.5px rgba(15,23,42,0.18)";
+  const wrapperTransform = isActive
+    ? "scale(1.18) translateY(-3px)"
+    : "scale(1)";
+
+  const iconWidth = 74;
+  const iconHeight = 32;
+
+  return L.divIcon({
+    className: "moradia-prop-pill-icon",
+    iconSize: [iconWidth, iconHeight],
+    iconAnchor: [iconWidth / 2, iconHeight],
+    html: `
+      <div
+        data-prop-key="${key}"
+        style="
+          position:relative;
+          width:${iconWidth}px;
+          height:${iconHeight}px;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:flex-end;
+          transform:${wrapperTransform};
+          transform-origin:bottom center;
+          transition:transform 140ms cubic-bezier(0.2,0.8,0.2,1);
+          cursor:pointer;
+        "
+      >
+        <!-- Speech Bubble Pill -->
+        <div style="
+          position:relative;
+          display:inline-flex;
+          align-items:center;
+          gap:4px;
+          padding:3px 8px 3px 4px;
+          border-radius:9999px;
+          background:${pillBg};
+          color:${pillText};
+          border:${pillBorder};
+          box-shadow:${pillShadow};
+          white-space:nowrap;
+          line-height:1;
+        ">
+          <!-- Floor-Tier Tinted Mini Rank Badge -->
+          <span style="
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            padding:1.5px 4.5px;
+            border-radius:9999px;
+            background:${badgeColor};
+            color:#ffffff;
+            font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+            font-size:9px;
+            font-weight:800;
+            letter-spacing:-0.02em;
+          ">#${rankNum}</span>
+
+          <!-- Compact Price Text in Dark Bold Monospace (e.g. 4,1k) -->
+          <span style="
+            font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+            font-size:11px;
+            font-weight:800;
+            letter-spacing:-0.03em;
+            color:${pillText};
+          ">${priceCompact}</span>
+
+          ${
+            isFav
+              ? `<span style="
+                  position:absolute;
+                  top:-5px;
+                  right:-5px;
+                  width:14px;
+                  height:14px;
+                  border-radius:9999px;
+                  background:#e11d48;
+                  color:#ffffff;
+                  border:1.5px solid #ffffff;
+                  display:inline-flex;
+                  align-items:center;
+                  justify-content:center;
+                  font-size:8px;
+                  box-shadow:0 2px 4px rgba(0,0,0,0.35);
+                ">♥</span>`
+              : ""
+          }
+        </div>
+
+        <!-- Crisp Downward Pointer Tail (▼) -->
+        <div style="
+          width:0;
+          height:0;
+          border-left:6px solid transparent;
+          border-right:6px solid transparent;
+          border-top:7px solid ${pillBg};
+          margin-top:-1px;
+          filter:drop-shadow(0 2px 1.5px rgba(15,23,42,0.45));
+        "></div>
+      </div>
+    `,
+  });
 }
 
 export interface PropertyMapViewProps {
@@ -424,7 +521,22 @@ export function PropertyMapView({
     Record<string, PropertyCoordinate>
   >({});
   const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
+  const [geocodeRetryTick, setGeocodeRetryTick] = useState<number>(0);
+  const finalGeocodedKeysRef = useRef<Set<string>>(new Set());
   const lastFitSignatureRef = useRef<string>("");
+  const propertyMarkersMapRef = useRef<
+    Map<string, { marker: LeafletMarker; point: ResolvedDisplayPoint }>
+  >(new Map());
+  const prevActiveKeyRef = useRef<string | null>(null);
+  const activeKey = hoveredPropertyKey ?? selectedPropertyKey;
+  const activeKeyRef = useRef<string | null>(activeKey);
+  activeKeyRef.current = activeKey;
+  const onHoverPropertyRef = useRef(onHoverProperty);
+  onHoverPropertyRef.current = onHoverProperty;
+  const onSelectPropertyRef = useRef(onSelectProperty);
+  onSelectPropertyRef.current = onSelectProperty;
+
+  const favoriteSet = useMemo(() => new Set(favoriteKeys), [favoriteKeys]);
 
   useEffect(() => {
     setFocusedHubCity(selectedCity);
@@ -459,18 +571,18 @@ export function PropertyMapView({
     }
   }, []);
 
-  // Compute coordinates for all visible properties with Golden-Angle Spiral + Elliptical De-Collision
+  // Compute coordinates for all visible properties with true coordinates + deterministic micro-fan
   const resolvedItems = useMemo(
     () => resolveDisplayPoints(properties, geocodedMap),
     [properties, geocodedMap],
   );
 
-  // Background geocode refinement for visible properties
+  // Background geocode refinement for visible properties with 800ms retry queue for un-finalized items
   useEffect(() => {
     const missing = properties
       .filter((p) => {
         const k = `${p.provider}:${p.id}`;
-        return !geocodedMap[k];
+        return !finalGeocodedKeysRef.current.has(k);
       })
       .slice(0, 32)
       .map((p) => ({
@@ -485,6 +597,7 @@ export function PropertyMapView({
     if (missing.length === 0) return;
 
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     setIsGeocoding(true);
 
     void fetch("/api/geocode", {
@@ -497,13 +610,36 @@ export function PropertyMapView({
         (
           data: {
             coordinates?: Record<string, PropertyCoordinate>;
+            nextRetryDelayMs?: number | null;
           } | null,
         ) => {
           if (cancelled || !data?.coordinates) return;
+          for (const [k, pt] of Object.entries(data.coordinates)) {
+            if (pt.final === true) {
+              finalGeocodedKeysRef.current.add(k);
+            }
+          }
           setGeocodedMap((prev) => ({
             ...prev,
             ...data.coordinates,
           }));
+          const remainingCount = properties.filter(
+            (p) => !finalGeocodedKeysRef.current.has(`${p.provider}:${p.id}`),
+          ).length;
+          if (remainingCount > 0) {
+            const delayMs =
+              remainingCount > missing.length
+                ? 800
+                : typeof data.nextRetryDelayMs === "number" &&
+                    data.nextRetryDelayMs > 0
+                  ? data.nextRetryDelayMs
+                  : 800;
+            retryTimer = setTimeout(() => {
+              if (!cancelled) {
+                setGeocodeRetryTick((t) => t + 1);
+              }
+            }, delayMs);
+          }
         },
       )
       .catch(() => {})
@@ -513,8 +649,9 @@ export function PropertyMapView({
 
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [properties, geocodedMap]);
+  }, [properties, geocodeRetryTick]);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -633,33 +770,52 @@ export function PropertyMapView({
 
       if (targetCity === "ALL") {
         setFocusedHubCity("ALL");
+        if (resolvedItems.length === 0) {
+          const hub = NUBANK_HUBS[selectedCity !== "ALL" ? selectedCity : "BH"];
+          map.setView([hub.lat, hub.lng], 14);
+          return;
+        }
+        const presentCities = Array.from(
+          new Set(resolvedItems.map((i) => i.prop.cityCode)),
+        );
+        const lats = [
+          ...resolvedItems.map((i) => i.coord.lat),
+          ...presentCities.map((c) => NUBANK_HUBS[c].lat),
+        ];
+        const lngs = [
+          ...resolvedItems.map((i) => i.coord.lng),
+          ...presentCities.map((c) => NUBANK_HUBS[c].lng),
+        ];
+        map.fitBounds(
+          [
+            [Math.min(...lats), Math.min(...lngs)],
+            [Math.max(...lats), Math.max(...lngs)],
+          ],
+          { padding: [48, 48], maxZoom: 14.5, animate: false },
+        );
+        return;
       }
 
-      const itemsInScope =
-        targetCity && targetCity !== "ALL"
-          ? resolvedItems.filter((item) => item.prop.cityCode === targetCity)
-          : selectedCity !== "ALL"
-            ? resolvedItems.filter(
-                (item) => item.prop.cityCode === selectedCity,
-              )
-            : resolvedItems;
+      const itemsInScope = targetCity
+        ? resolvedItems.filter((item) => item.prop.cityCode === targetCity)
+        : selectedCity !== "ALL"
+          ? resolvedItems.filter(
+              (item) => item.prop.cityCode === selectedCity,
+            )
+          : resolvedItems;
 
       if (itemsInScope.length === 0) {
         const hubCity =
-          targetCity && targetCity !== "ALL"
-            ? targetCity
-            : selectedCity !== "ALL"
-              ? selectedCity
-              : "BH";
+          targetCity ?? (selectedCity !== "ALL" ? selectedCity : "BH");
         const hub = NUBANK_HUBS[hubCity];
         map.setView([hub.lat, hub.lng], 14);
         return;
       }
 
-      // If multiple cities are mixed, focus on the dominant city in the visible set so zoom is street-level rather than continental
+      // On initial auto-fit when multiple cities are mixed, focus on the dominant city so initial zoom is street-level
       let finalItems = itemsInScope;
       let dominantCity: CityHubCode = itemsInScope[0]!.prop.cityCode;
-      if ((!targetCity || targetCity === "ALL") && selectedCity === "ALL") {
+      if (!targetCity && selectedCity === "ALL") {
         const counts = new Map<CityHubCode, number>();
         for (const it of itemsInScope) {
           counts.set(it.prop.cityCode, (counts.get(it.prop.cityCode) ?? 0) + 1);
@@ -715,10 +871,10 @@ export function PropertyMapView({
     const found = resolvedItems.find((i) => i.key === selectedPropertyKey);
     if (!found) return;
     const hub = NUBANK_HUBS[found.prop.cityCode];
-    const minLat = Math.min(found.coord.lat, hub.lat) - 0.004;
-    const maxLat = Math.max(found.coord.lat, hub.lat) + 0.004;
-    const minLng = Math.min(found.coord.lng, hub.lng) - 0.006;
-    const maxLng = Math.max(found.coord.lng, hub.lng) + 0.006;
+    const minLat = Math.min(found.rawLat, hub.lat) - 0.004;
+    const maxLat = Math.max(found.rawLat, hub.lat) + 0.004;
+    const minLng = Math.min(found.rawLng, hub.lng) - 0.006;
+    const maxLng = Math.max(found.rawLng, hub.lng) + 0.006;
     mapInstanceRef.current.fitBounds(
       [
         [minLat, minLng],
@@ -728,30 +884,27 @@ export function PropertyMapView({
     );
   }, [leafletReady, selectedPropertyKey, resolvedItems]);
 
-  // Render Nubank Hub HQ Beacons + Commute Radius Rings, Property Speech-Bubble Pins, and Active Connection Line
+  // Effect 1: Create Nubank Hub HQ Beacons + Commute Radius Rings and Property Speech-Bubble Pins once per dataset/favorites change (NOT on hover/select)
   useEffect(() => {
     const L = typeof window !== "undefined" ? window.L : undefined;
     if (
       !leafletReady ||
       !L ||
       !markersGroupRef.current ||
-      !hubsGroupRef.current ||
-      !lineGroupRef.current
+      !hubsGroupRef.current
     ) {
       return;
     }
 
     const markersGroup = markersGroupRef.current;
     const hubsGroup = hubsGroupRef.current;
-    const lineGroup = lineGroupRef.current;
 
     markersGroup.clearLayers();
     hubsGroup.clearLayers();
-    lineGroup.clearLayers();
+    propertyMarkersMapRef.current.clear();
 
     // 1. Render Nubank Office HQ Beacons + 2.5km Commute Radius Rings
     const activeHubs =
-      selectedCity === "BSB" ||
       resolvedItems.some((it) => it.prop.cityCode === "BSB")
         ? [...ALL_NUBANK_HUB_LOCATIONS, NUBANK_HUBS.BSB]
         : ALL_NUBANK_HUB_LOCATIONS;
@@ -907,175 +1060,88 @@ export function PropertyMapView({
       });
     }
 
-    // 2. Render dashed line from hovered/selected property to its Nubank Office Hub
-    const activeKey = hoveredPropertyKey ?? selectedPropertyKey;
-    const activeItem = activeKey
-      ? resolvedItems.find((i) => i.key === activeKey)
-      : undefined;
-
-    if (activeItem) {
-      const hub = NUBANK_HUBS[activeItem.prop.cityCode];
-      L.polyline(
-        [
-          [activeItem.coord.lat, activeItem.coord.lng],
-          [hub.lat, hub.lng],
-        ],
-        {
-          color: "#a855f7",
-          weight: 3,
-          opacity: 0.92,
-          dashArray: "6, 6",
-        },
-      ).addTo(lineGroup);
-    }
-
-    // 3. Render Crisp Airbnb-Style White Speech-Bubble Pointer Pins for Properties
+    // 2. Render Crisp Airbnb-Style White Speech-Bubble Pointer Pins for Properties
+    const currentActiveKey = activeKeyRef.current;
     for (const item of resolvedItems) {
-      const { key, prop, coord, listIndex } = item;
-      const isHovered = hoveredPropertyKey === key;
-      const isSelected = selectedPropertyKey === key;
-      const isActive = isHovered || isSelected;
-      const isFav = favoriteKeys.includes(key);
-      const rankNum = prop.overallRank ?? listIndex;
-      const priceCompact = formatPinPriceCompact(prop.totalMonthly);
-      const rarity = prop.cardTags.floorTag?.rarity ?? null;
-      const badgeColor = rarity ? FLOOR_RARITY_BADGE_HEX[rarity] : "#475569";
-
-      const pillBg = isActive ? "#1e1b4b" : "#ffffff";
-      const pillText = isActive ? "#ffffff" : "#0f172a";
-      const pillBorder = isActive
-        ? "2px solid #ffffff"
-        : "1.5px solid rgba(15,23,42,0.22)";
-      const pillShadow = isActive
-        ? "0 8px 20px rgba(0,0,0,0.6), 0 0 0 3px rgba(139,92,246,0.55)"
-        : "0 3px 10px rgba(0,0,0,0.45), 0 0 0 1.5px rgba(15,23,42,0.18)";
-      const wrapperTransform = isActive
-        ? "scale(1.18) translateY(-3px)"
-        : "scale(1)";
-
-      const iconWidth = 74;
-      const iconHeight = 32;
-
-      const icon = L.divIcon({
-        className: "moradia-prop-pill-icon",
-        iconSize: [iconWidth, iconHeight],
-        iconAnchor: [iconWidth / 2, iconHeight],
-        html: `
-          <div
-            data-prop-key="${key}"
-            style="
-              position:relative;
-              width:${iconWidth}px;
-              height:${iconHeight}px;
-              display:flex;
-              flex-direction:column;
-              align-items:center;
-              justify-content:flex-end;
-              transform:${wrapperTransform};
-              transform-origin:bottom center;
-              transition:transform 140ms cubic-bezier(0.2,0.8,0.2,1);
-              cursor:pointer;
-            "
-          >
-            <!-- Speech Bubble Pill -->
-            <div style="
-              position:relative;
-              display:inline-flex;
-              align-items:center;
-              gap:4px;
-              padding:3px 8px 3px 4px;
-              border-radius:9999px;
-              background:${pillBg};
-              color:${pillText};
-              border:${pillBorder};
-              box-shadow:${pillShadow};
-              white-space:nowrap;
-              line-height:1;
-            ">
-              <!-- Floor-Tier Tinted Mini Rank Badge -->
-              <span style="
-                display:inline-flex;
-                align-items:center;
-                justify-content:center;
-                padding:1.5px 4.5px;
-                border-radius:9999px;
-                background:${badgeColor};
-                color:#ffffff;
-                font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-                font-size:9px;
-                font-weight:800;
-                letter-spacing:-0.02em;
-              ">#${rankNum}</span>
-
-              <!-- Compact Price Text in Dark Bold Monospace (e.g. 4,1k) -->
-              <span style="
-                font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-                font-size:11px;
-                font-weight:800;
-                letter-spacing:-0.03em;
-                color:${pillText};
-              ">${priceCompact}</span>
-
-              ${
-                isFav
-                  ? `<span style="
-                      position:absolute;
-                      top:-5px;
-                      right:-5px;
-                      width:14px;
-                      height:14px;
-                      border-radius:9999px;
-                      background:#e11d48;
-                      color:#ffffff;
-                      border:1.5px solid #ffffff;
-                      display:inline-flex;
-                      align-items:center;
-                      justify-content:center;
-                      font-size:8px;
-                      box-shadow:0 2px 4px rgba(0,0,0,0.35);
-                    ">♥</span>`
-                  : ""
-              }
-            </div>
-
-            <!-- Crisp Downward Pointer Tail (▼) -->
-            <div style="
-              width:0;
-              height:0;
-              border-left:6px solid transparent;
-              border-right:6px solid transparent;
-              border-top:7px solid ${pillBg};
-              margin-top:-1px;
-              filter:drop-shadow(0 2px 1.5px rgba(15,23,42,0.45));
-            "></div>
-          </div>
-        `,
-      });
-
+      const { key, coord } = item;
+      const isActive = currentActiveKey === key;
+      const isFav = favoriteSet.has(key);
+      const icon = buildPropertyPinIcon(L, item, isActive, isFav);
       const marker = L.marker([coord.lat, coord.lng], {
         icon,
-        zIndexOffset: isActive ? 5000 : isFav ? 2000 : 1000 - rankNum,
+        zIndexOffset: getPropertyPinZIndex(item, isActive, isFav),
       }).addTo(markersGroup);
 
       marker.on("mouseover", () => {
-        onHoverProperty(key);
+        onHoverPropertyRef.current(key);
       });
       marker.on("mouseout", () => {
-        onHoverProperty(null);
+        onHoverPropertyRef.current(null);
       });
       marker.on("click", () => {
-        onSelectProperty(key);
+        onSelectPropertyRef.current(key);
       });
+
+      propertyMarkersMapRef.current.set(key, { marker, point: item });
     }
-  }, [
-    leafletReady,
-    resolvedItems,
-    hoveredPropertyKey,
-    selectedPropertyKey,
-    favoriteKeys,
-    onHoverProperty,
-    onSelectProperty,
-  ]);
+    prevActiveKeyRef.current = currentActiveKey;
+  }, [leafletReady, resolvedItems, favoriteSet]);
+
+  // Effect 2: O(1) hover/selection highlighting & connector line update without rebuilding all markers
+  useEffect(() => {
+    const L = typeof window !== "undefined" ? window.L : undefined;
+    if (!leafletReady || !L || !lineGroupRef.current) return;
+
+    const lineGroup = lineGroupRef.current;
+    lineGroup.clearLayers();
+
+    const prevKey = prevActiveKeyRef.current;
+    if (prevKey && prevKey !== activeKey) {
+      const prevEntry = propertyMarkersMapRef.current.get(prevKey);
+      if (prevEntry) {
+        const isFav = favoriteSet.has(prevKey);
+        prevEntry.marker.setIcon?.(
+          buildPropertyPinIcon(L, prevEntry.point, false, isFav),
+        );
+        prevEntry.marker.setZIndexOffset?.(
+          getPropertyPinZIndex(prevEntry.point, false, isFav),
+        );
+      }
+    }
+
+    if (activeKey) {
+      const nextEntry = propertyMarkersMapRef.current.get(activeKey);
+      if (nextEntry) {
+        const isFav = favoriteSet.has(activeKey);
+        nextEntry.marker.setIcon?.(
+          buildPropertyPinIcon(L, nextEntry.point, true, isFav),
+        );
+        nextEntry.marker.setZIndexOffset?.(
+          getPropertyPinZIndex(nextEntry.point, true, isFav),
+        );
+      }
+
+      const activeItem =
+        nextEntry?.point ?? resolvedItems.find((i) => i.key === activeKey);
+      if (activeItem) {
+        const hub = NUBANK_HUBS[activeItem.prop.cityCode];
+        L.polyline(
+          [
+            [activeItem.rawLat, activeItem.rawLng],
+            [hub.lat, hub.lng],
+          ],
+          {
+            color: "#a855f7",
+            weight: 3,
+            opacity: 0.92,
+            dashArray: "6, 6",
+          },
+        ).addTo(lineGroup);
+      }
+    }
+
+    prevActiveKeyRef.current = activeKey;
+  }, [leafletReady, activeKey, resolvedItems, favoriteSet]);
 
   const activePreviewItem = useMemo(() => {
     const key = selectedPropertyKey ?? hoveredPropertyKey;

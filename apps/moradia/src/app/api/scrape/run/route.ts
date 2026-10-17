@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import type { CityHubCode, ScrapeJobStatus } from "@/types/moradia";
 import { NextResponse } from "next/server";
 import { spawn } from "node:child_process";
@@ -33,6 +34,8 @@ function isPidAlive(pid: number): boolean {
 }
 
 export async function POST(request: Request) {
+  const t0 = performance.now();
+  const workerAvailable = existsSync(SCRAPER_WORKSPACE_DIR);
   try {
     const body = (await request.json()) as {
       action?: "start" | "cancel";
@@ -80,6 +83,15 @@ export async function POST(request: Request) {
         "utf8",
       );
 
+      const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+      logger.info("api/scrape/run", "POST cancel completed", {
+        workerAvailable,
+        status: cancelledStatus.status,
+        mode: cancelledStatus.mode ?? null,
+        cities: body.cities ?? [],
+        durationMs,
+      });
+
       return NextResponse.json({ ok: true, status: cancelledStatus });
     }
 
@@ -89,6 +101,14 @@ export async function POST(request: Request) {
         const existingPid = Number(readFileSync(PID_FILE, "utf8").trim());
         const existingStatus = readCurrentStatus();
         if (existingStatus?.status === "running" && isPidAlive(existingPid)) {
+          const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+          logger.info("api/scrape/run", "POST already running", {
+            workerAvailable,
+            status: existingStatus.status,
+            mode: existingStatus.mode ?? null,
+            cities: body.cities ?? [],
+            durationMs,
+          });
           return NextResponse.json({
             ok: true,
             alreadyRunning: true,
@@ -112,6 +132,14 @@ export async function POST(request: Request) {
     const maxPages = body.maxPages ?? 5;
 
     if (mode === "custom_url" && !customUrl) {
+      const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+      logger.warn("api/scrape/run", "POST rejected missing customUrl", {
+        workerAvailable,
+        status: "rejected",
+        mode,
+        cities,
+        durationMs,
+      });
       return NextResponse.json(
         { ok: false, error: "Informe uma URL de busca válida." },
         { status: 400 },
@@ -201,8 +229,27 @@ export async function POST(request: Request) {
       writeFileSync(PID_FILE, `${child.pid}\n`, "utf8");
     }
 
+    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+    logger.info("api/scrape/run", "POST started scrape job", {
+      jobId,
+      pid: child.pid ?? null,
+      workerAvailable,
+      status: initialStatus.status,
+      mode,
+      cities,
+      neighborhoodsCount: neighborhoods.length,
+      keysCount: keys.length,
+      durationMs,
+    });
+
     return NextResponse.json({ ok: true, status: initialStatus });
   } catch (err) {
+    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+    logger.error("api/scrape/run", "POST failed", {
+      workerAvailable,
+      durationMs,
+      error: err,
+    });
     return NextResponse.json(
       {
         ok: false,

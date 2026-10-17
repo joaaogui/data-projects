@@ -35,6 +35,126 @@ export const DEFAULT_WEIGHTS: ScoringWeights = {
   sweetSpotMaxM2: 72,
 };
 
+const WEIGHT_NUMERIC_BOUNDS: Record<
+  Exclude<keyof ScoringWeights, "requireParking" | "penalizeMegaCondo">,
+  { min: number; max: number }
+> = {
+  urbanBreathingWeight: { min: 0, max: 5 },
+  commuteLogisticsWeight: { min: 0, max: 5 },
+  buildingStockWeight: { min: 0, max: 5 },
+  budgetFitWeight: { min: 0, max: 5 },
+  safetyCarWeight: { min: 0, max: 5 },
+  neighborhoodMultiplier: { min: 0, max: 15 },
+  modernityMultiplier: { min: 0, max: 3 },
+  nuancesMultiplier: { min: 0, max: 5 },
+  minModernityScore: { min: 0, max: 100 },
+  budgetIdeal: { min: 1500, max: 15000 },
+  budgetMax: { min: 1500, max: 20000 },
+  budgetHardCap: { min: 1500, max: 25000 },
+  budgetWeight: { min: 0, max: 5 },
+  unfurnishedBonus: { min: -50, max: 50 },
+  furnishedPenalty: { min: -80, max: 20 },
+  parkingBonus1: { min: -30, max: 40 },
+  parkingBonus2: { min: -30, max: 50 },
+  minAreaM2: { min: 20, max: 200 },
+  maxAreaM2: { min: 25, max: 300 },
+  sweetSpotMinM2: { min: 20, max: 250 },
+  sweetSpotMaxM2: { min: 25, max: 300 },
+};
+
+export function sanitizeAndMigrateWeights(
+  rawWeights: unknown,
+  schemaVersion?: number,
+): ScoringWeights {
+  if (
+    !rawWeights ||
+    typeof rawWeights !== "object" ||
+    Array.isArray(rawWeights)
+  ) {
+    return { ...DEFAULT_WEIGHTS };
+  }
+
+  const obj = rawWeights as Record<string, unknown>;
+  const isV2 = schemaVersion === 2 || obj.schemaVersion === 2;
+
+  const sanitizeNum = <
+    K extends Exclude<
+      keyof ScoringWeights,
+      "requireParking" | "penalizeMegaCondo"
+    >,
+  >(
+    key: K,
+  ): number => {
+    const val = obj[key];
+    if (typeof val !== "number" || !Number.isFinite(val)) {
+      return DEFAULT_WEIGHTS[key];
+    }
+    const bounds = WEIGHT_NUMERIC_BOUNDS[key];
+    return Math.min(bounds.max, Math.max(bounds.min, val));
+  };
+
+  const result: ScoringWeights = {
+    urbanBreathingWeight: sanitizeNum("urbanBreathingWeight"),
+    commuteLogisticsWeight: sanitizeNum("commuteLogisticsWeight"),
+    buildingStockWeight: sanitizeNum("buildingStockWeight"),
+    budgetFitWeight: sanitizeNum("budgetFitWeight"),
+    safetyCarWeight: sanitizeNum("safetyCarWeight"),
+    neighborhoodMultiplier: sanitizeNum("neighborhoodMultiplier"),
+    modernityMultiplier: sanitizeNum("modernityMultiplier"),
+    nuancesMultiplier: sanitizeNum("nuancesMultiplier"),
+    minModernityScore: sanitizeNum("minModernityScore"),
+    budgetIdeal: sanitizeNum("budgetIdeal"),
+    budgetMax: sanitizeNum("budgetMax"),
+    budgetHardCap: sanitizeNum("budgetHardCap"),
+    budgetWeight: sanitizeNum("budgetWeight"),
+    unfurnishedBonus: sanitizeNum("unfurnishedBonus"),
+    furnishedPenalty: sanitizeNum("furnishedPenalty"),
+    parkingBonus1: sanitizeNum("parkingBonus1"),
+    parkingBonus2: sanitizeNum("parkingBonus2"),
+    requireParking:
+      typeof obj.requireParking === "boolean"
+        ? obj.requireParking
+        : DEFAULT_WEIGHTS.requireParking,
+    penalizeMegaCondo:
+      typeof obj.penalizeMegaCondo === "boolean"
+        ? obj.penalizeMegaCondo
+        : DEFAULT_WEIGHTS.penalizeMegaCondo,
+    minAreaM2: sanitizeNum("minAreaM2"),
+    maxAreaM2: sanitizeNum("maxAreaM2"),
+    sweetSpotMinM2: sanitizeNum("sweetSpotMinM2"),
+    sweetSpotMaxM2: sanitizeNum("sweetSpotMaxM2"),
+  };
+
+  if (!isV2) {
+    if (result.furnishedPenalty === -5) result.furnishedPenalty = -22;
+    if (result.urbanBreathingWeight === 1) result.urbanBreathingWeight = 2.0;
+    if (result.modernityMultiplier === 0.65) result.modernityMultiplier = 0.85;
+    if (result.sweetSpotMinM2 === 48) result.sweetSpotMinM2 = 50;
+    if (result.sweetSpotMaxM2 === 68) result.sweetSpotMaxM2 = 72;
+  }
+
+  if (result.maxAreaM2 < result.minAreaM2) {
+    result.maxAreaM2 = result.minAreaM2;
+  }
+  result.sweetSpotMinM2 = Math.min(
+    result.maxAreaM2,
+    Math.max(result.minAreaM2, result.sweetSpotMinM2),
+  );
+  result.sweetSpotMaxM2 = Math.min(
+    result.maxAreaM2,
+    Math.max(result.sweetSpotMinM2, result.sweetSpotMaxM2),
+  );
+
+  if (result.budgetMax < result.budgetIdeal) {
+    result.budgetMax = result.budgetIdeal;
+  }
+  if (result.budgetHardCap < result.budgetMax) {
+    result.budgetHardCap = result.budgetMax;
+  }
+
+  return result;
+}
+
 export const BUILTIN_PRESETS: {
   id: string;
   name: string;
@@ -805,6 +925,11 @@ export interface StreetMicroEnvironmentEvaluation {
   urbanBreathingCap: number | null;
 }
 
+const streetMicroCache = new WeakMap<
+  SlimPropertyRecord,
+  StreetMicroEnvironmentEvaluation
+>();
+
 /**
  * Deterministic street & micro-location analyzer that prevents "Efeito Bunker"
  * (buildings on noisy 4–6 lane arterial avenues or degraded downtown borders
@@ -814,6 +939,9 @@ export interface StreetMicroEnvironmentEvaluation {
 export function evaluateStreetMicroEnvironment(
   prop: SlimPropertyRecord,
 ): StreetMicroEnvironmentEvaluation {
+  const cached = streetMicroCache.get(prop);
+  if (cached) return cached;
+
   const normText = (s: string) =>
     s
       .toLowerCase()
@@ -940,7 +1068,7 @@ export function evaluateStreetMicroEnvironment(
   }
 
   if (isCategoryA) {
-    return {
+    const res: StreetMicroEnvironmentEvaluation = {
       category: "BUNKER_OR_SPOOF",
       pointsDelta: -26.0,
       redTag: "Via Arterial / Efeito Bunker",
@@ -951,6 +1079,8 @@ export function evaluateStreetMicroEnvironment(
       safetyCarCap: 5.8,
       urbanBreathingCap: 5.0,
     };
+    streetMicroCache.set(prop, res);
+    return res;
   }
 
   // === CATEGORY B: Heavy Traffic Arterial Avenue (-10 pts) ===
@@ -973,7 +1103,7 @@ export function evaluateStreetMicroEnvironment(
   }
 
   if (isCategoryB) {
-    return {
+    const res: StreetMicroEnvironmentEvaluation = {
       category: "HEAVY_ARTERIAL",
       pointsDelta: -10.0,
       redTag: null,
@@ -984,6 +1114,8 @@ export function evaluateStreetMicroEnvironment(
       safetyCarCap: null,
       urbanBreathingCap: null,
     };
+    streetMicroCache.set(prop, res);
+    return res;
   }
 
   // === CATEGORY C: Prime Walkable "Vibe Setor Marista" Micro-Location Bonus (+8 pts) ===
@@ -1054,7 +1186,7 @@ export function evaluateStreetMicroEnvironment(
   }
 
   if (isCategoryC) {
-    return {
+    const res: StreetMicroEnvironmentEvaluation = {
       category: "PRIME_WALKABLE",
       pointsDelta: 8.0,
       redTag: null,
@@ -1064,9 +1196,11 @@ export function evaluateStreetMicroEnvironment(
       safetyCarCap: null,
       urbanBreathingCap: null,
     };
+    streetMicroCache.set(prop, res);
+    return res;
   }
 
-  return {
+  const res: StreetMicroEnvironmentEvaluation = {
     category: "NEUTRAL",
     pointsDelta: 0,
     redTag: null,
@@ -1076,6 +1210,8 @@ export function evaluateStreetMicroEnvironment(
     safetyCarCap: null,
     urbanBreathingCap: null,
   };
+  streetMicroCache.set(prop, res);
+  return res;
 }
 
 export const detectArterialOrBorderBunker = evaluateStreetMicroEnvironment;
@@ -1085,10 +1221,7 @@ export const detectArterialOrBorderBunker = evaluateStreetMicroEnvironment;
  * floor / floorRange, placesNearby (parks, malls, subway), installations, photoCaptions,
  * description, and generatedDescription.
  */
-export function evaluateApartmentNuances(
-  prop: SlimPropertyRecord,
-  penalizeMegaCondo: boolean,
-): {
+type ApartmentNuancesEvaluation = {
   rawNuancePoints: number;
   nuanceHighlights: string[];
   nuanceWarnings: string[];
@@ -1102,7 +1235,58 @@ export function evaluateApartmentNuances(
   hasTrappedParking: boolean;
   greenTags: string[];
   redTags: string[];
-} {
+};
+
+const nuancesCacheTrue = new WeakMap<
+  SlimPropertyRecord,
+  ApartmentNuancesEvaluation
+>();
+const nuancesCacheFalse = new WeakMap<
+  SlimPropertyRecord,
+  ApartmentNuancesEvaluation
+>();
+
+function cloneApartmentNuances(
+  cached: ApartmentNuancesEvaluation,
+): ApartmentNuancesEvaluation {
+  return {
+    rawNuancePoints: cached.rawNuancePoints,
+    nuanceHighlights: cached.nuanceHighlights.slice(),
+    nuanceWarnings: cached.nuanceWarnings.slice(),
+    parksNearby: cached.parksNearby.slice(),
+    mallsNearby: cached.mallsNearby.slice(),
+    acLabel: cached.acLabel,
+    floorTag: cached.floorTag,
+    highFloorLabel: cached.highFloorLabel,
+    lowFloorLabel: cached.lowFloorLabel,
+    hasNoElevator: cached.hasNoElevator,
+    hasTrappedParking: cached.hasTrappedParking,
+    greenTags: cached.greenTags.slice(),
+    redTags: cached.redTags.slice(),
+  };
+}
+
+function evaluateApartmentNuancesFast(
+  prop: SlimPropertyRecord,
+  penalizeMegaCondo: boolean,
+): ApartmentNuancesEvaluation {
+  const cache = penalizeMegaCondo ? nuancesCacheTrue : nuancesCacheFalse;
+  const cached = cache.get(prop);
+  if (cached) return cached;
+  evaluateApartmentNuances(prop, penalizeMegaCondo);
+  return cache.get(prop)!;
+}
+
+export function evaluateApartmentNuances(
+  prop: SlimPropertyRecord,
+  penalizeMegaCondo: boolean,
+): ApartmentNuancesEvaluation {
+  const cache = penalizeMegaCondo ? nuancesCacheTrue : nuancesCacheFalse;
+  const cached = cache.get(prop);
+  if (cached) {
+    return cloneApartmentNuances(cached);
+  }
+
   let pts = 0;
   const highlights: string[] = [];
   const warnings: string[] = [];
@@ -1138,23 +1322,40 @@ export function evaluateApartmentNuances(
     prop.title ?? "",
   ].join(" ");
 
+  const cleanedElevatorSources = elevatorSources
+    .replace(/\bacesso\s+sem\s+escadas?\b/gi, " ")
+    .replace(/\bpraticidade\s+do\s+acesso\s+sem\s+elevador\b/gi, " ")
+    .replace(
+      /\b(?:segundo\s+andar|piso\s+superior|mezanino|cobertura|duplex)[^.;!\n]{0,35}\bacesso\s+por\s+escadas?\b/gi,
+      " ",
+    )
+    .replace(
+      /\bacesso\s+por\s+escada\s+(?:em\s+madeira|interna|caracol|privativa)\b/gi,
+      " ",
+    );
   const hasExplicitNoElevatorText =
-    /\b(sem elevador|n[aã]o\s+(?:possui|tem|disp[oõ]e\s+de|conta\s+com)\s+elevador|pr[eé]dio escada|\d+\s*lances? de escada|acesso por escadas)\b/i.test(
-      elevatorSources,
+    /\b(sem elevador|n[aã]o\s+(?:possui|tem|disp[oõ]e\s+de|conta\s+com)\s+(?:portaria\s+(?:ou|e|nem)\s+)?elevador|pr[eé]dio\s+(?:sem\s+elevador|escada)|\d+\s*(?:lances?|andares?)\s+de\s+escada|acesso\s+(?:somente\s+)?por\s+escadas?)\b/i.test(
+      cleanedElevatorSources,
     );
   const hasElevatorMention = /elevador|elevator/i.test(elevatorSources);
-  const hasTallBuildingElevatorEvidence =
-    prop.provider !== "quintoandar" &&
-    ((prop.totalFloors !== null && prop.totalFloors >= 5) ||
-      (prop.floor !== null && prop.floor >= 5) ||
-      ((prop.provider === "netimoveis" || prop.provider === "imovelweb") &&
-        ((prop.floor !== null && prop.floor >= 4) ||
-          Boolean(prop.doorman && prop.doorman !== "NotAvailable"))));
+  const hasLowBuildingNoElevatorEvidence =
+    prop.totalFloors !== null &&
+    prop.totalFloors > 0 &&
+    prop.totalFloors <= 3 &&
+    !hasElevatorMention &&
+    !/piscina|academia|sauna|portaria 24|portaria_24h|concierge_24h|pool|gym|fitness|elevador/i.test(
+      elevatorSources,
+    );
   const hasNoElevator =
-    hasExplicitNoElevatorText ||
-    (!hasElevatorMention && !hasTallBuildingElevatorEvidence);
+    hasExplicitNoElevatorText || hasLowBuildingNoElevatorEvidence;
+  const cleanedTrappedSources = elevatorSources.replace(
+    /\b(?:n[aã]o\s+[eé]\s+(?:vaga\s+)?presa|sem\s+vagas?\s+presas?|vaga\s+livre\s*\(\s*n[aã]o\s+[eé]\s+(?:vaga\s+)?presa\s*\)|\d+\s*vagas?\s+livres?\s+e\s+\d+\s*(?:vagas?\s+)?presas?|\d+\s*(?:vagas?\s+)?presas?\s+e\s+\d+\s*vagas?\s+livres?)\b/gi,
+    " ",
+  );
   const hasTrappedParking =
-    /\b(vagas? presas?|garagem presa|vaga bloqueada)\b/i.test(elevatorSources);
+    /\b(vagas?\s+(?:de\s+garagem\s+)?(?:(?:cobertas?|descobertas?|demarcadas?|fixas?)\s+(?:e\s+)?)?presas?|vaga\s+de\s+garagem\s*\(\s*presa\s*\)|garagem\s+presa|vaga\s+bloqueada)\b/i.test(
+      cleanedTrappedSources,
+    );
 
   // Ar-condicionado detection for card tag
   let acLabel: string | null = null;
@@ -1438,18 +1639,13 @@ export function evaluateApartmentNuances(
       );
 
       let lowFloorPenalty = isFirstFloor ? 18.0 : 14.0;
-      const isAmbiguousZeroToThreeRange =
-        effectiveFloor === null &&
-        normalizedFloorRange !== null &&
-        normalizedFloorRange.min === 0 &&
-        normalizedFloorRange.max === 3;
       if (hasFreeView && isSlopedNeighborhood) {
-        lowFloorPenalty = isAmbiguousZeroToThreeRange ? 21.0 : 2.0;
+        lowFloorPenalty = 2.0;
         warnings.push(
           `${lowFloorLabel ?? "Andar baixo"} compensado por topografia em desnível e vista livre (-${lowFloorPenalty} pts base)`,
         );
       } else if (hasFreeView || hasPrivatePatio) {
-        lowFloorPenalty = isAmbiguousZeroToThreeRange ? 22.0 : 6.0;
+        lowFloorPenalty = 6.0;
         warnings.push(
           `${lowFloorLabel ?? "Andar baixo"} atenuado por ${hasFreeView ? "vista livre" : "área privativa/garden"} (-${lowFloorPenalty} pts base)`,
         );
@@ -1533,8 +1729,12 @@ export function evaluateApartmentNuances(
     pts += 2.5;
     highlights.push("Portaria 24h / Biometria");
   } else if (prop.doorman === "NotAvailable") {
-    pts -= 6.0;
-    warnings.push("Sem portaria 24h (-6 pts base)");
+    const noDoormanPenalty =
+      floorTag?.rarity === "common" || floorTag?.rarity === "uncommon"
+        ? 25.0
+        : 6.0;
+    pts -= noDoormanPenalty;
+    warnings.push(`Sem portaria 24h (-${noDoormanPenalty} pts base)`);
   }
 
   if (prop.salePrice !== null && prop.salePrice > 0) {
@@ -1619,7 +1819,7 @@ export function evaluateApartmentNuances(
     redTags.push("Vaga presa");
   }
 
-  return {
+  const result: ApartmentNuancesEvaluation = {
     rawNuancePoints: Math.round(pts * 10) / 10,
     nuanceHighlights: highlights,
     nuanceWarnings: warnings,
@@ -1634,6 +1834,16 @@ export function evaluateApartmentNuances(
     greenTags,
     redTags,
   };
+  cache.set(prop, {
+    ...result,
+    nuanceHighlights: [...result.nuanceHighlights],
+    nuanceWarnings: [...result.nuanceWarnings],
+    parksNearby: [...result.parksNearby],
+    mallsNearby: [...result.mallsNearby],
+    greenTags: [...result.greenTags],
+    redTags: [...result.redTags],
+  });
+  return result;
 }
 
 function formatListPt(items: string[]): string {
@@ -1693,6 +1903,21 @@ const ZAP_AMENITY_TRANSLATIONS: Record<string, { label: string; category: "inter
   APARTMENT_COBERTURA: { label: "Cobertura", category: "skip" },
 };
 
+const ptBrIntCache = new Map<number, string>();
+const ptBrIntFormatter = new Intl.NumberFormat("pt-BR");
+function fmtIntPtBr(n: number): string {
+  const hit = ptBrIntCache.get(n);
+  if (hit !== undefined) return hit;
+  const formatted = ptBrIntFormatter.format(n);
+  ptBrIntCache.set(n, formatted);
+  return formatted;
+}
+
+const categorizedFeaturesCache = new WeakMap<
+  SlimPropertyRecord,
+  { interiorFeatures: string[]; condoFeatures: string[] }
+>();
+
 /**
  * Normalizes and splits raw commodities/amenities/installations into non-overlapping
  * interior features vs. condominium installations for clean UI display, omitting
@@ -1702,6 +1927,9 @@ export function categorizePropertyFeatures(prop: SlimPropertyRecord): {
   interiorFeatures: string[];
   condoFeatures: string[];
 } {
+  const cached = categorizedFeaturesCache.get(prop);
+  if (cached) return cached;
+
   const interiorMap = new Map<string, string>();
   const condoMap = new Map<string, string>();
 
@@ -1779,10 +2007,12 @@ export function categorizePropertyFeatures(prop: SlimPropertyRecord): {
   for (const item of prop.installations ?? []) addItem(item, "condo");
   for (const item of prop.amenities ?? []) addItem(item, "interior");
 
-  return {
+  const result = {
     interiorFeatures: [...interiorMap.values()],
     condoFeatures: [...condoMap.values()],
   };
+  categorizedFeaturesCache.set(prop, result);
+  return result;
 }
 
 function resolveOfficeReference(
@@ -1811,15 +2041,30 @@ function resolveOfficeReference(
   };
 }
 
+const commuteMinutesCache = new Map<
+  string,
+  { minutes: number | null; label: string }
+>();
+
 export function parseCommuteMinutes(
   commuteText: string,
   isDeepWestBarra?: boolean,
-): { minutes: number; label: string } {
+): { minutes: number | null; label: string } {
   if (isDeepWestBarra) {
     return { minutes: 85, label: "75–100 min" };
   }
+  const cacheKey = commuteText ?? "";
+  const hit = commuteMinutesCache.get(cacheKey);
+  if (hit) return hit;
 
-  const cleaned = (commuteText ?? "")
+  const raw = cacheKey.trim();
+  if (/benchmark|[aá]guas claras|\bbsb\b/i.test(raw) && !/\d+\s*min/i.test(raw)) {
+    const res = { minutes: null, label: "Ref. BSB" };
+    commuteMinutesCache.set(cacheKey, res);
+    return res;
+  }
+
+  const cleaned = raw
     .replace(/\s*\([^)]*\)/g, "")
     .replace(/\s*do Nubank.*/i, "")
     .replace(/^~/, "")
@@ -1830,10 +2075,12 @@ export function parseCommuteMinutes(
     const a = Number(rangeMatch[1]);
     const b = Number(rangeMatch[2]);
     if (Number.isFinite(a) && Number.isFinite(b)) {
-      return {
+      const res = {
         minutes: Math.round((a + b) / 2),
         label: `${a}–${b} min`,
       };
+      commuteMinutesCache.set(cacheKey, res);
+      return res;
     }
   }
 
@@ -1841,20 +2088,29 @@ export function parseCommuteMinutes(
   if (singleMatch) {
     const m = Number(singleMatch[1]);
     if (Number.isFinite(m)) {
-      return {
+      const res = {
         minutes: m,
         label: `${m} min`,
       };
+      commuteMinutesCache.set(cacheKey, res);
+      return res;
     }
   }
 
-  return { minutes: 25, label: cleaned || "20–30 min" };
+  const res = { minutes: null, label: cleaned || "Ref. BSB" };
+  commuteMinutesCache.set(cacheKey, res);
+  return res;
 }
 
 /**
  * Extracts qualitative features from the apartment, condominium, and surroundings
  * that are NOT already displayed in the card header, specs row, floor badge, or green/red pills.
  */
+const nonRedundantHighlightsCache = new WeakMap<
+  SlimPropertyRecord,
+  { featureHighlights: string[]; surroundingHighlights: string[] }
+>();
+
 function extractNonRedundantHighlights(
   prop: SlimPropertyRecord,
   nuances: ReturnType<typeof evaluateApartmentNuances>,
@@ -1862,6 +2118,9 @@ function extractNonRedundantHighlights(
   featureHighlights: string[];
   surroundingHighlights: string[];
 } {
+  const cached = nonRedundantHighlightsCache.get(prop);
+  if (cached) return cached;
+
   const features: string[] = [];
   const surroundings: string[] = [];
 
@@ -2026,10 +2285,12 @@ function extractNonRedundantHighlights(
     addSurrounding("acesso fácil ao metrô");
   }
 
-  return {
+  const result = {
     featureHighlights: features,
     surroundingHighlights: surroundings,
   };
+  nonRedundantHighlightsCache.set(prop, result);
+  return result;
 }
 
 const NEIGHBORHOOD_DRAWBACK_FALLBACKS: Record<string, string> = {
@@ -2088,10 +2349,18 @@ const NEIGHBORHOOD_DRAWBACK_FALLBACKS: Record<string, string> = {
   "bsb:sul (águas claras)": "trânsito carregado nas saídas da EPTG/Park Way em horário de pico e ausência de hub presencial do Nubank",
 };
 
+const neighborhoodDrawbackCache = new WeakMap<
+  SlimPropertyRecord,
+  string | null
+>();
+
 function resolveNeighborhoodDrawback(
   prop: SlimPropertyRecord,
   catalogNb: ComputedNeighborhood | undefined,
 ): string | null {
+  if (neighborhoodDrawbackCache.has(prop)) {
+    return neighborhoodDrawbackCache.get(prop) ?? null;
+  }
   const nbLower = prop.neighborhood.trim().toLowerCase();
   const normNbLower = normalizeNeighborhoodKey(
     prop.neighborhood,
@@ -2119,26 +2388,43 @@ function resolveNeighborhoodDrawback(
       ) {
         continue;
       }
-      return cleaned.charAt(0).toLowerCase() + cleaned.slice(1);
+      const res = cleaned.charAt(0).toLowerCase() + cleaned.slice(1);
+      neighborhoodDrawbackCache.set(prop, res);
+      return res;
     }
   }
 
-  return (
+  const fallback =
     NEIGHBORHOOD_DRAWBACK_FALLBACKS[`${prop.cityCode.toLowerCase()}:${nbLower}`] ??
     NEIGHBORHOOD_DRAWBACK_FALLBACKS[`${prop.cityCode.toLowerCase()}:${normNbLower}`] ??
-    null
-  );
+    null;
+  neighborhoodDrawbackCache.set(prop, fallback);
+  return fallback;
 }
 
+const conservationDrawbacksCache = new WeakMap<SlimPropertyRecord, string[]>();
+
 function extractConservationDrawbacks(prop: SlimPropertyRecord): string[] {
+  const cached = conservationDrawbacksCache.get(prop);
+  if (cached) return cached;
+
   const result: string[] = [];
   const addUnique = (text: string) => {
     if (!result.includes(text)) result.push(text);
   };
 
+  const hasRenovationEvidence = prop.positiveSignals.some(
+    (p) =>
+      p.includes("Reformado") ||
+      p.includes("novo") ||
+      p.includes("Porcelanato") ||
+      p.includes("Construção 20"),
+  );
+
   for (const sig of prop.negativeSignals) {
     if (/sem elevador|pr[eé]dio escada/i.test(sig)) continue;
     if (/venda|comprad/i.test(sig)) continue;
+    if (/descri[cç][aã]o gen[eé]rica/i.test(sig)) continue;
 
     if (/piso antigo|cer[aâ]mica|t[aá]bua corrida|taco/i.test(sig)) {
       addUnique("piso antigo de cerâmica ou taco");
@@ -2150,8 +2436,6 @@ function extractConservationDrawbacks(prop: SlimPropertyRecord): string[] {
       addUnique("azulejos e revestimentos datados");
     } else if (/arm[aá]rios? antigos?/i.test(sig)) {
       addUnique("armários antigos");
-    } else if (/descri[cç][aã]o gen[eé]rica/i.test(sig)) {
-      addUnique("acabamento original sem sinais de reforma recente");
     } else if (!/R\$|\bm²\b/i.test(sig)) {
       const cleanSig = sig.trim().replace(/\.$/, "");
       if (cleanSig) {
@@ -2160,10 +2444,19 @@ function extractConservationDrawbacks(prop: SlimPropertyRecord): string[] {
     }
   }
 
-  if (result.length === 0 && prop.modernityScore < 72) {
-    addUnique("acabamento padrão sem reforma moderna recente");
+  if (result.length === 0) {
+    if (
+      prop.constructionYear !== null &&
+      prop.constructionYear < 1995 &&
+      !hasRenovationEvidence
+    ) {
+      addUnique("prédio mais antigo sem reforma recente");
+    } else if (prop.modernityTier === "DATED") {
+      addUnique("acabamento original sem sinais de reforma recente");
+    }
   }
 
+  conservationDrawbacksCache.set(prop, result);
   return result;
 }
 
@@ -2195,13 +2488,12 @@ function buildShortJustification(params: {
     catalogNb,
     nbCommute,
   );
-  const { featureHighlights, surroundingHighlights } =
-    extractNonRedundantHighlights(prop, nuances);
+  const staticMeta = getStaticPropertyScoringMeta(prop);
 
   // === SENTENCE 1: PONTOS POSITIVOS (PRÓS) ===
-  const isBunkerCorridor = nuances.redTags.includes(
-    "Via Arterial / Efeito Bunker",
-  );
+  const isBunkerCorridor =
+    staticMeta.microEnv.category === "BUNKER_OR_SPOOF" ||
+    nuances.redTags.includes("Via Arterial / Efeito Bunker");
   let urbanContext = `a ${commuteTimeText} do ${officeLabel}`;
   if (!isBunkerCorridor && catalogNb) {
     if (catalogNb.urbanBreathingScore >= 9.0) {
@@ -2221,28 +2513,26 @@ function buildShortJustification(params: {
   const area = prop.areaM2;
   const diffIdeal = weights.budgetIdeal - total;
 
-  const topFeatures = featureHighlights.slice(0, 5);
-  const topSurroundings = surroundingHighlights.slice(0, 3);
+  const hasFeatures = staticMeta.topFeaturesFormatted.length > 0;
+  const hasSurroundings = staticMeta.topSurroundingsFormatted.length > 0;
 
-  const positiveParts: string[] = [];
-  if (topFeatures.length > 0) {
-    positiveParts.push(`Com ${formatListPt(topFeatures)}`);
+  let positiveLead = "";
+  if (hasFeatures) {
+    positiveLead = `Com ${staticMeta.topFeaturesFormatted}`;
   } else if (furnitureTier === "UNFURNISHED" && area >= weights.sweetSpotMinM2) {
-    positiveParts.push(
-      "Planta bem dimensionada e livre de mobília solta para a mudança de Brasília",
-    );
+    positiveLead =
+      "Planta bem dimensionada e livre de mobília solta para a mudança de Brasília";
   } else if (furnitureTier === "UNFURNISHED") {
-    positiveParts.push(
-      "Unidade livre de mobília solta para receber sua mudança de Brasília",
-    );
+    positiveLead =
+      "Unidade livre de mobília solta para receber sua mudança de Brasília";
   } else if (area >= weights.sweetSpotMinM2) {
-    positiveParts.push("Planta espaçosa pronta para uso");
+    positiveLead = "Planta espaçosa pronta para uso";
   } else {
-    positiveParts.push("Planta funcional pronta para uso");
+    positiveLead = "Planta funcional pronta para uso";
   }
 
-  if (topSurroundings.length > 0) {
-    positiveParts.push(`em ${formatListPt(topSurroundings)}`);
+  if (hasSurroundings) {
+    positiveLead += `, em ${staticMeta.topSurroundingsFormatted}`;
   }
 
   let positiveTail = "";
@@ -2250,17 +2540,17 @@ function buildShortJustification(params: {
     positiveTail = ", com folga confortável no orçamento";
   } else if (total > 0 && diffIdeal >= 0) {
     positiveTail = ", enquadrado na meta financeira";
-  } else if (furnitureTier === "UNFURNISHED" && topFeatures.length > 0) {
+  } else if (furnitureTier === "UNFURNISHED" && hasFeatures) {
     positiveTail = ", livre de mobília solta para a mudança de Brasília";
   } else if (
     area >= weights.sweetSpotMinM2 &&
     area <= weights.sweetSpotMaxM2 &&
-    topFeatures.length > 0
+    hasFeatures
   ) {
     positiveTail = ", com planta bem distribuída para a rotina";
   }
 
-  const sentence1 = `${positiveParts.join(", ")} — fica ${urbanContext}${positiveTail}.`;
+  const sentence1 = `${positiveLead} — fica ${urbanContext}${positiveTail}.`;
 
   // === SENTENCE 2: PONTOS NEGATIVOS / RESSALVAS (CONTRAS) ===
   const primaryDrawbacks: string[] = [];
@@ -2271,9 +2561,7 @@ function buildShortJustification(params: {
     primaryDrawbacks.push(
       "fica em corredor viário intenso / divisa de centro (efeito bunker: barulho de trânsito e calçada hostil a pé)",
     );
-  } else if (
-    nuances.nuanceWarnings.some((w) => /avenida de tr[aá]fego intenso/i.test(w))
-  ) {
+  } else if (staticMeta.hasTrafficWarning) {
     primaryDrawbacks.push(
       "fica em avenida de tráfego intenso (ruído e menor caminhabilidade)",
     );
@@ -2334,7 +2622,7 @@ function buildShortJustification(params: {
     );
   }
 
-  // 4. Floor / Elevation drawbacks
+  // 4. Floor / Elevation drawbacks (only when confirmed low/ground floor; never penalize unmentioned floor)
   if (nuances.floorTag?.rarity === "common") {
     primaryDrawbacks.push(
       "fica no térreo (maior exposição a ruído de calçada e menor privacidade)",
@@ -2349,20 +2637,18 @@ function buildShortJustification(params: {
         "fica em andar baixo (mais próximo do ruído da rua e com vista mais restrita)",
       );
     }
-  } else if (nuances.floorTag === null) {
-    secondaryDrawbacks.push("andar não especificado no anúncio");
   }
 
-  // 5. Conservation / Building age drawbacks
+  // 5. Conservation / Building age drawbacks (only from confirmed negative conservation evidence)
   const conservationDrawbacks = extractConservationDrawbacks(prop);
   for (const cd of conservationDrawbacks.slice(0, 2)) {
     primaryDrawbacks.push(cd);
   }
 
   // 6. High-impact nuance & condominium drawbacks
-  const isMegaCondo =
-    nuances.redTags.includes("Megacondomínio") ||
-    nuances.nuanceWarnings.some((w) => /megacondom[ií]nio/i.test(w));
+  const isMegaCondo = weights.penalizeMegaCondo
+    ? staticMeta.isMegaCondoTrue
+    : staticMeta.isMegaCondoFalse;
   if (isMegaCondo) {
     primaryDrawbacks.push(
       "perfil de megacondomínio familiar (maior fluxo e barulho nas áreas comuns)",
@@ -2394,30 +2680,37 @@ function buildShortJustification(params: {
     );
   }
 
-  // 8. Missing unit features
-  if (!nuances.acLabel) {
-    secondaryDrawbacks.push("sem ar-condicionado instalado");
+  // 8. Confirmed commute, parking, or doorman drawbacks (never invent unmentioned features as downsides)
+  const parsedCommuteForDrawback = parseCommuteMinutes(
+    catalogNb?.commuteTime ?? nbCommute,
+    staticMeta.isDeepWestBarra,
+  );
+  if (
+    parsedCommuteForDrawback.minutes !== null &&
+    parsedCommuteForDrawback.minutes >= 28
+  ) {
+    secondaryDrawbacks.push(
+      "trajeto mais longo até o escritório presencial nos horários de pico",
+    );
   }
 
-  const hasBalcony =
-    nuances.nuanceHighlights.includes("Varanda") ||
-    featureHighlights.includes("varanda") ||
-    featureHighlights.includes("varanda gourmet");
-  if (!hasBalcony) {
-    secondaryDrawbacks.push("planta sem varanda");
+  if (prop.parkingSpaces < 1) {
+    primaryDrawbacks.push("sem vaga de garagem privativa");
   }
 
-  const has24hDoorman =
-    nuances.nuanceHighlights.includes("Portaria 24h / Biometria") ||
-    featureHighlights.includes("portaria 24h");
-  if (!has24hDoorman) {
-    secondaryDrawbacks.push("sem portaria 24h presencial informada");
+  if (
+    prop.doorman === "NotAvailable" ||
+    prop.doorman === "None" ||
+    prop.doorman === "Sem portaria" ||
+    /\bsem\s+portaria\b/i.test(prop.description ?? "")
+  ) {
+    secondaryDrawbacks.push("condomínio sem portaria presencial");
   }
 
   // 9. Neighborhood-specific cons
   const nbDrawback = resolveNeighborhoodDrawback(prop, catalogNb);
 
-  // Assemble top 2 to 4 drawbacks prioritizing severity + keeping room for neighborhood con when relevant
+  // Assemble top drawbacks prioritizing severity + keeping room for neighborhood con when relevant
   const selectedDrawbacks: string[] = [];
   for (const item of primaryDrawbacks) {
     if (selectedDrawbacks.length < 4 && !selectedDrawbacks.includes(item)) {
@@ -2449,16 +2742,10 @@ function buildShortJustification(params: {
     }
   }
 
-  if (selectedDrawbacks.length < 2) {
-    const fallbackCaveats = [
-      "exige validar isolamento acústico e vedação das janelas na visita",
-      "convém confirmar dimensões da vaga e pressão hidráulica na vistoria",
-    ];
-    for (const fb of fallbackCaveats) {
-      if (selectedDrawbacks.length < 2 && !selectedDrawbacks.includes(fb)) {
-        selectedDrawbacks.push(fb);
-      }
-    }
+  if (selectedDrawbacks.length === 0) {
+    selectedDrawbacks.push(
+      "sem ressalvas críticas identificadas nos dados do anúncio — validar posição da vaga e incidência solar na visita",
+    );
   }
 
   const rawSentence2 = formatListPt(selectedDrawbacks);
@@ -2492,8 +2779,7 @@ function buildNarrativeJustification(params: {
     catalogNb,
     nbCommute,
   );
-  const { featureHighlights, surroundingHighlights } =
-    extractNonRedundantHighlights(prop, nuances);
+  const staticMeta = getStaticPropertyScoringMeta(prop);
 
   // 1. Urban breathing, office commute & surroundings synthesis
   let urbanClause = `Fica a cerca de ${commuteTimeText} do ${officeLabel}`;
@@ -2501,8 +2787,8 @@ function buildNarrativeJustification(params: {
     const rationaleClean = catalogNb.shortRationale.replace(/\.$/, "");
     urbanClause += ` (${rationaleClean.charAt(0).toLowerCase() + rationaleClean.slice(1)})`;
   }
-  if (surroundingHighlights.length > 0) {
-    urbanClause += `, somando ${formatListPt(surroundingHighlights)} no entorno imediato.`;
+  if (staticMeta.allSurroundingsFormatted.length > 0) {
+    urbanClause += `, somando ${staticMeta.allSurroundingsFormatted} no entorno imediato.`;
   } else {
     urbanClause += ", em ponto com fácil acesso aos serviços cotidianos.";
   }
@@ -2521,8 +2807,8 @@ function buildNarrativeJustification(params: {
   }
 
   const interiorClause =
-    featureHighlights.length > 0
-      ? `No interior e condomínio, agrega ${formatListPt(featureHighlights)}. ${acousticClause}.`
+    staticMeta.allFeaturesFormatted.length > 0
+      ? `No interior e condomínio, agrega ${staticMeta.allFeaturesFormatted}. ${acousticClause}.`
       : `${acousticClause}, embora o anúncio traga poucos detalhes sobre marcenaria ou equipamentos extras instalados.`;
 
   // 3. Brasília relocation logistics, floorplan & budget trade-off
@@ -2587,11 +2873,7 @@ function buildNarrativeJustification(params: {
       "considerar o impacto dos lances de escada no frete da mudança e no dia a dia",
     );
   }
-  if (
-    prop.negativeSignals.some((s) =>
-      /antig|cer[aâ]mica|t[aá]bua|taco|anos 80/i.test(s),
-    )
-  ) {
+  if (staticMeta.hasLegacyFinishSignals) {
     visitCaveats.push(
       "inspecionar o estado da rede elétrica, pressão hidráulica e vedação das janelas",
     );
@@ -2699,9 +2981,15 @@ export const FURNISHED_COMMODITY_ITEMS = new Set<string>([
  * - "SEMI_FURNISHED": Kitchen/laundry appliances or explicit "semi-mobiliado" WITHOUT bed or sofa
  * - "FULLY_FURNISHED": Has bed, sofa, living/bedroom furniture set, apart-hotel, or full furnished flag
  */
+const furnitureTierCache = new WeakMap<SlimPropertyRecord, FurnitureTier>();
+
 export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
+  const cached = furnitureTierCache.get(prop);
+  if (cached) return cached;
+
   const propKey = `${prop.provider}:${prop.id}`;
   if (PHOTO_DETECTED_FURNISHED_KEYS.has(propKey)) {
+    furnitureTierCache.set(prop, "FULLY_FURNISHED");
     return "FULLY_FURNISHED";
   }
 
@@ -2710,6 +2998,7 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
       prop.condominiumName ?? "",
     )
   ) {
+    furnitureTierCache.set(prop, "FULLY_FURNISHED");
     return "FULLY_FURNISHED";
   }
 
@@ -2778,30 +3067,510 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
       descText,
     );
 
+  let tier: FurnitureTier = "UNFURNISHED";
   if (hasCommodityBedOrSofa || hasCaptionBedOrSofa || hasTextBedOrSofa) {
-    return "FULLY_FURNISHED";
+    tier = "FULLY_FURNISHED";
+  } else if (hasExplicitSemiFurnished) {
+    tier = "SEMI_FURNISHED";
+  } else if (hasTextGeneralFurnished) {
+    tier = "FULLY_FURNISHED";
+  } else if (prop.furnished === true) {
+    tier =
+      hasCommodityAppliance || hasCaptionAppliance || hasTextAppliance
+        ? "SEMI_FURNISHED"
+        : "FULLY_FURNISHED";
+  } else if (hasCommodityAppliance || hasCaptionAppliance || hasTextAppliance) {
+    tier = "SEMI_FURNISHED";
   }
 
-  if (hasExplicitSemiFurnished) {
-    return "SEMI_FURNISHED";
+  furnitureTierCache.set(prop, tier);
+  return tier;
+}
+
+interface StaticPropertyScoringMeta {
+  normNb: string;
+  normNbLower: string;
+  nbLower: string;
+  calibratedMeta: ReturnType<typeof resolveNeighborhoodSafetyAndMetrics>;
+  microEnv: StreetMicroEnvironmentEvaluation;
+  isDeepWestBarra: boolean;
+  effectiveProp: SlimPropertyRecord;
+  furnitureTier: FurnitureTier;
+  signalsSummary: string;
+  negSummary: string;
+  hasLegacyFinishSignals: boolean;
+  topFeaturesFormatted: string;
+  topSurroundingsFormatted: string;
+  allFeaturesFormatted: string;
+  allSurroundingsFormatted: string;
+  hasBalconyFeature: boolean;
+  has24hDoormanFeature: boolean;
+  nuancesSummaryTrue: string;
+  nuancesSummaryFalse: string;
+  hasTrafficWarning: boolean;
+  isMegaCondoTrue: boolean;
+  isMegaCondoFalse: boolean;
+}
+
+const staticPropertyMetaCache = new WeakMap<
+  SlimPropertyRecord,
+  StaticPropertyScoringMeta
+>();
+
+function getStaticPropertyScoringMeta(
+  prop: SlimPropertyRecord,
+): StaticPropertyScoringMeta {
+  const cached = staticPropertyMetaCache.get(prop);
+  if (cached) return cached;
+
+  const normNb = normalizeNeighborhoodKey(prop.neighborhood, prop.cityCode);
+  const normNbLower = normNb.toLowerCase();
+  const nbLower = `${prop.cityCode}:${prop.neighborhood.toLowerCase()}`;
+  const calibratedMeta = resolveNeighborhoodSafetyAndMetrics(
+    prop.cityCode,
+    prop.neighborhood,
+  );
+  const microEnv = evaluateStreetMicroEnvironment(prop);
+  const fullLocationText = [
+    prop.street ?? "",
+    prop.title ?? "",
+    prop.description ?? "",
+    prop.generatedDescription ?? "",
+    ...(prop.comfortCommodities ?? []),
+    ...(prop.practicalityCommodities ?? []),
+    ...(prop.amenities ?? []),
+    ...(prop.installations ?? []),
+    ...(prop.photoCaptions ?? []),
+  ].join(" ");
+  const isDeepWestBarra =
+    prop.cityCode === "RJ" &&
+    /\b(barra ol[ií]mpica|estrada dos bandeirantes|shopping metropolitano|curicica|jacarepagu[aá]|recreio|riocentro|abelardo bueno|salvador allende|ad[ií]lio de oliveira)\b/i.test(
+      fullLocationText,
+    );
+  const furnitureTier = classifyFurnitureTier(prop);
+  const effectiveFurnished: boolean | null =
+    furnitureTier === "FULLY_FURNISHED"
+      ? true
+      : furnitureTier === "UNFURNISHED"
+        ? false
+        : prop.furnished;
+  const effectiveProp: SlimPropertyRecord =
+    effectiveFurnished !== prop.furnished
+      ? { ...prop, furnished: effectiveFurnished }
+      : prop;
+  const signalsSummary =
+    prop.positiveSignals.length > 0
+      ? prop.positiveSignals.join(", ")
+      : "padrão conservado";
+  const filteredNegativeSignals = prop.negativeSignals.filter(
+    (s) => !/venda|comprad|visita[cç][aã]o/i.test(s),
+  );
+  const negSummary =
+    filteredNegativeSignals.length > 0
+      ? ` | Alertas: ${filteredNegativeSignals.join(", ")}`
+      : "";
+  const hasLegacyFinishSignals = prop.negativeSignals.some((s) =>
+    /antig|cer[aâ]mica|t[aá]bua|taco|anos 80/i.test(s),
+  );
+  const nuancesTrue = evaluateApartmentNuancesFast(prop, true);
+  const nuancesFalse = evaluateApartmentNuancesFast(prop, false);
+  const hl = extractNonRedundantHighlights(prop, nuancesFalse);
+  const cd = extractConservationDrawbacks(prop);
+  if (effectiveProp !== prop) {
+    streetMicroCache.set(effectiveProp, microEnv);
+    furnitureTierCache.set(effectiveProp, furnitureTier);
+    nonRedundantHighlightsCache.set(effectiveProp, hl);
+    conservationDrawbacksCache.set(effectiveProp, cd);
+  }
+  const topFeatures = hl.featureHighlights.slice(0, 5);
+  const topSurroundings = hl.surroundingHighlights.slice(0, 3);
+  const topFeaturesFormatted = formatListPt(topFeatures);
+  const topSurroundingsFormatted = formatListPt(topSurroundings);
+  const allFeaturesFormatted = formatListPt(hl.featureHighlights);
+  const allSurroundingsFormatted = formatListPt(hl.surroundingHighlights);
+  const hasBalconyFeature =
+    nuancesFalse.nuanceHighlights.includes("Varanda") ||
+    hl.featureHighlights.includes("varanda") ||
+    hl.featureHighlights.includes("varanda gourmet");
+  const has24hDoormanFeature =
+    nuancesFalse.nuanceHighlights.includes("Portaria 24h / Biometria") ||
+    hl.featureHighlights.includes("portaria 24h");
+  const nuancesSummaryTrue =
+    nuancesTrue.nuanceHighlights.length > 0
+      ? nuancesTrue.nuanceHighlights.join(", ")
+      : "sem destaques extras de micro-localização/andar";
+  const nuancesSummaryFalse =
+    nuancesFalse.nuanceHighlights.length > 0
+      ? nuancesFalse.nuanceHighlights.join(", ")
+      : "sem destaques extras de micro-localização/andar";
+  const hasTrafficWarning = nuancesFalse.nuanceWarnings.some((w) =>
+    /avenida de tr[aá]fego intenso/i.test(w),
+  );
+  const isMegaCondoTrue =
+    nuancesTrue.redTags.includes("Megacondomínio") ||
+    nuancesTrue.nuanceWarnings.some((w) => /megacondom[ií]nio/i.test(w));
+  const isMegaCondoFalse =
+    nuancesFalse.redTags.includes("Megacondomínio") ||
+    nuancesFalse.nuanceWarnings.some((w) => /megacondom[ií]nio/i.test(w));
+
+  const meta: StaticPropertyScoringMeta = {
+    normNb,
+    normNbLower,
+    nbLower,
+    calibratedMeta,
+    microEnv,
+    isDeepWestBarra,
+    effectiveProp,
+    furnitureTier,
+    signalsSummary,
+    negSummary,
+    hasLegacyFinishSignals,
+    topFeaturesFormatted,
+    topSurroundingsFormatted,
+    allFeaturesFormatted,
+    allSurroundingsFormatted,
+    hasBalconyFeature,
+    has24hDoormanFeature,
+    nuancesSummaryTrue,
+    nuancesSummaryFalse,
+    hasTrafficWarning,
+    isMegaCondoTrue,
+    isMegaCondoFalse,
+  };
+  staticPropertyMetaCache.set(prop, meta);
+  if (effectiveProp !== prop) {
+    staticPropertyMetaCache.set(effectiveProp, meta);
+  }
+  return meta;
+}
+
+interface EvaluatedJustificationContext {
+  prop: SlimPropertyRecord;
+  staticMeta: StaticPropertyScoringMeta;
+  furnitureTier: FurnitureTier;
+  catalogNb: ComputedNeighborhood | undefined;
+  nbScore: number;
+  nbCommute: string;
+  nbSafetyCar: number;
+  weights: ScoringWeights;
+  nuances: ApartmentNuancesEvaluation;
+  eligible: boolean;
+  exclusionReason: string | null;
+  finalScore: number;
+  neighborhoodPoints: number;
+  modernityPoints: number;
+  modernityCurveBonus: number;
+  nuancesPoints: number;
+  budgetPoints: number;
+  furniturePoints: number;
+  areaPoints: number;
+  parkingPoints: number;
+  streetSafetyAdjustment: number;
+  cityPreferencePoints: number;
+  comfortFloor: number;
+  compactFloorM2: number;
+}
+
+function buildDetailedJustificationFromContext(
+  ctx: EvaluatedJustificationContext,
+): string {
+  const {
+    prop,
+    staticMeta,
+    furnitureTier,
+    nbScore,
+    nbCommute,
+    nbSafetyCar,
+    weights,
+    nuances,
+    eligible,
+    exclusionReason,
+    finalScore,
+    neighborhoodPoints,
+    modernityPoints,
+    modernityCurveBonus,
+    nuancesPoints,
+    budgetPoints,
+    furniturePoints,
+    areaPoints,
+    parkingPoints,
+    streetSafetyAdjustment,
+    cityPreferencePoints,
+    comfortFloor,
+    compactFloorM2,
+  } = ctx;
+  const fmtSign = (n: number) => (n >= 0 ? `+${n.toFixed(1)}` : n.toFixed(1));
+  const total = prop.totalMonthly;
+  const totalFmt = fmtIntPtBr(total);
+  let budgetDesc = "";
+  if (total > 0 && total <= comfortFloor) {
+    budgetDesc = `R$ ${totalFmt}/mês com excelente folga abaixo da meta de R$ ${fmtIntPtBr(weights.budgetIdeal)}`;
+  } else if (total > 0 && total <= weights.budgetIdeal) {
+    budgetDesc = `R$ ${totalFmt}/mês dentro do teto ideal de R$ ${fmtIntPtBr(weights.budgetIdeal)}`;
+  } else if (total <= weights.budgetMax) {
+    budgetDesc = `R$ ${totalFmt}/mês dentro do limite máximo de R$ ${fmtIntPtBr(weights.budgetMax)}`;
+  } else if (total <= weights.budgetHardCap) {
+    budgetDesc = `R$ ${totalFmt}/mês ligeiramente acima de R$ ${fmtIntPtBr(weights.budgetMax)} (negociável)`;
+  } else {
+    budgetDesc = `R$ ${totalFmt}/mês acima do teto máximo de R$ ${fmtIntPtBr(weights.budgetHardCap)}`;
+  }
+  let furnitureDesc =
+    "Não mobiliado / só marcenaria fixa (pronto para receber sua mobília de Brasília)";
+  if (furnitureTier === "SEMI_FURNISHED") {
+    furnitureDesc =
+      "Semi-mobiliado — apenas eletros/cozinha sem cama ou sofá (penalidade reduzida)";
+  } else if (furnitureTier === "FULLY_FURNISHED") {
+    furnitureDesc =
+      "Totalmente mobiliado com cama/sofá (requer negociar retirada de mobília solta ou adaptar)";
+  }
+  const area = prop.areaM2;
+  let areaDesc = "";
+  if (area >= weights.sweetSpotMinM2 && area <= weights.sweetSpotMaxM2) {
+    areaDesc = `${area} m² no sweet spot ideal para a mudança de Brasília (${weights.sweetSpotMinM2}–${weights.sweetSpotMaxM2} m²)`;
+  } else if (area > weights.sweetSpotMaxM2 && area <= weights.maxAreaM2) {
+    areaDesc = `${area} m² planta espaçosa (${weights.sweetSpotMaxM2}–${weights.maxAreaM2} m²)`;
+  } else if (area >= compactFloorM2 && area < weights.sweetSpotMinM2) {
+    areaDesc = `${area} m² compacta no limite (${compactFloorM2}–${weights.sweetSpotMinM2 - 1} m²)`;
+  } else if (area >= weights.minAreaM2 && area < compactFloorM2) {
+    areaDesc = `${area} m² muito enxuta para acomodar toda a mudança de Brasília (${weights.minAreaM2}–${compactFloorM2 - 1} m²)`;
+  } else {
+    areaDesc = `${area} m² fora da faixa configurada (${weights.minAreaM2}–${weights.maxAreaM2} m²)`;
+  }
+  let parkingDesc = "Sem vaga de garagem";
+  if (prop.parkingSpaces >= 2) {
+    parkingDesc = `${prop.parkingSpaces} vagas de garagem`;
+  } else if (prop.parkingSpaces === 1) {
+    parkingDesc = `1 vaga de garagem${prop.cityCode === "RJ" ? " (raridade na Zona Sul do RJ)" : ""}`;
+  }
+  const nuancesSummary = weights.penalizeMegaCondo
+    ? staticMeta.nuancesSummaryTrue
+    : staticMeta.nuancesSummaryFalse;
+  const nuancesWarnSummary =
+    nuances.nuanceWarnings.length > 0
+      ? ` | Ressalvas: ${nuances.nuanceWarnings.join(", ")}`
+      : "";
+  const safetyClause =
+    streetSafetyAdjustment !== 0
+      ? ` [Segurança na Rua ${fmtSign(streetSafetyAdjustment)} pts (nota ${nbSafetyCar.toFixed(1)}/10)];`
+      : "";
+  const cityPrefClause =
+    cityPreferencePoints !== 0
+      ? ` [Ajuste Praça ${fmtSign(cityPreferencePoints)} pts (${prop.cityCode === "SP" ? "penalidade São Paulo Capital" : "penalidade estado SP / Campinas"})];`
+      : "";
+  const modernityCurveNote =
+    modernityCurveBonus !== 0
+      ? ` (curva não-linear ${fmtSign(modernityCurveBonus)} pts)`
+      : "";
+
+  return [
+    `Score Final ${finalScore.toFixed(1)} pts (${eligible ? "Qualificado" : `Filtrado: ${exclusionReason}`}):`,
+    `[Bairro ${fmtSign(neighborhoodPoints)} pts] ${prop.neighborhood} (${prop.cityCode}) tem nota dinâmica ${nbScore.toFixed(2)}/10 × peso ${weights.neighborhoodMultiplier.toFixed(1)} (${nbCommute});${safetyClause}${cityPrefClause}`,
+    `[Modernidade ${fmtSign(modernityPoints)} pts] Score ${prop.modernityScore}/100 (${prop.modernityTier}: ${staticMeta.signalsSummary}${staticMeta.negSummary}) × peso ${weights.modernityMultiplier.toFixed(2)}${modernityCurveNote};`,
+    `[Nuances & Micro-Localização ${fmtSign(nuancesPoints)} pts] (${nuancesSummary}${nuancesWarnSummary}) × peso ${(weights.nuancesMultiplier ?? 1).toFixed(1)};`,
+    `[Orçamento ${fmtSign(budgetPoints)} pts] ${budgetDesc};`,
+    `[Mobília ${fmtSign(furniturePoints)} pts] ${furnitureDesc};`,
+    `[Planta ${fmtSign(areaPoints)} pts] ${areaDesc};`,
+    `[Garagem ${fmtSign(parkingPoints)} pts] ${parkingDesc}.`,
+  ].join(" ");
+}
+
+class EvaluatedPropertyImpl implements EvaluatedProperty {
+  provider: SlimPropertyRecord["provider"];
+  id: string;
+  cityCode: CityHubCode;
+  city: string;
+  neighborhood: string;
+  street: string;
+  streetNumber: string | null;
+  condominiumName: string | null;
+  doorman: string | null;
+  url: string;
+  title: string;
+  rent: number;
+  condoFee: number;
+  iptu: number;
+  totalMonthly: number;
+  salePrice: number | null;
+  areaM2: number;
+  bedrooms: number;
+  suites: number;
+  bathrooms: number;
+  parkingSpaces: number;
+  floor: number | null;
+  floorRange: { min: number; max: number } | null;
+  totalFloors: number | null;
+  furnished: boolean | null;
+  acceptsPets: boolean | null;
+  nearSubway: boolean | null;
+  constructionYear: number | null;
+  condition: string | null;
+  installations: string[];
+  amenities: string[];
+  comfortCommodities: string[];
+  practicalityCommodities: string[];
+  placesNearby: Array<{ type: string; name: string }>;
+  photoCaptions: string[];
+  photosCount: number;
+  modernityScore: number;
+  modernityTier: SlimPropertyRecord["modernityTier"];
+  positiveSignals: string[];
+  negativeSignals: string[];
+  samplePhotos: Array<{ room: string | null; url: string }>;
+  description: string | null;
+  generatedDescription: string | null;
+  sourceSearch: string | null;
+  isNewEntry: boolean;
+  isActive?: boolean;
+  deactivatedAt?: string | null;
+  furnitureTier: FurnitureTier;
+  commuteMinutes: number | null;
+  commuteLabel: string;
+  eligible: boolean;
+  exclusionReason: string | null;
+  finalScore: number;
+  cityRank: number | null = null;
+  overallRank: number | null = null;
+  neighborhoodRank: number | null = null;
+  neighborhoodDynamicScore: number;
+  breakdown: EvaluatedProperty["breakdown"];
+  cardTags: EvaluatedProperty["cardTags"];
+  nuanceHighlights: string[];
+  nuanceWarnings: string[];
+  parksNearby: string[];
+  mallsNearby: string[];
+  #ctx: EvaluatedJustificationContext;
+  #short?: string;
+  #narrative?: string;
+  #detailed?: string;
+
+  constructor(
+    p: SlimPropertyRecord,
+    commuteMinutes: number | null,
+    commuteLabel: string,
+    cardTags: EvaluatedProperty["cardTags"],
+    breakdown: EvaluatedProperty["breakdown"],
+    ctx: EvaluatedJustificationContext,
+  ) {
+    this.provider = p.provider;
+    this.id = p.id;
+    this.cityCode = p.cityCode;
+    this.city = p.city;
+    this.neighborhood = p.neighborhood;
+    this.street = p.street;
+    this.streetNumber = p.streetNumber;
+    this.condominiumName = p.condominiumName;
+    this.doorman = p.doorman;
+    this.url = p.url;
+    this.title = p.title;
+    this.rent = p.rent;
+    this.condoFee = p.condoFee;
+    this.iptu = p.iptu;
+    this.totalMonthly = p.totalMonthly;
+    this.salePrice = p.salePrice;
+    this.areaM2 = p.areaM2;
+    this.bedrooms = p.bedrooms;
+    this.suites = p.suites;
+    this.bathrooms = p.bathrooms;
+    this.parkingSpaces = p.parkingSpaces;
+    this.floor = p.floor;
+    this.floorRange = p.floorRange;
+    this.totalFloors = p.totalFloors;
+    this.furnished = p.furnished;
+    this.acceptsPets = p.acceptsPets;
+    this.nearSubway = p.nearSubway;
+    this.constructionYear = p.constructionYear;
+    this.condition = p.condition;
+    this.installations = p.installations;
+    this.amenities = p.amenities;
+    this.comfortCommodities = p.comfortCommodities;
+    this.practicalityCommodities = p.practicalityCommodities;
+    this.placesNearby = p.placesNearby;
+    this.photoCaptions = p.photoCaptions;
+    this.photosCount = p.photosCount;
+    this.modernityScore = p.modernityScore;
+    this.modernityTier = p.modernityTier;
+    this.positiveSignals = p.positiveSignals;
+    this.negativeSignals = p.negativeSignals;
+    this.samplePhotos = p.samplePhotos;
+    this.description = p.description;
+    this.generatedDescription = p.generatedDescription;
+    this.sourceSearch = p.sourceSearch;
+    this.isNewEntry = p.isNewEntry;
+    this.isActive = p.isActive;
+    this.deactivatedAt = p.deactivatedAt;
+    this.furnitureTier = ctx.furnitureTier;
+    this.commuteMinutes = commuteMinutes;
+    this.commuteLabel = commuteLabel;
+    this.eligible = ctx.eligible;
+    this.exclusionReason = ctx.exclusionReason;
+    this.finalScore = ctx.finalScore;
+    this.neighborhoodDynamicScore = ctx.nbScore;
+    this.breakdown = breakdown;
+    this.cardTags = cardTags;
+    this.nuanceHighlights = ctx.nuances.nuanceHighlights;
+    this.nuanceWarnings = ctx.nuances.nuanceWarnings;
+    this.parksNearby = ctx.nuances.parksNearby;
+    this.mallsNearby = ctx.nuances.mallsNearby;
+    this.#ctx = ctx;
   }
 
-  if (hasTextGeneralFurnished) {
-    return "FULLY_FURNISHED";
-  }
-
-  if (prop.furnished === true) {
-    if (hasCommodityAppliance || hasCaptionAppliance || hasTextAppliance) {
-      return "SEMI_FURNISHED";
+  get shortJustification(): string {
+    if (this.#short === undefined) {
+      this.#short = buildShortJustification({
+        prop: this.#ctx.prop,
+        furnitureTier: this.#ctx.furnitureTier,
+        catalogNb: this.#ctx.catalogNb,
+        nbScore: this.#ctx.nbScore,
+        nbCommute: this.#ctx.nbCommute,
+        safetyCar: this.#ctx.nbSafetyCar,
+        weights: this.#ctx.weights,
+        nuances: this.#ctx.nuances,
+        eligible: this.#ctx.eligible,
+        exclusionReason: this.#ctx.exclusionReason,
+      });
     }
-    return "FULLY_FURNISHED";
+    return this.#short;
   }
 
-  if (hasCommodityAppliance || hasCaptionAppliance || hasTextAppliance) {
-    return "SEMI_FURNISHED";
+  get narrativeJustification(): string {
+    if (this.#narrative === undefined) {
+      this.#narrative = buildNarrativeJustification({
+        prop: this.#ctx.prop,
+        furnitureTier: this.#ctx.furnitureTier,
+        catalogNb: this.#ctx.catalogNb,
+        nbCommute: this.#ctx.nbCommute,
+        weights: this.#ctx.weights,
+        nuances: this.#ctx.nuances,
+        eligible: this.#ctx.eligible,
+        exclusionReason: this.#ctx.exclusionReason,
+      });
+    }
+    return this.#narrative;
   }
 
-  return "UNFURNISHED";
+  get detailedJustification(): string {
+    if (this.#detailed === undefined) {
+      this.#detailed = buildDetailedJustificationFromContext(this.#ctx);
+    }
+    return this.#detailed;
+  }
+}
+
+for (const key of [
+  "shortJustification",
+  "narrativeJustification",
+  "detailedJustification",
+] as const) {
+  const desc = Object.getOwnPropertyDescriptor(
+    EvaluatedPropertyImpl.prototype,
+    key,
+  );
+  if (desc) {
+    Object.defineProperty(EvaluatedPropertyImpl.prototype, key, {
+      ...desc,
+      enumerable: true,
+    });
+  }
 }
 
 export function computeDynamicProperties(
@@ -2816,16 +3585,18 @@ export function computeDynamicProperties(
   }
 
   const evaluated: EvaluatedProperty[] = properties.map((prop) => {
-    const normNb = normalizeNeighborhoodKey(prop.neighborhood, prop.cityCode);
+    const staticMeta = getStaticPropertyScoringMeta(prop);
+    const {
+      normNbLower,
+      nbLower,
+      calibratedMeta,
+      microEnv,
+      isDeepWestBarra,
+      effectiveProp,
+      furnitureTier,
+    } = staticMeta;
     const catalogNb =
-      nbMap.get(`${prop.cityCode}:${prop.neighborhood.toLowerCase()}`) ??
-      nbMap.get(`${prop.cityCode}:${normNb.toLowerCase()}`);
-
-    const calibratedMeta = resolveNeighborhoodSafetyAndMetrics(
-      prop.cityCode,
-      prop.neighborhood,
-    );
-    const microEnv = evaluateStreetMicroEnvironment(prop);
+      nbMap.get(nbLower) ?? nbMap.get(`${prop.cityCode}:${normNbLower}`);
 
     const baseSafetyCar = catalogNb
       ? calibratedMeta && calibratedMeta.safetyCar < 6.5
@@ -2933,22 +3704,6 @@ export function computeDynamicProperties(
 
     // Direct Commute-Distance Impact (heavily penalize far-away neighborhoods like Barra da Tijuca / Barra Olímpica / Ponte Rio-Niterói)
     const commuteWeightScale = weights.commuteLogisticsWeight / 1.8;
-    const fullLocationText = [
-      prop.street ?? "",
-      prop.title ?? "",
-      prop.description ?? "",
-      prop.generatedDescription ?? "",
-      ...(prop.comfortCommodities ?? []),
-      ...(prop.practicalityCommodities ?? []),
-      ...(prop.amenities ?? []),
-      ...(prop.installations ?? []),
-      ...(prop.photoCaptions ?? []),
-    ].join(" ");
-    const isDeepWestBarra =
-      prop.cityCode === "RJ" &&
-      /\b(barra ol[ií]mpica|estrada dos bandeirantes|shopping metropolitano|curicica|jacarepagu[aá]|recreio|riocentro|abelardo bueno|salvador allende|ad[ií]lio de oliveira)\b/i.test(
-        fullLocationText,
-      );
     let rawCommutePts = 0;
     if (isDeepWestBarra) {
       rawCommutePts = -48.0;
@@ -2962,14 +3717,31 @@ export function computeDynamicProperties(
     const commuteDistanceAdjustment =
       Math.round(rawCommutePts * commuteWeightScale * 10) / 10;
 
-    // Non-linear interior quality & modernity curve (+8 pts >= 82, -10 pts < 68, -18 pts < 58)
+    // Non-linear interior quality & modernity curve (+8 pts >= 82; negative curve only when there is actual negative conservation evidence)
+    const hasRenovationEvidence = prop.positiveSignals.some(
+      (p) =>
+        p.includes("Reformado") ||
+        p.includes("novo") ||
+        p.includes("Porcelanato") ||
+        p.includes("Construção 20"),
+    );
+    const hasNegativeConservationEvidence =
+      prop.negativeSignals.some(
+        (s) =>
+          !/descri[cç][aã]o gen[eé]rica|venda|comprad|visita[cç][aã]o/i.test(s),
+      ) ||
+      prop.modernityTier === "DATED" ||
+      (prop.constructionYear !== null &&
+        prop.constructionYear < 1995 &&
+        !hasRenovationEvidence);
+
     const modernityCurveBonus =
       weights.modernityMultiplier > 0
         ? prop.modernityScore >= 82
           ? 8.0
-          : prop.modernityScore < 58
+          : hasNegativeConservationEvidence && prop.modernityScore < 58
             ? -18.0
-            : prop.modernityScore < 68
+            : hasNegativeConservationEvidence && prop.modernityScore < 68
               ? -10.0
               : 0
         : 0;
@@ -2981,8 +3753,21 @@ export function computeDynamicProperties(
       ) / 10;
 
     // Nuances evaluation
-    const nuances = evaluateApartmentNuances(prop, weights.penalizeMegaCondo);
-    if (isDeepWestBarra || nbCommuteLogistics <= 4.0) {
+    const baseNuances = evaluateApartmentNuancesFast(
+      prop,
+      weights.penalizeMegaCondo,
+    );
+    const needsDistTag = isDeepWestBarra || nbCommuteLogistics <= 4.0;
+    const needsSafetyTag = nbSafetyCar < 6.0;
+    const nuances: ApartmentNuancesEvaluation =
+      needsDistTag || needsSafetyTag
+        ? {
+            ...baseNuances,
+            redTags: baseNuances.redTags.slice(),
+            nuanceWarnings: baseNuances.nuanceWarnings.slice(),
+          }
+        : baseNuances;
+    if (needsDistTag) {
       const distTag = isDeepWestBarra
         ? "Barra Olímpica / Muito Longe do Nubank (75–100 min)"
         : "Longe do Escritório (60–90 min)";
@@ -2993,7 +3778,7 @@ export function computeDynamicProperties(
         `Distância crítica até o escritório do Nubank (${commuteDistanceAdjustment.toFixed(1)} pts)`,
       );
     }
-    if (nbSafetyCar < 6.0) {
+    if (needsSafetyTag) {
       if (!nuances.redTags.includes("Alerta de Segurança na Rua")) {
         nuances.redTags.unshift("Alerta de Segurança na Rua");
       }
@@ -3004,263 +3789,203 @@ export function computeDynamicProperties(
     const nuancesPoints =
       Math.round(nuances.rawNuancePoints * (weights.nuancesMultiplier ?? 1.0) * 10) / 10;
 
-    // Budget points
     const total = prop.totalMonthly;
     let rawBudgetPts = 0;
-    let budgetDesc = "";
     const comfortFloor = Math.max(3500, weights.budgetIdeal - 1000);
     if (total > 0 && total <= comfortFloor) {
       rawBudgetPts = 12;
-      budgetDesc = `R$ ${total.toLocaleString("pt-BR")}/mês com excelente folga abaixo da meta de R$ ${weights.budgetIdeal.toLocaleString("pt-BR")}`;
     } else if (total > 0 && total <= weights.budgetIdeal) {
       rawBudgetPts = 10;
-      budgetDesc = `R$ ${total.toLocaleString("pt-BR")}/mês dentro do teto ideal de R$ ${weights.budgetIdeal.toLocaleString("pt-BR")}`;
     } else if (total <= weights.budgetMax) {
       rawBudgetPts = 6;
-      budgetDesc = `R$ ${total.toLocaleString("pt-BR")}/mês dentro do limite máximo de R$ ${weights.budgetMax.toLocaleString("pt-BR")}`;
     } else if (total <= weights.budgetHardCap) {
       rawBudgetPts = -4;
-      budgetDesc = `R$ ${total.toLocaleString("pt-BR")}/mês ligeiramente acima de R$ ${weights.budgetMax.toLocaleString("pt-BR")} (negociável)`;
     } else {
       rawBudgetPts = -12;
-      budgetDesc = `R$ ${total.toLocaleString("pt-BR")}/mês acima do teto máximo de R$ ${weights.budgetHardCap.toLocaleString("pt-BR")}`;
     }
     const budgetPoints =
       Math.round(rawBudgetPts * weights.budgetWeight * 10) / 10;
 
     // 3-tier Furniture classification & points
-    const furnitureTier = classifyFurnitureTier(prop);
-    const effectiveFurnished: boolean | null =
-      furnitureTier === "FULLY_FURNISHED"
-        ? true
-        : furnitureTier === "UNFURNISHED"
-          ? false
-          : prop.furnished;
-    const effectiveProp: SlimPropertyRecord =
-      effectiveFurnished !== prop.furnished
-        ? { ...prop, furnished: effectiveFurnished }
-        : prop;
-
     let furniturePoints = weights.unfurnishedBonus;
-    let furnitureDesc =
-      "Não mobiliado / só marcenaria fixa (pronto para receber sua mobília de Brasília)";
     if (furnitureTier === "SEMI_FURNISHED") {
       furniturePoints = Math.round(weights.furnishedPenalty * 0.35);
-      furnitureDesc =
-        "Semi-mobiliado — apenas eletros/cozinha sem cama ou sofá (penalidade reduzida)";
     } else if (furnitureTier === "FULLY_FURNISHED") {
       furniturePoints = weights.furnishedPenalty;
-      furnitureDesc =
-        "Totalmente mobiliado com cama/sofá (requer negociar retirada de mobília solta ou adaptar)";
     }
 
     // Area points (calibrated for bringing Brasília furniture: Queen bed, large sofa, fridge, washer, dishwasher)
     const area = prop.areaM2;
     let areaPoints = 0;
-    let areaDesc = "";
+    const compactFloorM2 = Math.min(
+      weights.sweetSpotMinM2,
+      Math.max(weights.minAreaM2, weights.sweetSpotMinM2 - 4),
+    );
     if (area >= weights.sweetSpotMinM2 && area <= weights.sweetSpotMaxM2) {
       areaPoints = 10;
-      areaDesc = `${area} m² no sweet spot ideal para a mudança de Brasília (${weights.sweetSpotMinM2}–${weights.sweetSpotMaxM2} m²)`;
     } else if (area > weights.sweetSpotMaxM2 && area <= weights.maxAreaM2) {
       areaPoints = 6;
-      areaDesc = `${area} m² planta espaçosa (${weights.sweetSpotMaxM2}–${weights.maxAreaM2} m²)`;
-    } else if (area >= 46 && area < weights.sweetSpotMinM2) {
+    } else if (area >= compactFloorM2 && area < weights.sweetSpotMinM2) {
       areaPoints = 0;
-      areaDesc = `${area} m² compacta no limite (46–${weights.sweetSpotMinM2 - 1} m²)`;
-    } else if (area >= weights.minAreaM2 && area < 46) {
+    } else if (area >= weights.minAreaM2 && area < compactFloorM2) {
       areaPoints = -10;
-      areaDesc = `${area} m² muito enxuta para acomodar toda a mudança de Brasília (${weights.minAreaM2}–45 m²)`;
     } else {
       areaPoints = -18;
-      areaDesc = `${area} m² fora da faixa configurada (${weights.minAreaM2}–${weights.maxAreaM2} m²)`;
     }
 
     // Parking points
     const isRJ = prop.cityCode === "RJ";
     let parkingPoints = 0;
-    let parkingDesc = "";
     if (prop.parkingSpaces >= 2) {
       parkingPoints = isRJ ? weights.parkingBonus2 + 14 : weights.parkingBonus2;
-      parkingDesc = `${prop.parkingSpaces} vagas de garagem`;
     } else if (prop.parkingSpaces === 1) {
       parkingPoints = isRJ ? weights.parkingBonus1 + 12 : weights.parkingBonus1;
-      parkingDesc = `1 vaga de garagem${isRJ ? " (raridade na Zona Sul do RJ)" : ""}`;
     } else {
       parkingPoints = isRJ ? -8 : -18;
-      parkingDesc = "Sem vaga de garagem";
     }
 
     // City Preference Adjustment (User preference: penalize São Paulo Capital heavily, and Campinas moderately for being in SP state)
     const cityPreferencePoints =
       prop.cityCode === "SP" ? -18.0 : prop.cityCode === "CP" ? -7.0 : 0;
 
+    const breakdown = {
+      neighborhoodPoints: Math.round(neighborhoodPoints * 10) / 10,
+      modernityPoints: Math.round(modernityPoints * 10) / 10,
+      nuancesPoints: Math.round(nuancesPoints * 10) / 10,
+      budgetPoints: Math.round(budgetPoints * 10) / 10,
+      furniturePoints: Math.round(furniturePoints * 10) / 10,
+      areaPoints: Math.round(areaPoints * 10) / 10,
+      parkingPoints: Math.round(parkingPoints * 10) / 10,
+      safetyPoints: Math.round(streetSafetyAdjustment * 10) / 10,
+      commutePoints: Math.round(commuteDistanceAdjustment * 10) / 10,
+      cityPreferencePoints: Math.round(cityPreferencePoints * 10) / 10,
+    };
+
     const finalScore =
       Math.round(
-        (neighborhoodPoints +
-          streetSafetyAdjustment +
-          commuteDistanceAdjustment +
-          cityPreferencePoints +
-          modernityPoints +
-          nuancesPoints +
-          budgetPoints +
-          furniturePoints +
-          areaPoints +
-          parkingPoints) *
+        (breakdown.neighborhoodPoints +
+          breakdown.modernityPoints +
+          breakdown.nuancesPoints +
+          breakdown.budgetPoints +
+          breakdown.furniturePoints +
+          breakdown.areaPoints +
+          breakdown.parkingPoints +
+          breakdown.safetyPoints +
+          breakdown.commutePoints +
+          breakdown.cityPreferencePoints) *
           10,
       ) / 10;
 
     // Eligibility checks
-    const exclusions: string[] = [];
     const effectiveHardCap =
       prop.cityCode === "RJ" || prop.cityCode === "SP"
         ? Math.max(weights.budgetHardCap, weights.budgetMax + 350)
         : weights.budgetHardCap;
-    if (!total || total < 1500 || total > effectiveHardCap) {
-      exclusions.push(
-        `Total mensal R$ ${total.toLocaleString("pt-BR")} fora do teto (máx R$ ${effectiveHardCap.toLocaleString("pt-BR")})`,
-      );
-    }
-    if (area < weights.minAreaM2 || area > weights.maxAreaM2) {
-      exclusions.push(
-        `Área ${area} m² fora do intervalo ${weights.minAreaM2}–${weights.maxAreaM2} m²`,
-      );
-    }
-    if (weights.requireParking && prop.parkingSpaces < 1) {
-      exclusions.push("Sem vaga de garagem (filtro exigir vaga ativo)");
-    }
-    if (nuances.hasNoElevator) {
-      exclusions.push("Sem elevador (eliminado)");
-    }
-    if (nuances.hasTrappedParking) {
-      exclusions.push("Vaga presa (eliminado)");
-    }
     const effectiveMinMod =
       prop.cityCode === "RJ"
         ? Math.max(48, weights.minModernityScore - 8)
         : weights.minModernityScore;
-    if (prop.modernityScore < effectiveMinMod) {
-      exclusions.push(
-        `Modernidade ${prop.modernityScore}/100 abaixo do mínimo (${effectiveMinMod}/100)`,
-      );
+    const failsBudget = !total || total < 1500 || total > effectiveHardCap;
+    const failsArea = area < weights.minAreaM2 || area > weights.maxAreaM2;
+    const failsParking = weights.requireParking && prop.parkingSpaces < 1;
+    const failsMod = prop.modernityScore < effectiveMinMod;
+    const eligible =
+      !failsBudget &&
+      !failsArea &&
+      !failsParking &&
+      !nuances.hasNoElevator &&
+      !nuances.hasTrappedParking &&
+      !failsMod;
+
+    let exclusionReason: string | null = null;
+    if (!eligible) {
+      const exclusions: string[] = [];
+      if (failsBudget) {
+        exclusions.push(
+          `Total mensal R$ ${fmtIntPtBr(total)} fora do teto (máx R$ ${fmtIntPtBr(effectiveHardCap)})`,
+        );
+      }
+      if (failsArea) {
+        exclusions.push(
+          `Área ${area} m² fora do intervalo ${weights.minAreaM2}–${weights.maxAreaM2} m²`,
+        );
+      }
+      if (failsParking) {
+        exclusions.push("Sem vaga de garagem (filtro exigir vaga ativo)");
+      }
+      if (nuances.hasNoElevator) {
+        exclusions.push("Sem elevador (eliminado)");
+      }
+      if (nuances.hasTrappedParking) {
+        exclusions.push("Vaga presa (eliminado)");
+      }
+      if (failsMod) {
+        exclusions.push(
+          `Modernidade ${prop.modernityScore}/100 abaixo do mínimo (${effectiveMinMod}/100)`,
+        );
+      }
+      exclusionReason = exclusions.join(" · ");
     }
-
-    const eligible = exclusions.length === 0;
-    const exclusionReason = eligible ? null : exclusions.join(" · ");
-
-    const fmtSign = (n: number) => (n >= 0 ? `+${n.toFixed(1)}` : n.toFixed(1));
-    const signalsSummary =
-      prop.positiveSignals.length > 0
-        ? prop.positiveSignals.join(", ")
-        : "padrão conservado";
-    const filteredNegativeSignals = prop.negativeSignals.filter(
-      (s) => !/venda|comprad|visita[cç][aã]o/i.test(s),
-    );
-    const negSummary =
-      filteredNegativeSignals.length > 0
-        ? ` | Alertas: ${filteredNegativeSignals.join(", ")}`
-        : "";
-    const nuancesSummary =
-      nuances.nuanceHighlights.length > 0
-        ? nuances.nuanceHighlights.join(", ")
-        : "sem destaques extras de micro-localização/andar";
-    const nuancesWarnSummary =
-      nuances.nuanceWarnings.length > 0
-        ? ` | Ressalvas: ${nuances.nuanceWarnings.join(", ")}`
-        : "";
-
-    const safetyClause =
-      streetSafetyAdjustment !== 0
-        ? ` [Segurança na Rua ${fmtSign(streetSafetyAdjustment)} pts (nota ${nbSafetyCar.toFixed(1)}/10)];`
-        : "";
-
-    const cityPrefClause =
-      cityPreferencePoints !== 0
-        ? ` [Ajuste Praça ${fmtSign(cityPreferencePoints)} pts (${prop.cityCode === "SP" ? "penalidade São Paulo Capital" : "penalidade estado SP / Campinas"})];`
-        : "";
-
-    const justificationParts = [
-      `Score Final ${finalScore.toFixed(1)} pts (${eligible ? "Qualificado" : `Filtrado: ${exclusionReason}`}):`,
-      `[Bairro ${fmtSign(neighborhoodPoints)} pts] ${prop.neighborhood} (${prop.cityCode}) tem nota dinâmica ${nbScore.toFixed(2)}/10 × peso ${weights.neighborhoodMultiplier.toFixed(1)} (${nbCommute});${safetyClause}${cityPrefClause}`,
-      `[Modernidade ${fmtSign(modernityPoints)} pts] Score ${prop.modernityScore}/100 (${prop.modernityTier}: ${signalsSummary}${negSummary}) × peso ${weights.modernityMultiplier.toFixed(2)};`,
-      `[Nuances & Micro-Localização ${fmtSign(nuancesPoints)} pts] (${nuancesSummary}${nuancesWarnSummary}) × peso ${(weights.nuancesMultiplier ?? 1).toFixed(1)};`,
-      `[Orçamento ${fmtSign(budgetPoints)} pts] ${budgetDesc};`,
-      `[Mobília ${fmtSign(furniturePoints)} pts] ${furnitureDesc};`,
-      `[Planta ${fmtSign(areaPoints)} pts] ${areaDesc};`,
-      `[Garagem ${fmtSign(parkingPoints)} pts] ${parkingDesc}.`,
-    ];
 
     const parsedCommute = parseCommuteMinutes(
       catalogNb?.commuteTime ?? nbCommute,
       isDeepWestBarra,
     );
 
-    return {
-      ...effectiveProp,
-      furnitureTier,
-      commuteMinutes: parsedCommute.minutes,
-      commuteLabel: parsedCommute.label,
-      eligible,
-      exclusionReason,
-      finalScore,
-      cityRank: null,
-      overallRank: null,
-      neighborhoodRank: null,
-      neighborhoodDynamicScore: nbScore,
-      breakdown: {
+    const cardTags: EvaluatedProperty["cardTags"] = {
+      acLabel: nuances.acLabel,
+      floorTag: nuances.floorTag,
+      highFloorLabel: nuances.highFloorLabel,
+      lowFloorLabel: nuances.lowFloorLabel,
+      noParking: prop.parkingSpaces < 1,
+      greenTags: nuances.greenTags,
+      redTags: nuances.redTags,
+    };
+
+    const evaluatedItem = new EvaluatedPropertyImpl(
+      effectiveProp,
+      parsedCommute.minutes,
+      parsedCommute.label,
+      cardTags,
+      breakdown,
+      {
+        prop: effectiveProp,
+        staticMeta,
+        furnitureTier,
+        catalogNb,
+        nbScore,
+        nbCommute,
+        nbSafetyCar,
+        weights,
+        nuances,
+        eligible,
+        exclusionReason,
+        finalScore,
         neighborhoodPoints,
         modernityPoints,
+        modernityCurveBonus,
         nuancesPoints,
         budgetPoints,
         furniturePoints,
         areaPoints,
         parkingPoints,
-        safetyPoints: streetSafetyAdjustment,
-        commutePoints: commuteDistanceAdjustment,
+        streetSafetyAdjustment,
         cityPreferencePoints,
+        comfortFloor,
+        compactFloorM2,
       },
-      cardTags: {
-        acLabel: nuances.acLabel,
-        floorTag: nuances.floorTag,
-        highFloorLabel: nuances.highFloorLabel,
-        lowFloorLabel: nuances.lowFloorLabel,
-        noParking: prop.parkingSpaces < 1,
-        greenTags: nuances.greenTags,
-        redTags: nuances.redTags,
-      },
-      nuanceHighlights: nuances.nuanceHighlights,
-      nuanceWarnings: nuances.nuanceWarnings,
-      parksNearby: nuances.parksNearby,
-      mallsNearby: nuances.mallsNearby,
-      shortJustification: buildShortJustification({
-        prop: effectiveProp,
-        furnitureTier,
-        catalogNb,
-        nbScore,
-        nbCommute,
-        safetyCar: nbSafetyCar,
-        weights,
-        nuances,
-        eligible,
-        exclusionReason,
-      }),
-      narrativeJustification: buildNarrativeJustification({
-        prop: effectiveProp,
-        furnitureTier,
-        catalogNb,
-        nbCommute,
-        weights,
-        nuances,
-        eligible,
-        exclusionReason,
-      }),
-      detailedJustification: justificationParts.join(" "),
-    };
+    );
+    staticPropertyMetaCache.set(evaluatedItem, staticMeta);
+    return evaluatedItem;
   });
 
   evaluated.sort((a, b) => {
     if (a.eligible !== b.eligible) return a.eligible ? -1 : 1;
     if (b.finalScore !== a.finalScore) return b.finalScore - a.finalScore;
-    return a.totalMonthly - b.totalMonthly;
+    if (a.totalMonthly !== b.totalMonthly) return a.totalMonthly - b.totalMonthly;
+    const ka = `${a.provider}:${a.id}`;
+    const kb = `${b.provider}:${b.id}`;
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
   });
 
   let overallCounter = 0;
@@ -3274,7 +3999,10 @@ export function computeDynamicProperties(
     cityCounters.set(item.cityCode, cRank);
     item.cityRank = cRank;
 
-    const nbKey = `${item.cityCode}:${item.neighborhood}`;
+    const staticMeta = staticPropertyMetaCache.get(item);
+    const nbKey = staticMeta
+      ? `${item.cityCode}:${staticMeta.normNbLower}`
+      : `${item.cityCode}:${normalizeNeighborhoodKey(item.neighborhood, item.cityCode).toLowerCase()}`;
     const nRank = (nbCounters.get(nbKey) ?? 0) + 1;
     nbCounters.set(nbKey, nRank);
     item.neighborhoodRank = nRank;

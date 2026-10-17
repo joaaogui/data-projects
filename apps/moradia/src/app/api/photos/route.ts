@@ -1,4 +1,5 @@
 import { loadMoradiaDataset } from "@/lib/dataset-store";
+import { logger } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -53,7 +54,8 @@ export interface ExtractedPhoto {
   url: string;
 }
 
-type PhotosCacheMap = Record<string, ExtractedPhoto[]>;
+type PhotoEntry = ExtractedPhoto;
+type PhotosCacheMap = Record<string, PhotoEntry[]>;
 
 type Rec = Record<string, unknown>;
 const asRec = (v: unknown): Rec =>
@@ -79,14 +81,28 @@ function readPhotosCacheFile(filePath: string): PhotosCacheMap {
   }
 }
 
+let memPhotosCache: Record<string, PhotoEntry[]> | null = null;
+const verifiedCompleteKeys = new Set<string>();
+const negativeLookupExpiry = new Map<string, number>();
+const NEGATIVE_TTL_MS = 5 * 60 * 1000;
+const inFlightLookups = new Map<string, Promise<PhotoEntry[]>>();
+const lastLookupSource = new Map<
+  string,
+  "glue-api" | "http" | "playwright" | "cache" | "none"
+>();
+
 export function loadPhotosCache(): PhotosCacheMap {
-  return {
-    ...readPhotosCacheFile(PHOTOS_CACHE_FILE),
-    ...readPhotosCacheFile(TMP_PHOTOS_CACHE_FILE),
-  };
+  if (!memPhotosCache) {
+    memPhotosCache = {
+      ...readPhotosCacheFile(PHOTOS_CACHE_FILE),
+      ...readPhotosCacheFile(TMP_PHOTOS_CACHE_FILE),
+    };
+  }
+  return memPhotosCache;
 }
 
 function savePhotosCache(cache: PhotosCacheMap): void {
+  memPhotosCache = cache;
   const serialized = `${JSON.stringify(cache, null, 2)}\n`;
   try {
     mkdirSync(dirname(PHOTOS_CACHE_FILE), { recursive: true });
@@ -403,6 +419,7 @@ export async function fetchZapGlueApiPhotos(
 }
 
 export async function GET(request: Request) {
+  const t0 = performance.now();
   try {
     const { searchParams } = new URL(request.url);
     const provider = (searchParams.get("provider") ?? "").trim();
@@ -410,6 +427,12 @@ export async function GET(request: Request) {
     const rawUrlParam = (searchParams.get("url") ?? "").trim();
 
     if (!provider || !id) {
+      const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+      logger.warn("api/photos", "GET rejected missing provider or id", {
+        provider,
+        id,
+        durationMs,
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -421,6 +444,13 @@ export async function GET(request: Request) {
     }
 
     if (rawUrlParam && !isValidAllowedListingUrl(rawUrlParam)) {
+      const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+      logger.warn("api/photos", "GET rejected disallowed url param", {
+        provider,
+        id,
+        rawUrlParam,
+        durationMs,
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -431,6 +461,38 @@ export async function GET(request: Request) {
       );
     }
 
+    const cacheKey = `${provider}:${id}`;
+    const hadMemCacheBeforeLoad = memPhotosCache !== null;
+    const cache = loadPhotosCache();
+
+    const negExp = negativeLookupExpiry.get(cacheKey);
+    if (negExp !== undefined && Date.now() >= negExp) {
+      negativeLookupExpiry.delete(cacheKey);
+      verifiedCompleteKeys.delete(cacheKey);
+    }
+
+    const cached = cache[cacheKey];
+    if (
+      (Array.isArray(cached) && cached.length > 6) ||
+      verifiedCompleteKeys.has(cacheKey)
+    ) {
+      const photos = Array.isArray(cached) ? cached : [];
+      const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+      logger.info("api/photos", "GET cache hit", {
+        provider,
+        id,
+        source: hadMemCacheBeforeLoad ? "memory-cache" : "disk-cache",
+        responseSource: photos.length > 0 ? "cache" : "none",
+        photosCount: photos.length,
+        durationMs,
+      });
+      return NextResponse.json({
+        ok: photos.length > 0,
+        photos,
+        source: photos.length > 0 ? "cache" : "none",
+      });
+    }
+
     const dataset = await loadMoradiaDataset();
     const storedProp = dataset.properties.find(
       (p) => p.provider === provider && String(p.id) === id,
@@ -438,6 +500,13 @@ export async function GET(request: Request) {
     const url = (storedProp?.url ?? "").trim() || rawUrlParam;
 
     if (!url || !isValidAllowedListingUrl(url)) {
+      const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+      logger.warn("api/photos", "GET rejected missing or invalid resolved url", {
+        provider,
+        id,
+        url: url || null,
+        durationMs,
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -448,126 +517,164 @@ export async function GET(request: Request) {
       );
     }
 
-    const cacheKey = `${provider}:${id}`;
-    const cache = loadPhotosCache();
-    const cached = cache[cacheKey];
-
-    if (Array.isArray(cached) && cached.length > 6) {
-      return NextResponse.json({
-        ok: true,
-        photos: cached,
-        source: "cache",
-      });
-    }
-
-    // 0. For Zap Imóveis / VivaReal, try fast Glue API v2 endpoint first (bypasses Cloudflare HTML rate limits)
-    if (
-      provider === "zapimoveis" ||
-      provider === "vivareal" ||
-      url.includes("zapimoveis.com.br") ||
-      url.includes("vivareal.com.br")
-    ) {
-      const glueRes = await fetchZapGlueApiPhotos(id || url);
-      if (glueRes.photos.length > 0) {
-        cache[cacheKey] = glueRes.photos;
-        savePhotosCache(cache);
-        return NextResponse.json({
-          ok: true,
-          photos: glueRes.photos,
-          source: "glue-api",
-        });
-      }
-    }
-
-    // 1. Try fast HTTP fetch (with VivaReal <-> Zap mirror fallback if rate-limited)
-    const candidateUrls = [url];
-    if (url.includes("www.zapimoveis.com.br")) {
-      candidateUrls.push(
-        url.replace("www.zapimoveis.com.br", "www.vivareal.com.br"),
-      );
-    } else if (url.includes("www.vivareal.com.br")) {
-      candidateUrls.push(
-        url.replace("www.vivareal.com.br", "www.zapimoveis.com.br"),
-      );
-    }
-
-    for (const targetUrl of candidateUrls) {
-      try {
-        const html = await fetchHtml(targetUrl);
-        if (html) {
-          const extracted = extractPhotosFromHtml(provider, html, targetUrl);
-          if (extracted.length > 0) {
-            cache[cacheKey] = extracted;
+    let lookupPromise = inFlightLookups.get(cacheKey);
+    const joinedSingleFlight = Boolean(lookupPromise);
+    if (!lookupPromise) {
+      lookupPromise = (async (): Promise<PhotoEntry[]> => {
+        // 0. For Zap Imóveis / VivaReal, try fast Glue API v2 endpoint first (bypasses Cloudflare HTML rate limits)
+        if (
+          provider === "zapimoveis" ||
+          provider === "vivareal" ||
+          url.includes("zapimoveis.com.br") ||
+          url.includes("vivareal.com.br")
+        ) {
+          const glueRes = await fetchZapGlueApiPhotos(id || url);
+          if (glueRes.photos.length > 0) {
+            verifiedCompleteKeys.add(cacheKey);
+            negativeLookupExpiry.delete(cacheKey);
+            cache[cacheKey] = glueRes.photos;
             savePhotosCache(cache);
-            return NextResponse.json({
-              ok: true,
-              photos: extracted,
-              source: "http",
+            lastLookupSource.set(cacheKey, "glue-api");
+            return glueRes.photos;
+          }
+        }
+
+        // 1. Try fast HTTP fetch (with VivaReal <-> Zap mirror fallback if rate-limited)
+        const candidateUrls = [url];
+        if (url.includes("www.zapimoveis.com.br")) {
+          candidateUrls.push(
+            url.replace("www.zapimoveis.com.br", "www.vivareal.com.br"),
+          );
+        } else if (url.includes("www.vivareal.com.br")) {
+          candidateUrls.push(
+            url.replace("www.vivareal.com.br", "www.zapimoveis.com.br"),
+          );
+        }
+
+        for (const targetUrl of candidateUrls) {
+          try {
+            const html = await fetchHtml(targetUrl);
+            if (html) {
+              const extracted = extractPhotosFromHtml(
+                provider,
+                html,
+                targetUrl,
+              );
+              if (extracted.length > 0) {
+                verifiedCompleteKeys.add(cacheKey);
+                negativeLookupExpiry.delete(cacheKey);
+                cache[cacheKey] = extracted;
+                savePhotosCache(cache);
+                lastLookupSource.set(cacheKey, "http");
+                return extracted;
+              }
+            }
+          } catch (err) {
+            logger.warn("api/photos", "HTTP photo extraction candidate failed", {
+              provider,
+              id,
+              targetUrl,
+              error: err,
             });
           }
         }
-      } catch {
-        // Try next candidate or fallback to Playwright
-      }
-    }
 
-    // 2. Fallback to local Playwright script when not running on Vercel
-    if (
-      !process.env.VERCEL &&
-      existsSync(
-        /*turbopackIgnore: true*/ join(
-          SCRAPER_WORKSPACE_DIR,
-          "scripts/extract-listing-photos.ts",
-        ),
-      )
-    ) {
-      try {
-        const { stdout } = await execFileAsync(
-          /*turbopackIgnore: true*/ "node",
-          [
-            "scripts/extract-listing-photos.ts",
-            "--provider",
-            provider,
-            "--url",
-            url,
-          ],
-          {
-            cwd: SCRAPER_WORKSPACE_DIR,
-            timeout: 22_000,
-          },
-        );
-        const parsed = JSON.parse(stdout.trim()) as {
-          ok?: boolean;
-          photos?: ExtractedPhoto[];
-        };
-        if (Array.isArray(parsed.photos) && parsed.photos.length > 0) {
-          cache[cacheKey] = parsed.photos;
-          savePhotosCache(cache);
-          return NextResponse.json({
-            ok: true,
-            photos: parsed.photos,
-            source: "playwright",
-          });
+        // 2. Fallback to local Playwright script when not running on Vercel
+        if (
+          !process.env.VERCEL &&
+          existsSync(
+            /*turbopackIgnore: true*/ join(
+              SCRAPER_WORKSPACE_DIR,
+              "scripts/extract-listing-photos.ts",
+            ),
+          )
+        ) {
+          try {
+            const { stdout } = await execFileAsync(
+              /*turbopackIgnore: true*/ "node",
+              [
+                "scripts/extract-listing-photos.ts",
+                "--provider",
+                provider,
+                "--url",
+                url,
+              ],
+              {
+                cwd: SCRAPER_WORKSPACE_DIR,
+                timeout: 22_000,
+              },
+            );
+            const parsed = JSON.parse(stdout.trim()) as {
+              ok?: boolean;
+              photos?: ExtractedPhoto[];
+            };
+            if (Array.isArray(parsed.photos) && parsed.photos.length > 0) {
+              verifiedCompleteKeys.add(cacheKey);
+              negativeLookupExpiry.delete(cacheKey);
+              cache[cacheKey] = parsed.photos;
+              savePhotosCache(cache);
+              lastLookupSource.set(cacheKey, "playwright");
+              return parsed.photos;
+            }
+          } catch (err) {
+            logger.warn("api/photos", "Playwright fallback failed", {
+              provider,
+              id,
+              url,
+              error: err,
+            });
+          }
         }
-      } catch {
-        // Ignore Playwright fallback failure
-      }
+
+        if (Array.isArray(cached) && cached.length > 0) {
+          verifiedCompleteKeys.add(cacheKey);
+          negativeLookupExpiry.delete(cacheKey);
+          cache[cacheKey] = cached;
+          lastLookupSource.set(cacheKey, "cache");
+          return cached;
+        }
+
+        verifiedCompleteKeys.add(cacheKey);
+        negativeLookupExpiry.set(cacheKey, Date.now() + NEGATIVE_TTL_MS);
+        cache[cacheKey] = [];
+        lastLookupSource.set(cacheKey, "none");
+        return [];
+      })().finally(() => {
+        inFlightLookups.delete(cacheKey);
+      });
+
+      inFlightLookups.set(cacheKey, lookupPromise);
     }
 
-    if (Array.isArray(cached) && cached.length > 0) {
-      return NextResponse.json({
-        ok: true,
-        photos: cached,
-        source: "cache",
-      });
-    }
+    const photos = await lookupPromise;
+    const source =
+      lastLookupSource.get(cacheKey) ?? (photos.length > 0 ? "cache" : "none");
+    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+
+    logger.info("api/photos", "GET resolved", {
+      provider,
+      id,
+      source: joinedSingleFlight
+        ? "single-flight"
+        : source === "cache"
+          ? "disk-cache"
+          : "live",
+      upstreamSource: source,
+      photosCount: photos.length,
+      durationMs,
+    });
 
     return NextResponse.json({
-      ok: false,
-      photos: [],
-      source: "none",
+      ok: photos.length > 0,
+      photos,
+      source,
     });
-  } catch {
+  } catch (err) {
+    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+    logger.error("api/photos", "GET unhandled error", {
+      durationMs,
+      error: err,
+    });
     return NextResponse.json({ ok: false, photos: [] }, { status: 200 });
   }
 }

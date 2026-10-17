@@ -169,6 +169,83 @@
         "condominiumName": null,
         "shortJustification": "Com piso em porcelanato/vinílico, marcenaria/armários planejados, varanda, cozinha americana e lavabo, em acesso fácil ao metrô — fica a 15 min do escritório do Nubank em eixo arborizado de alto respiro urbano, com folga confortável no orçamento.\nMetragem mais enxuta para acomodar toda a mudança, andar não especificado no anúncio, sem ar-condicionado instalado e condomínios de torre única costumam ter taxa condominial mais alta."
       }
+    },
+    {
+      "id": "qa-1792195782795-6k6pg",
+      "answer": "**🛋️ Diagnóstico de Mobília (Santa Efigênia (BH) — Rua Padre Marinho, 318)**\n• **Status atual no portal**: **Semi-mobiliado (Eletros)** (`furnitureTier: SEMI_FURNISHED`)\n• **Impacto na nota (Mudança BSB)**: **-8 pts** (Penalidade reduzida por possuir apenas eletros/cozinha sem cama ou sofá)\n• **Itens identificados nos metadados/texto/legendas**: Fogão / Cooktop, Armários planejados\n• **Comodidades listadas (14)**: Ar condicionado, Sol da tarde, Cortinas corta luz, Janelas grandes, Vista livre, Box, Armários no quarto, Armários no banheiro, Armários na cozinha, Tanque, Tomadas 3 pinos, Acesso sem degraus\n\n**📝 Trecho da Descrição Original**\n\"Imóvel novo. Gás encanado e água individual. Cooktop e coifa. 1 aparelho de ar condicionado no quarto. Tomada USB. Fechadura eletrônica. Os armários embutidos do quarto, banheiro e cozinha já estão instalados.\"",
+      "status": "answered",
+      "question": "esse ap dever ser considerado nao mobilidado, outros do mesmo tipo tambem. acredito qeu semi mobiliado so a partir do momento que tem geladeira ou algo assim",
+      "createdAt": "2026-10-17T00:09:42.795Z",
+      "answeredAt": "2026-10-17T00:09:42.795Z",
+      "propertyKey": "quintoandar:893127481",
+      "answerSource": "instant_diagnostic",
+      "propertySnapshot": {
+        "url": "https://www.quintoandar.com.br/imovel/893127481/alugar/apartamento-1-quarto-santa-efigenia-belo-horizonte",
+        "iptu": 267,
+        "rent": 3190,
+        "floor": null,
+        "title": "Alugar apartamento com 1 quarto.",
+        "areaM2": 43,
+        "street": "Rua Padre Marinho",
+        "suites": 1,
+        "acLabel": "Ar-condicionado",
+        "doorman": "NightAndDayShift",
+        "redTags": [],
+        "bedrooms": 1,
+        "cityCode": "BH",
+        "cityRank": 94,
+        "condoFee": 586,
+        "bathrooms": 1,
+        "breakdown": {
+          "areaPoints": -10,
+          "budgetPoints": 12,
+          "safetyPoints": 0,
+          "commutePoints": 4,
+          "nuancesPoints": 24,
+          "parkingPoints": 5,
+          "furniturePoints": -8,
+          "modernityPoints": 93,
+          "neighborhoodPoints": 56.2,
+          "cityPreferencePoints": 0
+        },
+        "furnished": false,
+        "greenTags": [
+          "Ar-condicionado",
+          "Vista livre",
+          "Prédio Novo (2019)"
+        ],
+        "finalScore": 176.2,
+        "floorLabel": "Andar alto (16º–19º andar)",
+        "floorRange": {
+          "max": 19,
+          "min": 16
+        },
+        "description": "Imóvel novo. Gás encanado e água individual. Cooktop e coifa. 1 aparelho de ar condicionado no quarto. Tomada USB. Fechadura eletrônica. Os armários embutidos do quarto, banheiro e cozinha já estão instalados.",
+        "overallRank": 143,
+        "totalFloors": null,
+        "neighborhood": "Santa Efigênia",
+        "streetNumber": "318",
+        "thumbnailUrl": "https://www.quintoandar.com.br/img/xxl/893127481-83.27740556703856ImvelRuaPadreMarinho3181703SantaEfignia270820202.jpg",
+        "totalMonthly": 4168,
+        "furnitureTier": "SEMI_FURNISHED",
+        "parkingSpaces": 1,
+        "modernityScore": 100,
+        "nuanceWarnings": [],
+        "condominiumName": "Ed. Home Residence",
+        "constructionYear": 2019,
+        "nuanceHighlights": [
+          "Vista livre/definitiva",
+          "Janelas amplas",
+          "Andar alto (16º–19º andar)",
+          "Parque/Praça próx.: Lagoa dos Marrecos, Lagoa dos Barcos",
+          "Shopping próx.: Boulevard Shopping Belo Horizonte",
+          "Metrô próx.: Santa Efigênia",
+          "Área de serviço p/ máquinas",
+          "Varanda",
+          "Portaria 24h / Biometria"
+        ],
+        "shortJustification": "Com fechadura eletrônica, cooktop, marcenaria/armários planejados, varanda e janelas antirruído, em próx. a Lagoa dos Marrecos e Lagoa dos Barcos, próx. ao Boulevard Shopping Belo Horizonte e acesso à estação Santa Efigênia — fica a 5 min do escritório do Nubank, com folga confortável no orçamento.\nSemi-mobiliado com eletrodomésticos (verificar se conflita com seus eletros de Brasília), metragem mais enxuta para acomodar toda a mudança e fluxo intenso do entorno hospitalar durante o dia."
+      }
     }
   ]
 }

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getDb, schema } from "@/db";
+import { logger } from "@/lib/logger";
 import {
   loadSharedPreferences,
   toggleSharedFavorite,
@@ -12,7 +13,13 @@ import type {
   SlimPropertyRecord,
 } from "@/types/moradia";
 import { eq, sql } from "drizzle-orm";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -32,27 +39,56 @@ const TMP_PHOTOS_CACHE_FILE = join(tmpdir(), "moradia-photos-cache.json");
 
 type PhotosCacheMap = Record<string, Array<{ room: string | null; url: string }>>;
 
-function readPhotosCacheFile(filePath: string): PhotosCacheMap {
-  if (!existsSync(/*turbopackIgnore: true*/ filePath)) return {};
+const photosFileCacheByPath = new Map<
+  string,
+  { mtimeMs: number; data: PhotosCacheMap }
+>();
+let mergedPhotosCacheSig = "";
+let mergedPhotosCacheData: PhotosCacheMap | null = null;
+
+function readPhotosCacheFile(filePath: string): {
+  mtimeMs: number;
+  data: PhotosCacheMap;
+} {
+  if (!existsSync(/*turbopackIgnore: true*/ filePath)) {
+    return { mtimeMs: -1, data: {} };
+  }
   try {
+    const mtimeMs = statSync(/*turbopackIgnore: true*/ filePath).mtimeMs;
+    const hit = photosFileCacheByPath.get(filePath);
+    if (hit && hit.mtimeMs === mtimeMs) {
+      return hit;
+    }
     const raw = JSON.parse(
       readFileSync(/*turbopackIgnore: true*/ filePath, "utf8"),
     ) as unknown;
-    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-      return raw as PhotosCacheMap;
-    }
-    return {};
+    const data =
+      raw && typeof raw === "object" && !Array.isArray(raw)
+        ? (raw as PhotosCacheMap)
+        : {};
+    const entry = { mtimeMs, data };
+    photosFileCacheByPath.set(filePath, entry);
+    return entry;
   } catch {
-    return {};
+    return { mtimeMs: -1, data: {} };
   }
 }
 
 function loadPhotosCache(): PhotosCacheMap {
-  return {
-    ...readPhotosCacheFile(FALLBACK_PHOTOS_CACHE_FILE),
-    ...readPhotosCacheFile(LOCAL_PHOTOS_CACHE_FILE),
-    ...readPhotosCacheFile(TMP_PHOTOS_CACHE_FILE),
+  const f1 = readPhotosCacheFile(FALLBACK_PHOTOS_CACHE_FILE);
+  const f2 = readPhotosCacheFile(LOCAL_PHOTOS_CACHE_FILE);
+  const f3 = readPhotosCacheFile(TMP_PHOTOS_CACHE_FILE);
+  const sig = `${f1.mtimeMs}:${f2.mtimeMs}:${f3.mtimeMs}`;
+  if (mergedPhotosCacheData && mergedPhotosCacheSig === sig) {
+    return mergedPhotosCacheData;
+  }
+  mergedPhotosCacheSig = sig;
+  mergedPhotosCacheData = {
+    ...f1.data,
+    ...f2.data,
+    ...f3.data,
   };
+  return mergedPhotosCacheData;
 }
 
 function parseFavoritesRaw(raw: unknown): string[] {
@@ -142,25 +178,89 @@ interface SeedSnapshotData {
   properties?: unknown[];
 }
 
-function loadSnapshotFromDiskOrBundle(): SeedSnapshotData {
+let cachedSnapshotPath: string | null = null;
+let cachedSnapshotMtimeMs = -1;
+let cachedSnapshotData: SeedSnapshotData | null = null;
+
+function loadSnapshotFromDiskOrBundle(): {
+  data: SeedSnapshotData;
+  cacheHit: boolean;
+} {
   for (const candidate of [LOCAL_SNAPSHOT_FILE, FALLBACK_SNAPSHOT_FILE]) {
     if (existsSync(/*turbopackIgnore: true*/ candidate)) {
       try {
-        return JSON.parse(
+        const mtimeMs = statSync(/*turbopackIgnore: true*/ candidate).mtimeMs;
+        if (
+          cachedSnapshotData &&
+          cachedSnapshotPath === candidate &&
+          cachedSnapshotMtimeMs === mtimeMs
+        ) {
+          return { data: cachedSnapshotData, cacheHit: true };
+        }
+        const parsed = JSON.parse(
           readFileSync(/*turbopackIgnore: true*/ candidate, "utf8"),
         ) as SeedSnapshotData;
-      } catch {
-        // try next
+        cachedSnapshotPath = candidate;
+        cachedSnapshotMtimeMs = mtimeMs;
+        cachedSnapshotData = parsed;
+        return { data: parsed, cacheHit: false };
+      } catch (err) {
+        logger.warn("dataset-store", "Failed reading snapshot candidate", {
+          candidate,
+          error: err,
+        });
       }
     }
   }
-  return { updatedAt: new Date(0).toISOString(), neighborhoods: [], properties: [] };
+  return {
+    data: {
+      updatedAt: new Date(0).toISOString(),
+      neighborhoods: [],
+      properties: [],
+    },
+    cacheHit: false,
+  };
+}
+
+const MAX_INITIAL_CARD_PHOTOS = 4;
+
+function capRelevantPlaces(
+  places: SlimPropertyRecord["placesNearby"] | undefined | null,
+): SlimPropertyRecord["placesNearby"] {
+  if (!Array.isArray(places) || places.length <= 8) {
+    return places ?? [];
+  }
+  const first6 = places.slice(0, 6);
+  const rest = places.slice(6);
+  const extras: SlimPropertyRecord["placesNearby"] = [];
+  if (!first6.some((p) => p.type === "PARK_OR_GREEN_AREA")) {
+    const park = rest.find((p) => p.type === "PARK_OR_GREEN_AREA");
+    if (park) extras.push(park);
+  }
+  if (!first6.some((p) => p.type === "SHOPPING_MALL")) {
+    const mall = rest.find((p) => p.type === "SHOPPING_MALL");
+    if (mall) extras.push(mall);
+  }
+  if (
+    !first6.some((p) => p.type === "ESTACAO_METRO_OU_TREM") &&
+    extras.length < 2
+  ) {
+    const subway = rest.find((p) => p.type === "ESTACAO_METRO_OU_TREM");
+    if (subway) extras.push(subway);
+  }
+  for (const r of rest) {
+    if (first6.length + extras.length >= 8) break;
+    if (!extras.includes(r)) extras.push(r);
+  }
+  return [...first6, ...extras].slice(0, 8);
 }
 
 export async function loadMoradiaDataset(
   cityFilter?: CityHubCode | "ALL",
 ): Promise<MoradiaDatasetPayload> {
-  const snap = loadSnapshotFromDiskOrBundle();
+  const t0 = performance.now();
+  const { data: snap, cacheHit: snapshotCacheHit } =
+    loadSnapshotFromDiskOrBundle();
   const snapUpdatedAtMs = snap.updatedAt ? Date.parse(snap.updatedAt) : 0;
   const photosCache = loadPhotosCache();
   const preferencesPromise = loadSharedPreferences();
@@ -195,6 +295,88 @@ export async function loadMoradiaDataset(
             latestDbUpdatedAtMs > 0
               ? new Date(latestDbUpdatedAtMs).toISOString()
               : snap.updatedAt;
+          const mappedProperties = dbProps.map((p) => {
+            const cachedPhotos = photosCache[`${p.provider}:${p.id}`];
+            const basePhotos = p.samplePhotos ?? [];
+            const resolvedPhotos =
+              Array.isArray(cachedPhotos) &&
+              cachedPhotos.length >= basePhotos.length &&
+              cachedPhotos.length > 0
+                ? cachedPhotos
+                : basePhotos;
+            return {
+              provider: p.provider,
+              id: p.id,
+              cityCode: p.cityCode,
+              city: p.city,
+              neighborhood: p.neighborhood,
+              street: p.street,
+              streetNumber: p.streetNumber,
+              condominiumName: p.condominiumName,
+              doorman: p.doorman,
+              url: p.url,
+              title: p.title,
+              rent: p.rent,
+              condoFee: p.condoFee,
+              iptu: p.iptu,
+              totalMonthly: p.totalMonthly,
+              salePrice: p.salePrice,
+              areaM2: p.areaM2,
+              bedrooms: p.bedrooms,
+              suites: p.suites,
+              bathrooms: p.bathrooms,
+              parkingSpaces: p.parkingSpaces,
+              floor: p.floor,
+              floorRange: p.floorRange ?? null,
+              totalFloors: p.totalFloors,
+              furnished: p.furnished,
+              acceptsPets: p.acceptsPets,
+              nearSubway: p.nearSubway,
+              constructionYear: p.constructionYear,
+              condition: p.condition,
+              installations: p.installations ?? [],
+              amenities: p.amenities ?? [],
+              comfortCommodities: p.comfortCommodities ?? [],
+              practicalityCommodities: p.practicalityCommodities ?? [],
+              placesNearby: capRelevantPlaces(p.placesNearby),
+              photoCaptions: p.photoCaptions ?? [],
+              photosCount: Math.max(
+                p.photosCount ?? 0,
+                Array.isArray(cachedPhotos) ? cachedPhotos.length : 0,
+                basePhotos.length,
+              ),
+              modernityScore: p.modernityScore,
+              modernityTier: p.modernityTier,
+              positiveSignals: p.positiveSignals ?? [],
+              negativeSignals: p.negativeSignals ?? [],
+              samplePhotos: resolvedPhotos.slice(0, MAX_INITIAL_CARD_PHOTOS),
+              description: p.description,
+              generatedDescription: p.description
+                ? null
+                : (p.generatedDescription ?? null),
+              sourceSearch: p.sourceSearch,
+              isNewEntry: p.isNewEntry,
+              isActive: p.isActive ?? true,
+              deactivatedAt: p.deactivatedAt ?? null,
+            };
+          });
+          const activeCount = mappedProperties.filter(
+            (p) => p.isActive !== false,
+          ).length;
+          const deactivatedCount = mappedProperties.length - activeCount;
+          const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+
+          logger.info("dataset-store", "loadMoradiaDataset from neon", {
+            source: "neon",
+            cityFilter: cityFilter ?? "ALL",
+            cacheHit: false,
+            neighborhoodsCount: dbNbs.length,
+            propertiesCount: mappedProperties.length,
+            activeCount,
+            deactivatedCount,
+            durationMs,
+          });
+
           return {
             updatedAt: resolvedUpdatedAt,
             source: "neon",
@@ -218,94 +400,72 @@ export async function loadMoradiaDataset(
               pros: n.pros ?? [],
               cons: n.cons ?? [],
             })),
-            properties: dbProps.map((p) => {
-              const cachedPhotos = photosCache[`${p.provider}:${p.id}`];
-              const basePhotos = p.samplePhotos ?? [];
-              const resolvedPhotos =
-                Array.isArray(cachedPhotos) && cachedPhotos.length > basePhotos.length
-                  ? cachedPhotos
-                  : basePhotos;
-              return {
-                provider: p.provider,
-                id: p.id,
-                cityCode: p.cityCode,
-                city: p.city,
-                neighborhood: p.neighborhood,
-                street: p.street,
-                streetNumber: p.streetNumber,
-                condominiumName: p.condominiumName,
-                doorman: p.doorman,
-                url: p.url,
-                title: p.title,
-                rent: p.rent,
-                condoFee: p.condoFee,
-                iptu: p.iptu,
-                totalMonthly: p.totalMonthly,
-                salePrice: p.salePrice,
-                areaM2: p.areaM2,
-                bedrooms: p.bedrooms,
-                suites: p.suites,
-                bathrooms: p.bathrooms,
-                parkingSpaces: p.parkingSpaces,
-                floor: p.floor,
-                floorRange: p.floorRange ?? null,
-                totalFloors: p.totalFloors,
-                furnished: p.furnished,
-                acceptsPets: p.acceptsPets,
-                nearSubway: p.nearSubway,
-                constructionYear: p.constructionYear,
-                condition: p.condition,
-                installations: p.installations ?? [],
-                amenities: p.amenities ?? [],
-                comfortCommodities: p.comfortCommodities ?? [],
-                practicalityCommodities: p.practicalityCommodities ?? [],
-                placesNearby: p.placesNearby ?? [],
-                photoCaptions: p.photoCaptions ?? [],
-                photosCount: Math.max(p.photosCount ?? 0, resolvedPhotos.length),
-                modernityScore: p.modernityScore,
-                modernityTier: p.modernityTier,
-                positiveSignals: p.positiveSignals ?? [],
-                negativeSignals: p.negativeSignals ?? [],
-                samplePhotos: resolvedPhotos,
-                description: p.description,
-                generatedDescription: p.generatedDescription,
-                sourceSearch: p.sourceSearch,
-                isNewEntry: p.isNewEntry,
-                isActive: p.isActive ?? true,
-                deactivatedAt: p.deactivatedAt ?? null,
-              };
-            }),
+            properties: mappedProperties,
             favorites: preferences.favorites,
             preferences,
           };
         }
       }
-    } catch {
-      // Fallback to seed-snapshot.json when Neon schema isn't migrated yet
+    } catch (err) {
+      logger.warn(
+        "dataset-store",
+        "Neon query failed; falling back to snapshot",
+        {
+          cityFilter: cityFilter ?? "ALL",
+          error: err,
+        },
+      );
     }
   }
 
   const preferences = await preferencesPromise;
-  const allProps = ((snap.properties ??
-    []) as unknown as SlimPropertyRecord[]).map((p) => {
+  const rawProps = (snap.properties ?? []) as unknown as SlimPropertyRecord[];
+  const candidateProps =
+    cityFilter && cityFilter !== "ALL"
+      ? rawProps.filter((p) => p.cityCode === cityFilter)
+      : rawProps;
+  const filteredProps = candidateProps.map((p) => {
     const cachedPhotos = photosCache[`${p.provider}:${p.id}`];
     const basePhotos = p.samplePhotos ?? [];
     const resolvedPhotos =
-      Array.isArray(cachedPhotos) && cachedPhotos.length > basePhotos.length
+      Array.isArray(cachedPhotos) &&
+      cachedPhotos.length >= basePhotos.length &&
+      cachedPhotos.length > 0
         ? cachedPhotos
         : basePhotos;
     return {
       ...p,
-      photosCount: Math.max(p.photosCount ?? 0, resolvedPhotos.length),
-      samplePhotos: resolvedPhotos,
+      placesNearby: capRelevantPlaces(p.placesNearby),
+      photosCount: Math.max(
+        p.photosCount ?? 0,
+        Array.isArray(cachedPhotos) ? cachedPhotos.length : 0,
+        basePhotos.length,
+      ),
+      samplePhotos: resolvedPhotos.slice(0, MAX_INITIAL_CARD_PHOTOS),
+      generatedDescription: p.description
+        ? null
+        : (p.generatedDescription ?? null),
       isActive: p.isActive ?? true,
       deactivatedAt: p.deactivatedAt ?? null,
     };
   });
-  const filteredProps =
-    cityFilter && cityFilter !== "ALL"
-      ? allProps.filter((p) => p.cityCode === cityFilter)
-      : allProps;
+
+  const activeCount = filteredProps.filter((p) => p.isActive !== false).length;
+  const deactivatedCount = filteredProps.length - activeCount;
+  const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+
+  logger.info("dataset-store", "loadMoradiaDataset from snapshot", {
+    source: "snapshot",
+    cityFilter: cityFilter ?? "ALL",
+    cacheHit: snapshotCacheHit,
+    neighborhoodsCount: Array.isArray(snap.neighborhoods)
+      ? snap.neighborhoods.length
+      : 0,
+    propertiesCount: filteredProps.length,
+    activeCount,
+    deactivatedCount,
+    durationMs,
+  });
 
   return {
     updatedAt: snap.updatedAt,
@@ -449,6 +609,7 @@ export async function syncBatchToNeon(payload: {
         target: [schema.properties.provider, schema.properties.id],
         set: {
           cityCode: sql`excluded.city_code`,
+          city: sql`excluded.city`,
           neighborhood: sql`excluded.neighborhood`,
           street: sql`excluded.street`,
           streetNumber: sql`excluded.street_number`,
@@ -488,6 +649,7 @@ export async function syncBatchToNeon(payload: {
           samplePhotos: sql`excluded.sample_photos`,
           description: sql`excluded.description`,
           generatedDescription: sql`excluded.generated_description`,
+          sourceSearch: sql`excluded.source_search`,
           isNewEntry: sql`excluded.is_new_entry`,
           isActive: sql`excluded.is_active`,
           deactivatedAt: sql`excluded.deactivated_at`,

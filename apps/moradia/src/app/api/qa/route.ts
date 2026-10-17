@@ -1,5 +1,7 @@
+import { logger } from "@/lib/logger";
 import {
   DEFAULT_WEIGHTS,
+  classifyFurnitureTier,
   computeDynamicNeighborhoods,
   computeDynamicProperties,
 } from "@/lib/scoring-engine";
@@ -18,6 +20,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -164,8 +167,13 @@ function parseQaRaw(raw: unknown): PropertyQuestionItem[] {
   return [];
 }
 
-function loadQaItemsFromDisk(): PropertyQuestionItem[] {
-  for (const candidate of [LOCAL_QA_FILE, FALLBACK_QA_FILE, TMP_QA_FILE]) {
+let memQaItems: PropertyQuestionItem[] | null = null;
+let lastQaDbLoadMs = 0;
+const QA_DB_CACHE_TTL_MS = 2_500;
+let inFlightQaLoadPromise: Promise<PropertyQuestionItem[]> | null = null;
+
+function readDiskQaItems(): PropertyQuestionItem[] {
+  for (const candidate of [TMP_QA_FILE, LOCAL_QA_FILE, FALLBACK_QA_FILE]) {
     if (existsSync(/*turbopackIgnore: true*/ candidate)) {
       try {
         const raw = JSON.parse(
@@ -180,7 +188,20 @@ function loadQaItemsFromDisk(): PropertyQuestionItem[] {
   return [];
 }
 
-function saveQaItemsToDisk(items: PropertyQuestionItem[]): void {
+function readLocalQaFileItems(): PropertyQuestionItem[] {
+  if (!existsSync(/*turbopackIgnore: true*/ LOCAL_QA_FILE)) return [];
+  try {
+    const raw = JSON.parse(
+      readFileSync(/*turbopackIgnore: true*/ LOCAL_QA_FILE, "utf8"),
+    ) as unknown;
+    return parseQaRaw(raw);
+  } catch {
+    return [];
+  }
+}
+
+function writeDiskQaItems(items: PropertyQuestionItem[]): void {
+  memQaItems = items;
   const serialized = `${JSON.stringify({ items }, null, 2)}\n`;
   try {
     mkdirSync(/*turbopackIgnore: true*/ dirname(LOCAL_QA_FILE), {
@@ -208,117 +229,107 @@ function saveQaItemsToDisk(items: PropertyQuestionItem[]): void {
   }
 }
 
-function mergeQaLists(
-  diskItems: PropertyQuestionItem[],
-  dbItems: PropertyQuestionItem[],
-  neonAuthoritative = true,
-): { merged: PropertyQuestionItem[]; changedVsDb: boolean } {
-  if (dbItems.length === 0) {
-    if (neonAuthoritative) {
-      return { merged: [], changedVsDb: false };
-    }
-    return { merged: diskItems, changedVsDb: diskItems.length > 0 };
-  }
-  if (diskItems.length === 0) {
-    return { merged: dbItems, changedVsDb: false };
-  }
-
-  const byId = new Map<string, PropertyQuestionItem>();
-  let changedVsDb = false;
-
-  for (const dbItem of dbItems) {
-    byId.set(dbItem.id, dbItem);
-  }
-
-  for (const diskItem of diskItems) {
-    const existing = byId.get(diskItem.id);
-    if (!existing) {
-      if (!neonAuthoritative) {
-        byId.set(diskItem.id, diskItem);
-        changedVsDb = true;
-      }
-      continue;
-    }
-    const diskAnsweredMs = diskItem.answeredAt
-      ? Date.parse(diskItem.answeredAt)
-      : 0;
-    const dbAnsweredMs = existing.answeredAt
-      ? Date.parse(existing.answeredAt)
-      : 0;
-
-    // Prefer disk item if Cursor agent edited/enriched the answer on disk
-    if (
-      (diskItem.status === "answered" && existing.status !== "answered") ||
-      diskAnsweredMs > dbAnsweredMs ||
-      (diskItem.answer &&
-        existing.answer &&
-        diskItem.answer !== existing.answer &&
-        diskAnsweredMs >= dbAnsweredMs)
-    ) {
-      byId.set(diskItem.id, {
-        ...existing,
-        ...diskItem,
-        answerSource:
-          diskItem.answer !== existing.answer
-            ? "cursor_session"
-            : (diskItem.answerSource ?? existing.answerSource),
-      });
-      changedVsDb = true;
-    }
-  }
-
-  const merged = [...byId.values()].sort(
-    (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt),
-  );
-  return { merged, changedVsDb };
-}
-
-async function loadQaItems(): Promise<PropertyQuestionItem[]> {
-  const diskItems = loadQaItemsFromDisk();
+async function loadQaStore(): Promise<PropertyQuestionItem[]> {
   const sql = getSqlClient();
-  if (!sql) return diskItems;
-
-  try {
-    await ensureQaTable();
-    const rows = await sql`
-      SELECT items
-      FROM moradia.property_qa
-      WHERE id = ${DEFAULT_QA_ROW_ID}
-      LIMIT 1
-    `;
-    if (rows.length > 0) {
-      const dbItems = parseQaRaw((rows[0] as { items?: unknown }).items);
-      const { merged, changedVsDb } = mergeQaLists(diskItems, dbItems);
-      saveQaItemsToDisk(merged);
-      if (changedVsDb) {
-        await sql`
-          INSERT INTO moradia.property_qa (id, items, updated_at)
-          VALUES (${DEFAULT_QA_ROW_ID}, ${JSON.stringify(merged)}::jsonb, now())
-          ON CONFLICT (id) DO UPDATE SET
-            items = EXCLUDED.items,
-            updated_at = now()
-        `;
-      }
-      return merged;
+  if (!sql) {
+    if (memQaItems !== null) {
+      return [...memQaItems];
     }
+    const diskItems = readDiskQaItems();
+    memQaItems = diskItems;
+    return [...diskItems];
+  }
 
-    if (diskItems.length > 0) {
+  if (memQaItems !== null && Date.now() - lastQaDbLoadMs < QA_DB_CACHE_TTL_MS) {
+    return [...memQaItems];
+  }
+
+  if (inFlightQaLoadPromise) {
+    const shared = await inFlightQaLoadPromise;
+    return [...shared];
+  }
+
+  const loadPromise = (async (): Promise<PropertyQuestionItem[]> => {
+    try {
+      await ensureQaTable();
+      const rows = await sql`
+        SELECT items
+        FROM moradia.property_qa
+        WHERE id = ${DEFAULT_QA_ROW_ID}
+        LIMIT 1
+      `;
+      if (rows.length > 0) {
+        const dbItems = parseQaRaw((rows[0] as { items?: unknown }).items);
+        const localItems = readLocalQaFileItems();
+        const localById = new Map(localItems.map((item) => [item.id, item]));
+        let changedVsDb = false;
+
+        const updatedItems = dbItems.map((dbItem) => {
+          if (dbItem.status !== "pending") return dbItem;
+          const localItem = localById.get(dbItem.id);
+          if (
+            localItem &&
+            localItem.status === "answered" &&
+            typeof localItem.answer === "string" &&
+            localItem.answer.trim().length > 0
+          ) {
+            changedVsDb = true;
+            return {
+              ...dbItem,
+              status: "answered" as const,
+              answer: localItem.answer,
+              answeredAt: localItem.answeredAt ?? new Date().toISOString(),
+              answerSource: localItem.answerSource ?? ("cursor_session" as const),
+            };
+          }
+          return dbItem;
+        });
+
+        if (changedVsDb) {
+          await sql`
+            INSERT INTO moradia.property_qa (id, items, updated_at)
+            VALUES (${DEFAULT_QA_ROW_ID}, ${JSON.stringify(updatedItems)}::jsonb, now())
+            ON CONFLICT (id) DO UPDATE SET
+              items = EXCLUDED.items,
+              updated_at = now()
+          `;
+        }
+        memQaItems = updatedItems;
+        lastQaDbLoadMs = Date.now();
+        return [...updatedItems];
+      }
+
+      const diskItems = memQaItems ?? readDiskQaItems();
       await sql`
         INSERT INTO moradia.property_qa (id, items, updated_at)
         VALUES (${DEFAULT_QA_ROW_ID}, ${JSON.stringify(diskItems)}::jsonb, now())
-        ON CONFLICT (id) DO UPDATE SET
-          items = EXCLUDED.items,
-          updated_at = now()
+        ON CONFLICT (id) DO NOTHING
       `;
+      memQaItems = diskItems;
+      lastQaDbLoadMs = Date.now();
+      return [...diskItems];
+    } catch (err) {
+      logger.warn("api/qa", "loadQaStore DB query failed; using disk fallback", {
+        error: err,
+      });
+      if (memQaItems !== null) {
+        return [...memQaItems];
+      }
+      const diskItems = readDiskQaItems();
+      memQaItems = diskItems;
+      return [...diskItems];
+    } finally {
+      inFlightQaLoadPromise = null;
     }
-    return diskItems;
-  } catch {
-    return diskItems;
-  }
+  })();
+
+  inFlightQaLoadPromise = loadPromise;
+  return loadPromise;
 }
 
 async function saveQaItems(items: PropertyQuestionItem[]): Promise<void> {
-  saveQaItemsToDisk(items);
+  writeDiskQaItems(items);
+  lastQaDbLoadMs = Date.now();
   const sql = getSqlClient();
   if (!sql) return;
   try {
@@ -330,8 +341,11 @@ async function saveQaItems(items: PropertyQuestionItem[]): Promise<void> {
         items = EXCLUDED.items,
         updated_at = now()
     `;
-  } catch {
-    // Ignore transient Neon errors; disk/tmp mirror is already written
+    lastQaDbLoadMs = Date.now();
+  } catch (err) {
+    logger.warn("api/qa", "saveQaItems DB write failed; saved to disk mirror", {
+      error: err,
+    });
   }
 }
 
@@ -387,6 +401,11 @@ function getEvaluatedSnapshotCache(): SnapshotCache {
   return { evaluatedByKey: new Map(), topEvaluated: [] };
 }
 
+const rawFileMapCache = new Map<
+  string,
+  { mtimeMs: number; byKey: Map<string, RawListingRecord> }
+>();
+
 function findRawListingOnDisk(propertyKey: string): RawListingRecord | null {
   const [provider, id] = propertyKey.split(":");
   if (!provider || !id) return null;
@@ -403,12 +422,27 @@ function findRawListingOnDisk(propertyKey: string): RawListingRecord | null {
     const fullPath = join(RAW_WORKSPACE_DIR, file);
     if (!existsSync(/*turbopackIgnore: true*/ fullPath)) continue;
     try {
-      const content = readFileSync(/*turbopackIgnore: true*/ fullPath, "utf8");
-      if (!content.includes(id)) continue;
-      const parsed = JSON.parse(content) as { listings?: RawListingRecord[] };
-      const match = (parsed.listings ?? []).find(
-        (l) => String(l.id) === id && (!l.provider || l.provider === provider),
-      );
+      const mtimeMs = statSync(/*turbopackIgnore: true*/ fullPath).mtimeMs;
+      let cached = rawFileMapCache.get(fullPath);
+      if (!cached || cached.mtimeMs !== mtimeMs) {
+        const content = readFileSync(
+          /*turbopackIgnore: true*/ fullPath,
+          "utf8",
+        );
+        const parsed = JSON.parse(content) as { listings?: RawListingRecord[] };
+        const byKey = new Map<string, RawListingRecord>();
+        for (const l of parsed.listings ?? []) {
+          if (l.id !== undefined) {
+            const p = l.provider ?? "quintoandar";
+            byKey.set(`${p}:${String(l.id)}`, l);
+            byKey.set(`*:${String(l.id)}`, l);
+          }
+        }
+        cached = { mtimeMs, byKey };
+        rawFileMapCache.set(fullPath, cached);
+      }
+      const match =
+        cached.byKey.get(`${provider}:${id}`) ?? cached.byKey.get(`*:${id}`);
       if (match) return match;
     } catch {
       // ignore read errors
@@ -472,6 +506,7 @@ function buildInstantGroundedAnswer(params: {
   rawListing: RawListingRecord | null;
   topEvaluated: EvaluatedProperty[];
   contextSummary?: string;
+  queuedToLocalCursor?: boolean;
 }): string {
   const {
     question,
@@ -481,6 +516,7 @@ function buildInstantGroundedAnswer(params: {
     rawListing,
     topEvaluated,
     contextSummary,
+    queuedToLocalCursor = false,
   } = params;
   const qNorm = question
     .toLowerCase()
@@ -506,7 +542,7 @@ function buildInstantGroundedAnswer(params: {
       );
     }
     lines.push(
-      "\n💡 **Dica**: Clique em **Perguntar** em qualquer card da lista para fixar o imóvel aqui no chat e inspecionar andar real, mobília nas fotos, decomposição da nota ou veredito de visita. Sua mensagem também foi enviada à sessão ativa do Cursor!",
+      `\n💡 **Dica**: Clique em **Perguntar** em qualquer card da lista para fixar o imóvel aqui no chat e inspecionar andar real, mobília nas fotos, decomposição da nota ou veredito de visita.${queuedToLocalCursor ? " Sua mensagem também foi enviada à sessão ativa do Cursor!" : ""}`,
     );
     return lines.join("\n");
   }
@@ -643,19 +679,16 @@ function buildInstantGroundedAnswer(params: {
 
   // 2. Furniture analysis
   if (asksFurniture) {
-    const tier = snapshot.furnitureTier ?? prop?.furnitureTier;
-    const furnishedVal =
-      tier === "FULLY_FURNISHED"
-        ? true
-        : tier === "UNFURNISHED"
-          ? false
-          : (snapshot.furnished ?? prop?.furnished);
+    const tier =
+      snapshot.furnitureTier ??
+      prop?.furnitureTier ??
+      (prop ? classifyFurnitureTier(prop) : "UNFURNISHED");
     const tierLabel =
-      tier === "FULLY_FURNISHED" || furnishedVal === true
+      tier === "FULLY_FURNISHED"
         ? "Mobiliado (Sim)"
         : tier === "SEMI_FURNISHED"
-          ? "Semimobiliado / Eletros parciais"
-          : "Sem mobília (Apenas marcenaria/armários fixos)";
+          ? "Semi-mobiliado (Eletros)"
+          : "Sem mobília";
 
     const searchCorpus = [
       fullDesc,
@@ -667,7 +700,7 @@ function buildInstantGroundedAnswer(params: {
     const itemChecks: [string, RegExp][] = [
       ["Cama", /\b(cama|colch[aã]o|bicama|queen|king)\b/i],
       ["Sofá / Poltrona", /\b(sof[aá]s?|poltronas?)\b/i],
-      ["Geladeira / Frigobar", /\b(geladeira|refrigerador|frigobar|duplex)\b/i],
+      ["Geladeira / Frigobar", /\b(geladeira|refrigerador|frigobar)\b/i],
       ["Fogão / Cooktop", /\b(fog[aã]o|cooktop|forno|induc[aã]o)\b/i],
       ["Micro-ondas", /\b(micro-?ondas)\b/i],
       ["Máquina de lavar / Lava e seca", /\b(m[aá]quina de lavar|lava e seca|lavadora)\b/i],
@@ -683,10 +716,16 @@ function buildInstantGroundedAnswer(params: {
       snapshot.breakdown?.furniturePoints ??
       prop?.breakdown.furniturePoints ??
       0;
+    const furnExplanation =
+      tier === "UNFURNISHED"
+        ? "Bônus de imóvel livre p/ receber seus móveis de Brasília"
+        : tier === "SEMI_FURNISHED"
+          ? "Penalidade reduzida por possuir apenas eletros/cozinha sem cama ou sofá"
+          : "Penalidade por conflito com a mudança de Brasília";
     sections.push(
       `**🛋️ Diagnóstico de Mobília (${titleLabel})**\n` +
-        `• **Status atual no portal**: **${tierLabel}** (\`furnished: ${String(furnishedVal)}\`)\n` +
-        `• **Impacto na nota (Mudança BSB)**: **${furnPts >= 0 ? `+${furnPts}` : furnPts} pts** (${furnishedVal === false ? "Bônus de imóvel livre p/ receber seus móveis de Brasília" : furnishedVal === true ? "Penalidade por conflito com a mudança de Brasília" : "Neutro / Semimobiliado"})\n` +
+        `• **Status atual no portal**: **${tierLabel}** (\`furnitureTier: ${tier}\`)\n` +
+        `• **Impacto na nota (Mudança BSB)**: **${furnPts >= 0 ? `+${furnPts}` : furnPts} pts** (${furnExplanation})\n` +
         `• **Itens identificados nos metadados/texto/legendas**: ${detectedItems.length > 0 ? detectedItems.join(", ") : "Nenhum móvel solto citado no texto (apenas estrutura base)"}\n` +
         (commoditiesList.length > 0
           ? `• **Comodidades listadas (${commoditiesList.length})**: ${commoditiesList.slice(0, 12).join(", ")}`
@@ -782,9 +821,13 @@ function buildInstantGroundedAnswer(params: {
     const advertiserName = rawListing?.advertiser?.name;
     const advertiserPhone =
       rawListing?.advertiser?.whatsapp ?? rawListing?.advertiser?.phone;
+    const basePartsSum = snapshot.rent + snapshot.condoFee + snapshot.iptu;
+    const residualFees = Math.round(snapshot.totalMonthly - basePartsSum);
+    const feesNote =
+      residualFees > 0 ? ` + Taxas/Seguro ${formatBRL(residualFees)}` : "";
     sections.push(
       `**💰 Custos & Condições (${formatBRL(snapshot.totalMonthly)}/mês)**\n` +
-        `• **Pacote Mensal**: **${formatBRL(snapshot.totalMonthly)}** (Aluguel ${formatBRL(snapshot.rent)} + Condomínio ${formatBRL(snapshot.condoFee)} + IPTU ${formatBRL(snapshot.iptu)})\n` +
+        `• **Pacote Mensal**: **${formatBRL(snapshot.totalMonthly)}** (Aluguel ${formatBRL(snapshot.rent)} + Condomínio ${formatBRL(snapshot.condoFee)} + IPTU ${formatBRL(snapshot.iptu)}${feesNote})\n` +
         `• **Custo por m²**: **${formatBRL(pricePerM2)}/m²** para **${snapshot.areaM2} m²** (${snapshot.bedrooms} quarto(s), ${prop?.suites ?? 0} suíte(s), ${snapshot.bathrooms} banheiro(s), ${snapshot.parkingSpaces} vaga(s))\n` +
         (amenitiesList.length > 0
           ? `• **Infraestrutura & Lazer**: ${amenitiesList.slice(0, 12).join(", ")}\n`
@@ -802,7 +845,7 @@ function buildInstantGroundedAnswer(params: {
     sections.push(`**📝 Trecho da Descrição Original**\n"${trimmedDesc}"`);
   }
 
-  if (isBugOrRuleFeedback) {
+  if (isBugOrRuleFeedback && queuedToLocalCursor) {
     sections.push(
       `⚡ **Encaminhado à Sessão do Cursor**: Seu relato sobre este card (\`${propertyKey}\`) já entrou na fila em tempo real da sessão ativa para ajuste de regra/dados se necessário.`,
     );
@@ -819,6 +862,7 @@ async function generateDiagnosticAnswer(params: {
   rawListing: RawListingRecord | null;
   topEvaluated: EvaluatedProperty[];
   contextSummary?: string;
+  queuedToLocalCursor?: boolean;
 }): Promise<{
   answer: string;
   source: "llm" | "instant_diagnostic";
@@ -874,8 +918,10 @@ async function generateDiagnosticAnswer(params: {
   const systemPrompt =
     "Você é o Consultor Imobiliário Inteligente do Portal Moradia 2026 (mudança de Brasília para BH, Campinas, SP ou RJ próximo ao Nubank). " +
     "Responda em português de forma direta, objetiva, estruturada em tópicos curtos e 100% fundamentada nos dados reais do imóvel abaixo. " +
-    "Cite números exatos (andar, R$ aluguel/condomínio/total, m², decomposição da nota, itens de mobília e comodidades). " +
-    "Se o usuário apontar um erro de cadastro ou pedir ajuste na regra de pontuação, confirme os dados brutos do anúncio e avise que a sessão ativa do Cursor também recebeu o alerta para atualizar o motor/dataset.";
+    "Cite números exatos (andar, R$ aluguel/condomínio/total, m², decomposição da nota, itens de mobília e comodidades)." +
+    (params.queuedToLocalCursor
+      ? " Se o usuário apontar um erro de cadastro ou pedir ajuste na regra de pontuação, confirme os dados brutos do anúncio e avise que a sessão ativa do Cursor também recebeu o alerta para atualizar o motor/dataset."
+      : "");
 
   const userPrompt = `Pergunta do usuário: "${params.question}"\n\nDados completos do imóvel e ranking:\n${JSON.stringify(contextPayload, null, 2)}`;
 
@@ -912,9 +958,21 @@ async function generateDiagnosticAnswer(params: {
         if (text) {
           return { answer: text, source: "llm" };
         }
+      } else {
+        logger.warn("api/qa", "Groq LLM returned non-OK status", {
+          status: res.status,
+          propertyKey: params.propertyKey,
+        });
       }
-    } catch {
-      // Fallback to deterministic inspector
+    } catch (err) {
+      logger.warn(
+        "api/qa",
+        "Groq LLM request failed; using instant_diagnostic fallback",
+        {
+          propertyKey: params.propertyKey,
+          error: err,
+        },
+      );
     }
   }
 
@@ -922,17 +980,26 @@ async function generateDiagnosticAnswer(params: {
 }
 
 export async function GET(request: Request) {
+  const t0 = performance.now();
   const { searchParams } = new URL(request.url);
   const propertyKey = searchParams.get("propertyKey");
   const status = searchParams.get("status");
 
-  let items = await loadQaItems();
+  let items = await loadQaStore();
   if (propertyKey) {
     items = items.filter((item) => item.propertyKey === propertyKey);
   }
   if (status === "pending" || status === "answered") {
     items = items.filter((item) => item.status === status);
   }
+
+  const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+  logger.info("api/qa", "GET completed", {
+    propertyKey: propertyKey ?? "ALL",
+    status: status ?? "ALL",
+    itemsCount: items.length,
+    durationMs,
+  });
 
   return NextResponse.json(
     { ok: true, items },
@@ -944,7 +1011,16 @@ export async function GET(request: Request) {
   );
 }
 
+let qaWriteLockPromise: Promise<unknown> = Promise.resolve();
+
+function withQaWriteLock<T>(task: () => Promise<T>): Promise<T> {
+  const next = qaWriteLockPromise.then(task, task);
+  qaWriteLockPromise = next.catch(() => {});
+  return next;
+}
+
 export async function POST(request: Request) {
+  const t0 = performance.now();
   try {
     const body = (await request.json()) as {
       action?: "ask" | "answer" | "delete" | "clear";
@@ -957,58 +1033,118 @@ export async function POST(request: Request) {
     };
 
     const action = body.action ?? "ask";
-    const items = await loadQaItems();
 
     if (action === "clear") {
-      await saveQaItems([]);
-      return NextResponse.json({ ok: true, items: [] });
+      return await withQaWriteLock(async () => {
+        await saveQaItems([]);
+        const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+        logger.info("api/qa", "POST clear completed", {
+          action: "clear",
+          propertyKey: null,
+          answerSource: null,
+          queuedToLocalCursor: false,
+          itemsCount: 0,
+          durationMs,
+        });
+        return NextResponse.json({ ok: true, items: [] });
+      });
     }
 
     if (action === "answer") {
       if (!body.id || typeof body.answer !== "string" || !body.answer.trim()) {
+        const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+        logger.warn("api/qa", "POST answer rejected missing id or answer", {
+          action: "answer",
+          id: body.id ?? null,
+          durationMs,
+        });
         return NextResponse.json(
           { ok: false, error: "ID da pergunta e resposta são obrigatórios." },
           { status: 400 },
         );
       }
 
-      const idx = items.findIndex((i) => i.id === body.id);
-      if (idx === -1) {
-        return NextResponse.json(
-          { ok: false, error: "Pergunta não encontrada." },
-          { status: 404 },
-        );
-      }
+      return await withQaWriteLock(async () => {
+        const items = await loadQaStore();
+        const idx = items.findIndex((i) => i.id === body.id);
+        if (idx === -1) {
+          const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+          logger.warn("api/qa", "POST answer item not found", {
+            action: "answer",
+            id: body.id,
+            durationMs,
+          });
+          return NextResponse.json(
+            { ok: false, error: "Pergunta não encontrada." },
+            { status: 404 },
+          );
+        }
 
-      const updatedItem: PropertyQuestionItem = {
-        ...items[idx]!,
-        status: "answered",
-        answer: body.answer.trim(),
-        answerSource: "cursor_session",
-        answeredAt: new Date().toISOString(),
-      };
-      items[idx] = updatedItem;
-      await saveQaItems(items);
+        const updatedItem: PropertyQuestionItem = {
+          ...items[idx]!,
+          status: "answered",
+          answer: body.answer!.trim(),
+          answerSource: "cursor_session",
+          answeredAt: new Date().toISOString(),
+        };
+        items[idx] = updatedItem;
+        await saveQaItems(items);
 
-      return NextResponse.json({ ok: true, item: updatedItem, items });
+        const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+        logger.info("api/qa", "POST answer completed", {
+          action: "answer",
+          id: updatedItem.id,
+          propertyKey: updatedItem.propertyKey,
+          answerSource: updatedItem.answerSource,
+          queuedToLocalCursor: false,
+          itemsCount: items.length,
+          durationMs,
+        });
+
+        return NextResponse.json({ ok: true, item: updatedItem, items });
+      });
     }
 
     if (action === "delete") {
       if (!body.id) {
+        const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+        logger.warn("api/qa", "POST delete rejected missing id", {
+          action: "delete",
+          durationMs,
+        });
         return NextResponse.json(
           { ok: false, error: "ID da pergunta é obrigatório." },
           { status: 400 },
         );
       }
-      const nextItems = items.filter((i) => i.id !== body.id);
-      await saveQaItems(nextItems);
-      return NextResponse.json({ ok: true, items: nextItems });
+      return await withQaWriteLock(async () => {
+        const items = await loadQaStore();
+        const nextItems = items.filter((i) => i.id !== body.id);
+        await saveQaItems(nextItems);
+        const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+        logger.info("api/qa", "POST delete completed", {
+          action: "delete",
+          id: body.id,
+          propertyKey: null,
+          answerSource: null,
+          queuedToLocalCursor: false,
+          itemsCount: nextItems.length,
+          durationMs,
+        });
+        return NextResponse.json({ ok: true, items: nextItems });
+      });
     }
 
     // Default action === "ask"
     const propertyKey = (body.propertyKey ?? "general").trim() || "general";
     const question = (body.question ?? "").trim();
     if (!question) {
+      const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+      logger.warn("api/qa", "POST ask rejected empty question", {
+        action: "ask",
+        propertyKey,
+        durationMs,
+      });
       return NextResponse.json(
         { ok: false, error: "Digite uma pergunta para enviar ao chat." },
         { status: 400 },
@@ -1063,6 +1199,32 @@ export async function POST(request: Request) {
       ...(body.propertySnapshot ?? {}),
     };
 
+    const nowIso = new Date().toISOString();
+    const itemId = `qa-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+    let queuedToLocalCursor = false;
+    if (existsSync(/*turbopackIgnore: true*/ dirname(CURSOR_QUEUE_FILE))) {
+      try {
+        appendFileSync(
+          /*turbopackIgnore: true*/ CURSOR_QUEUE_FILE,
+          `${JSON.stringify({
+            event: "MORADIA_QUESTION_RECEIVED",
+            item: {
+              id: itemId,
+              propertyKey,
+              question,
+              createdAt: nowIso,
+              propertySnapshot: resolvedSnapshot,
+            },
+          })}\n`,
+          "utf8",
+        );
+        queuedToLocalCursor = true;
+      } catch {
+        queuedToLocalCursor = false;
+      }
+    }
+
     const diagnostic = await generateDiagnosticAnswer({
       question,
       propertyKey,
@@ -1071,11 +1233,11 @@ export async function POST(request: Request) {
       rawListing,
       topEvaluated,
       contextSummary: body.contextSummary,
+      queuedToLocalCursor,
     });
 
-    const nowIso = new Date().toISOString();
     const newItem: PropertyQuestionItem = {
-      id: `qa-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: itemId,
       propertyKey,
       question,
       status: "answered",
@@ -1086,24 +1248,36 @@ export async function POST(request: Request) {
       propertySnapshot: resolvedSnapshot,
     };
 
-    const nextItems = [...items, newItem];
-    await saveQaItems(nextItems);
+    const nextItems = await withQaWriteLock(async () => {
+      const latestItems = await loadQaStore();
+      const mergedItems = [...latestItems, newItem];
+      await saveQaItems(mergedItems);
+      return mergedItems;
+    });
 
-    try {
-      mkdirSync(/*turbopackIgnore: true*/ dirname(CURSOR_QUEUE_FILE), {
-        recursive: true,
-      });
-      appendFileSync(
-        /*turbopackIgnore: true*/ CURSOR_QUEUE_FILE,
-        `${JSON.stringify({ event: "MORADIA_QUESTION_RECEIVED", item: newItem })}\n`,
-        "utf8",
-      );
-    } catch {
-      // Ignore queue append errors when running outside local workspace
-    }
+    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+    logger.info("api/qa", "POST ask completed", {
+      action: "ask",
+      id: itemId,
+      propertyKey,
+      answerSource: diagnostic.source,
+      queuedToLocalCursor,
+      itemsCount: nextItems.length,
+      durationMs,
+    });
 
-    return NextResponse.json({ ok: true, item: newItem, items: nextItems });
+    return NextResponse.json({
+      ok: true,
+      item: newItem,
+      items: nextItems,
+      queuedToLocalCursor,
+    });
   } catch (err) {
+    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+    logger.error("api/qa", "POST failed", {
+      durationMs,
+      error: err,
+    });
     return NextResponse.json(
       {
         ok: false,

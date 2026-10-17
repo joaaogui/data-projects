@@ -3,6 +3,7 @@
 import { PropertyChatDrawer } from "@/components/property-chat-drawer";
 import { PropertyMapView } from "@/components/property-map-view";
 import {
+  fetchPropertyPhotosShared,
   getCardPhotoUrl,
   handleImgError,
   PropertyCardPhotoShowcase,
@@ -16,6 +17,7 @@ import {
   computeDynamicProperties,
   DEFAULT_WEIGHTS,
   normalizeNeighborhoodKey,
+  sanitizeAndMigrateWeights,
 } from "@/lib/scoring-engine";
 import type {
   CityHubCode,
@@ -53,14 +55,19 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
-  Send,
   SlidersHorizontal,
   Sparkles,
   Square,
-  Trash2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 export type FloorFilterOption =
   | "ALL"
@@ -321,11 +328,14 @@ export function matchesFloorFilter(
   return true;
 }
 
-export function matchesPropertyFeature(
-  prop: EvaluatedProperty,
-  feature: PropertyFeatureKey,
-): boolean {
-  const fullText = [
+const featureTextCache = new WeakMap<object, string>();
+const searchHaystackCache = new WeakMap<object, string>();
+const forSaleFlagCache = new WeakMap<object, boolean>();
+
+function getCachedFeatureText(prop: EvaluatedProperty): string {
+  const hit = featureTextCache.get(prop);
+  if (hit !== undefined) return hit;
+  const text = [
     prop.title ?? "",
     prop.description ?? "",
     prop.generatedDescription ?? "",
@@ -338,7 +348,55 @@ export function matchesPropertyFeature(
   ]
     .join(" ")
     .toLowerCase();
+  featureTextCache.set(prop, text);
+  return text;
+}
 
+function getCachedSearchHaystack(prop: EvaluatedProperty): string {
+  const hit = searchHaystackCache.get(prop);
+  if (hit !== undefined) return hit;
+  const hay = [
+    prop.neighborhood,
+    prop.street,
+    prop.condominiumName ?? "",
+    prop.title,
+    prop.description ?? "",
+    prop.generatedDescription ?? "",
+    ...prop.positiveSignals,
+    ...prop.nuanceHighlights,
+    ...prop.installations,
+    ...prop.amenities,
+    ...prop.comfortCommodities,
+    ...prop.practicalityCommodities,
+    ...prop.placesNearby.map((pl) => pl.name),
+    prop.id,
+  ]
+    .join(" ")
+    .toLowerCase();
+  searchHaystackCache.set(prop, hay);
+  return hay;
+}
+
+function getCachedForSaleFlag(prop: EvaluatedProperty): boolean {
+  const hit = forSaleFlagCache.get(prop);
+  if (hit !== undefined) return hit;
+  if ((prop.salePrice ?? 0) > 0) {
+    forSaleFlagCache.set(prop, true);
+    return true;
+  }
+  const fullDesc = `${prop.title ?? ""} ${prop.description ?? ""} ${prop.generatedDescription ?? ""}`;
+  const isForSale =
+    /\b(est[aá] [aà] venda|dispon[ií]vel para venda|visita de poss[ií]veis interessados)\b/i.test(
+      fullDesc,
+    );
+  forSaleFlagCache.set(prop, isForSale);
+  return isForSale;
+}
+
+export function matchesPropertyFeature(
+  prop: EvaluatedProperty,
+  feature: PropertyFeatureKey,
+): boolean {
   switch (feature) {
     case "ac":
       return prop.cardTags.acLabel !== null;
@@ -364,21 +422,24 @@ export function matchesPropertyFeature(
     case "balcony":
       return (
         prop.nuanceHighlights.includes("Varanda") ||
-        /\b(varanda|sacada|balcony)\b/i.test(fullText)
+        /\b(varanda|sacada|balcony)\b/i.test(getCachedFeatureText(prop))
       );
     case "suite":
-      return prop.suites >= 1 || /\bsu[ií]tes?\b/i.test(fullText);
+      return (
+        prop.suites >= 1 || /\bsu[ií]tes?\b/i.test(getCachedFeatureText(prop))
+      );
     case "doorman_24h":
       return (
-        prop.nuanceHighlights.includes("Portaria 24h / Biometria") ||
         prop.doorman === "NightAndDayShift" ||
         prop.doorman === "24h" ||
-        /\b(portaria_24h|concierge_24h|portaria 24|porteiro 24|portaria virtual|biometria)\b/i.test(
-          fullText,
+        /\b(portaria_24h|concierge_24h|(?:portaria|porteiro|guarita|portaria remota) 24(?:h|\s*horas)?)\b/i.test(
+          getCachedFeatureText(prop),
         )
       );
     case "pool_gym":
-      return /\b(piscina|academia|fitness|gym|pool)\b/i.test(fullText);
+      return /\b(piscina|academia|fitness|gym|pool)\b/i.test(
+        getCachedFeatureText(prop),
+      );
     case "pets":
       return prop.acceptsPets === true;
   }
@@ -433,6 +494,7 @@ export const STRICT_TOP_20_NEIGHBORHOODS_BY_CITY: Record<
     "indianópolis",
     "indianopolis",
     "jardim paulista",
+    "pinheiros",
     "alto de pinheiros",
     "sumaré",
     "sumare",
@@ -556,16 +618,24 @@ export function filterAndSortProperties(
     ) {
       return false;
     }
-    if (
-      filters.selectedNeighborhoods.length > 0 &&
-      !filters.selectedNeighborhoods.some(
-        (sel) =>
+    if (filters.selectedNeighborhoods.length > 0) {
+      const normNb = normalizeNeighborhoodKey(p.neighborhood, p.cityCode);
+      const matchesNb = filters.selectedNeighborhoods.some((sel) => {
+        if (sel.includes(":")) {
+          const selLower = sel.toLowerCase();
+          return (
+            selLower === `${p.cityCode}:${p.neighborhood}`.toLowerCase() ||
+            selLower === `${p.cityCode}:${normNb}`.toLowerCase()
+          );
+        }
+        return (
           sel === p.neighborhood ||
-          normalizeNeighborhoodKey(sel, p.cityCode) ===
-            normalizeNeighborhoodKey(p.neighborhood, p.cityCode),
-      )
-    ) {
-      return false;
+          normalizeNeighborhoodKey(sel, p.cityCode) === normNb
+        );
+      });
+      if (!matchesNb) {
+        return false;
+      }
     }
     if (!filters.showIneligible && !onlyFavorites && !p.eligible) {
       return false;
@@ -594,7 +664,10 @@ export function filterAndSortProperties(
     if (
       filters.maxCommuteMinutes !== null &&
       filters.maxCommuteMinutes !== undefined &&
-      (p.commuteMinutes ?? 25) > filters.maxCommuteMinutes
+      p.cityCode !== "BSB" &&
+      p.commuteMinutes !== null &&
+      p.commuteMinutes !== undefined &&
+      p.commuteMinutes > filters.maxCommuteMinutes
     ) {
       return false;
     }
@@ -701,13 +774,7 @@ export function filterAndSortProperties(
       return false;
     }
     if (filters.hideForSale) {
-      const fullDesc = `${p.title ?? ""} ${p.description ?? ""} ${p.generatedDescription ?? ""}`;
-      const isForSale =
-        (p.salePrice ?? 0) > 0 ||
-        /\b(est[aá] [aà] venda|dispon[ií]vel para venda|visita de poss[ií]veis interessados)\b/i.test(
-          fullDesc,
-        );
-      if (isForSale) return false;
+      if (getCachedForSaleFlag(p)) return false;
     }
     if (filters.requiredFeatures.length > 0) {
       for (const feat of filters.requiredFeatures) {
@@ -717,24 +784,7 @@ export function filterAndSortProperties(
       }
     }
     if (q) {
-      const hay = [
-        p.neighborhood,
-        p.street,
-        p.condominiumName ?? "",
-        p.title,
-        p.description ?? "",
-        p.generatedDescription ?? "",
-        ...p.positiveSignals,
-        ...p.nuanceHighlights,
-        ...p.installations,
-        ...p.amenities,
-        ...p.comfortCommodities,
-        ...p.practicalityCommodities,
-        ...p.placesNearby.map((pl) => pl.name),
-        p.id,
-      ]
-        .join(" ")
-        .toLowerCase();
+      const hay = getCachedSearchHaystack(p);
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -743,45 +793,274 @@ export function filterAndSortProperties(
   const sorted = [...filtered];
   sorted.sort((a, b) => {
     if (a.eligible !== b.eligible) return a.eligible ? -1 : 1;
+    let cmp = 0;
     switch (filters.sortBy) {
       case "score_asc":
-        return a.finalScore - b.finalScore || a.totalMonthly - b.totalMonthly;
+        cmp = a.finalScore - b.finalScore || a.totalMonthly - b.totalMonthly;
+        break;
       case "price_asc":
-        return a.totalMonthly - b.totalMonthly || b.finalScore - a.finalScore;
+        cmp = a.totalMonthly - b.totalMonthly || b.finalScore - a.finalScore;
+        break;
       case "price_desc":
-        return b.totalMonthly - a.totalMonthly || b.finalScore - a.finalScore;
+        cmp = b.totalMonthly - a.totalMonthly || b.finalScore - a.finalScore;
+        break;
       case "rent_asc":
-        return a.rent - b.rent || b.finalScore - a.finalScore;
+        cmp = a.rent - b.rent || b.finalScore - a.finalScore;
+        break;
       case "rent_desc":
-        return b.rent - a.rent || b.finalScore - a.finalScore;
+        cmp = b.rent - a.rent || b.finalScore - a.finalScore;
+        break;
       case "area_desc":
-        return b.areaM2 - a.areaM2 || b.finalScore - a.finalScore;
+        cmp = b.areaM2 - a.areaM2 || b.finalScore - a.finalScore;
+        break;
       case "modernity_desc":
-        return (
-          b.modernityScore - a.modernityScore || b.finalScore - a.finalScore
-        );
+        cmp =
+          b.modernityScore - a.modernityScore || b.finalScore - a.finalScore;
+        break;
       case "price_per_m2_asc": {
         const aPm2 = a.totalMonthly / Math.max(1, a.areaM2);
         const bPm2 = b.totalMonthly / Math.max(1, b.areaM2);
-        return aPm2 - bPm2 || b.finalScore - a.finalScore;
+        cmp = aPm2 - bPm2 || b.finalScore - a.finalScore;
+        break;
       }
       case "floor_desc": {
         const aFl = getEffectiveFloorSortValue(a);
         const bFl = getEffectiveFloorSortValue(b);
-        return bFl - aFl || b.finalScore - a.finalScore;
+        cmp = bFl - aFl || b.finalScore - a.finalScore;
+        break;
       }
       case "commute_asc":
-        return (
+        cmp =
           (a.commuteMinutes ?? 99) - (b.commuteMinutes ?? 99) ||
-          b.finalScore - a.finalScore
-        );
+          b.finalScore - a.finalScore;
+        break;
       case "score_desc":
       default:
-        return b.finalScore - a.finalScore || a.totalMonthly - b.totalMonthly;
+        cmp = b.finalScore - a.finalScore || a.totalMonthly - b.totalMonthly;
+        break;
     }
+    if (cmp !== 0) return cmp;
+    return `${a.provider}:${a.id}`.localeCompare(`${b.provider}:${b.id}`);
   });
 
   return sorted;
+}
+
+export interface BenchmarkCityComparison {
+  code: CityHubCode;
+  label: string;
+  cohortCount: number;
+  totalEligible: number;
+  medianMonthly: number | null;
+  medianPm2: number | null;
+  medianScore: number | null;
+  upTo4200Count: number;
+}
+
+export function buildBenchmarkStats(evaluatedProperties: EvaluatedProperty[]) {
+  const medianOf = (nums: number[], decimals = 0): number => {
+    if (nums.length === 0) return 0;
+    const sorted = [...nums].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const raw =
+      sorted.length % 2 === 0
+        ? (sorted[mid - 1]! + sorted[mid]!) / 2
+        : sorted[mid]!;
+    const factor = 10 ** decimals;
+    return Math.round(raw * factor) / factor;
+  };
+
+  const activeEligibleByCity = (code: CityHubCode, strictTop20 = false) =>
+    evaluatedProperties.filter(
+      (p) =>
+        p.cityCode === code &&
+        p.isActive !== false &&
+        p.eligible &&
+        (!strictTop20 || isStrictlyInTop20Neighborhoods(p)),
+    );
+
+  const bsbAllActive = evaluatedProperties.filter(
+    (p) => p.cityCode === "BSB" && p.isActive !== false,
+  );
+  const bsbEligible = activeEligibleByCity("BSB", false);
+  const bsbModernHigh = bsbEligible.filter(
+    (p) =>
+      p.modernityScore >= 72 &&
+      p.parkingSpaces >= 1 &&
+      p.areaM2 >= 48 &&
+      p.areaM2 <= 75,
+  );
+
+  const countUpTo3400 = bsbEligible.filter(
+    (p) => p.totalMonthly <= 3400,
+  ).length;
+  const countModernUpTo3400 = bsbModernHigh.filter(
+    (p) => p.totalMonthly <= 3400,
+  ).length;
+  const countUpTo4000 = bsbEligible.filter(
+    (p) => p.totalMonthly <= 4000,
+  ).length;
+  const countUpTo4500 = bsbEligible.filter(
+    (p) => p.totalMonthly <= 4500,
+  ).length;
+
+  const bsbMedianMonthly = medianOf(bsbEligible.map((p) => p.totalMonthly));
+  const bsbModernMedianMonthly = medianOf(
+    (bsbModernHigh.length > 0 ? bsbModernHigh : bsbEligible).map(
+      (p) => p.totalMonthly,
+    ),
+  );
+  const bsbMedianPm2 = medianOf(
+    bsbEligible.map((p) => p.totalMonthly / Math.max(1, p.areaM2)),
+  );
+
+  const cityComparisons: BenchmarkCityComparison[] = (
+    [
+      {
+        code: "BSB" as const,
+        label: "Águas Claras (Norte & Sul)",
+        neighborhoods: [
+          "águas claras",
+          "sul (águas claras)",
+          "norte (águas claras)",
+          "águas claras norte",
+          "águas claras sul",
+        ],
+      },
+      {
+        code: "CP" as const,
+        label: "CP — Taquaral / Bosque / Guanabara",
+        neighborhoods: [
+          "taquaral",
+          "bosque",
+          "jd. guanabara",
+          "nova campinas",
+          "jd. chapadão",
+        ],
+      },
+      {
+        code: "BH" as const,
+        label: "BH — Funcionários / Sion / S. Efigênia / Lourdes",
+        neighborhoods: [
+          "funcionários",
+          "sion",
+          "santo agostinho",
+          "santa efigênia",
+          "lourdes",
+        ],
+      },
+      {
+        code: "RJ" as const,
+        label: "RJ — Zona Sul: Flamengo / Botafogo",
+        neighborhoods: [
+          "flamengo",
+          "leme",
+          "botafogo",
+          "botafogo (orla)",
+        ],
+      },
+      {
+        code: "SP" as const,
+        label: "SP — Moema / V. Mariana / Pinheiros",
+        neighborhoods: [
+          "moema",
+          "vila mariana",
+          "jardim paulista",
+          "pinheiros",
+        ],
+      },
+    ]
+  ).map((spec) => {
+    const allowedNbs = new Set(spec.neighborhoods);
+    const items = evaluatedProperties.filter((p) => {
+      if (p.cityCode !== spec.code || p.isActive === false) return false;
+      if (!isStrictlyInTop20Neighborhoods(p)) return false;
+      const tier = p.furnitureTier ?? classifyFurnitureTier(p);
+      if (tier === "FULLY_FURNISHED") return false;
+      if (p.areaM2 < 45 || p.areaM2 > 72) return false;
+      if (p.totalMonthly > DEFAULT_WEIGHTS.budgetIdeal) return false;
+      if (p.totalMonthly / Math.max(1, p.areaM2) < 42) return false;
+      const normNb = normalizeNeighborhoodKey(
+        p.neighborhood ?? "",
+        spec.code,
+      ).toLowerCase();
+      return allowedNbs.has(normNb);
+    });
+
+    const cohortCount = items.length;
+    const isEmpty = cohortCount === 0;
+
+    const byNb = new Map<string, EvaluatedProperty[]>();
+    for (const p of items) {
+      const k = normalizeNeighborhoodKey(
+        p.neighborhood ?? "",
+        spec.code,
+      ).toLowerCase();
+      const prev = byNb.get(k);
+      if (prev) {
+        prev.push(p);
+      } else {
+        byNb.set(k, [p]);
+      }
+    }
+
+    const nbMonthlies: number[] = [];
+    const nbPm2s: number[] = [];
+    const nbScores: number[] = [];
+    for (const [, list] of byNb.entries()) {
+      const qaList = list.filter((p) => p.provider === "quintoandar");
+      const nonQaList = list.filter((p) => p.provider !== "quintoandar");
+      let rep = list;
+      if (qaList.length >= 9 && nonQaList.length >= 9) {
+        const qaMed = medianOf(qaList.map((p) => p.totalMonthly), 0);
+        const nonQaMed = medianOf(nonQaList.map((p) => p.totalMonthly), 0);
+        if (nonQaMed < qaMed * 0.89) {
+          rep = qaList;
+        }
+      }
+      nbMonthlies.push(medianOf(rep.map((p) => p.totalMonthly), 0));
+      nbPm2s.push(
+        medianOf(
+          rep.map((p) => Math.round(p.totalMonthly / Math.max(1, p.areaM2))),
+          0,
+        ),
+      );
+      nbScores.push(medianOf(rep.map((p) => p.finalScore), 1));
+    }
+
+    const medianMonthly = isEmpty ? null : medianOf(nbMonthlies, 0);
+    const medianPm2 = isEmpty ? null : medianOf(nbPm2s, 0);
+    const medianScore = isEmpty ? null : medianOf(nbScores, 1);
+
+    return {
+      code: spec.code,
+      label: spec.label,
+      cohortCount,
+      totalEligible: cohortCount,
+      medianMonthly,
+      medianPm2,
+      medianScore,
+      upTo4200Count: items.filter((p) => p.totalMonthly <= 4200).length,
+    };
+  });
+
+  return {
+    totalScrapedBsb: bsbAllActive.length,
+    totalEligibleBsb: bsbEligible.length,
+    countUpTo3400,
+    countModernUpTo3400,
+    countUpTo4000,
+    countUpTo4500,
+    bsbMedianMonthly,
+    bsbModernMedianMonthly,
+    bsbMedianPm2,
+    contractGapReais: Math.max(0, bsbModernMedianMonthly - 3400),
+    contractGapPct:
+      bsbModernMedianMonthly > 0
+        ? Math.round(((bsbModernMedianMonthly - 3400) / 3400) * 100)
+        : 0,
+    cityComparisons,
+  };
 }
 
 export function formatTopPropertiesForAiPrompt(
@@ -1280,7 +1559,11 @@ export function MoradiaPortal({
     [resolvedInitialPrefs],
   );
   const initialWeights = useMemo<ScoringWeights>(
-    () => ({ ...DEFAULT_WEIGHTS, ...(resolvedInitialPrefs?.weights ?? {}) }),
+    () =>
+      sanitizeAndMigrateWeights(
+        resolvedInitialPrefs?.weights,
+        resolvedInitialPrefs?.schemaVersion ?? 2,
+      ),
     [resolvedInitialPrefs],
   );
   const initialPresetId =
@@ -1314,6 +1597,7 @@ export function MoradiaPortal({
   const [searchQuery, setSearchQuery] = useState<string>(
     initialParsedFilters.searchQuery,
   );
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [floorFilters, setFloorFilters] = useState<FloorFilterOption[]>(
     initialParsedFilters.floorFilters,
   );
@@ -1446,8 +1730,42 @@ export function MoradiaPortal({
   const [isSubmittingChatQuestion, setIsSubmittingChatQuestion] =
     useState<boolean>(false);
 
+  const filteredPropertiesRef = useRef<EvaluatedProperty[]>([]);
+  const evaluatedPropertiesRef = useRef<EvaluatedProperty[]>([]);
+  const resetAllFiltersRef = useRef<() => void>(() => {});
+
   const focusCardInList = useCallback((key: string) => {
+    setActiveTab("properties");
     setViewMode((prev) => (prev === "map" ? "split" : prev));
+    const idx = filteredPropertiesRef.current.findIndex(
+      (p) => `${p.provider}:${p.id}` === key,
+    );
+    let scrollDelayMs = 100;
+    if (idx >= 0) {
+      setVisibleCount((prev) =>
+        idx >= prev ? Math.max(prev, idx + 10) : prev,
+      );
+    } else {
+      const targetProp = evaluatedPropertiesRef.current.find(
+        (p) => `${p.provider}:${p.id}` === key,
+      );
+      if (targetProp) {
+        resetAllFiltersRef.current();
+        if (targetProp.cityCode === "BSB") {
+          setEnableBsbBenchmark(true);
+        }
+        if (!targetProp.eligible) {
+          setShowIneligible(true);
+        }
+        if (targetProp.isActive === false) {
+          setDeactivatedFilter("ALL");
+        }
+        setVisibleCount((prev) =>
+          Math.max(prev, evaluatedPropertiesRef.current.length + 10),
+        );
+        scrollDelayMs = 180;
+      }
+    }
     setExpandedId(key);
     setSelectedMapPropertyKey(key);
     setTimeout(() => {
@@ -1456,7 +1774,7 @@ export function MoradiaPortal({
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }, 80);
+    }, scrollDelayMs);
   }, []);
   const [filtersHydrated, setFiltersHydrated] = useState<boolean>(false);
   const lastSyncedUpdatedAtRef = useRef<string>(
@@ -1471,8 +1789,12 @@ export function MoradiaPortal({
       compareKeys: initialCompareKeys,
     }),
   );
-  const isDirtyRef = useRef<boolean>(false);
+  const hasUnsavedLocalPrefsRef = useRef<boolean>(false);
+  const localPrefRevRef = useRef<number>(0);
+  const ackedPrefRevRef = useRef<number>(0);
   const isApplyingRemotePrefsRef = useRef<boolean>(false);
+  const prefSaveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const [prefSaveRetryTick, setPrefSaveRetryTick] = useState<number>(0);
 
   const applyFilterStateObject = useCallback(
     (parsed: ParsedExplorerFiltersState) => {
@@ -1515,10 +1837,10 @@ export function MoradiaPortal({
   const applySharedPreferencesToState = useCallback(
     (prefs: SharedUserPreferences) => {
       const parsedFilters = parseExplorerFiltersObject(prefs.filters);
-      const nextWeights: ScoringWeights = {
-        ...DEFAULT_WEIGHTS,
-        ...(prefs.weights ?? {}),
-      };
+      const nextWeights: ScoringWeights = sanitizeAndMigrateWeights(
+        prefs.weights,
+        prefs.schemaVersion ?? 2,
+      );
       const nextPresetId = prefs.activePresetId || "balanced-original";
       const nextFavorites = Array.isArray(prefs.favorites)
         ? prefs.favorites
@@ -1578,6 +1900,10 @@ export function MoradiaPortal({
         return prevNeighborhoods;
       }
       return prevNeighborhoods.filter((nb) => {
+        if (nb.includes(":")) {
+          const [nbCity] = nb.split(":");
+          return nextCities.includes(nbCity as CityHubCode);
+        }
         const inProperties = dataset.properties.some(
           (p) =>
             nextCities.includes(p.cityCode) &&
@@ -1671,6 +1997,7 @@ export function MoradiaPortal({
     setDeactivatedFilter("ACTIVE_ONLY");
     setVisibleCount(30);
   };
+  resetAllFiltersRef.current = resetAllFilters;
 
   useEffect(() => {
     try {
@@ -1698,6 +2025,7 @@ export function MoradiaPortal({
         const rawWeights = localStorage.getItem("moradia_weights_v2");
         if (rawWeights) {
           const parsedWeights = JSON.parse(rawWeights) as {
+            schemaVersion?: number;
             presetId?: string;
             weights?: Partial<ScoringWeights>;
           };
@@ -1709,7 +2037,12 @@ export function MoradiaPortal({
               parsedWeights.weights &&
               typeof parsedWeights.weights === "object"
             ) {
-              setWeights({ ...DEFAULT_WEIGHTS, ...parsedWeights.weights });
+              setWeights(
+                sanitizeAndMigrateWeights(
+                  parsedWeights.weights,
+                  parsedWeights.schemaVersion ?? 2,
+                ),
+              );
             }
           }
         }
@@ -1746,7 +2079,12 @@ export function MoradiaPortal({
   ]);
 
   const syncPreferencesFromServer = useCallback(async () => {
-    if (isDirtyRef.current) return;
+    if (
+      hasUnsavedLocalPrefsRef.current ||
+      localPrefRevRef.current > ackedPrefRevRef.current
+    ) {
+      return;
+    }
     try {
       const res = await fetch("/api/preferences", { cache: "no-store" });
       if (!res.ok) return;
@@ -1754,7 +2092,13 @@ export function MoradiaPortal({
         ok?: boolean;
         preferences?: SharedUserPreferences;
       };
-      if (!data.preferences || isDirtyRef.current) return;
+      if (
+        !data.preferences ||
+        hasUnsavedLocalPrefsRef.current ||
+        localPrefRevRef.current > ackedPrefRevRef.current
+      ) {
+        return;
+      }
       const remotePrefs = data.preferences;
       const remoteHasFilters =
         remotePrefs.filters && Object.keys(remotePrefs.filters).length > 0;
@@ -1842,7 +2186,7 @@ export function MoradiaPortal({
       );
       localStorage.setItem(
         "moradia_weights_v2",
-        JSON.stringify({ presetId: activePresetId, weights }),
+        JSON.stringify({ schemaVersion: 2, presetId: activePresetId, weights }),
       );
       localStorage.setItem(
         "moradia_favorites_v1",
@@ -1866,41 +2210,73 @@ export function MoradiaPortal({
       return;
     }
 
-    isDirtyRef.current = true;
+    localPrefRevRef.current += 1;
+    const revToSave = localPrefRevRef.current;
+    hasUnsavedLocalPrefsRef.current = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
     const timer = setTimeout(() => {
-      void fetch("/api/preferences", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: serialized,
-      })
-        .then(async (res) => {
-          if (!res.ok) return;
-          const data = (await res.json()) as {
-            ok?: boolean;
-            preferences?: SharedUserPreferences;
-          };
-          lastSavedSnapshotJsonRef.current = serialized;
-          if (data.preferences?.updatedAt) {
-            lastSyncedUpdatedAtRef.current = data.preferences.updatedAt;
-            try {
-              localStorage.setItem(
-                "moradia_preferences_updated_at_v1",
-                data.preferences.updatedAt,
-              );
-            } catch {
-              // Ignore storage errors
-            }
-          }
-        })
+      prefSaveChainRef.current = prefSaveChainRef.current
         .catch(() => {})
-        .finally(() => {
-          isDirtyRef.current = false;
+        .then(async () => {
+          let saveSucceeded = false;
+          try {
+            const res = await fetch("/api/preferences", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: serialized,
+            });
+            if (res.ok) {
+              const data = (await res.json()) as {
+                ok?: boolean;
+                persistedToDb?: boolean;
+                dbConfigured?: boolean;
+                preferences?: SharedUserPreferences;
+              };
+              const durableOk =
+                data?.ok !== false &&
+                (data?.persistedToDb !== false || data?.dbConfigured === false);
+              if (durableOk) {
+                saveSucceeded = true;
+                if (revToSave >= ackedPrefRevRef.current) {
+                  ackedPrefRevRef.current = revToSave;
+                  lastSavedSnapshotJsonRef.current = serialized;
+                  if (data.preferences?.updatedAt) {
+                    lastSyncedUpdatedAtRef.current = data.preferences.updatedAt;
+                    try {
+                      localStorage.setItem(
+                        "moradia_preferences_updated_at_v1",
+                        data.preferences.updatedAt,
+                      );
+                    } catch {
+                      // Ignore storage errors
+                    }
+                  }
+                }
+                if (revToSave === localPrefRevRef.current) {
+                  hasUnsavedLocalPrefsRef.current = false;
+                }
+              }
+            }
+          } catch {
+            saveSucceeded = false;
+          }
+
+          if (!saveSucceeded && revToSave === localPrefRevRef.current) {
+            retryTimer = setTimeout(() => {
+              setPrefSaveRetryTick((t) => t + 1);
+            }, 4000);
+          }
         });
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [
     filtersHydrated,
+    prefSaveRetryTick,
     selectedCities,
     selectedNeighborhoods,
     searchQuery,
@@ -2036,7 +2412,10 @@ export function MoradiaPortal({
     return () => clearInterval(interval);
   }, [scrapeStatus.status, fetchScrapeStatus]);
 
+  const qaMutationSeqRef = useRef<number>(0);
+
   const fetchQaItems = useCallback(async () => {
+    const seqAtStart = qaMutationSeqRef.current;
     try {
       const res = await fetch("/api/qa", { cache: "no-store" });
       if (!res.ok) return;
@@ -2044,8 +2423,26 @@ export function MoradiaPortal({
         ok?: boolean;
         items?: PropertyQuestionItem[];
       };
+      if (qaMutationSeqRef.current !== seqAtStart) {
+        return;
+      }
       if (Array.isArray(data.items)) {
-        setQaItems(data.items);
+        const incoming = data.items;
+        const incomingSig = incoming
+          .map(
+            (i) =>
+              `${i.id}:${i.status}:${i.answeredAt ?? ""}:${(i.answer ?? "").length}`,
+          )
+          .join("|");
+        setQaItems((prev) => {
+          const prevSig = prev
+            .map(
+              (i) =>
+                `${i.id}:${i.status}:${i.answeredAt ?? ""}:${(i.answer ?? "").length}`,
+            )
+            .join("|");
+          return prevSig === incomingSig ? prev : incoming;
+        });
       }
     } catch {
       // Ignore polling errors
@@ -2065,6 +2462,12 @@ export function MoradiaPortal({
     if (!hasPendingQa && !showChatDrawer) return;
     const interval = setInterval(
       () => {
+        if (
+          typeof document !== "undefined" &&
+          document.visibilityState === "hidden"
+        ) {
+          return;
+        }
         void fetchQaItems();
       },
       hasPendingQa ? 1500 : 3500,
@@ -2084,6 +2487,7 @@ export function MoradiaPortal({
   );
 
   const deletePropertyQuestion = useCallback(async (id: string) => {
+    qaMutationSeqRef.current += 1;
     try {
       const res = await fetch("/api/qa", {
         method: "POST",
@@ -2105,6 +2509,7 @@ export function MoradiaPortal({
   }, []);
 
   const clearChatHistory = useCallback(async () => {
+    qaMutationSeqRef.current += 1;
     try {
       const res = await fetch("/api/qa", {
         method: "POST",
@@ -2207,261 +2612,36 @@ export function MoradiaPortal({
     [dataset.properties, dynamicNeighborhoods, weights, enableBsbBenchmark],
   );
 
-  const bsbBenchmarkStats = useMemo(() => {
-    const medianOf = (nums: number[]): number => {
-      if (nums.length === 0) return 0;
-      const sorted = [...nums].sort((a, b) => a - b);
-      const mid = Math.floor(sorted.length / 2);
-      return sorted.length % 2 === 0
-        ? Math.round((sorted[mid - 1]! + sorted[mid]!) / 2)
-        : Math.round(sorted[mid]!);
-    };
-
-    const activeEligibleByCity = (code: CityHubCode, strictTop20 = false) =>
-      evaluatedProperties.filter(
-        (p) =>
-          p.cityCode === code &&
-          p.isActive !== false &&
-          p.eligible &&
-          (!strictTop20 || isStrictlyInTop20Neighborhoods(p)),
-      );
-
-    const bsbAllActive = evaluatedProperties.filter(
-      (p) => p.cityCode === "BSB" && p.isActive !== false,
-    );
-    const bsbEligible = activeEligibleByCity("BSB", false);
-    const bsbModernHigh = bsbEligible.filter(
-      (p) =>
-        p.modernityScore >= 72 &&
-        p.parkingSpaces >= 1 &&
-        p.areaM2 >= 48 &&
-        p.areaM2 <= 75,
-    );
-
-    const countUpTo3400 = bsbEligible.filter(
-      (p) => p.totalMonthly <= 3400,
-    ).length;
-    const countModernUpTo3400 = bsbModernHigh.filter(
-      (p) => p.totalMonthly <= 3400,
-    ).length;
-    const countUpTo4000 = bsbEligible.filter(
-      (p) => p.totalMonthly <= 4000,
-    ).length;
-    const countUpTo4500 = bsbEligible.filter(
-      (p) => p.totalMonthly <= 4500,
-    ).length;
-
-    const bsbMedianMonthly = medianOf(bsbEligible.map((p) => p.totalMonthly));
-    const bsbModernMedianMonthly = medianOf(
-      (bsbModernHigh.length > 0 ? bsbModernHigh : bsbEligible).map(
-        (p) => p.totalMonthly,
-      ),
-    );
-    const bsbMedianPm2 = medianOf(
-      bsbEligible.map((p) => p.totalMonthly / Math.max(1, p.areaM2)),
-    );
-
-    const cityComparisons = (
-      [
-        {
-          code: "BSB" as const,
-          label: "Águas Claras (Norte & Sul)",
-          neighborhoods: [
-            "águas claras",
-            "sul (águas claras)",
-            "norte (águas claras)",
-          ],
-          minArea: 48,
-          maxArea: 75,
-          minMonthly: 2800,
-          maxMonthly: 5800,
-          minModernity: 60,
-          requireParking: true,
-          poolLevel: true,
-        },
-        {
-          code: "CP" as const,
-          label: "CP — Taquaral / Bosque / Guanabara",
-          neighborhoods: [
-            "taquaral",
-            "bosque",
-            "jd. guanabara",
-            "nova campinas",
-          ],
-          minArea: 48,
-          maxArea: 75,
-          minMonthly: 2500,
-          maxMonthly: 5400,
-          minModernity: 0,
-          requireParking: true,
-          poolLevel: false,
-        },
-        {
-          code: "BH" as const,
-          label: "BH — Funcionários / Sion / S. Efigênia / Lourdes",
-          neighborhoods: [
-            "funcionários",
-            "sion",
-            "santo agostinho",
-            "santa efigênia",
-            "lourdes",
-          ],
-          minArea: 48,
-          maxArea: 75,
-          minMonthly: 2800,
-          maxMonthly: 5800,
-          minModernity: 60,
-          requireParking: true,
-          poolLevel: false,
-        },
-        {
-          code: "RJ" as const,
-          label: "RJ — Zona Sul: Flamengo / Botafogo",
-          neighborhoods: [
-            "flamengo",
-            "leme",
-            "botafogo",
-            "botafogo (orla)",
-            "laranjeiras",
-            "catete",
-            "copacabana",
-          ],
-          minArea: 48,
-          maxArea: 72,
-          minMonthly: 4200,
-          maxMonthly: 7800,
-          minModernity: 0,
-          requireParking: false,
-          poolLevel: false,
-        },
-        {
-          code: "SP" as const,
-          label: "SP — Moema / V. Mariana / Pinheiros",
-          neighborhoods: [
-            "moema",
-            "indianópolis",
-            "vila mariana",
-            "jardim paulista",
-            "pinheiros",
-            "sumaré",
-          ],
-          minArea: 48,
-          maxArea: 72,
-          minMonthly: 4200,
-          maxMonthly: 7800,
-          minModernity: 0,
-          requireParking: true,
-          poolLevel: false,
-        },
-      ]
-    ).map((spec) => {
-      const allowedNbs = new Set(spec.neighborhoods);
-      const items = evaluatedProperties.filter((p) => {
-        if (p.cityCode !== spec.code || p.isActive === false) return false;
-        if (p.furnitureTier === "FULLY_FURNISHED" || p.furnished === true) {
-          return false;
-        }
-        if (p.areaM2 < spec.minArea || p.areaM2 > spec.maxArea) return false;
-        if (
-          p.totalMonthly < spec.minMonthly ||
-          p.totalMonthly > spec.maxMonthly
-        ) {
-          return false;
-        }
-        if (p.modernityScore < spec.minModernity) return false;
-        if (spec.requireParking && p.parkingSpaces < 1) return false;
-        const normNb = normalizeNeighborhoodKey(
-          p.neighborhood ?? "",
-          spec.code,
-        ).toLowerCase();
-        return allowedNbs.has(normNb);
-      });
-
-      const byNb = new Map<string, EvaluatedProperty[]>();
-      for (const p of items) {
-        const k = normalizeNeighborhoodKey(
-          p.neighborhood ?? "",
-          spec.code,
-        ).toLowerCase();
-        const prev = byNb.get(k);
-        if (prev) {
-          prev.push(p);
-        } else {
-          byNb.set(k, [p]);
-        }
-      }
-
-      const nbMonthlies: number[] = [];
-      const nbPm2s: number[] = [];
-      const nbScores: number[] = [];
-      for (const [, list] of byNb.entries()) {
-        if (list.length < 3 && !spec.poolLevel) continue;
-        nbMonthlies.push(medianOf(list.map((x) => x.totalMonthly)));
-        nbPm2s.push(
-          medianOf(
-            list.map((x) => Math.round(x.totalMonthly / Math.max(1, x.areaM2))),
+  const allEvaluatedProperties = useMemo(
+    () =>
+      enableBsbBenchmark
+        ? evaluatedProperties
+        : computeDynamicProperties(
+            dataset.properties,
+            dynamicNeighborhoods,
+            weights,
+            { includeBsbBenchmark: true },
           ),
-        );
-        nbScores.push(
-          Math.round(
-            (list.reduce((s, p) => s + p.finalScore, 0) / list.length) * 10,
-          ) / 10,
-        );
-      }
+    [
+      enableBsbBenchmark,
+      evaluatedProperties,
+      dataset.properties,
+      dynamicNeighborhoods,
+      weights,
+    ],
+  );
+  evaluatedPropertiesRef.current = allEvaluatedProperties;
 
-      const usePool = spec.poolLevel || nbMonthlies.length === 0;
-      const medianMonthly = usePool
-        ? medianOf(items.map((p) => p.totalMonthly))
-        : medianOf(nbMonthlies);
-      const medianPm2 = usePool
-        ? medianOf(
-            items.map((p) =>
-              Math.round(p.totalMonthly / Math.max(1, p.areaM2)),
-            ),
-          )
-        : medianOf(nbPm2s);
-      const medianScore = usePool
-        ? items.length > 0
-          ? Math.round(
-              (items.reduce((s, p) => s + p.finalScore, 0) / items.length) * 10,
-            ) / 10
-          : 0
-        : Math.round(
-            (nbScores.reduce((a, b) => a + b, 0) / nbScores.length) * 10,
-          ) / 10;
-
-      return {
-        code: spec.code,
-        label: spec.label,
-        totalEligible: items.length,
-        medianMonthly,
-        medianPm2,
-        medianScore,
-        upTo4200Count: items.filter((p) => p.totalMonthly <= 4200).length,
-      };
-    });
-
-    return {
-      totalScrapedBsb: bsbAllActive.length,
-      totalEligibleBsb: bsbEligible.length,
-      countUpTo3400,
-      countModernUpTo3400,
-      countUpTo4000,
-      countUpTo4500,
-      bsbMedianMonthly,
-      bsbModernMedianMonthly,
-      bsbMedianPm2,
-      contractGapReais: Math.max(0, bsbModernMedianMonthly - 3400),
-      contractGapPct:
-        bsbModernMedianMonthly > 0
-          ? Math.round(((bsbModernMedianMonthly - 3400) / 3400) * 100)
-          : 0,
-      cityComparisons,
-    };
-  }, [evaluatedProperties]);
+  const bsbBenchmarkStats = useMemo(
+    () => buildBenchmarkStats(evaluatedProperties),
+    [evaluatedProperties],
+  );
 
   const availableNeighborhoodOptions = useMemo(() => {
-    const countMap = new Map<string, { count: number; cityCode: CityHubCode }>();
+    const countMap = new Map<
+      string,
+      { name: string; count: number; cityCode: CityHubCode }
+    >();
     for (const p of evaluatedProperties) {
       if (!enableBsbBenchmark && p.cityCode === "BSB") continue;
       if (!showIneligible && !p.eligible) continue;
@@ -2471,16 +2651,26 @@ export function MoradiaPortal({
       if (onlyTop20Neighborhoods && !isStrictlyInTop20Neighborhoods(p)) {
         continue;
       }
-      const prev = countMap.get(p.neighborhood);
+      const mapKey = `${p.cityCode}:${p.neighborhood}`;
+      const prev = countMap.get(mapKey);
       if (prev) {
         prev.count += 1;
       } else {
-        countMap.set(p.neighborhood, { count: 1, cityCode: p.cityCode });
+        countMap.set(mapKey, {
+          name: p.neighborhood,
+          count: 1,
+          cityCode: p.cityCode,
+        });
       }
     }
 
     const rankScoreMap = new Map<string, number>();
     for (const n of dynamicNeighborhoods) {
+      rankScoreMap.set(`${n.cityCode}:${n.neighborhood}`, n.dynamicScore);
+      rankScoreMap.set(
+        `${n.cityCode}:${normalizeNeighborhoodKey(n.neighborhood, n.cityCode)}`,
+        n.dynamicScore,
+      );
       rankScoreMap.set(n.neighborhood, n.dynamicScore);
       rankScoreMap.set(
         normalizeNeighborhoodKey(n.neighborhood, n.cityCode),
@@ -2488,14 +2678,18 @@ export function MoradiaPortal({
       );
     }
 
-    return [...countMap.entries()]
-      .map(([name, info]) => ({
-        name,
+    return [...countMap.values()]
+      .map((info) => ({
+        name: info.name,
         count: info.count,
         cityCode: info.cityCode,
         score:
-          rankScoreMap.get(name) ??
-          rankScoreMap.get(normalizeNeighborhoodKey(name, info.cityCode)) ??
+          rankScoreMap.get(`${info.cityCode}:${info.name}`) ??
+          rankScoreMap.get(
+            `${info.cityCode}:${normalizeNeighborhoodKey(info.name, info.cityCode)}`,
+          ) ??
+          rankScoreMap.get(info.name) ??
+          rankScoreMap.get(normalizeNeighborhoodKey(info.name, info.cityCode)) ??
           0,
       }))
       .sort(
@@ -2517,7 +2711,7 @@ export function MoradiaPortal({
     () => ({
       selectedCity: selectedCities.length === 1 ? selectedCities[0]! : "ALL",
       selectedCities,
-      searchQuery,
+      searchQuery: deferredSearchQuery,
       floorFilter,
       floorFilters,
       minTotalMonthly,
@@ -2551,7 +2745,7 @@ export function MoradiaPortal({
     }),
     [
       selectedCities,
-      searchQuery,
+      deferredSearchQuery,
       floorFilter,
       floorFilters,
       minTotalMonthly,
@@ -2594,6 +2788,7 @@ export function MoradiaPortal({
       ),
     [evaluatedProperties, currentExplorerFilters, favoriteKeys],
   );
+  filteredPropertiesRef.current = filteredProperties;
 
   const pinnedChatProperty = useMemo(() => {
     if (!pinnedChatPropertyKey) return null;
@@ -2629,6 +2824,7 @@ export function MoradiaPortal({
         )
         .join("\n");
 
+      qaMutationSeqRef.current += 1;
       setIsSubmittingChatQuestion(true);
       try {
         const res = await fetch("/api/qa", {
@@ -2851,9 +3047,10 @@ export function MoradiaPortal({
       });
     }
     for (const nb of selectedNeighborhoods) {
+      const displayNb = nb.includes(":") ? nb.replace(":", " · ") : nb;
       pills.push({
         id: `nb-${nb}`,
-        label: `Bairro: ${nb}`,
+        label: `Bairro: ${displayNb}`,
         onClear: () =>
           setSelectedNeighborhoods((prev) => prev.filter((item) => item !== nb)),
       });
@@ -3128,35 +3325,23 @@ export function MoradiaPortal({
       return;
     }
 
-    fetchedPhotoKeysRef.current.add(expandedId);
+    const key = expandedId;
     let cancelled = false;
-    const q = new URLSearchParams({
+    void fetchPropertyPhotosShared({
       provider: prop.provider,
       id: prop.id,
       url: prop.url,
-    });
-    void fetch(`/api/photos?${q.toString()}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(
-        (
-          res: {
-            ok?: boolean;
-            photos?: Array<{ room: string | null; url: string }>;
-          } | null,
-        ) => {
-          if (cancelled) return;
-          if (
-            res?.ok &&
-            Array.isArray(res.photos) &&
-            res.photos.length > currentPhotos.length
-          ) {
-            setExtraPhotosByKey((prev) => ({
-              ...prev,
-              [expandedId]: res.photos!,
-            }));
-          }
-        },
-      )
+    })
+      .then((photos) => {
+        if (cancelled) return;
+        fetchedPhotoKeysRef.current.add(key);
+        if (photos.length > currentPhotos.length) {
+          setExtraPhotosByKey((prev) => ({
+            ...prev,
+            [key]: photos,
+          }));
+        }
+      })
       .catch(() => {});
 
     return () => {
@@ -3383,6 +3568,15 @@ export function MoradiaPortal({
               Fechar
             </button>
           </div>
+
+          {scrapeStatus.workerAvailable === false && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+              <strong>Modo Hospedado (Somente Leitura para Scrape):</strong> O
+              worker local de scrape Playwright (`{`/Users/joao.guilherme/.cursor/Empty`}`) não está disponível neste ambiente
+              serverless. Para disparar novos scrapes ao vivo, execute o portal
+              localmente ou rode `scripts/scrape-sync-job.ts`.
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             {/* 1. Escopo de Praças e Bairros */}
@@ -4327,8 +4521,11 @@ export function MoradiaPortal({
                               {c.label}
                             </span>
                             <span>
-                              R$ {c.medianMonthly.toLocaleString("pt-BR")} · R${" "}
-                              {c.medianPm2}/m² · {c.medianScore.toFixed(1)} pts
+                              {c.medianMonthly !== null &&
+                              c.medianPm2 !== null &&
+                              c.medianScore !== null
+                                ? `R$ ${c.medianMonthly.toLocaleString("pt-BR")} · R$ ${c.medianPm2}/m² · ${c.medianScore.toFixed(1)} pts`
+                                : "Sem amostra"}
                             </span>
                           </div>
                         ))}
@@ -5035,18 +5232,27 @@ export function MoradiaPortal({
                       Todos
                     </button>
                     {availableNeighborhoodOptions.map((nb) => {
-                      const isSelected = selectedNeighborhoods.includes(
-                        nb.name,
-                      );
+                      const qualifiedKey = `${nb.cityCode}:${nb.name}`;
+                      const tokenToToggle =
+                        selectedCities.length !== 1 ? qualifiedKey : nb.name;
+                      const isSelected =
+                        selectedNeighborhoods.includes(qualifiedKey) ||
+                        (selectedCities.length === 1 &&
+                          selectedNeighborhoods.includes(nb.name));
                       return (
                         <button
                           key={`${nb.cityCode}-${nb.name}`}
                           type="button"
                           onClick={() => {
                             setSelectedNeighborhoods((prev) =>
-                              prev.includes(nb.name)
-                                ? prev.filter((item) => item !== nb.name)
-                                : [...prev, nb.name],
+                              isSelected
+                                ? prev.filter(
+                                    (item) =>
+                                      item !== qualifiedKey &&
+                                      (selectedCities.length !== 1 ||
+                                        item !== nb.name),
+                                  )
+                                : [...prev, tokenToToggle],
                             );
                             setVisibleCount(30);
                           }}
@@ -5835,7 +6041,8 @@ export function MoradiaPortal({
                             #{prop.cityRank ?? "—"} em {prop.cityCode}
                             {prop.commuteLabel
                               ? ` · ${prop.commuteLabel} do Nu`
-                              : prop.commuteMinutes !== undefined
+                              : prop.commuteMinutes !== undefined &&
+                                  prop.commuteMinutes !== null
                                 ? ` · ${prop.commuteMinutes} min do Nu`
                                 : ""}
                           </span>
@@ -6531,7 +6738,9 @@ export function MoradiaPortal({
                           type="button"
                           onClick={() => {
                             setSelectedCities([n.cityCode]);
-                            setSelectedNeighborhoods([n.neighborhood]);
+                            setSelectedNeighborhoods([
+                              `${n.cityCode}:${n.neighborhood}`,
+                            ]);
                             setActiveTab("properties");
                           }}
                           className="text-sm font-bold text-primary hover:underline"
@@ -6645,7 +6854,9 @@ export function MoradiaPortal({
                               type="button"
                               onClick={() => {
                                 setSelectedCities([n.cityCode]);
-                                setSelectedNeighborhoods([n.neighborhood]);
+                                setSelectedNeighborhoods([
+                                  `${n.cityCode}:${n.neighborhood}`,
+                                ]);
                                 setActiveTab("properties");
                               }}
                               className="text-primary hover:underline"

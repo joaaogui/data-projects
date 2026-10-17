@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
   "filters": {
-    "sortBy": "score_desc",
+    "sortBy": "modernity_desc",
     "minScore": null,
-    "viewMode": "list",
+    "viewMode": "split",
     "maxAreaM2": null,
     "minAreaM2": null,
     "minParking": null,
@@ -16,16 +16,14 @@
     "selectedCity": "ALL",
     "hideMegaCondo": false,
     "onlyFavorites": false,
+    "schemaVersion": 2,
     "modernityTiers": [],
     "onlyNewEntries": false,
     "providerFilter": "ALL",
-    "selectedCities": [
-      "BH",
-      "CP"
-    ],
+    "selectedCities": [],
     "showIneligible": false,
-    "furnishedFilter": "UNFURNISHED",
-    "maxTotalMonthly": 4000,
+    "furnishedFilter": "ALL",
+    "maxTotalMonthly": 4500,
     "minTotalMonthly": null,
     "selectedParking": [],
     "requiredFeatures": [
@@ -36,35 +34,35 @@
     "maxCommuteMinutes": null,
     "minModernityScore": null,
     "selectedBathrooms": [],
-    "enableBsbBenchmark": true,
+    "enableBsbBenchmark": false,
     "showAdvancedFilters": false,
     "selectedNeighborhoods": [],
-    "onlyTop20Neighborhoods": false
+    "onlyTop20Neighborhoods": true
   },
   "weights": {
-    "budgetMax": 6500,
-    "maxAreaM2": 95,
-    "minAreaM2": 40,
+    "urbanBreathingWeight": 2,
+    "commuteLogisticsWeight": 1.8,
+    "buildingStockWeight": 1,
+    "budgetFitWeight": 1,
+    "safetyCarWeight": 2.5,
+    "neighborhoodMultiplier": 6.5,
+    "modernityMultiplier": 0.85,
+    "nuancesMultiplier": 1,
+    "minModernityScore": 60,
     "budgetIdeal": 5500,
-    "budgetWeight": 1,
+    "budgetMax": 6500,
     "budgetHardCap": 6850,
+    "budgetWeight": 1,
+    "unfurnishedBonus": 20,
+    "furnishedPenalty": -22,
     "parkingBonus1": 5,
     "parkingBonus2": 8,
     "requireParking": true,
-    "sweetSpotMaxM2": 72,
-    "sweetSpotMinM2": 50,
-    "budgetFitWeight": 1,
-    "safetyCarWeight": 2.5,
-    "furnishedPenalty": -22,
-    "unfurnishedBonus": 20,
-    "minModernityScore": 60,
-    "nuancesMultiplier": 1,
     "penalizeMegaCondo": true,
-    "buildingStockWeight": 1,
-    "modernityMultiplier": 0.85,
-    "urbanBreathingWeight": 2,
-    "commuteLogisticsWeight": 1.8,
-    "neighborhoodMultiplier": 6.5
+    "minAreaM2": 40,
+    "maxAreaM2": 95,
+    "sweetSpotMinM2": 50,
+    "sweetSpotMaxM2": 72
   },
   "activePresetId": "custom",
   "favorites": [
@@ -79,7 +77,6 @@
     "quintoandar:895146121",
     "quintoandar:895394820",
     "quintoandar:893748910",
-    "quintoandar:895199327",
     "quintoandar:893271548",
     "quintoandar:893083464",
     "quintoandar:895740524",
@@ -87,12 +84,13 @@
     "quintoandar:895651295",
     "quintoandar:893880856",
     "zapimoveis:2440644288",
-    "quintoandar:893007761"
+    "quintoandar:893007761",
+    "quintoandar:895199327"
   ],
   "compareKeys": [
     "quintoandar:893127481",
     "zapimoveis:2900134401",
     "quintoandar:895394820"
   ],
-  "updatedAt": "2026-10-16T23:32:09.383Z"
+  "updatedAt": "2026-10-17T00:40:12.147Z"
 }
