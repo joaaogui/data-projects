@@ -273,9 +273,6 @@ export function PropertyPhotoGalleryModal({
                   isFavorite ? "fill-rose-500 text-rose-500" : ""
                 }`}
               />
-              <span className="hidden sm:inline">
-                {isFavorite ? "Favoritado" : "Favoritar"}
-              </span>
             </button>
           )}
 

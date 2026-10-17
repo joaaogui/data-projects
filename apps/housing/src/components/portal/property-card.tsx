@@ -264,7 +264,6 @@ export const PropertyCard = memo(function PropertyCard({
                   isFav ? "fill-rose-500 text-rose-500" : ""
                 }`}
               />
-              <span>{isFav ? "Favorito" : "Favoritar"}</span>
             </button>
           </div>
 
@@ -496,6 +495,7 @@ export const PropertyCard = memo(function PropertyCard({
                   setSelectedMapPropertyKey(key);
                 }}
                 title="Localizar e destacar este imóvel no mapa interativo"
+                aria-label="Ver no mapa"
                 className={`inline-flex items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors sm:px-2.5 ${
                   isSelectedOnMap
                     ? "border-primary bg-primary/15 text-primary font-semibold"
@@ -503,7 +503,6 @@ export const PropertyCard = memo(function PropertyCard({
                 }`}
               >
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
-                <span>Mapa</span>
               </button>
               {(() => {
                 const cardQaList = qaList;
