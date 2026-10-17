@@ -2,7 +2,7 @@
 
 import { memo, type Dispatch, type SetStateAction } from "react";
 
-import { toPlainPreview } from "@/lib/chat-text";
+import { isAwaitingDetailedAnswer, toPlainPreview } from "@/lib/chat-text";
 import {
   getThumbPhotoUrl,
   handleImgError,
@@ -481,28 +481,45 @@ export const PropertyCard = memo(function PropertyCard({
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
               </button>
               {(() => {
-                const cardQaList = qaList;
-                const hasPending = cardQaList.some(
-                  (q) => q.status === "pending",
+                const count = qaList.length;
+                const lastQa = qaList.at(-1);
+                const isPending = qaList.some(
+                  (q) => q.status === "pending" || isAwaitingDetailedAnswer(q),
                 );
+                const title = lastQa
+                  ? `${lastQa.question}${lastQa.answer ? ` — ${toPlainPreview(lastQa.answer, 140)}` : " (analisando…)"}`
+                  : "Perguntar sobre este imóvel no Assistente";
                 return (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      openChatForProperty(key, cardQaList.length > 0);
+                      openChatForProperty(key, count > 0);
                     }}
-                    title="Fixar este imóvel no Chat & Consultor da Sessão"
-                    className={`inline-flex items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold transition-colors sm:px-2.5 ${
-                      isPinnedInChat || cardQaList.length > 0
+                    title={title}
+                    aria-label={
+                      count > 0
+                        ? `Abrir conversa deste imóvel (${count} ${count === 1 ? "mensagem" : "mensagens"})`
+                        : "Perguntar sobre este imóvel"
+                    }
+                    className={`relative inline-flex items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold transition-colors sm:px-2.5 ${
+                      isPinnedInChat || count > 0
                         ? "border-purple-500/40 bg-purple-500/12 text-purple-800 dark:border-purple-400/40 dark:bg-purple-500/20 dark:text-purple-200"
                         : "bg-background hover:bg-secondary"
                     }`}
                   >
                     <MessageSquarePlus className="h-3.5 w-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
                     <span className="truncate">Perguntar</span>
-                    {hasPending && (
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-purple-500 animate-pulse" />
+                    {count > 0 && (
+                      <span className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-purple-600 px-1 font-mono text-[10px] font-bold leading-none text-white">
+                        {count}
+                      </span>
+                    )}
+                    {isPending && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-amber-500 animate-pulse"
+                      />
                     )}
                   </button>
                 );
@@ -523,39 +540,6 @@ export const PropertyCard = memo(function PropertyCard({
             </div>
           </div>
 
-          {/* Compact Chat Thread Badge on Card */}
-          {(() => {
-            const cardQaList = qaList;
-            if (cardQaList.length === 0) return null;
-            const lastQa = cardQaList.at(-1);
-
-            return (
-              <div
-                data-card-stop-expand="true"
-                className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-purple-500/30 bg-purple-500/8 px-2.5 py-1.5 text-xs dark:border-purple-400/25 dark:bg-purple-950/25"
-              >
-                <button
-                  type="button"
-                  onClick={() => openChatForProperty(key, true)}
-                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                >
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-purple-600 px-2 py-0.5 font-mono text-[11px] font-bold text-white shadow-2xs hover:bg-purple-700">
-                    💬 Ver {cardQaList.length} msg no Chat
-                  </span>
-                  {lastQa && (
-                    <span className="truncate text-[11px] text-muted-foreground">
-                      <strong className="text-foreground">
-                        {lastQa.question}
-                      </strong>
-                      {lastQa.answer
-                        ? ` — ${toPlainPreview(lastQa.answer, 90)}`
-                        : " (Analisando...)"}
-                    </span>
-                  )}
-                </button>
-              </div>
-            );
-          })()}
         </div>
       </div>
 
