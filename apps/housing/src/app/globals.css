@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: calc(1.125 / 0.8125);
+}
+
 /*
  * Warm architectural stone & slate color system:
  * Surfaces use calm, low-fatigue stone/alabaster neutrals in light mode and
