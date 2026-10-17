@@ -5,6 +5,7 @@ import {
   applyListingDeactivations,
   loadListingDeactivations,
 } from "@/lib/listing-deactivations";
+import { cleanListingText } from "@/lib/listing-normalization";
 import { logger } from "@/lib/logger";
 import {
   loadSharedPreferences,
@@ -384,7 +385,7 @@ export async function loadHousingDataset(
               positiveSignals: p.positiveSignals ?? [],
               negativeSignals: p.negativeSignals ?? [],
               samplePhotos: resolvedPhotos.slice(0, MAX_INITIAL_CARD_PHOTOS),
-              description: p.description,
+              description: cleanListingText(p.description),
               generatedDescription: p.description
                 ? null
                 : (p.generatedDescription ?? null),
@@ -514,7 +515,7 @@ export async function loadHousingDataset(
           basePhotos.length,
         ),
         samplePhotos: resolvedPhotos.slice(0, MAX_INITIAL_CARD_PHOTOS),
-        description: canDeferDescription ? null : p.description,
+        description: canDeferDescription ? null : cleanListingText(p.description),
         generatedDescription: null,
         sourceSearch: null,
         publishedAt: p.publishedAt ?? null,

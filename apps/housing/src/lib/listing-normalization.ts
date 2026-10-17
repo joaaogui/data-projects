@@ -19,6 +19,48 @@ export const PROVIDER_LABELS: Record<SlimPropertyRecord["provider"], string> = {
 
 const listingKey = (p: Pick<SlimPropertyRecord, "provider" | "id">) => `${p.provider}:${p.id}`;
 
+const NAMED_ENTITIES: Record<string, string> = {
+  nbsp: " ",
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  ordm: "º",
+  ordf: "ª",
+  deg: "°",
+  bull: "•",
+  middot: "·",
+  hellip: "…",
+  ndash: "–",
+  mdash: "—",
+  sup2: "²",
+};
+const COMBINING_MARKS: Record<string, string> = {
+  acute: "\u0301",
+  grave: "\u0300",
+  circ: "\u0302",
+  tilde: "\u0303",
+  cedil: "\u0327",
+  uml: "\u0308",
+};
+
+/** Strips HTML tags and decodes entities that some portals (Zap/VivaReal CRMs) leave in descriptions. */
+export function cleanListingText(text: string | null | undefined): string | null {
+  if (!text) return text ?? null;
+  if (!/[<&]/.test(text)) return text;
+  return text
+    .replace(/<\s*br\s*\/?\s*>|<\/\s*(?:p|div|li|h[1-6])\s*>/gi, "\n")
+    .replace(/<\/?[a-z][a-z0-9]*\b[^<>]*>/gi, "")
+    .replace(/&#(\d{1,5});/g, (_, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]{1,4});/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&([a-z])(acute|grave|circ|tilde|cedil|uml);/gi, (m, letter: string, mark: string) =>
+      COMBINING_MARKS[mark.toLowerCase()] ? `${letter}${COMBINING_MARKS[mark.toLowerCase()]}`.normalize("NFC") : m,
+    )
+    .replace(/&([a-z0-9]+);/gi, (m, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? m)
+    .replace(/[ \t\u00a0]{2,}/g, " ");
+}
+
 function parseBrlAmount(raw: string): number | null {
   const n = Number(raw.replace(/\./g, "").replace(/,\d{1,2}$/, ""));
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -226,7 +268,7 @@ function resolveDuplicatePatch(
 const normalizedCache = new WeakMap<SlimPropertyRecord, { sig: string; copy: SlimPropertyRecord }>();
 
 /**
- * Data-level fixes applied before scoring: rent stated in the description, estimated IPTU, and gap
+ * Data-level fixes applied before scoring: HTML left in descriptions, rent stated in the description, estimated IPTU, and gap
  * filling between cross-portal duplicates. Returns the original object when nothing changes and a
  * stable copy otherwise, so the engine's per-object caches keep working.
  */
@@ -237,8 +279,13 @@ export function prepareListingsForScoring(properties: SlimPropertyRecord[]): Sli
   }
 
   return properties.map((p) => {
-    const merged = { ...p, ...duplicatePatches.get(p) };
-    const patch = { ...duplicatePatches.get(p), ...resolvePricePatch(merged) };
+    const textPatch: Partial<SlimPropertyRecord> = {};
+    const cleanDescription = cleanListingText(p.description);
+    if (cleanDescription !== p.description) textPatch.description = cleanDescription;
+    const duplicatePatch = duplicatePatches.get(p);
+    if (duplicatePatch?.description) duplicatePatch.description = cleanListingText(duplicatePatch.description);
+    const merged = { ...p, ...textPatch, ...duplicatePatch };
+    const patch = { ...textPatch, ...duplicatePatch, ...resolvePricePatch(merged) };
     if (Object.keys(patch).length === 0) return p;
     const sig = JSON.stringify(patch);
     const cached = normalizedCache.get(p);

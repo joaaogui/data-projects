@@ -3,6 +3,7 @@ import {
   isQuintoAndarUnavailableHtml,
   recordListingDeactivation,
 } from "@/lib/listing-deactivations";
+import { cleanListingText } from "@/lib/listing-normalization";
 import { logger } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { execFile } from "node:child_process";
@@ -492,8 +493,9 @@ export async function GET(request: Request) {
     }
 
     const storedProp = getPropertyFullDetails(provider, id);
-    const fullDescription =
-      storedProp?.description ?? storedProp?.generatedDescription ?? null;
+    const fullDescription = cleanListingText(
+      storedProp?.description ?? storedProp?.generatedDescription ?? null,
+    );
 
     const cachedRaw = cache[cacheKey];
     const cached = Array.isArray(cachedRaw)

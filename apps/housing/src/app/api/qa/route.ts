@@ -1,6 +1,7 @@
 import { logger } from "@/lib/logger";
 import { PHOTO_AUDIT_OVERRIDES } from "@/lib/photo-audit-overrides";
 import {
+  AC_INFRA_ONLY_TAG,
   AC_UNCONFIRMED_TAG,
   DEFAULT_WEIGHTS,
   classifyFurnitureTier,
@@ -1140,6 +1141,15 @@ export function buildInstantGroundedAnswer(params: {
         "- Na nota: conta como **sem AC (−10 pts)** em vez de +12.",
       );
       visualWarningsShown = acWarnings.length === visualWarnings.length;
+    } else if (prop?.cardTags.warningTags.includes(AC_INFRA_ONLY_TAG)) {
+      lines.push(
+        "### ❄️ Ar-condicionado: **não instalado (só infraestrutura)**",
+        acSentence
+          ? `- O anúncio fala em ponto/infraestrutura para ar-condicionado, não em aparelho instalado: *"${acSentence}"*`
+          : "- O anúncio fala em ponto/infraestrutura para ar-condicionado, não em aparelho instalado.",
+        "- Na nota: **0 pts** (com split instalado seria +12; sem AC, −10).",
+        "- Conte com o custo de comprar e instalar os splits, ou pergunte se o proprietário instala.",
+      );
     } else if (prop?.cardTags.warningTags.includes(AC_UNCONFIRMED_TAG)) {
       lines.push(
         "### ❄️ Ar-condicionado: **não confirmado**",

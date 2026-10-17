@@ -1411,5 +1411,56 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     "visualWarnings": [
       "Auditoria visual: infiltração/umidade na parede da sala (Foto 20), escada caracol estreita, banheiro anos 90 com bidê e sem split de AC nas paredes"
     ]
+  },
+  "zapimoveis:2913643725": {
+    "modernityScore": 83,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": true,
+    "visualWarnings": [
+      "Auditoria visual: anúncio marca ar-condicionado mas só há pontos de infraestrutura (sala e dormitório), nenhum Split instalado",
+      "Vaga de garagem rotativa no subsolo (não demarcada)"
+    ]
+  },
+  "zapimoveis:2909939228": {
+    "modernityScore": 78,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: padrão construtora ~2010s sem reforma (portas amadeiradas, bancadas de granito pontilhado); split na sala visível, porcelanato e marcenaria branca"
+    ]
+  },
+  "zapimoveis:2913737751": {
+    "modernityScore": 60,
+    "modernityTier": "STANDARD",
+    "falseAC": true,
+    "falseFreeView": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Ar-condicionado de janela no quarto (não é split)",
+      "Cozinha e banheiro com revestimento original anos 90/2000 (faixa floral, cerâmica decorada, granito amarelo); só piso laminado e pintura novos",
+      "Vaga não demarcada com manobrista (não é vaga livre)"
+    ]
+  },
+  "zapimoveis:2914284775": {
+    "modernityScore": 82,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "floorHint": "HIGH",
+    "visualWarnings": [
+      "Auditoria visual: bem conservado mas sem reforma, padrão construtora ~2010s (lustres de cristal, cerâmica bege na cozinha/varanda, faixa xadrez no banheiro); split visível só na sala"
+    ]
+  },
+  "zapimoveis:2917501636": {
+    "modernityScore": 56,
+    "modernityTier": "STANDARD",
+    "verifiedAC": true,
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Auditoria visual: prédio anos 90 — armários creme com portas de vidro, cerâmica branca diagonal, banheiro bege original, esquadrias pretas; fogão de piso (não cooktop); máquina de lavar dentro do banheiro; varanda mínima com tela e vista obstruída"
+    ]
   }
 };

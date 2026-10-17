@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   AC_ABSENT_TAG,
+  AC_INFRA_ONLY_TAG,
   AC_UNCONFIRMED_TAG,
   BUILTIN_PRESETS,
   canNegotiateFurnitureRemoval,
@@ -61,6 +62,7 @@ import {
   isQuintoAndarUnavailableHtml,
 } from "@/lib/listing-deactivations";
 import {
+  cleanListingText,
   extractDescriptionRent,
   findCrossPortalDuplicateGroups,
   prepareListingsForScoring,
@@ -2475,6 +2477,8 @@ describe("Housing Dynamic Scoring Engine", () => {
       floorRange: null,
       areaM2: 58,
       totalMonthly: 4000,
+      // No condo leisure: the engine takes the scraper's leisure points back out of modernityScore.
+      installations: ["Elevador"],
       modernityScore: 85,
       modernityTier: "MODERN_OR_RENOVATED",
     };
@@ -3750,7 +3754,13 @@ describe("Calibration fixes: CP far commute, sale status, modernity ramp, no cit
     const scores = Array.from({ length: 19 }, (_, i) => 76 + i);
     const evaluated = computeDynamicProperties(
       scores.map((s) =>
-        cpProp({ id: `mod-${s}`, neighborhood: "Cambuí", modernityScore: s, modernityTier: "MODERN_OR_RENOVATED" }),
+        cpProp({
+          id: `mod-${s}`,
+          neighborhood: "Cambuí",
+          installations: ["Elevador"],
+          modernityScore: s,
+          modernityTier: "MODERN_OR_RENOVATED",
+        }),
       ),
       rankedNbs,
       DEFAULT_WEIGHTS,
@@ -3919,7 +3929,7 @@ describe("Top-20 photo audit rules: AC evidence, doorman field, Zap 1st floor, p
       for (const id of ["ac-qa-checkbox", "ac-zap-checkbox", "ac-signal-only", "ac-infra-text"]) {
         const ev = byId.get(id)!;
         expect(ev.cardTags.acLabel).toBeNull();
-        expect(ev.cardTags.warningTags).toContain(AC_UNCONFIRMED_TAG);
+        expect(ev.cardTags.warningTags).toContain(id === "ac-infra-text" ? AC_INFRA_ONLY_TAG : AC_UNCONFIRMED_TAG);
         expect(ev.cardTags.redTags).not.toContain(AC_ABSENT_TAG);
         expect(ev.cardTags.greenTags.some((t) => t.startsWith("Ar-condicionado"))).toBe(false);
         expect(matchesPropertyFeature(ev, "ac")).toBe(false);
@@ -4359,9 +4369,10 @@ describe("Round-2 audit rules: duplicates, price/IPTU, lofts, furniture, cobertu
         ]);
         expect(byId.get("ac-trust")!.cardTags.acLabel).toBe("Ar-condicionado");
         expect(byId.get("ac-trust-false")!.cardTags.redTags).toContain(AC_ABSENT_TAG);
-        for (const id of ["ac-trust-audit-nosplit", "ac-trust-dated", "ac-trust-used", "ac-trust-infra"]) {
+        for (const id of ["ac-trust-audit-nosplit", "ac-trust-dated", "ac-trust-used"]) {
           expect(byId.get(id)!.cardTags.warningTags, id).toContain(AC_UNCONFIRMED_TAG);
         }
+        expect(byId.get("ac-trust-infra")!.cardTags.warningTags).toContain(AC_INFRA_ONLY_TAG);
       },
     );
   });
@@ -4427,5 +4438,220 @@ describe("Round-2 audit rules: duplicates, price/IPTU, lofts, furniture, cobertu
     expect(hl("agua-individual")).not.toContain("Água/gás inclusos no condomínio");
     expect(hl("agua-individual-2")).not.toContain("Água/gás inclusos no condomínio");
     expect(hl("agua-inclusa")).toContain("Água/gás inclusos no condomínio");
+  });
+});
+
+describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only modernity, nuance overlap, labels", () => {
+  const rankedNbs = computeDynamicNeighborhoods(SAMPLE_NEIGHBORHOODS, DEFAULT_WEIGHTS).ranked;
+  const unit = (overrides: Partial<SlimPropertyRecord>): SlimPropertyRecord => ({
+    ...SAMPLE_PROPERTIES[0]!,
+    id: "r3-base",
+    neighborhood: "Funcionários",
+    street: "Rua Alagoas",
+    streetNumber: null,
+    title: "Apartamento 1 quarto",
+    description: "Apartamento com 1 vaga.",
+    generatedDescription: null,
+    condition: "USED",
+    constructionYear: null,
+    floor: null,
+    floorRange: null,
+    totalFloors: null,
+    installations: ["Elevador"],
+    amenities: ["Box", "Armários na cozinha"],
+    comfortCommodities: [],
+    practicalityCommodities: [],
+    photoCaptions: [],
+    positiveSignals: [],
+    negativeSignals: [],
+    modernityScore: 70,
+    modernityTier: "WELL_MAINTAINED",
+    ...overrides,
+  });
+  const evaluate = (props: SlimPropertyRecord[]) =>
+    new Map(computeDynamicProperties(props, rankedNbs, DEFAULT_WEIGHTS).map((p) => [p.id, p]));
+  const withOverrides = (entries: Record<string, PhotoAuditOverride>, run: () => void) => {
+    Object.assign(PHOTO_AUDIT_OVERRIDES, entries);
+    try {
+      run();
+    } finally {
+      for (const key of Object.keys(entries)) delete PHOTO_AUDIT_OVERRIDES[key];
+    }
+  };
+
+  it("treats AC infrastructure wording as 'not installed' (0 pts, amber) and ignores climatized shared areas", () => {
+    const byId = evaluate([
+      unit({ id: "ac-none" }),
+      unit({ id: "infra-pronta", description: "Possui infraestrutura pronta para instalação de ar-condicionado na sala e no dormitório." }),
+      unit({ id: "infra-preparado", description: "Apartamento preparado para receber ar condicionado." }),
+      unit({ id: "infra-tubulacao", description: "Tubulação já instalada para ar split nos quartos." }),
+      unit({ id: "infra-pontos", description: "Pontos de ar nos dois quartos." }),
+      unit({ id: "academia-climatizada", description: "Condomínio com piscina com raia, academia equipada e climatizada e coworking." }),
+      unit({ id: "piscina-climatizada", description: "Lazer com piscina climatizada e salão de festas." }),
+      unit({ id: "unit-climatizado", description: "Apartamento todo climatizado." }),
+      unit({ id: "split-and-gym", description: "Sala com split e academia climatizada." }),
+      unit({ id: "infra-condo-and-ac", description: "Prédio com infraestrutura completa e ar-condicionado em todos os quartos." }),
+      unit({ id: "ar-livre", description: "Ponto de encontro com área ao ar livre." }),
+    ]);
+    const ev = (id: string) => byId.get(id)!;
+    for (const id of ["infra-pronta", "infra-preparado", "infra-tubulacao", "infra-pontos"]) {
+      expect(ev(id).cardTags.acLabel, id).toBeNull();
+      expect(ev(id).cardTags.warningTags, id).toContain(AC_INFRA_ONLY_TAG);
+      expect(ev(id).cardTags.warningTags, id).not.toContain(AC_UNCONFIRMED_TAG);
+      expect(ev(id).cardTags.redTags, id).not.toContain(AC_ABSENT_TAG);
+      expect(ev(id).breakdown.nuancesPoints, id).toBeCloseTo(ev("ac-none").breakdown.nuancesPoints + 10, 1);
+    }
+    for (const id of ["academia-climatizada", "piscina-climatizada"]) {
+      expect(ev(id).cardTags.acLabel, id).toBeNull();
+      expect(ev(id).cardTags.redTags, id).toContain(AC_ABSENT_TAG);
+    }
+    expect(ev("unit-climatizado").cardTags.acLabel).toBe("Ar-condicionado");
+    expect(ev("split-and-gym").cardTags.acLabel).toBe("Ar-condicionado Split");
+    expect(ev("infra-condo-and-ac").cardTags.acLabel).toBe("Ar-condicionado");
+    expect(ev("ar-livre").cardTags.warningTags).not.toContain(AC_INFRA_ONLY_TAG);
+    expect(ev("ar-livre").cardTags.redTags).toContain(AC_ABSENT_TAG);
+  });
+
+  it("retains rotating, valet and non-demarcated spots even with descriptive words in between", () => {
+    const byId = evaluate([
+      unit({ id: "coberta-rotativa", description: "Conta ainda com 1 vaga de garagem coberta e rotativa no subsolo." }),
+      unit({ id: "nao-demarcada-manobrista", description: "1 vaga de garagem, não demarcada, com serviço de manobrista." }),
+      unit({ id: "nao-demarcada", description: "Uma vaga de garagem não demarcada." }),
+      unit({ id: "livre-nao-demarcada", description: "1 vaga de garagem coberta, livre e não demarcada." }),
+      unit({ id: "subsolo-manobrista", description: "1 vaga de garagem no subsolo com manobrista." }),
+      unit({ id: "rua-rotativa", description: "1 vaga. Vagas rotativas em frente ao prédio e zona azul na rua." }),
+      unit({ id: "nao-e-rotativa", description: "1 vaga demarcada, não é rotativa." }),
+      unit({ id: "livre-nao-rotativa", description: "1 vaga de garagem livre, não rotativa." }),
+      unit({ id: "sem-manobrista", description: "1 vaga de garagem coberta, sem manobrista." }),
+      unit({ id: "livre-demarcada", description: "1 vaga livre e demarcada." }),
+      unit({ id: "visitantes", description: "1 vaga livre. Estacionamento com vagas rotativas para visitantes." }),
+    ]);
+    for (const id of ["coberta-rotativa", "nao-demarcada-manobrista", "nao-demarcada", "livre-nao-demarcada", "subsolo-manobrista"]) {
+      expect(byId.get(id)!.eligible, id).toBe(false);
+      expect(byId.get(id)!.exclusionReason, id).toContain("Vaga presa, gaveta ou rotativa (eliminado)");
+    }
+    for (const id of ["rua-rotativa", "nao-e-rotativa", "livre-nao-rotativa", "sem-manobrista", "livre-demarcada", "visitantes"]) {
+      expect(byId.get(id)!.eligible, id).toBe(true);
+    }
+  });
+
+  it("caps text-only modernity at 80 for used units and does not count 'cooktop' alone as a modern kitchen", () => {
+    const reformado = {
+      modernityScore: 98,
+      modernityTier: "MODERN_OR_RENOVATED" as const,
+      positiveSignals: ["Reformado / Moderno", "Cooktop / Coifa / Forno embutido", "Marcenaria planejada / Painel"],
+      description: "Apartamento reformado, sofisticado e elegante, com cooktop novo e forno embutido e armário planejado.",
+    };
+    withOverrides({ "quintoandar:cap-audited": { modernityScore: 95, modernityTier: "MODERN_OR_RENOVATED" } }, () => {
+      const byId = evaluate([
+        unit({ id: "cap-text-only", ...reformado }),
+        unit({ id: "cap-year-2018", ...reformado, constructionYear: 2018 }),
+        unit({ id: "cap-kitchen", ...reformado, description: `${reformado.description} Cozinha totalmente reformada.` }),
+        unit({ id: "cap-porcelanato", ...reformado, description: `${reformado.description} Piso em porcelanato.` }),
+        unit({ id: "cap-new", ...reformado, condition: "NEW_OR_RENOVATED" }),
+        unit({ id: "cap-audited", ...reformado }),
+        unit({ id: "cooktop-only", positiveSignals: ["Cooktop / Coifa / Forno embutido"], description: "Cozinha montada com cooktop." }),
+        unit({ id: "cooktop-forno", positiveSignals: ["Cooktop / Coifa / Forno embutido"], description: "Cozinha com cooktop e forno embutido." }),
+        unit({ id: "cooktop-checklist", positiveSignals: ["Cooktop / Coifa / Forno embutido"], practicalityCommodities: ["Fogão cooktop"] }),
+      ]);
+      const mod = (id: string) => byId.get(id)!.modernityScore;
+      expect(mod("cap-text-only")).toBe(80);
+      for (const id of ["cap-year-2018", "cap-kitchen", "cap-porcelanato", "cap-new"]) {
+        expect(mod(id), id).toBeGreaterThan(80);
+      }
+      expect(mod("cap-audited")).toBe(95);
+      expect(mod("cooktop-only")).toBe(60);
+      expect(mod("cooktop-forno")).toBe(70);
+      expect(mod("cooktop-checklist")).toBe(70);
+    });
+  });
+
+  it("takes AC, cabinetry, flooring and condo leisure points back out of modernity without flipping AC trust", () => {
+    const overlap = ["Ar-condicionado Split", "Marcenaria planejada / Painel", "Porcelanato / Vinílico", "Lazer com piscina e academia"];
+    withOverrides({ "quintoandar:overlap-audited": { modernityScore: 88, modernityTier: "MODERN_OR_RENOVATED" } }, () => {
+      const byId = evaluate([
+        unit({ id: "overlap-used", modernityScore: 90, positiveSignals: overlap, description: "Piso em porcelanato." }),
+        unit({ id: "overlap-audited", modernityScore: 90, positiveSignals: overlap, description: "Piso em porcelanato." }),
+        unit({ id: "overlap-generic-leisure", installations: ["Elevador", "Piscina"], modernityScore: 70 }),
+        unit({
+          id: "overlap-clamped-new",
+          condition: "NEW_OR_RENOVATED",
+          constructionYear: 2020,
+          modernityScore: 100,
+          positiveSignals: ["Construção recente (2020)", "Porcelanato / Vinílico", "Ar-condicionado", "Marcenaria planejada / Painel", "Lazer com piscina e academia", "Flag Novo/Reformado"],
+        }),
+        unit({
+          id: "overlap-ac-trust",
+          condition: "NEW_OR_RENOVATED",
+          modernityScore: 90,
+          comfortCommodities: ["Ar condicionado"],
+          practicalityCommodities: ["Fogão cooktop"],
+          positiveSignals: ["Cooktop / Coifa / Forno embutido", "Ar-condicionado", "Lazer com piscina e academia", "Flag Novo/Reformado"],
+        }),
+      ]);
+      const ev = (id: string) => byId.get(id)!;
+      expect(ev("overlap-used").modernityScore).toBe(90 - 8 - 5 - 8 - 6);
+      expect(ev("overlap-used").nuanceHighlights).toEqual(
+        expect.arrayContaining(["Marcenaria / armários planejados", "Piso moderno (porcelanato/vinílico)"]),
+      );
+      expect(ev("overlap-audited").modernityScore).toBe(88);
+      expect(ev("overlap-generic-leisure").modernityScore).toBe(67);
+      expect(ev("overlap-clamped-new").modernityScore).toBe(119 - 4 - 5 - 8 - 6);
+      expect(ev("overlap-ac-trust").modernityScore).toBe(80);
+      expect(ev("overlap-ac-trust").cardTags.acLabel).toBe("Ar-condicionado");
+    });
+  });
+
+  it("ships the round-3 photo audits for the five re-audited Top-20 listings", () => {
+    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2913643725"]).toMatchObject({ falseAC: true });
+    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2909939228"]).toMatchObject({ modernityScore: 78, verifiedAC: true, furnishedTier: "UNFURNISHED" });
+    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2913737751"]).toMatchObject({
+      modernityScore: 60,
+      modernityTier: "STANDARD",
+      falseAC: true,
+      falseFreeView: true,
+    });
+    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2914284775"]).toMatchObject({ modernityScore: 82, floorHint: "HIGH" });
+    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2917501636"]).toMatchObject({ modernityScore: 56, verifiedAC: true });
+  });
+
+  it("labels Jd. Guanabara at 30–35 min without changing commute points", () => {
+    const nbs = computeDynamicNeighborhoods(
+      [{ ...SAMPLE_NEIGHBORHOODS[0]!, cityCode: "CP", cityName: "Campinas", neighborhood: "Jd. Guanabara", commuteTime: "20-25 min" }],
+      DEFAULT_WEIGHTS,
+    ).ranked;
+    expect(nbs[0]!.commuteTime).toBe("30-35 min");
+    const [p] = computeDynamicProperties(
+      [unit({ id: "guanabara", cityCode: "CP", city: "Campinas", neighborhood: "Jd. Guanabara", street: "Rua Barão Geraldo de Resende" })],
+      nbs,
+      DEFAULT_WEIGHTS,
+    );
+    expect(p!.commuteLabel).toBe("30–35 min");
+    expect(p!.breakdown.commutePoints).toBe(0);
+    expect(p!.eligible).toBe(true);
+  });
+
+  it("says 'semi-mobiliado' in the furniture-conflict warning when the description says so", () => {
+    const byId = evaluate([
+      unit({ id: "semi", furnished: true, description: "Apartamento semi mobiliado com armários planejados." }),
+      unit({ id: "sem", furnished: true, description: "Apartamento sem mobília." }),
+    ]);
+    expect(byId.get("semi")!.nuanceWarnings.join(" ")).toContain("Descrição diz semi-mobiliado");
+    expect(byId.get("sem")!.nuanceWarnings.join(" ")).toContain("Descrição diz sem mobília");
+  });
+
+  it("strips HTML tags and entities from descriptions before text rules run", () => {
+    expect(cleanListingText("<b>Sala elegante</b>, com&nbsp;armário&nbsp;&amp; ar.<br/>Quarto &ccedil;&atilde;o &#186;")).toBe(
+      "Sala elegante, com armário & ar.\nQuarto ção º",
+    );
+    expect(cleanListingText("Preço < 5 mil & ótimo")).toBe("Preço < 5 mil & ótimo");
+    expect(cleanListingText(null)).toBeNull();
+    const [p] = computeDynamicProperties(
+      [unit({ id: "html", description: "•<b>1 vaga de garagem</b> coberta e&nbsp;rotativa." })],
+      rankedNbs,
+      DEFAULT_WEIGHTS,
+    );
+    expect(p!.description).toBe("•1 vaga de garagem coberta e rotativa.");
+    expect(p!.eligible).toBe(false);
   });
 });
