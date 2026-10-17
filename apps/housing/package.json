@@ -26,6 +26,7 @@
     "@neondatabase/serverless": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-table": "catalog:",
+    "@vercel/speed-insights": "^2.0.0",
     "drizzle-orm": "catalog:",
     "lucide-react": "catalog:",
     "next": "^16.4.0",
