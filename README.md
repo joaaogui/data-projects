@@ -86,7 +86,7 @@ Fetches the live player profile, full brawler roster, brawler catalog, and recen
 
 ---
 
-### [Moradia Radar](apps/moradia) -- [housing.joaog.space](https://housing.joaog.space)
+### [Housing](apps/housing) -- [housing.joaog.space](https://housing.joaog.space)
 
 Analytical residential rental radar for Belo Horizonte, Campinas, Rio de Janeiro, and São Paulo.
 
@@ -181,7 +181,7 @@ pnpm dev --filter spotify-popularity  # Spotify only (port 3002)
 pnpm dev --filter lastfm-habits       # Listening Habits only (port 3004)
 pnpm dev --filter clash-deck-advisor  # Clash Deck Advisor only (port 3012)
 pnpm dev --filter brawl-account-coach # Brawl Account Coach only (port 3013)
-pnpm dev --filter moradia-portal      # Moradia Radar only (port 3005)
+pnpm dev --filter housing             # Housing only (port 3005)
 ```
 
 ### Build, Lint & Test
@@ -235,7 +235,7 @@ data-projects/
 │   │   ├── src/app/          #   2 API routes, 1 page
 │   │   ├── src/components/   #   7 React components
 │   │   └── src/lib/          #   Account metrics, AI coaching, validation
-│   └── moradia/              # Residential rental radar       (port 3005)
+│   └── housing/              # Residential rental radar       (port 3005)
 │       ├── src/app/          #   6 API routes, 1 page
 │       ├── src/components/   #   Interactive radar, map, and photo showcase
 │       └── src/lib/          #   Multi-criteria scoring engine and geocoding
