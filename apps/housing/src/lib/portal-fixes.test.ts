@@ -876,9 +876,12 @@ describe("Portal Filters & Feature Matching", () => {
     });
     expect(onlyNewFiltered.map((p) => p.id)).toEqual(["recent-3d"]);
 
-    const emptiedPrefs = normalizePreferences({ compareKeys: [] });
-    expect(emptiedPrefs.compareKeys).toEqual([]);
-    const defaultPrefs = normalizePreferences({});
-    expect(defaultPrefs.compareKeys.length).toBeGreaterThan(0);
+    const legacyPrefs = normalizePreferences({
+      compareKeys: ["quintoandar:1"],
+      compare_keys: ["quintoandar:2"],
+      favorites: ["quintoandar:3"],
+    });
+    expect(legacyPrefs.favorites).toEqual(["quintoandar:3"]);
+    expect(legacyPrefs).not.toHaveProperty("compareKeys");
   });
 });

@@ -19,12 +19,6 @@ const TMP_PREFS_FILE = join(tmpdir(), "housing-user-preferences.json");
 const LOCAL_FAVORITES_FILE = join(process.cwd(), "src/data/favorites.json");
 const TMP_FAVORITES_FILE = join(tmpdir(), "housing-favorites.json");
 
-const DEFAULT_COMPARE_KEYS = [
-  "quintoandar:893127481",
-  "zapimoveis:2900134401",
-  "quintoandar:895394820",
-];
-
 function normalizeStringArray(raw: unknown, fallback: string[] = []): string[] {
   if (!Array.isArray(raw)) return fallback;
   return [
@@ -44,7 +38,6 @@ export function normalizePreferences(
     weights: {},
     activePresetId: "balanced-original",
     favorites: [],
-    compareKeys: DEFAULT_COMPARE_KEYS,
     updatedAt: new Date(0).toISOString(),
   };
   if (!raw || typeof raw !== "object") return base;
@@ -77,20 +70,6 @@ export function normalizePreferences(
   const favorites = Array.isArray(raw.favorites)
     ? normalizeStringArray(raw.favorites)
     : base.favorites;
-  const rawCompare = raw.compareKeys ?? raw.compare_keys;
-  let compareKeys: string[] = base.compareKeys;
-  if (Array.isArray(rawCompare)) {
-    compareKeys = normalizeStringArray(rawCompare);
-  } else if (typeof rawCompare === "string" && rawCompare.trim().startsWith("[")) {
-    try {
-      const parsedCompare = JSON.parse(rawCompare) as unknown;
-      if (Array.isArray(parsedCompare)) {
-        compareKeys = normalizeStringArray(parsedCompare);
-      }
-    } catch {
-      // fall back to base.compareKeys
-    }
-  }
   const rawUpdated = raw.updatedAt ?? raw.updated_at;
   const updatedAt =
     rawUpdated instanceof Date
@@ -105,7 +84,6 @@ export function normalizePreferences(
     weights,
     activePresetId,
     favorites,
-    compareKeys,
     updatedAt,
   };
 }
@@ -146,7 +124,6 @@ function writeLocalPreferencesMirror(prefs: SharedUserPreferences): void {
     weights: prefs.weights,
     activePresetId: prefs.activePresetId,
     favorites: prefs.favorites,
-    compareKeys: prefs.compareKeys,
     updatedAt: prefs.updatedAt,
   };
   memPreferencesCache = cleanPrefs;
@@ -192,7 +169,6 @@ async function ensurePreferencesTable(): Promise<void> {
           weights jsonb NOT NULL DEFAULT '{}'::jsonb,
           active_preset_id text NOT NULL DEFAULT 'balanced-original',
           favorites jsonb NOT NULL DEFAULT '[]'::jsonb,
-          compare_keys jsonb NOT NULL DEFAULT '[]'::jsonb,
           updated_at timestamptz NOT NULL DEFAULT now()
         )
       `;
@@ -231,7 +207,7 @@ export async function loadSharedPreferences(options?: {
     try {
       await ensurePreferencesTable();
       const rows = await sql`
-        SELECT id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
+        SELECT id, filters, weights, active_preset_id, favorites, updated_at
         FROM housing.user_preferences
         WHERE id = ${DEFAULT_PREF_ID}
         LIMIT 1
@@ -249,7 +225,7 @@ export async function loadSharedPreferences(options?: {
 
       const seededRows = await sql`
         INSERT INTO housing.user_preferences (
-          id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
+          id, filters, weights, active_preset_id, favorites, updated_at
         )
         VALUES (
           ${DEFAULT_PREF_ID},
@@ -257,11 +233,10 @@ export async function loadSharedPreferences(options?: {
           ${JSON.stringify(fallback.weights)}::jsonb,
           ${fallback.activePresetId},
           ${JSON.stringify(fallback.favorites)}::jsonb,
-          ${JSON.stringify(fallback.compareKeys)}::jsonb,
           now()
         )
         ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id
-        RETURNING id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
+        RETURNING id, filters, weights, active_preset_id, favorites, updated_at
       `;
       const seeded = normalizePreferences(
         seededRows[0] as Record<string, unknown>,
@@ -343,7 +318,6 @@ export async function saveSharedPreferences(
       typeof partial.activePresetId === "string" &&
       partial.activePresetId.trim().length > 0;
     const hasFavorites = Array.isArray(partial.favorites);
-    const hasCompareKeys = Array.isArray(partial.compareKeys);
 
     const resolvedFilters = hasFilters
       ? (partial.filters as Record<string, unknown>)
@@ -363,9 +337,6 @@ export async function saveSharedPreferences(
       favorites: hasFavorites
         ? normalizeStringArray(partial.favorites)
         : current.favorites,
-      compareKeys: hasCompareKeys
-        ? normalizeStringArray(partial.compareKeys)
-        : current.compareKeys,
       updatedAt: nowIso,
     };
 
@@ -378,7 +349,7 @@ export async function saveSharedPreferences(
       await ensurePreferencesTable();
       const rows = await sql`
         INSERT INTO housing.user_preferences (
-          id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
+          id, filters, weights, active_preset_id, favorites, updated_at
         )
         VALUES (
           ${DEFAULT_PREF_ID},
@@ -386,7 +357,6 @@ export async function saveSharedPreferences(
           ${JSON.stringify(next.weights)}::jsonb,
           ${next.activePresetId},
           ${JSON.stringify(next.favorites)}::jsonb,
-          ${JSON.stringify(next.compareKeys)}::jsonb,
           ${nowIso}::timestamptz
         )
         ON CONFLICT (id) DO UPDATE SET
@@ -394,10 +364,9 @@ export async function saveSharedPreferences(
           weights = COALESCE(${hasWeights ? JSON.stringify(next.weights) : null}::jsonb, housing.user_preferences.weights),
           active_preset_id = COALESCE(${hasActivePresetId ? next.activePresetId : null}::text, housing.user_preferences.active_preset_id),
           favorites = COALESCE(${hasFavorites ? JSON.stringify(next.favorites) : null}::jsonb, housing.user_preferences.favorites),
-          compare_keys = COALESCE(${hasCompareKeys ? JSON.stringify(next.compareKeys) : null}::jsonb, housing.user_preferences.compare_keys),
           updated_at = EXCLUDED.updated_at
         WHERE housing.user_preferences.updated_at <= ${nowIso}::timestamptz
-        RETURNING id, filters, weights, active_preset_id, favorites, compare_keys, updated_at
+        RETURNING id, filters, weights, active_preset_id, favorites, updated_at
       `;
       if (rows.length > 0) {
         const saved = normalizePreferences(

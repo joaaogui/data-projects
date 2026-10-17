@@ -65,7 +65,6 @@ import {
 } from "react";
 
 import {
-  DEFAULT_COMPARE_KEYS,
   getProviderStyle,
   MODERNITY_TIER_BADGES,
   upsertBoundedRecord,
@@ -134,13 +133,6 @@ export function usePortalController({
     () => resolvedInitialPrefs?.favorites ?? [],
     [resolvedInitialPrefs],
   );
-  const initialCompareKeys = useMemo(
-    () =>
-      Array.isArray(resolvedInitialPrefs?.compareKeys)
-        ? resolvedInitialPrefs.compareKeys
-        : DEFAULT_COMPARE_KEYS,
-    [resolvedInitialPrefs],
-  );
 
   const [filterStore] = useState(() => createFilterStore(initialParsedFilters));
   const [meta, setMeta] = useState<DatasetMeta>(initialMeta);
@@ -155,7 +147,7 @@ export function usePortalController({
   }, [weights, queryWeights]);
   const [activePresetId, setActivePresetId] = useState<string>(initialPresetId);
   const [activeTab, setActiveTab] = useState<
-    "properties" | "neighborhoods" | "compare"
+    "properties" | "neighborhoods"
   >("properties");
   const [selectedCities, setSelectedCities] = useFilterField(
     filterStore,
@@ -342,7 +334,6 @@ export function usePortalController({
     Record<string, string>
   >({});
   const fetchedPhotoKeysRef = useRef<Set<string>>(new Set());
-  const [compareKeys, setCompareKeys] = useState<string[]>(initialCompareKeys);
   const [visibleCount, setVisibleCount] = useState<number>(30);
   const [focusedPropertyKey, setFocusedPropertyKey] = useState<string | null>(
     null,
@@ -413,7 +404,6 @@ export function usePortalController({
       weights: initialWeights,
       activePresetId: initialPresetId,
       favorites: initialFavorites,
-      compareKeys: initialCompareKeys,
     }),
   );
   const hasUnsavedLocalPrefsRef = useRef<boolean>(false);
@@ -444,9 +434,6 @@ export function usePortalController({
       const nextFavorites = Array.isArray(prefs.favorites)
         ? prefs.favorites
         : [];
-      const nextCompareKeys = Array.isArray(prefs.compareKeys)
-        ? prefs.compareKeys
-        : DEFAULT_COMPARE_KEYS;
 
       const serializedFilters = serializeExplorerFilters(parsedFilters);
       isApplyingRemotePrefsRef.current = true;
@@ -455,7 +442,6 @@ export function usePortalController({
         weights: nextWeights,
         activePresetId: nextPresetId,
         favorites: nextFavorites,
-        compareKeys: nextCompareKeys,
       });
       lastSyncedUpdatedAtRef.current = prefs.updatedAt;
 
@@ -464,7 +450,6 @@ export function usePortalController({
       setQueryWeights(nextWeights);
       setActivePresetId(nextPresetId);
       setFavoriteKeys(nextFavorites);
-      setCompareKeys(nextCompareKeys);
 
       try {
         localStorage.setItem(
@@ -478,10 +463,6 @@ export function usePortalController({
         localStorage.setItem(
           "housing_favorites_v1",
           JSON.stringify(nextFavorites),
-        );
-        localStorage.setItem(
-          "housing_compare_v1",
-          JSON.stringify(nextCompareKeys),
         );
         localStorage.setItem(
           "housing_preferences_updated_at_v1",
@@ -737,19 +718,6 @@ export function usePortalController({
             setFavoriteKeys((prev) => [...new Set([...prev, ...localFavs])]);
           }
         }
-
-        const rawCompare = localStorage.getItem("housing_compare_v1");
-        if (rawCompare) {
-          const parsedCompare = JSON.parse(rawCompare) as unknown;
-          if (Array.isArray(parsedCompare)) {
-            setCompareKeys(
-              parsedCompare.filter(
-                (x): x is string =>
-                  typeof x === "string" && x.trim().length > 0,
-              ),
-            );
-          }
-        }
       } else if (resolvedInitialPrefs) {
         applySharedPreferencesToState(resolvedInitialPrefs);
       }
@@ -891,7 +859,7 @@ export function usePortalController({
         "housing_favorites_v1",
         JSON.stringify(favoriteKeys),
       );
-      localStorage.setItem("housing_compare_v1", JSON.stringify(compareKeys));
+      localStorage.removeItem("housing_compare_v1");
     } catch {
       // Ignore storage errors
     }
@@ -901,7 +869,6 @@ export function usePortalController({
       weights,
       activePresetId,
       favorites: favoriteKeys,
-      compareKeys,
     };
     const serialized = JSON.stringify(fullPayload);
     const wasApplyingRemote = isApplyingRemotePrefsRef.current;
@@ -1020,7 +987,6 @@ export function usePortalController({
     activePresetId,
     weights,
     favoriteKeys,
-    compareKeys,
   ]);
 
   useEffect(() => {
@@ -1075,16 +1041,6 @@ export function usePortalController({
       setVisibleCount(30);
     }
   };
-
-  const toggleCompare = useCallback((key: string) => {
-    setCompareKeys((prev) =>
-      prev.includes(key)
-        ? prev.filter((k) => k !== key)
-        : prev.length >= 4
-          ? [...prev.slice(1), key]
-          : [...prev, key],
-    );
-  }, []);
 
   const [refreshTick, setRefreshTick] = useState<number>(0);
 
@@ -1737,11 +1693,10 @@ export function usePortalController({
           expandedId,
           pinnedChatPropertyKey,
           focusedPropertyKey,
-          ...compareKeys,
         ].filter((k): k is string => Boolean(k) && k !== "general"),
       ),
     ],
-    [expandedId, pinnedChatPropertyKey, focusedPropertyKey, compareKeys],
+    [expandedId, pinnedChatPropertyKey, focusedPropertyKey],
   );
   useEffect(() => {
     const missing = neededDetailKeys.filter((k) => !detailsByKey.has(k));
@@ -2470,14 +2425,6 @@ export function usePortalController({
     favoriteKeys,
   ]);
 
-  const comparedProperties = useMemo(
-    () =>
-      compareKeys
-        .map((k) => resolveProperty(k))
-        .filter((p): p is PropertyCardDTO => Boolean(p)),
-    [compareKeys, resolveProperty],
-  );
-
   const displayedProperties = useMemo(() => {
     const baseSlice = filteredItems
       .slice(0, visibleCount)
@@ -2628,8 +2575,6 @@ export function usePortalController({
     chatScrollTargetKey,
     cityTop3ByCode,
     clearChatHistory,
-    compareKeys,
-    comparedProperties,
     copiedTop50Count,
     customSearchUrl,
     deactivatedFilter,
@@ -2710,7 +2655,6 @@ export function usePortalController({
     selectedParking,
     setActiveTab,
     setBenchmarkPanelCollapsed,
-    setCompareKeys,
     setCustomSearchUrl,
     setDeactivatedFilter,
     setExpandedId,
@@ -2768,7 +2712,6 @@ export function usePortalController({
     sortBy,
     startScrapeJob,
     submitChatQuestion,
-    toggleCompare,
     toggleFavorite,
     toggleScrapeCity,
     totalBasePoolCount,

@@ -212,7 +212,6 @@ export interface SharedUserPreferences {
   weights: Partial<ScoringWeights>;
   activePresetId: string;
   favorites: string[];
-  compareKeys: string[];
   updatedAt: string;
 }
 

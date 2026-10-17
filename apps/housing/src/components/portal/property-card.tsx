@@ -12,7 +12,6 @@ import { categorizePropertyFeatures } from "@/lib/scoring-engine";
 import type { EvaluatedProperty } from "@/types/housing";
 import {
   ExternalLink,
-  GitCompare,
   Heart,
   Images,
   MapPin,
@@ -38,7 +37,6 @@ export interface PropertyCardProps {
   isNearViewport: boolean;
   isSelectedOnMap: boolean;
   isPinnedInChat: boolean;
-  inCompare: boolean;
   isFav: boolean;
   viewMode: "split" | "list" | "map";
   extraPhotos: SamplePhoto[] | undefined;
@@ -51,7 +49,6 @@ export interface PropertyCardProps {
   setGalleryState: Dispatch<
     SetStateAction<{ property: EvaluatedProperty; initialIndex: number } | null>
   >;
-  toggleCompare: (key: string) => void;
   toggleFavorite: (key: string) => void;
   openChatForProperty: (key: string, scrollToMessages?: boolean) => void;
 }
@@ -64,7 +61,6 @@ export const PropertyCard = memo(function PropertyCard({
   isNearViewport,
   isSelectedOnMap,
   isPinnedInChat,
-  inCompare,
   isFav,
   viewMode,
   extraPhotos,
@@ -75,7 +71,6 @@ export const PropertyCard = memo(function PropertyCard({
   setSelectedMapPropertyKey,
   setViewMode,
   setGalleryState,
-  toggleCompare,
   toggleFavorite,
   openChatForProperty,
 }: PropertyCardProps) {
@@ -449,24 +444,7 @@ export const PropertyCard = memo(function PropertyCard({
 
           {/* Action Row */}
           <div className="flex flex-col gap-1.5 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
-            <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleCompare(key);
-                }}
-                className={`inline-flex items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors sm:px-2.5 ${
-                  inCompare
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-secondary"
-                }`}
-              >
-                <GitCompare className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">
-                  {inCompare ? "Comparando" : "Comparar"}
-                </span>
-              </button>
+            <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5">
               {fullPhotos.length > 0 && (
                 <button
                   type="button"

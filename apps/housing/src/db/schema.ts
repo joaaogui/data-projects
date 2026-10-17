@@ -161,6 +161,7 @@ export const userPreferences = housingSchema.table("user_preferences", {
     .notNull()
     .default("balanced-original"),
   favorites: jsonb("favorites").$type<string[]>().notNull().default([]),
+  // Legacy comparator column: no longer read or written; kept so a schema push does not drop it.
   compareKeys: jsonb("compare_keys").$type<string[]>().notNull().default([]),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()

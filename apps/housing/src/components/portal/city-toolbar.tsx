@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, GitCompare, MapPin } from "lucide-react";
+import { Building2, MapPin } from "lucide-react";
 
 import { CITY_LABELS } from "@/components/portal/constants";
 import type { PortalController } from "@/components/portal/use-portal-controller";
@@ -9,7 +9,6 @@ export function CityToolbar({ ctl }: { ctl: PortalController }) {
   const {
     activeTab,
     cityTop3ByCode,
-    comparedProperties,
     filteredTotal,
     handleCitySelect,
     selectableCityList,
@@ -49,18 +48,6 @@ export function CityToolbar({ ctl }: { ctl: PortalController }) {
             <span>
               <span className="hidden sm:inline">Ranking dos </span>20 Bairros
             </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("compare")}
-            className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-3 ${
-              activeTab === "compare"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-accent"
-            }`}
-          >
-            <GitCompare className="h-3.5 w-3.5 shrink-0" />
-            <span>Comparador ({comparedProperties.length}/4)</span>
           </button>
         </div>
 

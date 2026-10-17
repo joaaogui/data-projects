@@ -140,12 +140,6 @@ export const FLOOR_RARITY_BADGES: Record<FloorRarity, { className: string }> = {
   },
 };
 
-export const DEFAULT_COMPARE_KEYS = [
-  "quintoandar:893127481",
-  "zapimoveis:2900134401",
-  "quintoandar:895394820",
-];
-
 export const MAX_EXTRA_PHOTOS_CACHE_ENTRIES = 25;
 
 export function upsertBoundedRecord<T>(

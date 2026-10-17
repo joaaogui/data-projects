@@ -51,7 +51,6 @@ export async function GET(request: Request) {
       activePresetId: preferences.activePresetId,
       activeCities: extractActiveCities(preferences.filters),
       favoritesCount: preferences.favorites.length,
-      compareKeysCount: preferences.compareKeys.length,
       durationMs,
     });
 
@@ -92,7 +91,6 @@ async function handleSave(request: Request) {
       weights?: Partial<ScoringWeights>;
       activePresetId?: string;
       favorites?: string[];
-      compareKeys?: string[];
       clientUpdatedAt?: string;
     };
 
@@ -104,7 +102,6 @@ async function handleSave(request: Request) {
       weights: body.weights,
       activePresetId: body.activePresetId,
       favorites: body.favorites,
-      compareKeys: body.compareKeys,
       clientUpdatedAt: body.clientUpdatedAt,
     });
     const { persistedToDb: rawPersistedToDb, ...preferences } = saved;
@@ -119,7 +116,6 @@ async function handleSave(request: Request) {
       activePresetId: preferences.activePresetId,
       activeCities: extractActiveCities(preferences.filters),
       favoritesCount: preferences.favorites.length,
-      compareKeysCount: preferences.compareKeys.length,
       durationMs,
     });
 

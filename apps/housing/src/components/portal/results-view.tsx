@@ -23,7 +23,6 @@ const EMPTY_QA_LIST: PropertyQuestionItem[] = [];
 export function ResultsView({ ctl }: { ctl: PortalController }) {
   const {
     cardsListRef,
-    compareKeys,
     displayedProperties,
     expandedId,
     extraDescriptionsByKey,
@@ -50,7 +49,6 @@ export function ResultsView({ ctl }: { ctl: PortalController }) {
     setViewMode,
     setVisibleCount,
     showChatDrawer,
-    toggleCompare,
     toggleFavorite,
     viewMode,
     visibleCount,
@@ -153,7 +151,6 @@ export function ResultsView({ ctl }: { ctl: PortalController }) {
                   isPinnedInChat={
                     showChatDrawer && pinnedChatPropertyKey === key
                   }
-                  inCompare={compareKeys.includes(key)}
                   isFav={favoriteKeys.includes(key)}
                   viewMode={viewMode}
                   extraPhotos={extraPhotosByKey[key]}
@@ -164,7 +161,6 @@ export function ResultsView({ ctl }: { ctl: PortalController }) {
                   setSelectedMapPropertyKey={setSelectedMapPropertyKey}
                   setViewMode={setViewMode}
                   setGalleryState={setGalleryState}
-                  toggleCompare={toggleCompare}
                   toggleFavorite={toggleFavorite}
                   openChatForProperty={openChatForProperty}
                 />

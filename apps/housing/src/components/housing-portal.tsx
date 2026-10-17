@@ -21,9 +21,6 @@ export {
 } from "@/components/portal/constants";
 export * from "@/lib/property-filters";
 
-const ComparePanel = dynamic(() =>
-  import("@/components/portal/compare-panel").then((m) => m.ComparePanel),
-);
 const PropertyChatDrawer = dynamic(
   () =>
     import("@/components/property-chat-drawer").then(
@@ -80,7 +77,6 @@ export function HousingPortal(props: HousingPortalProps) {
           </section>
         )}
         <NeighborhoodsTab ctl={ctl} />
-        {activeTab === "compare" && <ComparePanel ctl={ctl} />}
         {galleryState && (
           <PropertyPhotoGalleryModal
             property={galleryState.property}
