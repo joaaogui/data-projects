@@ -600,11 +600,15 @@ async function loadQaStore(options?: {
   return loadPromise;
 }
 
+/** Open `?stream=1` connections on this instance, notified right after a write. */
+const qaChangeListeners = new Set<() => void>();
+
 async function saveQaItems(items: PropertyQuestionItem[]): Promise<void> {
   qaStoreWriteVersion += 1;
   inFlightQaLoadPromise = null;
   writeDiskQaItems(items);
   lastQaDbLoadMs = Date.now();
+  for (const listener of qaChangeListeners) listener();
   const sql = getSqlClient();
   if (!sql) return;
   try {
@@ -1669,9 +1673,78 @@ async function generateDiagnosticAnswer(params: {
   return { answer: deterministicFallback, source: "instant_diagnostic" };
 }
 
+const QA_STREAM_MAX_MS = 55_000;
+const QA_STREAM_POLL_MS = 2_500;
+const QA_STREAM_HEARTBEAT_MS = 15_000;
+
+/**
+ * Server-sent events: pushes the full item list whenever its ETag changes. Writes on this
+ * instance notify immediately; writes elsewhere (other instances, the Cursor session editing
+ * the local file) are picked up by the store's short-TTL reload. The stream ends before the
+ * function time limit and EventSource reconnects with Last-Event-ID = last ETag.
+ */
+function streamQaItems(request: Request): Response {
+  const encoder = new TextEncoder();
+  let lastEtag = request.headers.get("last-event-id") ?? "";
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      let closed = false;
+      let pollTimer: ReturnType<typeof setTimeout> | null = null;
+      const send = (chunk: string) => {
+        if (!closed) controller.enqueue(encoder.encode(chunk));
+      };
+      const push = async () => {
+        const items = await loadQaStore();
+        const etag = computeQaEtag(items);
+        if (etag === lastEtag) return;
+        lastEtag = etag;
+        send(`id: ${etag}\nevent: items\ndata: ${JSON.stringify({ items, etag })}\n\n`);
+      };
+      const onChange = () => {
+        void push().catch(() => {});
+      };
+      const heartbeat = setInterval(() => send(": ping\n\n"), QA_STREAM_HEARTBEAT_MS);
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        if (pollTimer) clearTimeout(pollTimer);
+        clearInterval(heartbeat);
+        clearTimeout(maxTimer);
+        qaChangeListeners.delete(onChange);
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      };
+      const maxTimer = setTimeout(close, QA_STREAM_MAX_MS);
+      const poll = async () => {
+        if (closed) return;
+        await push().catch(() => {});
+        if (!closed) pollTimer = setTimeout(() => void poll(), QA_STREAM_POLL_MS);
+      };
+      qaChangeListeners.add(onChange);
+      request.signal.addEventListener("abort", close);
+      send("retry: 1500\n\n");
+      void poll();
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
 export async function GET(request: Request) {
   const t0 = performance.now();
   const { searchParams } = new URL(request.url);
+  if (searchParams.get("stream") === "1") {
+    return streamQaItems(request);
+  }
   const propertyKey = searchParams.get("propertyKey");
   const status = searchParams.get("status");
 

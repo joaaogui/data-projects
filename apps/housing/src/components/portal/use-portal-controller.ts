@@ -64,6 +64,9 @@ import {
 } from "@/components/portal/constants";
 
 const MAX_CLIENT_QUERY_CACHE_ENTRIES = 24;
+const PREFERENCES_SAVE_DEBOUNCE_MS = 800;
+/** Ignore pushed QA snapshots briefly after a local optimistic change so it isn't undone. */
+const QA_PUSH_MUTATION_GRACE_MS = 1500;
 const MAX_DETAILS_CACHE_ENTRIES = 40;
 const EMPTY_BENCHMARK_STATS = buildBenchmarkStats([]);
 const EMPTY_DETAILS_MAP = new Map<string, PropertyCardDTO>();
@@ -714,8 +717,14 @@ export function usePortalController({
       return;
     }
     try {
-      const res = await fetch("/api/preferences", { cache: "no-store" });
-      if (!res.ok) return;
+      const syncedAt = lastSyncedUpdatedAtRef.current;
+      const res = await fetch("/api/preferences", {
+        cache: "no-store",
+        headers: syncedAt
+          ? { "If-None-Match": `W/"prefs-${syncedAt}"` }
+          : undefined,
+      });
+      if (res.status === 304 || !res.ok) return;
       const data = (await res.json()) as {
         ok?: boolean;
         preferences?: SharedUserPreferences;
@@ -904,7 +913,7 @@ export function usePortalController({
             }, 4000);
           }
         });
-    }, 300);
+    }, PREFERENCES_SAVE_DEBOUNCE_MS);
 
     return () => {
       clearTimeout(timer);
@@ -1074,6 +1083,7 @@ export function usePortalController({
   }, [scrapeStatus.status, fetchScrapeStatus]);
 
   const qaMutationSeqRef = useRef<number>(0);
+  const lastQaMutationAtRef = useRef<number>(0);
 
   const qaEtagRef = useRef<string | null>(null);
 
@@ -1115,15 +1125,18 @@ export function usePortalController({
     [qaItems],
   );
 
-  // Poll only while the drawer is open and a Cursor answer is due; back off while
-  // nothing changes (3s → 30s) and restart fast when new data arrives.
+  // While the drawer is open and a Cursor answer is due, listen for server pushes (SSE);
+  // fall back to polling with backoff (3s → 30s) when the stream can't be established.
   useEffect(() => {
     if (isSubmittingChatQuestion) return;
     if (!showChatDrawer || !hasAwaitingDetailedQa) return;
     let delayMs = 3000;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
+    let polling = false;
+    let source: EventSource | null = null;
     const schedule = () => {
+      if (!polling) return;
       timer = setTimeout(() => void tick(), delayMs);
     };
     const tick = async () => {
@@ -1135,15 +1148,54 @@ export function usePortalController({
       schedule();
     };
     const onVisibility = () => {
-      if (document.visibilityState !== "visible") return;
+      if (!polling || document.visibilityState !== "visible") return;
       if (timer) clearTimeout(timer);
       delayMs = 3000;
       void tick();
     };
-    schedule();
+    const startPolling = () => {
+      if (polling || cancelled) return;
+      polling = true;
+      schedule();
+    };
+    if (typeof EventSource === "undefined") {
+      startPolling();
+    } else {
+      let failuresWithoutData = 0;
+      source = new EventSource("/api/qa?stream=1");
+      source.addEventListener("items", (event) => {
+        failuresWithoutData = 0;
+        if (
+          Date.now() - lastQaMutationAtRef.current <
+          QA_PUSH_MUTATION_GRACE_MS
+        )
+          return;
+        try {
+          const data = JSON.parse((event as MessageEvent<string>).data) as {
+            items?: PropertyQuestionItem[];
+            etag?: string;
+          };
+          if (Array.isArray(data.items)) {
+            qaEtagRef.current = data.etag ?? null;
+            setQaItems(data.items);
+          }
+        } catch {
+          // Ignore malformed events
+        }
+      });
+      source.onerror = () => {
+        failuresWithoutData += 1;
+        if (failuresWithoutData >= 3) {
+          source?.close();
+          source = null;
+          startPolling();
+        }
+      };
+    }
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
+      source?.close();
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
@@ -1179,6 +1231,7 @@ export function usePortalController({
 
   const deletePropertyQuestion = useCallback(async (id: string) => {
     qaMutationSeqRef.current += 1;
+    lastQaMutationAtRef.current = Date.now();
     setQaItems((prev) => prev.filter((item) => item.id !== id));
     try {
       const res = await fetch("/api/qa", {
@@ -1187,6 +1240,7 @@ export function usePortalController({
         body: JSON.stringify({ action: "delete", id }),
       });
       qaMutationSeqRef.current += 1;
+      lastQaMutationAtRef.current = Date.now();
       if (res.ok) {
         const data = (await res.json()) as {
           ok?: boolean;
@@ -1203,6 +1257,7 @@ export function usePortalController({
 
   const clearChatHistory = useCallback(async () => {
     qaMutationSeqRef.current += 1;
+    lastQaMutationAtRef.current = Date.now();
     setQaItems([]);
     try {
       const res = await fetch("/api/qa", {
@@ -1211,6 +1266,7 @@ export function usePortalController({
         body: JSON.stringify({ action: "clear" }),
       });
       qaMutationSeqRef.current += 1;
+      lastQaMutationAtRef.current = Date.now();
       if (res.ok) {
         setQaItems([]);
       }
@@ -1771,6 +1827,7 @@ export function usePortalController({
       };
 
       qaMutationSeqRef.current += 1;
+      lastQaMutationAtRef.current = Date.now();
       setIsSubmittingChatQuestion(true);
       setQaItems((prev) => [...prev, optimisticItem]);
       try {
@@ -1790,6 +1847,7 @@ export function usePortalController({
           }),
         });
         qaMutationSeqRef.current += 1;
+        lastQaMutationAtRef.current = Date.now();
         const data = (await res.json()) as {
           ok?: boolean;
           error?: string;
@@ -1813,6 +1871,7 @@ export function usePortalController({
         return true;
       } catch (err) {
         qaMutationSeqRef.current += 1;
+        lastQaMutationAtRef.current = Date.now();
         setQaItems((prev) => prev.filter((item) => item.id !== optimisticId));
         throw err;
       } finally {

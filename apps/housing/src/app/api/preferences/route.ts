@@ -26,12 +26,23 @@ function extractActiveCities(filters: Record<string, unknown> | undefined): unkn
   return ["ALL"];
 }
 
-export async function GET() {
+function preferencesEtag(updatedAt: string): string {
+  return `W/"prefs-${updatedAt}"`;
+}
+
+export async function GET(request: Request) {
   const t0 = performance.now();
   try {
     const preferences = await loadSharedPreferences();
     const persistedToDb = wasLastPreferencesLoadedFromDb();
     const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+    const etag = preferencesEtag(preferences.updatedAt);
+    if (request.headers.get("if-none-match") === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: { "Cache-Control": "no-store, max-age=0", ETag: etag },
+      });
+    }
 
     logger.info("api/preferences", "GET completed", {
       method: "GET",
@@ -50,7 +61,7 @@ export async function GET() {
         persistedToDb,
         preferences,
       },
-      { headers: { "Cache-Control": "no-store, max-age=0" } },
+      { headers: { "Cache-Control": "no-store, max-age=0", ETag: etag } },
     );
   } catch (err) {
     const durationMs = Math.round((performance.now() - t0) * 100) / 100;
