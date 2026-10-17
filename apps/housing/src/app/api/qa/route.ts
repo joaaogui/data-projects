@@ -1,14 +1,16 @@
+import { getPrecomputedListings, hashContent } from "@/lib/listing-features-store";
 import { logger } from "@/lib/logger";
 import { PHOTO_AUDIT_OVERRIDES } from "@/lib/photo-audit-overrides";
+import { processScoped } from "@/lib/process-cache";
 import {
   AC_INFRA_ONLY_TAG,
   AC_UNCONFIRMED_TAG,
   DEFAULT_WEIGHTS,
   classifyFurnitureTier,
   computeDynamicNeighborhoods,
-  computeDynamicProperties,
   evaluateStreetMicroEnvironment,
   resolveNeighborhoodSafetyAndMetrics,
+  scorePrecomputedListings,
 } from "@/lib/scoring-engine";
 import type {
   CityHubCode,
@@ -645,7 +647,20 @@ interface SnapshotCache {
   bsbBenchmark: BsbBenchmark | null;
 }
 
-let cachedSnapshotData: SnapshotCache | null = null;
+interface ParsedQaSnapshot {
+  fileSig: string;
+  mtimeMs: number;
+  featureHash: string;
+  neighborhoods: NeighborhoodEntry[];
+  properties: SlimPropertyRecord[];
+}
+
+const MAX_EVALUATED_SNAPSHOTS = 4;
+
+const snapshotState = processScoped("api-qa-snapshot", () => ({
+  parsed: null as ParsedQaSnapshot | null,
+  evaluated: new Map<string, SnapshotCache>(),
+}));
 
 function sanitizeWeights(raw: unknown): ScoringWeights {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -670,23 +685,41 @@ function getEvaluatedSnapshotCache(
   for (const candidate of [LOCAL_SNAPSHOT_FILE, FALLBACK_SNAPSHOT_FILE]) {
     if (existsSync(/*turbopackIgnore: true*/ candidate)) {
       try {
-        const mtimeMs = statSync(/*turbopackIgnore: true*/ candidate).mtimeMs;
-        const cacheKey = `${mtimeMs}:${JSON.stringify(weights)}`;
-        if (cachedSnapshotData && cachedSnapshotData.cacheKey === cacheKey) {
-          return cachedSnapshotData;
+        const stat = statSync(/*turbopackIgnore: true*/ candidate);
+        const fileSig = `${candidate}:${stat.mtimeMs}:${stat.size}`;
+        const cacheKey = hashContent(fileSig, JSON.stringify(weights));
+        const hit = snapshotState.evaluated.get(cacheKey);
+        if (hit) {
+          snapshotState.evaluated.delete(cacheKey);
+          snapshotState.evaluated.set(cacheKey, hit);
+          return hit;
         }
-        const raw = JSON.parse(
-          readFileSync(/*turbopackIgnore: true*/ candidate, "utf8"),
-        ) as {
-          neighborhoods?: NeighborhoodEntry[];
-          properties?: SlimPropertyRecord[];
-        };
+        const t0 = performance.now();
+        let parsed = snapshotState.parsed;
+        if (parsed?.fileSig !== fileSig) {
+          const raw = JSON.parse(
+            readFileSync(/*turbopackIgnore: true*/ candidate, "utf8"),
+          ) as {
+            neighborhoods?: NeighborhoodEntry[];
+            properties?: SlimPropertyRecord[];
+          };
+          parsed = {
+            fileSig,
+            mtimeMs: stat.mtimeMs,
+            featureHash: hashContent("api-qa-snapshot-v1", fileSig),
+            neighborhoods: raw.neighborhoods ?? [],
+            properties: raw.properties ?? [],
+          };
+          snapshotState.parsed = parsed;
+          snapshotState.evaluated.clear();
+        }
+        const { properties } = parsed;
         const neighborhoods = computeDynamicNeighborhoods(
-          raw.neighborhoods ?? [],
+          parsed.neighborhoods,
           weights,
         );
-        const evaluated = computeDynamicProperties(
-          raw.properties ?? [],
+        const evaluated = scorePrecomputedListings(
+          getPrecomputedListings(parsed.featureHash, () => properties),
           neighborhoods.ranked,
           weights,
           { includeBsbBenchmark: true },
@@ -700,15 +733,23 @@ function getEvaluatedSnapshotCache(
             (p) => p.eligible && p.isActive !== false && p.cityCode !== "BSB",
           )
           .sort((a, b) => b.finalScore - a.finalScore);
-        cachedSnapshotData = {
+        const entry: SnapshotCache = {
           cacheKey,
-          mtimeMs,
+          mtimeMs: parsed.mtimeMs,
           evaluatedByKey,
           topEvaluated: rankedEligible.slice(0, 15),
           rankedEligible,
           bsbBenchmark: computeBsbBenchmark(evaluated),
         };
-        return cachedSnapshotData;
+        snapshotState.evaluated.set(cacheKey, entry);
+        while (snapshotState.evaluated.size > MAX_EVALUATED_SNAPSHOTS) {
+          snapshotState.evaluated.delete(snapshotState.evaluated.keys().next().value!);
+        }
+        logger.info("api/qa", "evaluated snapshot for weights", {
+          count: evaluated.length,
+          durationMs: Math.round(performance.now() - t0),
+        });
+        return entry;
       } catch {
         // try next
       }
