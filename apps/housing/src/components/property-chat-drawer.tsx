@@ -76,26 +76,6 @@ interface ChatThread {
   unread: number;
 }
 
-const GENERAL_PROMPTS = [
-  "Quais os melhores apês do ranking agora?",
-  "Qual o melhor bairro de Campinas pra mim?",
-  "Qual tem melhor relação nota vs aluguel?",
-  "Compare os top imóveis filtrados na tela",
-] as const;
-
-function buildPropertyPrompts(property: EvaluatedProperty | null): string[] {
-  const prompts: string[] = [];
-  if (property && !property.eligible) prompts.push("Por que esse foi retido?");
-  prompts.push("Essa área é segura?", "Qual o andar e é mobiliado?");
-  if (!property?.cardTags.acLabel) prompts.push("Tem ar-condicionado mesmo?");
-  prompts.push(
-    "Quanto tempo até o escritório?",
-    "Vale a pena comparado com Águas Claras?",
-    "Por que recebeu essa nota?",
-  );
-  return prompts.slice(0, 6);
-}
-
 function formatCurrency(val: number): string {
   return `R$ ${Math.round(val).toLocaleString("pt-BR")}`;
 }
@@ -677,9 +657,6 @@ export function PropertyChatDrawer({
     [draft, isSubmitting, onSubmitQuestion, pinnedProperty],
   );
 
-  const quickPrompts = isPropertyThread
-    ? buildPropertyPrompts(pinnedProperty)
-    : GENERAL_PROMPTS;
   const showOptimisticTyping =
     isSubmitting && !visibleItems.some((i) => i.status === "pending");
   const contextTitle = pinnedProperty
@@ -997,20 +974,6 @@ export function PropertyChatDrawer({
 
         {/* Composer */}
         <div className="space-y-2 border-t bg-card px-3 pt-2.5 pb-[max(env(safe-area-inset-bottom),0.75rem)] sm:px-4">
-          <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none] sm:-mx-4 sm:px-4">
-            {quickPrompts.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                disabled={isSubmitting}
-                onClick={() => void handleSend(prompt)}
-                className="shrink-0 rounded-full border border-purple-500/25 bg-muted/50 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap text-muted-foreground transition-colors hover:border-purple-500/50 hover:bg-purple-500/10 hover:text-foreground disabled:opacity-50"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-
           {submitError && (
             <div
               role="alert"
