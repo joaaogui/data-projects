@@ -21,6 +21,7 @@ export async function POST(request: Request) {
   try {
     const set = await getScoredProperties(coerceWeights(body.weights), {
       includeBsbBenchmark: body.enableBsbBenchmark === true,
+      signal: request.signal,
     });
     set.byKey ??= new Map(set.properties.map((p) => [`${p.provider}:${p.id}`, p]));
     const items = keys
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {
+    if (request.signal.aborted) return new NextResponse(null, { status: 499 });
     logger.error("api/properties/details", "details failed", { error: err });
     return NextResponse.json({ ok: false, error: "details failed" }, { status: 500 });
   }

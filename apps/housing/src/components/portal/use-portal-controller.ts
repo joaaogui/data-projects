@@ -6,8 +6,10 @@ import {
   useFilterField,
 } from "@/components/portal/filter-store";
 import {
+  completedPhotoFetchKeys,
   fetchPropertyPhotosShared,
   getClientDescriptionCached,
+  getClientPhotosCached,
 } from "@/components/property-photo-showcase";
 import {
   FLOOR_FILTER_OPTIONS,
@@ -65,6 +67,7 @@ import {
 
 const MAX_CLIENT_QUERY_CACHE_ENTRIES = 24;
 const PREFERENCES_SAVE_DEBOUNCE_MS = 800;
+const WEIGHTS_QUERY_DEBOUNCE_MS = 250;
 /** Ignore pushed QA snapshots briefly after a local optimistic change so it isn't undone. */
 const QA_PUSH_MUTATION_GRACE_MS = 1500;
 const MAX_DETAILS_CACHE_ENTRIES = 40;
@@ -137,6 +140,13 @@ export function usePortalController({
   const [meta, setMeta] = useState<DatasetMeta>(initialMeta);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [weights, setWeights] = useState<ScoringWeights>(initialWeights);
+  // Sliders update `weights` on every tick; queries (server rescoring) follow once the value settles.
+  const [queryWeights, setQueryWeights] = useState<ScoringWeights>(initialWeights);
+  useEffect(() => {
+    if (queryWeights === weights) return;
+    const id = window.setTimeout(() => setQueryWeights(weights), WEIGHTS_QUERY_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [weights, queryWeights]);
   const [activePresetId, setActivePresetId] = useState<string>(initialPresetId);
   const [activeTab, setActiveTab] = useState<
     "properties" | "neighborhoods" | "compare"
@@ -430,6 +440,7 @@ export function usePortalController({
 
       applyFilterStateObject(parsedFilters);
       setWeights(nextWeights);
+      setQueryWeights(nextWeights);
       setActivePresetId(nextPresetId);
       setFavoriteKeys(nextFavorites);
       setCompareKeys(nextCompareKeys);
@@ -655,12 +666,12 @@ export function usePortalController({
               parsedWeights.weights &&
               typeof parsedWeights.weights === "object"
             ) {
-              setWeights(
-                sanitizeAndMigrateWeights(
-                  parsedWeights.weights,
-                  parsedWeights.schemaVersion ?? 2,
-                ),
+              const restored = sanitizeAndMigrateWeights(
+                parsedWeights.weights,
+                parsedWeights.schemaVersion ?? 2,
               );
+              setWeights(restored);
+              setQueryWeights(restored);
             }
           }
         }
@@ -1002,6 +1013,7 @@ export function usePortalController({
     if (!found) return;
     setActivePresetId(found.id);
     setWeights(found.weights);
+    setQueryWeights(found.weights);
     if (presetId === "perfeito") {
       setRequiredFeatures((prev) => [
         ...new Set<PropertyFeatureKey>([
@@ -1020,7 +1032,7 @@ export function usePortalController({
     }
   };
 
-  const toggleCompare = (key: string) => {
+  const toggleCompare = useCallback((key: string) => {
     setCompareKeys((prev) =>
       prev.includes(key)
         ? prev.filter((k) => k !== key)
@@ -1028,7 +1040,7 @@ export function usePortalController({
           ? [...prev.slice(1), key]
           : [...prev, key],
     );
-  };
+  }, []);
 
   const [refreshTick, setRefreshTick] = useState<number>(0);
 
@@ -1444,10 +1456,10 @@ export function usePortalController({
     () =>
       buildQueryKey({
         filters: queryFilters,
-        weights,
+        weights: queryWeights,
         favorites: queryFavorites,
       }),
-    [queryFilters, weights, queryFavorites],
+    [queryFilters, queryWeights, queryFavorites],
   );
 
   const [listState, setListState] = useState<ListState>(() => ({
@@ -1494,7 +1506,7 @@ export function usePortalController({
         postPropertyQuery(
           {
             filters: queryFilters,
-            weights,
+            weights: queryWeights,
             favorites: queryFavorites,
             offset,
             limit: Math.max(1, need - offset),
@@ -1546,7 +1558,7 @@ export function usePortalController({
   }, [
     queryKey,
     queryFilters,
-    weights,
+    queryWeights,
     queryFavorites,
     visibleCount,
     refreshTick,
@@ -1588,7 +1600,7 @@ export function usePortalController({
   );
 
   // Full records (description, all photos, long justifications) load on demand.
-  const detailsWeightsKey = `${buildWeightsKey(weights)}|${enableBsbBenchmark ? "bsb" : ""}`;
+  const detailsWeightsKey = `${buildWeightsKey(queryWeights)}|${enableBsbBenchmark ? "bsb" : ""}`;
   const [detailsState, setDetailsState] = useState<{
     weightsKey: string;
     byKey: Map<string, PropertyCardDTO>;
@@ -1623,7 +1635,7 @@ export function usePortalController({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             keys: toRequest,
-            weights,
+            weights: queryWeights,
             enableBsbBenchmark,
           }),
         })
@@ -1667,7 +1679,7 @@ export function usePortalController({
       );
       return found;
     },
-    [detailsWeightsKey, detailsState, weights, enableBsbBenchmark],
+    [detailsWeightsKey, detailsState, queryWeights, enableBsbBenchmark],
   );
 
   const neededDetailKeys = useMemo(
@@ -2369,7 +2381,7 @@ export function usePortalController({
     try {
       const data = await postPropertyQuery({
         filters: queryFilters,
-        weights,
+        weights: queryWeights,
         favorites: queryFavorites,
         mode: "copyTop50",
         activeFilterLabels: activeFilterPills.map((p) => p.label),
@@ -2403,7 +2415,7 @@ export function usePortalController({
   }, [
     filteredTotal,
     queryFilters,
-    weights,
+    queryWeights,
     queryFavorites,
     activeFilterPills,
     favoriteKeys,
@@ -2498,11 +2510,15 @@ export function usePortalController({
 
     const key = expandedId;
     let cancelled = false;
-    void fetchPropertyPhotosShared({
-      provider: prop.provider,
-      id: prop.id,
-      url: prop.url,
-    })
+    // The card's showcase may already have loaded the full list (e.g. while browsing photos).
+    const photosRequest = completedPhotoFetchKeys.has(key)
+      ? Promise.resolve(getClientPhotosCached(key) ?? [])
+      : fetchPropertyPhotosShared({
+          provider: prop.provider,
+          id: prop.id,
+          url: prop.url,
+        });
+    void photosRequest
       .then((photos) => {
         if (cancelled) return;
         fetchedPhotoKeysRef.current.add(key);

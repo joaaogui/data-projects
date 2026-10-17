@@ -74,7 +74,7 @@ function patchPhotos(set: PhotoTrackedSet, served: ServedListings): void {
 /** Scores every listing for a weight set; cached per (listing features, weights, benchmark flag). */
 export async function getScoredProperties(
   weights: ScoringWeights,
-  options: { includeBsbBenchmark: boolean },
+  options: { includeBsbBenchmark: boolean; signal?: AbortSignal },
 ): Promise<ScoredSet> {
   const served = await loadServedListings();
   const key = hashContent(
@@ -89,6 +89,8 @@ export async function getScoredProperties(
     if (hit.servedHash !== served.servedHash) patchPhotos(hit, served);
     return hit;
   }
+  // A superseded request (e.g. a slider tick) shouldn't pay for a full rescore.
+  options.signal?.throwIfAborted();
   const t0 = performance.now();
   const listings = getListings(served);
   const { ranked } = computeDynamicNeighborhoods(served.neighborhoods, weights);

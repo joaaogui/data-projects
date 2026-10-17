@@ -1948,6 +1948,9 @@ export async function POST(request: Request) {
     }
 
     const weights = sanitizeWeights(body.weights);
+    if (request.signal.aborted) {
+      return new NextResponse(null, { status: 499 });
+    }
     const { evaluatedByKey, topEvaluated, rankedEligible, bsbBenchmark } =
       getEvaluatedSnapshotCache(weights);
     const evaluated =

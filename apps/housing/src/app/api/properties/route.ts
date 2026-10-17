@@ -67,6 +67,7 @@ export async function POST(request: Request) {
   try {
     const set = await getScoredProperties(req.weights, {
       includeBsbBenchmark: state.enableBsbBenchmark,
+      signal: request.signal,
     });
     const tScored = performance.now();
     const response = runPropertyQuery(set, req);
@@ -83,6 +84,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
+    if (request.signal.aborted) {
+      logger.info("api/properties", "client aborted; skipped scoring", {
+        durationMs: Math.round(performance.now() - t0),
+      });
+      return new NextResponse(null, { status: 499 });
+    }
     logger.error("api/properties", "query failed", { error: err });
     return NextResponse.json({ ok: false, error: "query failed" }, { status: 500 });
   }
