@@ -12,17 +12,20 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const FIXTURES_DIR = join(process.cwd(), "src/lib/__fixtures__");
+const LISTINGS_FILE = "golden-listings.json";
+const EXPECTED_FILE = "golden-expected.json";
 
-const golden = await import("../src/lib/__fixtures__/golden-ranking");
+const golden = await import("../src/lib/__fixtures__/golden");
+const NOW_MS = Date.parse(golden.GOLDEN_NOW);
 
 const RealDate = Date;
 class FrozenDate extends RealDate {
   constructor(...args: ConstructorParameters<typeof Date>) {
-    if (args.length === 0) super(golden.GOLDEN_NOW);
+    if (args.length === 0) super(NOW_MS);
     else super(...args);
   }
   static now() {
-    return golden.GOLDEN_NOW;
+    return NOW_MS;
   }
 }
 globalThis.Date = FrozenDate as unknown as DateConstructor;
@@ -30,6 +33,9 @@ globalThis.Date = FrozenDate as unknown as DateConstructor;
 const PII_KEY = /advertiser|phone|whats|e-?mail|creci|contact|owner|broker/i;
 const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 const PHONE_CANDIDATE = /\+?\(?\d[\d\s().-]{8,}\d/g;
+const SPACED_PHONE = /\(?\b\d{2}\)?[\s.-]*9?\d{4}[\s.-]\d{4}\b/g;
+const CRECI = /\bCRECI\b[^\\,;)]*?\d[\w./-]*/gi;
+const HANDLE = /@[\w.]{3,}/g;
 
 function redactPhones(text: string): string {
   return text.replace(PHONE_CANDIDATE, (match) => {
@@ -41,7 +47,10 @@ function redactPhones(text: string): string {
 
 function stripPii<T>(value: T): T {
   if (typeof value === "string") {
-    return redactPhones(value.replace(EMAIL, "[email omitido]")) as T;
+    return redactPhones(value.replace(EMAIL, "[email omitido]"))
+      .replace(SPACED_PHONE, "[telefone omitido]")
+      .replace(CRECI, "CRECI [omitido]")
+      .replace(HANDLE, "[perfil omitido]") as T;
   }
   if (Array.isArray(value)) return value.map(stripPii) as T;
   if (value && typeof value === "object") {
@@ -60,12 +69,17 @@ const sha = (s: string) => createHash("sha1").update(s).digest("hex");
 async function reselect(): Promise<void> {
   const { loadServedListings } = await import("../src/lib/dataset-store");
   const { PHOTO_AUDIT_OVERRIDES } = await import("../src/lib/photo-audit-overrides");
-  const { DEFAULT_WEIGHTS, AC_ABSENT_TAG, AC_UNCONFIRMED_TAG, AC_INFRA_ONLY_TAG, FURNITURE_CONFLICT_TAG, PRICE_MISMATCH_TAG, HOSPITAL_NOISE_TAG } =
+  const { DEFAULT_WEIGHTS, computeDynamicNeighborhoods, precomputeListingFeatures, scorePrecomputedListings, AC_ABSENT_TAG, AC_UNCONFIRMED_TAG, AC_INFRA_ONLY_TAG, FURNITURE_CONFLICT_TAG, PRICE_MISMATCH_TAG, HOSPITAL_NOISE_TAG } =
     await import("../src/lib/scoring-engine");
   const { loadListingDeactivations } = await import("../src/lib/listing-deactivations");
 
   const served = await loadServedListings();
-  const all = golden.evaluateGolden(served, DEFAULT_WEIGHTS, true);
+  const all = scorePrecomputedListings(
+    precomputeListingFeatures(served.properties),
+    computeDynamicNeighborhoods(served.neighborhoods, DEFAULT_WEIGHTS).ranked,
+    DEFAULT_WEIGHTS,
+    { includeBsbBenchmark: true },
+  );
   const keyOf = (p: { provider: string; id: string }) => `${p.provider}:${p.id}`;
   const byHash = [...all].sort((a, b) => (sha(keyOf(a)) < sha(keyOf(b)) ? -1 : 1));
   const tagsOf = (p: (typeof all)[number]) =>
@@ -129,17 +143,17 @@ async function reselect(): Promise<void> {
     .filter((p) => picked.has(keyOf(p)))
     .map((p) => stripPii({ ...p, samplePhotos: [] }));
   const dataset = { neighborhoods: stripPii(served.neighborhoods), properties };
-  writeFileSync(join(FIXTURES_DIR, golden.GOLDEN_LISTINGS_FILE), `${JSON.stringify(dataset)}\n`);
+  writeFileSync(join(FIXTURES_DIR, LISTINGS_FILE), `${JSON.stringify(dataset)}\n`);
   console.log(`selected ${properties.length} listings`);
 }
 
 if (process.argv.includes("--reselect")) await reselect();
 
 const dataset = JSON.parse(
-  readFileSync(join(FIXTURES_DIR, golden.GOLDEN_LISTINGS_FILE), "utf8"),
-) as import("../src/lib/__fixtures__/golden-ranking").GoldenDataset;
-const expected = golden.computeGoldenExpected(dataset);
-writeFileSync(join(FIXTURES_DIR, golden.GOLDEN_EXPECTED_FILE), `${JSON.stringify(expected, null, 1)}\n`);
+  readFileSync(join(FIXTURES_DIR, LISTINGS_FILE), "utf8"),
+) as import("../src/lib/__fixtures__/golden").GoldenInput;
+const expected = golden.computeGoldenRows(dataset);
+writeFileSync(join(FIXTURES_DIR, EXPECTED_FILE), `${JSON.stringify(expected, null, 1)}\n`);
 for (const [id, rows] of Object.entries(expected)) {
   console.log(`${id}: ${rows.length} rows, ${rows.filter((r) => r.eligible).length} eligible`);
 }
