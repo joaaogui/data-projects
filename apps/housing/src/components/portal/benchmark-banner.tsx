@@ -9,7 +9,7 @@ export function BenchmarkBanner({ ctl }: { ctl: PortalController }) {
     benchmarkPanelCollapsed,
     bsbBenchmarkStats,
     enableBsbBenchmark,
-    handleToggleBsbBenchmark,
+    handleToggleHiddenCity,
     maxTotalMonthly,
     selectedCities,
     setBenchmarkPanelCollapsed,
@@ -41,8 +41,8 @@ export function BenchmarkBanner({ ctl }: { ctl: PortalController }) {
               </div>
               <p className="text-[11px] sm:text-xs text-muted-foreground">
                 Comparação na mesma régua de pontuação (40–95 m², 1+ vaga,
-                modernidade e lazer). Quando desativado, Águas Claras sai 100%
-                do ranking.
+                modernidade e lazer). Quando desativada em Mais Filtros › Cidades
+                ocultas, Águas Claras sai 100% do ranking.
               </p>
             </div>
 
@@ -56,7 +56,7 @@ export function BenchmarkBanner({ ctl }: { ctl: PortalController }) {
               </button>
               <button
                 type="button"
-                onClick={handleToggleBsbBenchmark}
+                onClick={() => handleToggleHiddenCity("BSB")}
                 className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-800 hover:bg-rose-500/20 dark:text-rose-200"
               >
                 <X className="h-3 w-3" />

@@ -1,3 +1,4 @@
+import { normalizeEnabledHiddenCities } from "@/lib/city-config";
 import { logger } from "@/lib/logger";
 import { parseExplorerFiltersObject } from "@/lib/property-filters";
 import {
@@ -21,10 +22,11 @@ export async function GET(request: Request) {
     rawWeights = null;
   }
   const weights = coerceWeights(rawWeights);
+  const enabledHiddenCities = normalizeEnabledHiddenCities(
+    (params.get("hidden") ?? "").split(","),
+  );
   after(async () => {
-    await getScoredProperties(weights, {
-      includeBsbBenchmark: params.get("bsb") === "1",
-    });
+    await getScoredProperties(weights, { enabledHiddenCities });
   });
   return new NextResponse(null, { status: 204, headers: { "Cache-Control": "no-store" } });
 }
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
 
   try {
     const set = await getScoredProperties(req.weights, {
-      includeBsbBenchmark: state.enableBsbBenchmark,
+      enabledHiddenCities: state.enabledHiddenCities,
       signal: request.signal,
     });
     const tScored = performance.now();

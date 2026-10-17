@@ -12,6 +12,12 @@ import {
   getClientPhotosCached,
 } from "@/components/property-photo-showcase";
 import {
+  filterVisibleCities,
+  isCityVisible,
+  normalizeEnabledHiddenCities,
+  selectableCities,
+} from "@/lib/city-config";
+import {
   FLOOR_FILTER_OPTIONS,
   SORT_BY_OPTIONS,
   PROPERTY_FEATURE_OPTIONS,
@@ -279,9 +285,24 @@ export function usePortalController({
     filterStore,
     "onlySafeStreets",
   );
-  const [enableBsbBenchmark, setEnableBsbBenchmark] = useFilterField(
+  const [enabledHiddenCities, setEnabledHiddenCities] = useFilterField(
     filterStore,
-    "enableBsbBenchmark",
+    "enabledHiddenCities",
+  );
+  const enableBsbBenchmark = enabledHiddenCities.includes("BSB");
+  // Header counts follow the cities that are switched on.
+  const visibleMeta = useMemo(() => {
+    if (!meta.countByCity) return meta;
+    const totalCount = Object.entries(meta.countByCity).reduce(
+      (sum, [city, n]) =>
+        isCityVisible(city as CityHubCode, enabledHiddenCities) ? sum + n : sum,
+      0,
+    );
+    return { ...meta, totalCount };
+  }, [meta, enabledHiddenCities]);
+  const selectableCityList = useMemo(
+    () => selectableCities(enabledHiddenCities),
+    [enabledHiddenCities],
   );
   const [benchmarkPanelCollapsed, setBenchmarkPanelCollapsed] =
     useState<boolean>(false);
@@ -475,7 +496,10 @@ export function usePortalController({
 
   const pruneNeighborhoodsForCities = useCallback(
     (prevNeighborhoods: string[], nextCities: CityHubCode[]) => {
-      if (nextCities.length === 0 || nextCities.length >= 4) {
+      if (
+        nextCities.length === 0 ||
+        nextCities.length >= selectableCities(enabledHiddenCities).length
+      ) {
         return prevNeighborhoods;
       }
       if (prevNeighborhoods.length === 0) {
@@ -504,7 +528,7 @@ export function usePortalController({
         );
       });
     },
-    [meta.neighborhoodNamesByCity, meta.neighborhoods],
+    [meta.neighborhoodNamesByCity, meta.neighborhoods, enabledHiddenCities],
   );
 
   const handleCitySelect = useCallback(
@@ -519,7 +543,7 @@ export function usePortalController({
       const rawNext = exists
         ? selectedCities.filter((c) => c !== city)
         : [...selectedCities, city];
-      const maxAllCount = enableBsbBenchmark ? 5 : 4;
+      const maxAllCount = selectableCities(enabledHiddenCities).length;
       const nextCities = rawNext.length >= maxAllCount ? [] : rawNext;
       setSelectedCities(nextCities);
       setSelectedNeighborhoods((prevNbs) =>
@@ -529,30 +553,50 @@ export function usePortalController({
     },
     [
       selectedCities,
-      enableBsbBenchmark,
+      enabledHiddenCities,
       pruneNeighborhoodsForCities,
       setSelectedCities,
       setSelectedNeighborhoods,
     ],
   );
 
-  const handleToggleBsbBenchmark = useCallback(() => {
-    setEnableBsbBenchmark((prev) => {
-      const next = !prev;
-      if (!next) {
-        setSelectedCities((prevCities) =>
-          prevCities.filter((c) => c !== "BSB"),
-        );
-        setSelectedNeighborhoods((prevNbs) =>
-          prevNbs.filter((nb) => !/[aá]guas claras/i.test(nb)),
-        );
+  /** Switches a hidden-by-default city (SP, BSB) on or off; listings, ranks and counts follow. */
+  const handleToggleHiddenCity = useCallback(
+    (city: CityHubCode) => {
+      const turnOn = !enabledHiddenCities.includes(city);
+      setEnabledHiddenCities(
+        normalizeEnabledHiddenCities(
+          turnOn
+            ? [...enabledHiddenCities, city]
+            : enabledHiddenCities.filter((c) => c !== city),
+        ),
+      );
+      if (turnOn) {
+        if (city === "BSB") setBenchmarkPanelCollapsed(false);
       } else {
-        setBenchmarkPanelCollapsed(false);
+        setSelectedCities((prev) => prev.filter((c) => c !== city));
+        setSelectedNeighborhoods((prev) =>
+          prev.filter(
+            (nb) =>
+              !nb.startsWith(`${city}:`) &&
+              !(meta.neighborhoodNamesByCity[city] ?? []).includes(nb) &&
+              !meta.neighborhoods.some(
+                (n) => n.cityCode === city && n.neighborhood === nb,
+              ),
+          ),
+        );
       }
       setVisibleCount(30);
-      return next;
-    });
-  }, [setEnableBsbBenchmark, setSelectedCities, setSelectedNeighborhoods]);
+    },
+    [
+      enabledHiddenCities,
+      meta.neighborhoodNamesByCity,
+      meta.neighborhoods,
+      setEnabledHiddenCities,
+      setSelectedCities,
+      setSelectedNeighborhoods,
+    ],
+  );
 
   const resetAllFilters = () => {
     setSelectedCities([]);
@@ -828,7 +872,7 @@ export function usePortalController({
       onlyFavorites,
       onlyTop20Neighborhoods,
       onlySafeStreets,
-      enableBsbBenchmark,
+      enabledHiddenCities,
       deactivatedFilter,
       showAdvancedFilters,
       viewMode,
@@ -969,7 +1013,7 @@ export function usePortalController({
     onlyFavorites,
     onlyTop20Neighborhoods,
     onlySafeStreets,
-    enableBsbBenchmark,
+    enabledHiddenCities,
     deactivatedFilter,
     showAdvancedFilters,
     viewMode,
@@ -1359,8 +1403,12 @@ export function usePortalController({
   };
 
   const { ranked: dynamicNeighborhoods, cityAverages } = useMemo(
-    () => computeDynamicNeighborhoods(meta.neighborhoods, weights),
-    [meta.neighborhoods, weights],
+    () =>
+      computeDynamicNeighborhoods(
+        filterVisibleCities(meta.neighborhoods, enabledHiddenCities),
+        weights,
+      ),
+    [meta.neighborhoods, weights, enabledHiddenCities],
   );
 
   const queryFilters = useMemo(
@@ -1402,7 +1450,7 @@ export function usePortalController({
         onlyFavorites,
         onlyTop20Neighborhoods,
         onlySafeStreets,
-        enableBsbBenchmark,
+        enabledHiddenCities,
         deactivatedFilter,
         showAdvancedFilters: false,
         viewMode: "list",
@@ -1444,7 +1492,7 @@ export function usePortalController({
       onlyFavorites,
       onlyTop20Neighborhoods,
       onlySafeStreets,
-      enableBsbBenchmark,
+      enabledHiddenCities,
       deactivatedFilter,
     ],
   );
@@ -1566,12 +1614,12 @@ export function usePortalController({
   ]);
 
   // The API may run on a different server instance than the page: warm its scoring cache early.
-  const warmupWeightsRef = useRef({ weights, enableBsbBenchmark });
+  const warmupWeightsRef = useRef({ weights, enabledHiddenCities });
   useEffect(() => {
-    const { weights: w, enableBsbBenchmark: bsb } = warmupWeightsRef.current;
+    const { weights: w, enabledHiddenCities: hidden } = warmupWeightsRef.current;
     const params = new URLSearchParams({
       w: JSON.stringify(w),
-      bsb: bsb ? "1" : "0",
+      hidden: hidden.join(","),
     });
     const id = window.setTimeout(() => {
       void fetch(`/api/properties?${params.toString()}`, {
@@ -1600,7 +1648,7 @@ export function usePortalController({
   );
 
   // Full records (description, all photos, long justifications) load on demand.
-  const detailsWeightsKey = `${buildWeightsKey(queryWeights)}|${enableBsbBenchmark ? "bsb" : ""}`;
+  const detailsWeightsKey = `${buildWeightsKey(queryWeights)}|${enabledHiddenCities.join(",")}`;
   const [detailsState, setDetailsState] = useState<{
     weightsKey: string;
     byKey: Map<string, PropertyCardDTO>;
@@ -1636,7 +1684,7 @@ export function usePortalController({
           body: JSON.stringify({
             keys: toRequest,
             weights: queryWeights,
-            enableBsbBenchmark,
+            enabledHiddenCities,
           }),
         })
           .then((res) => (res.ok ? res.json() : null))
@@ -1679,7 +1727,7 @@ export function usePortalController({
       );
       return found;
     },
-    [detailsWeightsKey, detailsState, queryWeights, enableBsbBenchmark],
+    [detailsWeightsKey, detailsState, queryWeights, enabledHiddenCities],
   );
 
   const neededDetailKeys = useMemo(
@@ -1856,6 +1904,7 @@ export function usePortalController({
                 : undefined,
             propertySnapshot: propertySnapshotPayload,
             weights,
+            enabledHiddenCities,
           }),
         });
         qaMutationSeqRef.current += 1;
@@ -1890,7 +1939,7 @@ export function usePortalController({
         setIsSubmittingChatQuestion(false);
       }
     },
-    [filteredItems, filteredTotal, weights, fetchDetails],
+    [filteredItems, filteredTotal, weights, enabledHiddenCities, fetchDetails],
   );
 
   const deactivatedTotalCount = facets?.counts.deactivatedTotalCount ?? 0;
@@ -2589,6 +2638,7 @@ export function usePortalController({
     displayedProperties,
     dynamicNeighborhoods,
     enableBsbBenchmark,
+    enabledHiddenCities,
     expandedId,
     extraDescriptionsByKey,
     extraPhotosByKey,
@@ -2603,7 +2653,8 @@ export function usePortalController({
     handleConsumeChatScrollTarget,
     handleCopyTop50ForAi,
     handleSelectChatThread,
-    handleToggleBsbBenchmark,
+    handleToggleHiddenCity,
+    selectableCityList,
     hasAwaitingDetailedQa,
     hideMegaCondo,
     hoveredPropertyKey,
@@ -2621,7 +2672,7 @@ export function usePortalController({
     maxCommuteMinutes,
     maxListingAgeDays,
     maxTotalMonthly,
-    meta,
+    meta: visibleMeta,
     minAreaM2,
     minListingAgeDays,
     minModernityScore,

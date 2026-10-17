@@ -4,6 +4,7 @@ import {
   getCardPhotoUrl,
   handleImgError,
 } from "@/components/property-photo-showcase";
+import { HIDDEN_BY_DEFAULT_CITIES, isCityVisible } from "@/lib/city-config";
 import {
   ALL_NUBANK_HUB_LOCATIONS,
   computeDistanceToNubankHubKm,
@@ -910,10 +911,11 @@ export function PropertyMapView({
     propertyMarkersMapRef.current.clear();
 
     // 1. Render Nubank Office HQ Beacons + 2.5km Commute Radius Rings
-    const activeHubs =
-      resolvedItems.some((it) => it.prop.cityCode === "BSB")
-        ? [...ALL_NUBANK_HUB_LOCATIONS, NUBANK_HUBS.BSB]
-        : ALL_NUBANK_HUB_LOCATIONS;
+    // Hidden-by-default cities (SP, BSB) only get a hub (and rings) while their listings are on the map.
+    const presentCities = [...new Set(resolvedItems.map((it) => it.prop.cityCode))];
+    const activeHubs = [...ALL_NUBANK_HUB_LOCATIONS, NUBANK_HUBS.BSB].filter((h) =>
+      isCityVisible(h.cityCode, presentCities),
+    );
 
     for (const hub of activeHubs) {
       if (typeof L.circle === "function") {
@@ -1169,7 +1171,9 @@ export function PropertyMapView({
       <div className="flex items-center justify-between gap-1.5 border-b bg-card/95 px-2 py-1 text-xs backdrop-blur-xs z-20 overflow-x-auto whitespace-nowrap">
         {/* Quick City-Hub Jump Buttons */}
         <div className="flex items-center gap-1 shrink-0">
-          {(["BH", "RJ", "CP", "SP", ...(cityCounts.BSB > 0 || selectedCity === "BSB" ? (["BSB"] as const) : [])] as const).map((c) => {
+          {(["BH", "RJ", "CP", "SP", "BSB"] as const)
+            .filter((c) => !HIDDEN_BY_DEFAULT_CITIES.includes(c) || cityCounts[c] > 0 || selectedCity === c)
+            .map((c) => {
             const count = cityCounts[c];
             const isHubActive = focusedHubCity === c;
             return (

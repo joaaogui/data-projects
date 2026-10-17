@@ -1,4 +1,10 @@
 import {
+  isCityVisible,
+  isSelectableCity,
+  resolveEnabledHiddenCities,
+  selectableCities,
+} from "@/lib/city-config";
+import {
   classifyFurnitureTier,
   computeListingAge,
   hasActiveSaleListing,
@@ -114,7 +120,8 @@ export interface PropertyExplorerFilters {
   onlyFavorites: boolean;
   onlyTop20Neighborhoods?: boolean;
   onlySafeStreets?: boolean;
-  enableBsbBenchmark?: boolean;
+  /** Hidden-by-default cities (SP, BSB) the user switched on. */
+  enabledHiddenCities?: CityHubCode[];
   deactivatedFilter: DeactivatedFilterOption;
   favoriteKeys?: string[];
 }
@@ -157,7 +164,7 @@ export const DEFAULT_EXPLORER_FILTERS: PropertyExplorerFilters = {
   onlyFavorites: false,
   onlyTop20Neighborhoods: false,
   onlySafeStreets: false,
-  enableBsbBenchmark: false,
+  enabledHiddenCities: [],
   deactivatedFilter: "ACTIVE_ONLY",
   favoriteKeys: [],
 };
@@ -624,7 +631,7 @@ export function filterAndSortProperties(
     ...(favoriteKeysArg ?? []),
   ]);
   const onlyFavorites = filters.onlyFavorites ?? false;
-  const enableBsbBenchmark = filters.enableBsbBenchmark ?? false;
+  const enabledHiddenCities = filters.enabledHiddenCities ?? [];
   const deactivatedFilter: DeactivatedFilterOption =
     filters.deactivatedFilter ?? "ACTIVE_ONLY";
   const activeFurnitureTiers =
@@ -642,7 +649,7 @@ export function filterAndSortProperties(
       filters.maxCommuteMinutes >= 40);
 
   const filtered = properties.filter((p) => {
-    if (!enableBsbBenchmark && p.cityCode === "BSB") {
+    if (!isCityVisible(p.cityCode, enabledHiddenCities)) {
       return false;
     }
 
@@ -671,7 +678,8 @@ export function filterAndSortProperties(
     const activeCities =
       filters.selectedCities &&
       filters.selectedCities.length > 0 &&
-      (enableBsbBenchmark || filters.selectedCities.length < 4)
+      (enabledHiddenCities.length > 0 ||
+        filters.selectedCities.length < selectableCities(enabledHiddenCities).length)
         ? filters.selectedCities
         : filters.selectedCity && filters.selectedCity !== "ALL"
           ? [filters.selectedCity]
@@ -1141,7 +1149,13 @@ export function buildBenchmarkStats(evaluatedProperties: EvaluatedProperty[]) {
         ],
       },
     ]
-  ).map((spec) => {
+  )
+    // SP is hidden by default: only compare against it while its listings are enabled.
+    .filter(
+      (spec) =>
+        spec.code !== "SP" || evaluatedProperties.some((p) => p.cityCode === "SP"),
+    )
+    .map((spec) => {
     const allowedNbs = new Set(spec.neighborhoods);
     const items = evaluatedProperties.filter((p) => {
       if (p.cityCode !== spec.code || p.isActive === false) return false;
@@ -1249,7 +1263,7 @@ export function formatTopPropertiesForAiPrompt(
   const filterLabels = options?.activeFilterLabels ?? [];
 
   const headerLines = [
-    `# Top ${items.length} Imóveis Selecionados — Housing (BH · CP · RJ · SP)`,
+    `# Top ${items.length} Imóveis Selecionados — Housing`,
     "",
     "**Contexto & Perfil do Morador**: Mudança de Brasília levando mobília e eletrodomésticos próprios (~6–8 m³: cama, sofá, geladeira, máquina de lavar, etc.), buscando apartamento sem mobília (ou no máximo semi-mobiliado sem conflito). Orçamento mensal total (Aluguel + Condomínio + IPTU) ideal ≤ R$ 5.500/mês e teto de R$ 6.500/mês; área útil ideal 48–68 m² (janela aceitável 40–95 m²); mínimo de 1 vaga de garagem livre e prédio com elevador; forte preferência por andar alto ou cobertura, prédio novo/reformado, segurança real ao caminhar na calçada e deslocamento rápido até o escritório do Nubank.",
     "",
@@ -1342,7 +1356,7 @@ export interface ParsedExplorerFiltersState {
   onlyFavorites: boolean;
   onlyTop20Neighborhoods: boolean;
   onlySafeStreets: boolean;
-  enableBsbBenchmark: boolean;
+  enabledHiddenCities: CityHubCode[];
   deactivatedFilter: DeactivatedFilterOption;
   showAdvancedFilters: boolean;
   viewMode: "split" | "list" | "map";
@@ -1402,31 +1416,24 @@ export function parseExplorerFiltersObject(
     }
   >;
 
-  const enableBsbBenchmark =
-    typeof parsed.enableBsbBenchmark === "boolean"
-      ? parsed.enableBsbBenchmark
-      : false;
+  // `enableBsbBenchmark` is the legacy form of enabledHiddenCities: ["BSB"].
+  const enabledHiddenCities = resolveEnabledHiddenCities(
+    parsed as { enabledHiddenCities?: unknown; enableBsbBenchmark?: unknown },
+  );
 
   let selectedCities: CityHubCode[] = [];
   if (Array.isArray(parsed.selectedCities)) {
     const validCities = parsed.selectedCities.filter(
       (c): c is CityHubCode =>
-        c === "BH" ||
-        c === "CP" ||
-        c === "RJ" ||
-        c === "SP" ||
-        (enableBsbBenchmark && c === "BSB"),
+        isSelectableCity(c, enabledHiddenCities),
     );
     const uniqueCities = [...new Set(validCities)];
     selectedCities =
-      !enableBsbBenchmark && uniqueCities.length >= 4 ? [] : uniqueCities;
-  } else if (
-    parsed.selectedCity === "BH" ||
-    parsed.selectedCity === "CP" ||
-    parsed.selectedCity === "RJ" ||
-    parsed.selectedCity === "SP" ||
-    (enableBsbBenchmark && parsed.selectedCity === "BSB")
-  ) {
+      enabledHiddenCities.length === 0 &&
+      uniqueCities.length >= selectableCities(enabledHiddenCities).length
+        ? []
+        : uniqueCities;
+  } else if (isSelectableCity(parsed.selectedCity, enabledHiddenCities)) {
     selectedCities = [parsed.selectedCity];
   }
 
@@ -1611,7 +1618,7 @@ export function parseExplorerFiltersObject(
       typeof parsed.onlySafeStreets === "boolean"
         ? parsed.onlySafeStreets
         : false,
-    enableBsbBenchmark,
+    enabledHiddenCities,
     deactivatedFilter:
       parsed.deactivatedFilter === "ACTIVE_ONLY" ||
       parsed.deactivatedFilter === "ALL" ||
@@ -1672,7 +1679,7 @@ export function serializeExplorerFilters(state: ParsedExplorerFiltersState) {
     onlyFavorites: state.onlyFavorites,
     onlyTop20Neighborhoods: state.onlyTop20Neighborhoods,
     onlySafeStreets: state.onlySafeStreets,
-    enableBsbBenchmark: state.enableBsbBenchmark,
+    enabledHiddenCities: state.enabledHiddenCities,
     deactivatedFilter: state.deactivatedFilter,
     showAdvancedFilters: state.showAdvancedFilters,
     viewMode: state.viewMode,

@@ -29,7 +29,7 @@ export default async function HousingHomePage() {
     includeFacets: true,
   };
   const [scored, meta] = await Promise.all([
-    getScoredProperties(weights, { includeBsbBenchmark: state.enableBsbBenchmark }),
+    getScoredProperties(weights, { enabledHiddenCities: state.enabledHiddenCities }),
     getDatasetMeta(),
   ]);
   return (

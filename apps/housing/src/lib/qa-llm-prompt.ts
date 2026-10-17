@@ -87,7 +87,7 @@ export function buildQaLlmPrompt(params: QaLlmPromptParams): {
   };
 
   const systemPrompt =
-    "Você é o Consultor Imobiliário Inteligente do Portal Housing 2026 (mudança de Brasília para BH, Campinas, SP ou RJ próximo ao Nubank). " +
+    "Você é o Consultor Imobiliário Inteligente do Portal Housing 2026 (mudança de Brasília para BH, Campinas ou RJ próximo ao Nubank). " +
     "Responda em português de forma direta, objetiva, estruturada em tópicos curtos e 100% fundamentada nos dados reais do imóvel abaixo. " +
     "Cite números exatos (andar, R$ aluguel/condomínio/total, m², decomposição da nota, itens de mobília e comodidades)." +
     (params.queuedToLocalCursor

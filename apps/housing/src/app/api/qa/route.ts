@@ -1,3 +1,8 @@
+import {
+  filterVisibleCities,
+  isCityVisible,
+  resolveEnabledHiddenCities,
+} from "@/lib/city-config";
 import { getPrecomputedListings, hashContent } from "@/lib/listing-features-store";
 import { logger } from "@/lib/logger";
 import { PHOTO_AUDIT_OVERRIDES } from "@/lib/photo-audit-overrides";
@@ -682,13 +687,14 @@ function sanitizeWeights(raw: unknown): ScoringWeights {
 
 function getEvaluatedSnapshotCache(
   weights: ScoringWeights = DEFAULT_WEIGHTS,
+  enabledHiddenCities: CityHubCode[] = [],
 ): SnapshotCache {
   for (const candidate of [LOCAL_SNAPSHOT_FILE, FALLBACK_SNAPSHOT_FILE]) {
     if (existsSync(/*turbopackIgnore: true*/ candidate)) {
       try {
         const stat = statSync(/*turbopackIgnore: true*/ candidate);
         const fileSig = `${candidate}:${stat.mtimeMs}:${stat.size}`;
-        const cacheKey = hashContent(fileSig, JSON.stringify(weights));
+        const cacheKey = hashContent(fileSig, JSON.stringify(weights), enabledHiddenCities.join(","));
         const hit = snapshotState.evaluated.get(cacheKey);
         if (hit) {
           snapshotState.evaluated.delete(cacheKey);
@@ -715,12 +721,15 @@ function getEvaluatedSnapshotCache(
           snapshotState.evaluated.clear();
         }
         const { properties } = parsed;
+        // Hidden cities (SP, BSB unless enabled) are dropped before scoring, like the portal does.
         const neighborhoods = computeDynamicNeighborhoods(
-          parsed.neighborhoods,
+          filterVisibleCities(parsed.neighborhoods, enabledHiddenCities),
           weights,
         );
         const evaluated = scorePrecomputedListings(
-          getPrecomputedListings(parsed.featureHash, () => properties),
+          getPrecomputedListings(parsed.featureHash, () => properties).filter((l) =>
+            isCityVisible(l.prop.cityCode, enabledHiddenCities),
+          ),
           neighborhoods.ranked,
           weights,
           { includeBsbBenchmark: true },
@@ -730,9 +739,7 @@ function getEvaluatedSnapshotCache(
           evaluatedByKey.set(`${p.provider}:${p.id}`, p);
         }
         const rankedEligible = evaluated
-          .filter(
-            (p) => p.eligible && p.isActive !== false && p.cityCode !== "BSB",
-          )
+          .filter((p) => p.eligible && p.isActive !== false)
           .sort((a, b) => b.finalScore - a.finalScore);
         const entry: SnapshotCache = {
           cacheKey,
@@ -1818,6 +1825,7 @@ export async function POST(request: Request) {
       propertySnapshot?: Partial<PropertyQuestionSnapshot>;
       contextSummary?: string;
       weights?: Partial<ScoringWeights>;
+      enabledHiddenCities?: unknown;
     };
 
     const action = body.action ?? "ask";
@@ -1952,7 +1960,10 @@ export async function POST(request: Request) {
       return new NextResponse(null, { status: 499 });
     }
     const { evaluatedByKey, topEvaluated, rankedEligible, bsbBenchmark } =
-      getEvaluatedSnapshotCache(weights);
+      getEvaluatedSnapshotCache(
+        weights,
+        resolveEnabledHiddenCities({ enabledHiddenCities: body.enabledHiddenCities }),
+      );
     const evaluated =
       propertyKey !== "general"
         ? (evaluatedByKey.get(propertyKey) ?? null)

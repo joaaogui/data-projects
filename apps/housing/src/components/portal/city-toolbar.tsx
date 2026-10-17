@@ -10,10 +10,9 @@ export function CityToolbar({ ctl }: { ctl: PortalController }) {
     activeTab,
     cityTop3ByCode,
     comparedProperties,
-    enableBsbBenchmark,
     filteredTotal,
     handleCitySelect,
-    handleToggleBsbBenchmark,
+    selectableCityList,
     selectedCities,
     setActiveTab,
   } = ctl;
@@ -65,18 +64,9 @@ export function CityToolbar({ ctl }: { ctl: PortalController }) {
           </button>
         </div>
 
-        {/* Inline City Pills with Muted Top-3 Badge + Opt-in BSB Benchmark Toggle */}
+        {/* Inline City Pills with Muted Top-3 Badge (hidden cities appear only when enabled) */}
         <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap sm:flex-wrap">
-          {(
-            [
-              "ALL",
-              "BH",
-              "CP",
-              "RJ",
-              "SP",
-              ...(enableBsbBenchmark ? (["BSB"] as const) : []),
-            ] as const
-          ).map((city) => {
+          {(["ALL", ...selectableCityList] as const).map((city) => {
             const cityInfo =
               city === "ALL" ? undefined : cityTop3ByCode.get(city);
             const isSelected =
@@ -127,29 +117,6 @@ export function CityToolbar({ ctl }: { ctl: PortalController }) {
               </button>
             );
           })}
-
-          <button
-            type="button"
-            data-testid="toggle-bsb-benchmark"
-            aria-pressed={enableBsbBenchmark}
-            onClick={handleToggleBsbBenchmark}
-            title="Ativar/desativar comparação temporária com o mercado atual de Águas Claras (DF) vs. seu aluguel atual de R$ 3.400 (não altera o ranking fixo quando desativado)"
-            className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold transition-all sm:px-2.5 ${
-              enableBsbBenchmark
-                ? "border-amber-500 bg-amber-500/20 text-amber-900 ring-1 ring-amber-500/40 dark:border-amber-400 dark:bg-amber-500/25 dark:text-amber-100"
-                : "border-dashed border-amber-500/50 bg-amber-500/5 text-amber-800 hover:bg-amber-500/15 dark:text-amber-300"
-            }`}
-          >
-            <span aria-hidden="true">⚖️</span>
-            <span className="sm:hidden">
-              {enableBsbBenchmark ? "BSB Ativo" : "Benchmark BSB"}
-            </span>
-            <span className="hidden sm:inline">
-              {enableBsbBenchmark
-                ? "Benchmark: Águas Claras (Ativo)"
-                : "Benchmark: Águas Claras (BSB)"}
-            </span>
-          </button>
         </div>
       </div>
     </>

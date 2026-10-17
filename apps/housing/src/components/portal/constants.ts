@@ -1,7 +1,7 @@
 import type { CityHubCode, FloorRarity } from "@/types/housing";
 
 export const CITY_LABELS: Record<CityHubCode | "ALL", string> = {
-  ALL: "Todas as 4 Praças",
+  ALL: "Todas as Praças",
   BH: "Belo Horizonte (MG)",
   CP: "Campinas (SP)",
   RJ: "Rio de Janeiro (RJ)",

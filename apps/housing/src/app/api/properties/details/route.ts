@@ -1,3 +1,4 @@
+import { resolveEnabledHiddenCities } from "@/lib/city-config";
 import { logger } from "@/lib/logger";
 import { coerceWeights, toDetailsDTO } from "@/lib/property-query";
 import { getScoredProperties } from "@/lib/server-scoring";
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     : [];
   try {
     const set = await getScoredProperties(coerceWeights(body.weights), {
-      includeBsbBenchmark: body.enableBsbBenchmark === true,
+      enabledHiddenCities: resolveEnabledHiddenCities(body),
       signal: request.signal,
     });
     set.byKey ??= new Map(set.properties.map((p) => [`${p.provider}:${p.id}`, p]));

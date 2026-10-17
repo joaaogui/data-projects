@@ -1,3 +1,4 @@
+import { isCityVisible } from "@/lib/city-config";
 import {
   buildBenchmarkStats,
   filterAndSortProperties,
@@ -71,6 +72,8 @@ export interface DatasetMeta {
   updatedAt: string;
   source: "neon" | "snapshot";
   totalCount: number;
+  /** Listings per city (hidden cities included); the portal sums only the visible ones. */
+  countByCity?: Partial<Record<CityHubCode, number>>;
   neighborhoods: NeighborhoodEntry[];
   neighborhoodNamesByCity: Partial<Record<CityHubCode, string[]>>;
 }
@@ -242,7 +245,7 @@ export function computePoolCounts(
   state: ParsedExplorerFiltersState,
 ): PoolCounts {
   const {
-    enableBsbBenchmark,
+    enabledHiddenCities,
     selectedCities,
     deactivatedFilter,
     onlyFavorites,
@@ -255,17 +258,17 @@ export function computePoolCounts(
   let recentCount = 0;
   for (const p of evaluated) {
     if (isRecentlyPublishedListing(p)) recentCount += 1;
-    const inBench = enableBsbBenchmark || p.cityCode !== "BSB";
-    if (inBench && p.isActive === false) deactivatedTotalCount += 1;
+    const visible = isCityVisible(p.cityCode, enabledHiddenCities);
+    if (visible && p.isActive === false) deactivatedTotalCount += 1;
     if (
-      inBench &&
+      visible &&
       (selectedCities.length === 0 || selectedCities.includes(p.cityCode)) &&
       p.isActive !== false &&
       !p.eligible
     ) {
       ineligibleActiveCount += 1;
     }
-    if (!enableBsbBenchmark && p.cityCode === "BSB") continue;
+    if (!visible) continue;
     if (deactivatedFilter === "ACTIVE_ONLY" && !onlyFavorites && p.isActive === false) continue;
     if (deactivatedFilter === "DEACTIVATED_ONLY" && p.isActive !== false) continue;
     const inPool = onlyIneligible ? !p.eligible : showIneligible || onlyFavorites ? true : p.eligible;
@@ -280,7 +283,7 @@ export function buildNeighborhoodOptions(
   dynamicNeighborhoods: ComputedNeighborhood[],
 ): NeighborhoodOption[] {
   const {
-    enableBsbBenchmark,
+    enabledHiddenCities,
     onlyIneligible,
     showIneligible,
     selectedCities,
@@ -295,7 +298,7 @@ export function buildNeighborhoodOptions(
     { name: string; count: number; cityCode: CityHubCode }
   >();
   for (const p of evaluated) {
-    if (!enableBsbBenchmark && p.cityCode === "BSB") continue;
+    if (!isCityVisible(p.cityCode, enabledHiddenCities)) continue;
     if (onlyIneligible && p.eligible) continue;
     const isOnlyCommuteExcluded =
       !p.eligible &&
@@ -459,7 +462,7 @@ export function runPropertyQuery(
     response.facets = {
       counts: computePoolCounts(set.properties, state),
       neighborhoodOptions: buildNeighborhoodOptions(set.properties, state, set.ranked),
-      benchmark: state.enableBsbBenchmark ? buildBenchmarkStats(set.properties) : null,
+      benchmark: state.enabledHiddenCities.includes("BSB") ? buildBenchmarkStats(set.properties) : null,
     };
   }
   return response;

@@ -24,14 +24,14 @@ export const metadata: Metadata = {
     template: "%s | Housing",
   },
   description:
-    "Radar analítico de locação residencial em BH, Campinas, RJ e SP: 20 bairros ponderados, calibrador de pesos em tempo real e auditoria matemática de imóveis.",
+    "Radar analítico de locação residencial em BH, Campinas e RJ: bairros ponderados, calibrador de pesos em tempo real e auditoria matemática de imóveis.",
   openGraph: {
     type: "website",
     locale: "pt_BR",
     siteName: "Housing",
     title: "Housing",
     description:
-      "Explore rankings dinâmicos de 20 bairros e mais de 2.400 imóveis em BH, Campinas, RJ e SP com pesos ajustáveis e justificativas matemáticas.",
+      "Explore rankings dinâmicos de bairros e milhares de imóveis em BH, Campinas e RJ com pesos ajustáveis e justificativas matemáticas.",
   },
   robots: {
     index: false,

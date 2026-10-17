@@ -1295,9 +1295,17 @@ describe("Housing Dynamic Scoring Engine", () => {
     expect(bhAndRj.map((p) => p.id)).not.toContain("multi-city-cp");
     expect(bhAndRj.map((p) => p.id)).not.toContain("multi-city-sp");
 
-    // Empty selectedCities or all 4 selected returns all 4 cities
+    // SP is hidden by default: even an explicit selection never returns it
+    const allVisibleSelected = filterAndSortProperties(evaluated, {
+      ...DEFAULT_EXPLORER_FILTERS,
+      selectedCities: ["BH", "CP", "RJ", "SP"],
+    });
+    expect(allVisibleSelected.map((p) => p.cityCode).sort()).toEqual(["BH", "CP", "RJ"]);
+
+    // Once SP is enabled it behaves like any other city
     const allFourSelected = filterAndSortProperties(evaluated, {
       ...DEFAULT_EXPLORER_FILTERS,
+      enabledHiddenCities: ["SP"],
       selectedCities: ["BH", "CP", "RJ", "SP"],
     });
     expect(allFourSelected).toHaveLength(4);
@@ -2198,7 +2206,7 @@ describe("Housing Dynamic Scoring Engine", () => {
     });
 
     expect(mdThree).toContain(
-      "# Top 3 Imóveis Selecionados — Housing (BH · CP · RJ · SP)",
+      "# Top 3 Imóveis Selecionados — Housing",
     );
     expect(mdThree).toContain(
       "- **Filtros ativos**: Praça: BH · Andar Alto / Cobertura",
@@ -2228,7 +2236,7 @@ describe("Housing Dynamic Scoring Engine", () => {
 
     const mdFifty = formatTopPropertiesForAiPrompt(evaluatedSixtyFive);
     expect(mdFifty).toContain(
-      "# Top 50 Imóveis Selecionados — Housing (BH · CP · RJ · SP)",
+      "# Top 50 Imóveis Selecionados — Housing",
     );
     expect(mdFifty).toContain(
       "- **Total filtrado**: Exibindo top 50 de 65 imóveis",
@@ -2296,14 +2304,14 @@ describe("Housing Dynamic Scoring Engine", () => {
 
     const filteredOn = filterAndSortProperties(evalWithBenchmark, {
       ...DEFAULT_EXPLORER_FILTERS,
-      enableBsbBenchmark: true,
+      enabledHiddenCities: ["BSB"],
     });
     expect(filteredOn.map((p) => p.id)).toContain("bsb-aguas-claras-1");
     expect(filteredOn.map((p) => p.id)).toContain("bh-ref-1");
 
     const filteredOnlyBsb = filterAndSortProperties(evalWithBenchmark, {
       ...DEFAULT_EXPLORER_FILTERS,
-      enableBsbBenchmark: true,
+      enabledHiddenCities: ["BSB"],
       selectedCities: ["BSB"],
     });
     expect(filteredOnlyBsb.map((p) => p.id)).toEqual(["bsb-aguas-claras-1"]);

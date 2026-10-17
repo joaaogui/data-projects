@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import { CITY_LABELS } from "@/components/portal/constants";
+import { HIDDEN_BY_DEFAULT_CITIES, HIDDEN_CITY_LABELS } from "@/lib/city-config";
 import type { PortalController } from "@/components/portal/use-portal-controller";
 
 export function FiltersPanel({ ctl }: { ctl: PortalController }) {
@@ -37,12 +38,13 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
     copiedTop50Count,
     deactivatedFilter,
     deactivatedTotalCount,
-    enableBsbBenchmark,
+    enabledHiddenCities,
     favoriteKeys,
     filteredTotal,
     floorFilters,
     handleCitySelect,
     handleCopyTop50ForAi,
+    handleToggleHiddenCity,
     hideMegaCondo,
     ineligibleActiveCount,
     isPerfeitoPresetActive,
@@ -69,6 +71,7 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
     searchQuery,
     selectedBathrooms,
     selectedBedrooms,
+    selectableCityList,
     selectedCities,
     selectedFurnitureTiers,
     selectedNeighborhoods,
@@ -124,16 +127,7 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {/* Praça Quick Selector (Multi-Select — hidden on small screens since the top toolbar already shows city pills) */}
           <div className="hidden md:inline-flex items-center gap-0.5 rounded-lg border bg-background p-0.5 sm:order-1">
-            {(
-              [
-                "ALL",
-                "BH",
-                "CP",
-                "RJ",
-                "SP",
-                ...(enableBsbBenchmark ? (["BSB"] as const) : []),
-              ] as const
-            ).map((city) => {
+            {(["ALL", ...selectableCityList] as const).map((city) => {
               const isSelected =
                 city === "ALL"
                   ? selectedCities.length === 0
@@ -145,7 +139,7 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
                   aria-pressed={isSelected}
                   title={
                     city === "ALL"
-                      ? "Mostrar todas as 4 praças"
+                      ? `Mostrar todas as ${selectableCityList.length} praças`
                       : `Alternar ${CITY_LABELS[city]} (permite selecionar mais de uma praça)`
                   }
                   onClick={() => handleCitySelect(city)}
@@ -1570,6 +1564,32 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
                   </label>
                 </div>
               </div>
+            </div>
+
+            {/* Hidden-by-default cities: off unless switched on here */}
+            <div
+              className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-dashed bg-background/40 px-2.5 py-2 text-xs"
+              data-testid="hidden-cities-section"
+            >
+              <span className="font-bold uppercase tracking-wider text-muted-foreground text-[11px]">
+                Cidades ocultas
+              </span>
+              {HIDDEN_BY_DEFAULT_CITIES.map((city) => (
+                <label
+                  key={`hidden-city-${city}`}
+                  className="inline-flex items-center gap-2 font-medium cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    data-testid={`toggle-hidden-city-${city}`}
+                    checked={enabledHiddenCities.includes(city)}
+                    onChange={() => handleToggleHiddenCity(city)}
+                    className="accent-primary"
+                  />
+                  <span>{HIDDEN_CITY_LABELS[city]}</span>
+                </label>
+              ))}
             </div>
           </div>
         )}

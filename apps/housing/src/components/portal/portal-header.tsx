@@ -110,7 +110,7 @@ export function PortalHeader({ ctl }: { ctl: PortalController }) {
                 Housing
               </h1>
               <span className="hidden sm:inline-block rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary">
-                BH · CP · RJ · SP
+                BH · CP · RJ
               </span>
               {meta.updatedAt && (
                 <span
