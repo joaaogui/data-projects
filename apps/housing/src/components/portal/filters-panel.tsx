@@ -220,6 +220,7 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
               setVisibleCount(30);
             }}
             aria-pressed={onlyFavorites}
+            aria-label={`Favoritos (${favoriteKeys.length})`}
             title="Mostrar apenas seus imóveis favoritados (inclusive os que foram alugados/desativados)"
             className={`order-3 sm:order-2 inline-flex shrink-0 items-center gap-1 rounded-lg border px-1.5 py-1 text-xs font-semibold transition-colors sm:gap-1.5 sm:px-2.5 ${
               onlyFavorites
@@ -234,8 +235,7 @@ export function FiltersPanel({ ctl }: { ctl: PortalController }) {
                   : "text-muted-foreground"
               }`}
             />
-            <span className="hidden sm:inline">Favoritos </span>
-            <span>({favoriteKeys.length})</span>
+            <span>{favoriteKeys.length}</span>
           </button>
 
           {/* 1-Click Perfeito Filter Preset Toggle */}
