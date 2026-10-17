@@ -12,9 +12,14 @@ import {
   computeDynamicProperties,
   computeListingAge,
   DEFAULT_WEIGHTS,
+  describeFurnitureInText,
   detectArterialOrBorderBunker,
   evaluateStreetMicroEnvironment,
+  extractExplicitFloorFromText,
+  FURNITURE_CONFLICT_TAG,
   hasActiveSaleListing,
+  HOSPITAL_NOISE_TAG,
+  PRICE_MISMATCH_TAG,
   isApartHotelListing,
   parseCommuteMinutes,
   resolveCpFarCommute,
@@ -55,6 +60,11 @@ import {
   applyListingDeactivations,
   isQuintoAndarUnavailableHtml,
 } from "@/lib/listing-deactivations";
+import {
+  extractDescriptionRent,
+  findCrossPortalDuplicateGroups,
+  prepareListingsForScoring,
+} from "@/lib/listing-normalization";
 import {
   PHOTO_AUDIT_OVERRIDES,
   type PhotoAuditOverride,
@@ -1585,7 +1595,7 @@ describe("Housing Dynamic Scoring Engine", () => {
       id: "furn-semi-appliances",
       furnished: false,
       comfortCommodities: [],
-      practicalityCommodities: ["Fogão", "Geladeira", "Microondas"],
+      practicalityCommodities: ["Fogão", "Geladeira", "Microondas", "Armários na cozinha"],
       description:
         "Apartamento com cozinha equipada (fogão, geladeira e micro-ondas), pronto para morar.",
     };
@@ -2045,6 +2055,7 @@ describe("Housing Dynamic Scoring Engine", () => {
     );
     const baseProp: SlimPropertyRecord = {
       ...SAMPLE_PROPERTIES[0]!,
+      streetNumber: null,
       floor: null,
       floorRange: null,
       totalFloors: 15,
@@ -2071,7 +2082,7 @@ describe("Housing Dynamic Scoring Engine", () => {
         "Excelente apartamento reformado com 1 vaga de garagem fixa no térreo, lazer no térreo com piscina e portaria no térreo.",
     };
 
-    // 3. Duplex internal levels ("1º andar sala, 2º andar quartos") -> Legendary Duplex, NOT Andar baixo
+    // 3. Duplex internal levels ("1º andar sala, 2º andar quartos") -> NOT Andar baixo; unknown unit floor gets only the loft +3
     const duplexInternalLevels: SlimPropertyRecord = {
       ...baseProp,
       id: "duplex-levels",
@@ -2135,10 +2146,9 @@ describe("Housing Dynamic Scoring Engine", () => {
 
     expect(byId.get("zap-zero-placeholder")?.cardTags.floorTag).toBeNull();
     expect(byId.get("condo-vaga-terreo")?.cardTags.floorTag).toBeNull();
-    expect(byId.get("duplex-levels")?.cardTags.floorTag).toEqual({
-      label: "Duplex / Pé-direito duplo",
-      rarity: "legendary",
-    });
+    expect(byId.get("duplex-levels")?.cardTags.floorTag).toBeNull();
+    expect(byId.get("duplex-levels")?.cardTags.lowFloorLabel).toBeNull();
+    expect(byId.get("duplex-levels")?.nuanceHighlights).toContain("Pé-direito duplo (loft)");
     expect(byId.get("text-9-andar")?.cardTags.floorTag).toEqual({
       label: "Andar alto (9º andar)",
       rarity: "epic",
@@ -3774,7 +3784,7 @@ describe("Calibration fixes: CP far commute, sale status, modernity ramp, no cit
       computeDynamicProperties(
         [
           cpProp({ id: "qa-relisted", provider: "quintoandar", publishedAt: iso(1023), listingUpdatedAt: iso(20) }),
-          cpProp({ id: "zap-bumped", provider: "zapimoveis", publishedAt: iso(200), listingUpdatedAt: iso(2) }),
+          cpProp({ id: "zap-bumped", provider: "zapimoveis", streetNumber: "999", publishedAt: iso(200), listingUpdatedAt: iso(2) }),
         ],
         rankedNbs,
         DEFAULT_WEIGHTS,
@@ -3865,6 +3875,7 @@ describe("Top-20 photo audit rules: AC evidence, doorman field, Zap 1st floor, p
   const rule = (overrides: Partial<SlimPropertyRecord>): SlimPropertyRecord => ({
     ...SAMPLE_PROPERTIES[0]!,
     id: "rule-base",
+    streetNumber: null,
     title: "Apartamento 1 quarto",
     description: "Apartamento com 1 vaga.",
     generatedDescription: null,
@@ -3889,17 +3900,19 @@ describe("Top-20 photo audit rules: AC evidence, doorman field, Zap 1st floor, p
   const modernOverride: PhotoAuditOverride = { modernityScore: 90, modernityTier: "MODERN_OR_RENOVATED" };
 
   it("scores portal-checkbox-only AC as unconfirmed (0 pts, amber tag) and keeps +12 / -10 for confirmed / absent AC", () => {
+    const used = (overrides: Partial<SlimPropertyRecord>) =>
+      rule({ condition: "USED", constructionYear: null, modernityScore: 80, ...overrides });
     withOverrides({ "quintoandar:ac-photo": { ...modernOverride, verifiedAC: true } }, () => {
       const byId = evaluate([
-        rule({ id: "ac-none" }),
-        rule({ id: "ac-qa-checkbox", comfortCommodities: ["Ar condicionado"], amenities: ["Box", "Ar condicionado"] }),
-        rule({ id: "ac-zap-checkbox", provider: "zapimoveis", amenities: ["AIR_CONDITIONING"] }),
-        rule({ id: "ac-signal-only", positiveSignals: ["Ar-condicionado"] }),
-        rule({ id: "ac-infra-text", description: "Sala com ponto para ar-condicionado split." }),
-        rule({ id: "ac-text", comfortCommodities: ["Ar condicionado"], description: "Sala e quarto com ares condicionados." }),
-        rule({ id: "ac-split", description: "Split inverter na suíte." }),
-        rule({ id: "ac-photo", comfortCommodities: ["Ar condicionado"] }),
-        rule({ id: "ac-negated", comfortCommodities: ["Ar condicionado"], description: "Imóvel sem ar-condicionado." }),
+        used({ id: "ac-none" }),
+        used({ id: "ac-qa-checkbox", comfortCommodities: ["Ar condicionado"], amenities: ["Box", "Ar condicionado"] }),
+        used({ id: "ac-zap-checkbox", provider: "zapimoveis", amenities: ["AIR_CONDITIONING"] }),
+        used({ id: "ac-signal-only", positiveSignals: ["Ar-condicionado"] }),
+        used({ id: "ac-infra-text", description: "Sala com ponto para ar-condicionado split." }),
+        used({ id: "ac-text", comfortCommodities: ["Ar condicionado"], description: "Sala e quarto com ares condicionados." }),
+        used({ id: "ac-split", description: "Split inverter na suíte." }),
+        used({ id: "ac-photo", comfortCommodities: ["Ar condicionado"] }),
+        used({ id: "ac-negated", comfortCommodities: ["Ar condicionado"], description: "Imóvel sem ar-condicionado." }),
       ]);
       const pts = (id: string) => byId.get(id)!.breakdown.nuancesPoints;
 
@@ -4066,5 +4079,353 @@ describe("Top-20 photo audit rules: AC evidence, doorman field, Zap 1st floor, p
     expect(relisted!.isActive).toBe(true);
     expect(live!.isActive).toBe(true);
     expect(evaluate([gone!, live!]).get("gone")!.overallRank).toBeNull();
+  });
+});
+
+describe("Round-2 audit rules: duplicates, price/IPTU, lofts, furniture, cobertura/varanda, bare shell, AC, commute, noise", () => {
+  const rankedNbs = computeDynamicNeighborhoods(SAMPLE_NEIGHBORHOODS, DEFAULT_WEIGHTS).ranked;
+  const unit = (overrides: Partial<SlimPropertyRecord>): SlimPropertyRecord => ({
+    ...SAMPLE_PROPERTIES[0]!,
+    id: "r2-base",
+    neighborhood: "Funcionários",
+    street: "Rua Alagoas",
+    streetNumber: null,
+    title: "Apartamento 1 quarto",
+    description: "Apartamento com 1 vaga.",
+    generatedDescription: null,
+    floor: null,
+    floorRange: null,
+    totalFloors: null,
+    installations: ["Elevador"],
+    amenities: ["Box", "Armários na cozinha"],
+    comfortCommodities: [],
+    practicalityCommodities: [],
+    photoCaptions: [],
+    positiveSignals: [],
+    ...overrides,
+  });
+  const evaluate = (props: SlimPropertyRecord[]) =>
+    new Map(computeDynamicProperties(props, rankedNbs, DEFAULT_WEIGHTS).map((p) => [p.id, p]));
+  const withOverrides = (entries: Record<string, PhotoAuditOverride>, run: () => void) => {
+    Object.assign(PHOTO_AUDIT_OVERRIDES, entries);
+    try {
+      run();
+    } finally {
+      for (const key of Object.keys(entries)) delete PHOTO_AUDIT_OVERRIDES[key];
+    }
+  };
+  const modern: PhotoAuditOverride = { modernityScore: 90, modernityTier: "MODERN_OR_RENOVATED" };
+
+  it("merges cross-portal duplicates: fills floor/doorman/description, takes the smaller area and earliest date, tags the twin", () => {
+    const qa = unit({
+      id: "dup-qa",
+      streetNumber: "47",
+      street: "Rua Dom Vital",
+      rent: 3400,
+      condoFee: 380,
+      areaM2: 40,
+      floorRange: { min: 0, max: 3 },
+      doorman: "NotAvailable",
+      description: null,
+      publishedAt: "2026-09-11T03:23:58.000Z",
+    });
+    const iw = unit({
+      id: "dup-iw",
+      provider: "imovelweb",
+      streetNumber: "47",
+      street: "R. Dom Vital",
+      rent: 3400,
+      condoFee: 380,
+      areaM2: 48,
+      doorman: null,
+      description: "Sala com ar condicionado e 1 vaga de garagem livre.",
+      publishedAt: "2026-10-16T11:20:27.000Z",
+    });
+    const otherUnit = unit({ id: "dup-other", provider: "zapimoveis", streetNumber: "47", street: "Rua Dom Vital", rent: 4100 });
+    const sameProvider = unit({ id: "dup-same-provider", streetNumber: "47", street: "Rua Dom Vital", rent: 3400, condoFee: 380 });
+    expect(findCrossPortalDuplicateGroups([qa, iw, otherUnit, sameProvider]).map((g) => g.map((p) => p.id).sort())).toEqual([
+      ["dup-iw", "dup-qa"],
+    ]);
+
+    const byId = evaluate([qa, iw, otherUnit]);
+    const evIw = byId.get("dup-iw")!;
+    const evQa = byId.get("dup-qa")!;
+    expect(evIw.areaM2).toBe(40);
+    expect(evIw.doorman).toBe("NotAvailable");
+    expect(evIw.cardTags.lowFloorLabel).toBe("Andar baixo (1º–3º andar)");
+    expect(evIw.publishedAt).toBe("2026-09-11T03:23:58.000Z");
+    expect(evIw.cardTags.warningTags).toContain("Também anunciado em QuintoAndar");
+    expect(evQa.description).toMatch(/ar condicionado/);
+    expect(evQa.cardTags.acLabel).toBe("Ar-condicionado");
+    expect(evQa.cardTags.warningTags).toContain("Também anunciado em Imovelweb");
+    expect(byId.get("dup-other")!.alsoListedOn).toBeUndefined();
+
+    const zapPlaceholder = unit({ id: "dup-zap", provider: "zapimoveis", streetNumber: "9", floor: 0, rent: 3000 });
+    const qaNoFloor = unit({ id: "dup-qa-nofloor", streetNumber: "9", floor: null, rent: 3000 });
+    const [, mergedQa] = prepareListingsForScoring([zapPlaceholder, qaNoFloor]);
+    expect(mergedQa!.alsoListedOn).toEqual(["zapimoveis:dup-zap"]);
+    expect(mergedQa!.floor).toBeNull();
+  });
+
+  it("uses a higher rent stated in the description for the total and flags the mismatch", () => {
+    expect(extractDescriptionRent("Condomínio: R$ 800,00 | IPTU mensal: R$ 156,00 | Aluguel: R$ 4.200,00.")).toBe(4200);
+    expect(extractDescriptionRent("O valor do aluguel R$ 3.900 já com desconto.")).toBe(3900);
+    expect(extractDescriptionRent("Aluguel + condomínio: R$ 5.000")).toBeNull();
+    expect(extractDescriptionRent("Valor total do aluguel R$ 5.156 (pacote)")).toBeNull();
+    expect(extractDescriptionRent("Aluguel R$ 4.000 + condomínio")).toBeNull();
+
+    const byId = evaluate([
+      unit({ id: "price-higher", rent: 4000, totalMonthly: 4956, iptu: 156, description: "Aluguel: R$ 4.200,00." }),
+      unit({ id: "price-lower", rent: 4000, totalMonthly: 4956, iptu: 156, description: "Aluguel: R$ 3.800,00." }),
+      unit({ id: "price-sale", rent: 4000, totalMonthly: 4956, iptu: 156, description: "Aluguel R$ 650.000 (venda)." }),
+    ]);
+    const higher = byId.get("price-higher")!;
+    expect(higher.rent).toBe(4200);
+    expect(higher.listedRent).toBe(4000);
+    expect(higher.totalMonthly).toBe(5156);
+    expect(higher.cardTags.warningTags).toContain(PRICE_MISMATCH_TAG);
+    for (const id of ["price-lower", "price-sale"]) {
+      expect(byId.get(id)!.totalMonthly).toBe(4956);
+      expect(byId.get(id)!.cardTags.warningTags).not.toContain(PRICE_MISMATCH_TAG);
+    }
+  });
+
+  it("estimates IPTU at R$ 2,50/m² when missing, 'sob estimativa' or implausibly low", () => {
+    const byId = evaluate([
+      unit({ id: "iptu-low", areaM2: 66, iptu: 30, totalMonthly: 4825 }),
+      unit({ id: "iptu-estimativa", areaM2: 60, iptu: 100, totalMonthly: 4000, description: "IPTU sob estimativa." }),
+      unit({ id: "iptu-exempt", areaM2: 60, iptu: 0, totalMonthly: 4000, description: "Imóvel isento de IPTU." }),
+      unit({ id: "iptu-ok", areaM2: 60, iptu: 200, totalMonthly: 4000 }),
+    ]);
+    expect(byId.get("iptu-low")!.iptu).toBe(165);
+    expect(byId.get("iptu-low")!.listedIptu).toBe(30);
+    expect(byId.get("iptu-low")!.totalMonthly).toBe(4960);
+    expect(byId.get("iptu-low")!.nuanceWarnings.join(" ")).toMatch(/IPTU estimado em R\$ 165/);
+    expect(byId.get("iptu-estimativa")!.iptu).toBe(150);
+    expect(byId.get("iptu-estimativa")!.totalMonthly).toBe(4050);
+    for (const id of ["iptu-exempt", "iptu-ok"]) {
+      expect(byId.get(id)!.listedIptu).toBeUndefined();
+      expect(byId.get(id)!.totalMonthly).toBe(4000);
+    }
+  });
+
+  it("only gives duplex/cobertura bonuses on real elevation; lofts get +3 and keep the low-floor penalty", () => {
+    expect(extractExplicitFloorFromText("A unidade está localizada no 3o andar, sol da manhã.")).toBe(3);
+    expect(extractExplicitFloorFromText("Apartamento no 3° andar.")).toBe(3);
+    expect(extractExplicitFloorFromText("Apartamento no 3º andar.")).toBe(3);
+
+    const byId = evaluate([
+      unit({
+        id: "loft-lowrise-top",
+        areaM2: 50,
+        floorRange: { min: 4, max: 7 },
+        amenities: ["Box", "Armários na cozinha", "Apartamento cobertura"],
+        description: "Loft com área de 50 m². Último andar do prédio (4o andar).",
+      }),
+      unit({
+        id: "loft-small-high",
+        areaM2: 45,
+        floorRange: { min: 8, max: 11 },
+        description: "Imóvel com pé direito duplo de 45 m², varanda com vista.",
+      }),
+      unit({
+        id: "loft-low",
+        areaM2: 60,
+        floorRange: { min: 0, max: 3 },
+        description: "Duplex com suíte no mezanino superior. A unidade está localizada no 3o andar.",
+      }),
+      unit({ id: "duplex-big-mid", areaM2: 80, floor: 10, totalFloors: 20, description: "Apartamento duplex amplo." }),
+      unit({ id: "cobertura-top", areaM2: 90, floor: 20, totalFloors: 20, description: "Cobertura com terraço." }),
+      unit({ id: "plain-mid", areaM2: 50, floorRange: { min: 4, max: 7 } }),
+      unit({ id: "plain-high", areaM2: 45, floorRange: { min: 8, max: 11 } }),
+      unit({ id: "plain-low", areaM2: 60, floorRange: { min: 0, max: 3 }, description: "A unidade está localizada no 3o andar." }),
+    ]);
+    const pts = (id: string) => byId.get(id)!.breakdown.nuancesPoints;
+    const lowriseTop = byId.get("loft-lowrise-top")!;
+    expect(lowriseTop.cardTags.floorTag).toEqual({ label: "Andar médio (4º–7º andar)", rarity: "rare" });
+    expect(lowriseTop.nuanceHighlights).toContain("Pé-direito duplo (loft)");
+    expect(pts("loft-lowrise-top")).toBeCloseTo(pts("plain-mid") + 3, 1);
+
+    expect(byId.get("loft-small-high")!.cardTags.floorTag?.rarity).toBe("epic");
+    expect(byId.get("loft-small-high")!.nuanceHighlights).not.toContain("Duplex / Pé-direito duplo");
+
+    const low = byId.get("loft-low")!;
+    expect(low.cardTags.lowFloorLabel).toBe("Andar baixo (3º andar)");
+    expect(pts("loft-low")).toBeCloseTo(pts("plain-low") + 3, 1);
+
+    expect(byId.get("duplex-big-mid")!.cardTags.floorTag).toEqual({ label: "Duplex / Pé-direito duplo", rarity: "legendary" });
+    expect(byId.get("cobertura-top")!.cardTags.floorTag).toEqual({
+      label: "Cobertura / Duplex (Último andar)",
+      rarity: "legendary",
+    });
+    expect(pts("plain-high")).toBeGreaterThan(0);
+  });
+
+  it("classifies 'mobiliado' text + portal flag as furnished, and warns on furniture conflicts without changing the score", () => {
+    expect(describeFurnitureInText("Apartamento todo mobiliado, pronto para morar.")).toBe("furnished");
+    expect(describeFurnitureInText("Alugado mobiliado, porteira fechada.")).toBe("furnished");
+    expect(describeFurnitureInText("Apartamento semi-mobiliado.")).toBe("unfurnished");
+    expect(describeFurnitureInText("Não mobiliado, apenas armários.")).toBe("unfurnished");
+    expect(describeFurnitureInText("Pode ser alugado mobiliado ou sem mobília.")).toBeNull();
+    expect(describeFurnitureInText("Apartamento com 1 vaga.")).toBeNull();
+
+    expect(classifyFurnitureTier(unit({ id: "f-flag-text", furnished: true, description: "Todo reformado e mobiliado." }))).toBe(
+      "FULLY_FURNISHED",
+    );
+    expect(classifyFurnitureTier(unit({ id: "f-flag-only", furnished: true, description: "Apartamento reformado." }))).toBe(
+      "UNFURNISHED",
+    );
+    expect(classifyFurnitureTier(unit({ id: "f-text-only", furnished: false, description: "Apartamento mobiliado." }))).toBe(
+      "UNFURNISHED",
+    );
+    expect(
+      classifyFurnitureTier(unit({ id: "f-semi", furnished: true, description: "Semi-mobiliado, só armários." })),
+    ).toBe("UNFURNISHED");
+
+    withOverrides({ "quintoandar:f-audit-unf": { ...modern, furnishedTier: "UNFURNISHED" } }, () => {
+      const byId = evaluate([
+        unit({ id: "f-audit-unf", furnished: true, description: "Elegante apartamento mobiliado, completíssimo." }),
+        unit({ id: "f-text-only", furnished: false, description: "Apartamento mobiliado." }),
+        unit({ id: "f-no-conflict", furnished: false, description: "Apartamento sem mobília." }),
+      ]);
+      expect(byId.get("f-audit-unf")!.furnitureTier).toBe("UNFURNISHED");
+      for (const id of ["f-audit-unf", "f-text-only"]) {
+        expect(byId.get(id)!.cardTags.warningTags).toContain(FURNITURE_CONFLICT_TAG);
+      }
+      expect(byId.get("f-no-conflict")!.cardTags.warningTags).not.toContain(FURNITURE_CONFLICT_TAG);
+      expect(byId.get("f-text-only")!.finalScore).toBeCloseTo(byId.get("f-no-conflict")!.finalScore, 1);
+    });
+  });
+
+  it("requires corroboration for cobertura checkboxes and drops integrated balconies unless a photo audit verifies one", () => {
+    withOverrides({ "quintoandar:bal-verified": { ...modern, verifiedBalcony: true }, "quintoandar:bal-none": modern }, () => {
+      const byId = evaluate([
+        unit({ id: "cob-checkbox", areaM2: 45, floorRange: { min: 12, max: 15 }, amenities: ["Box", "Apartamento cobertura"] }),
+        unit({ id: "cob-checkbox-big", areaM2: 75, floorRange: { min: 12, max: 15 }, amenities: ["Box", "Apartamento cobertura"] }),
+        unit({ id: "bal-checkbox", amenities: ["Box", "Varanda"] }),
+        unit({ id: "bal-integrated", amenities: ["Box", "Varanda"], description: "Sala ampla com varanda integrada." }),
+        unit({ id: "bal-glass", description: "Varanda fechada com vidro." }),
+        unit({ id: "bal-verified" }),
+        unit({ id: "bal-none" }),
+      ]);
+      expect(byId.get("cob-checkbox")!.nuanceHighlights).not.toContain("Cobertura");
+      expect(byId.get("cob-checkbox-big")!.cardTags.floorTag?.label).toBe("Cobertura");
+      expect(byId.get("bal-checkbox")!.nuanceHighlights).toContain("Varanda");
+      expect(byId.get("bal-integrated")!.nuanceHighlights).not.toContain("Varanda");
+      expect(byId.get("bal-glass")!.nuanceHighlights).toContain("Varanda");
+      expect(byId.get("bal-verified")!.nuanceHighlights).toContain("Varanda");
+      expect(byId.get("bal-verified")!.breakdown.nuancesPoints).toBeCloseTo(byId.get("bal-none")!.breakdown.nuancesPoints + 5, 1);
+    });
+  });
+
+  it("penalizes bare-shell units (no cabinets anywhere) and caps their unfurnished bonus", () => {
+    const checklist = ["Varanda", "Cozinha americana", "Área de serviço", "Pode ter animais de estimação", "Quartos e corredores com portas amplas"];
+    withOverrides({ "quintoandar:shell-audit": { ...modern, noCabinets: true } }, () => {
+      const byId = evaluate([
+        unit({ id: "shell-nobox", amenities: checklist, practicalityCommodities: ["Tanque"] }),
+        unit({ id: "shell-box", amenities: ["Box", ...checklist], practicalityCommodities: ["Tanque"] }),
+        unit({ id: "shell-audit" }),
+        unit({ id: "shell-cabinets", amenities: ["Box", "Armários na cozinha", ...checklist], practicalityCommodities: ["Tanque"] }),
+        unit({ id: "shell-sparse", amenities: ["Varanda"] }),
+        unit({ id: "shell-zap", provider: "zapimoveis", amenities: ["POOL", "GYM", "BALCONY", "ELEVATOR", "PARTY_HALL", "GARDEN"] }),
+      ]);
+      const ev = (id: string) => byId.get(id)!;
+      expect(ev("shell-nobox").nuanceWarnings.join(" ")).toMatch(/Sem nenhum armário[\s\S]*Banheiro sem box/);
+      expect(ev("shell-nobox").breakdown.furniturePoints).toBe(10);
+      expect(ev("shell-box").breakdown.nuancesPoints).toBeCloseTo(ev("shell-nobox").breakdown.nuancesPoints + 2, 1);
+      expect(ev("shell-audit").breakdown.furniturePoints).toBe(10);
+      for (const id of ["shell-cabinets", "shell-sparse", "shell-zap"]) {
+        expect(ev(id).nuanceWarnings.join(" "), id).not.toMatch(/Sem nenhum armário/);
+        expect(ev(id).breakdown.furniturePoints, id).toBe(DEFAULT_WEIGHTS.unfurnishedBonus);
+      }
+    });
+  });
+
+  it("trusts the AC checkbox on new/renovated units with modernity >= 85 unless an audit says there is no split", () => {
+    const checkbox = { comfortCommodities: ["Ar condicionado"], condition: "NEW_OR_RENOVATED" as const };
+    withOverrides(
+      {
+        "quintoandar:ac-trust-false": { ...modern, falseAC: true },
+        "quintoandar:ac-trust-audit-nosplit": { ...modern, visualWarnings: ["Sem split instalado"] },
+      },
+      () => {
+        const byId = evaluate([
+          unit({ id: "ac-trust", ...checkbox, modernityScore: 90 }),
+          unit({ id: "ac-trust-false", ...checkbox }),
+          unit({ id: "ac-trust-audit-nosplit", ...checkbox }),
+          unit({ id: "ac-trust-dated", ...checkbox, modernityScore: 80, constructionYear: null }),
+          unit({ id: "ac-trust-used", ...checkbox, condition: "USED", constructionYear: null, modernityScore: 90 }),
+          unit({ id: "ac-trust-infra", ...checkbox, modernityScore: 90, description: "Ponto para ar-condicionado na sala." }),
+        ]);
+        expect(byId.get("ac-trust")!.cardTags.acLabel).toBe("Ar-condicionado");
+        expect(byId.get("ac-trust-false")!.cardTags.redTags).toContain(AC_ABSENT_TAG);
+        for (const id of ["ac-trust-audit-nosplit", "ac-trust-dated", "ac-trust-used", "ac-trust-infra"]) {
+          expect(byId.get(id)!.cardTags.warningTags, id).toContain(AC_UNCONFIRMED_TAG);
+        }
+      },
+    );
+  });
+
+  it("treats the BH south axis (Vila da Serra, Vale do Sereno, Belvedere) as a 30–50 min BR-356 commute", () => {
+    const byId = evaluate([
+      unit({ id: "nb-vila-serra", neighborhood: "Vila da Serra" }),
+      unit({ id: "nb-sereno", neighborhood: "Vale do Sereno" }),
+      unit({ id: "nb-belvedere", neighborhood: "Belvedere" }),
+    ]);
+    expect(byId.get("nb-vila-serra")!.commuteLabel).toBe("30–50 min");
+    expect(byId.get("nb-sereno")!.commuteLabel).toBe("30–50 min");
+    expect(byId.get("nb-belvedere")!.commuteLabel).toBe("25–45 min");
+    for (const p of byId.values()) {
+      expect(p.eligible).toBe(true);
+      expect(p.breakdown.commutePoints).toBeLessThan(-3);
+    }
+  });
+
+  it("flags hospital-cluster noise (halved on high floors) and ignores 'Rua silenciosa' on busy streets", () => {
+    const byId = evaluate([
+      unit({ id: "hosp-low", neighborhood: "Santa Efigênia", street: "Rua Padre Marinho", floor: 5 }),
+      unit({ id: "hosp-high", neighborhood: "Santa Efigênia", street: "Rua Padre Marinho", floor: 16 }),
+      unit({ id: "hosp-none-low", neighborhood: "Santa Efigênia", street: "Rua Piauí", floor: 5 }),
+      unit({ id: "hosp-none-high", neighborhood: "Santa Efigênia", street: "Rua Piauí", floor: 16 }),
+      unit({ id: "hosp-sp", cityCode: "SP", city: "São Paulo", neighborhood: "Perdizes", street: "Rua Barão do Bananal" }),
+      unit({ id: "quiet", comfortCommodities: ["Rua silenciosa"] }),
+      unit({ id: "quiet-market", comfortCommodities: ["Rua silenciosa"], description: "Em frente a supermercados e a padaria Romana (24h)." }),
+      unit({ id: "quiet-bars", comfortCommodities: ["Rua silenciosa"], description: "Perto dos bares e da vida noturna." }),
+      unit({ id: "quiet-posto", comfortCommodities: ["Rua silenciosa"], description: "Ao lado do posto de gasolina." }),
+    ]);
+    const pts = (id: string) => byId.get(id)!.breakdown.nuancesPoints;
+    expect(byId.get("hosp-low")!.cardTags.warningTags).toContain(HOSPITAL_NOISE_TAG);
+    expect(pts("hosp-low")).toBeCloseTo(pts("hosp-none-low") - 3, 1);
+    expect(pts("hosp-high")).toBeCloseTo(pts("hosp-none-high") - 1.5, 1);
+    expect(byId.get("hosp-none-low")!.cardTags.warningTags).not.toContain(HOSPITAL_NOISE_TAG);
+    expect(byId.get("hosp-sp")!.cardTags.warningTags).toContain(HOSPITAL_NOISE_TAG);
+    expect(byId.get("quiet")!.nuanceHighlights).toContain("Rua silenciosa");
+    for (const id of ["quiet-market", "quiet-bars", "quiet-posto"]) {
+      expect(byId.get(id)!.nuanceHighlights, id).not.toContain("Rua silenciosa");
+    }
+  });
+
+  it("counts 'vaga fixa' as demarcated parking, rewards a guarita without doorman data, and skips individual utilities", () => {
+    const byId = evaluate([
+      unit({ id: "vaga-fixa", description: "1 vaga fixa na garagem." }),
+      unit({ id: "vaga-coberta-fixa", description: "Vaga coberta e fixa." }),
+      unit({ id: "vaga-plain", description: "1 vaga na garagem." }),
+      unit({ id: "guarita", doorman: null, description: "Guarita de segurança e portão eletrônico." }),
+      unit({ id: "guarita-no-doorman", doorman: "NotAvailable", description: "Guarita de segurança e portão eletrônico." }),
+      unit({ id: "no-guarita", doorman: null, description: "Portão eletrônico." }),
+      unit({ id: "agua-individual", description: "Consumos de água e gás individuais." }),
+      unit({ id: "agua-individual-2", description: "Água e gás individualizados." }),
+      unit({ id: "agua-inclusa", description: "Água e gás inclusos no condomínio." }),
+    ]);
+    const hl = (id: string) => byId.get(id)!.nuanceHighlights;
+    expect(hl("vaga-fixa")).toContain("Vaga livre e demarcada");
+    expect(hl("vaga-coberta-fixa")).toContain("Vaga livre e demarcada");
+    expect(hl("vaga-plain")).not.toContain("Vaga livre e demarcada");
+    expect(hl("guarita")).toContain("Guarita de segurança");
+    expect(byId.get("guarita")!.breakdown.nuancesPoints).toBeCloseTo(byId.get("no-guarita")!.breakdown.nuancesPoints + 2.5, 1);
+    expect(hl("guarita-no-doorman")).not.toContain("Guarita de segurança");
+    expect(hl("agua-individual")).not.toContain("Água/gás inclusos no condomínio");
+    expect(hl("agua-individual-2")).not.toContain("Água/gás inclusos no condomínio");
+    expect(hl("agua-inclusa")).toContain("Água/gás inclusos no condomínio");
   });
 });

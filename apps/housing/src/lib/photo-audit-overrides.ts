@@ -8,6 +8,8 @@ export interface PhotoAuditOverride {
   verifiedAC?: boolean;
   falseGourmet?: boolean;
   falseFreeView?: boolean;
+  /** Private balcony seen in the photos; grants the balcony bonus when the listing never mentions it. */
+  verifiedBalcony?: boolean;
   /** No kitchen/wardrobe cabinets visible despite the portal checkboxes. */
   noCabinets?: boolean;
   /** Used only when the listing has no floor/floorRange. */
@@ -230,15 +232,103 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Sem split instalado (provável nicho de condensadora na área de serviço)",
+      "Cozinha sem cooktop/forno"
+    ]
   },
   "zapimoveis:2892142503": {
     "modernityScore": 95,
     "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Auditoria visual: Split instalado só na sala; quarto aparenta ter apenas preparação para AC"
+    ]
+  },
+  "zapimoveis:2908131723": {
+    "modernityScore": 86,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Auditoria visual (Mandarim Guanabara): quarto semi-aberto para a sala (divisória ripada + painel de TV giratório, sem porta) — planta tipo studio; alugado totalmente mobiliado 'como nas fotos' (geladeira, sofá, cama, TV, mesa)"
+    ]
+  },
+  "imovelweb:3036923811": {
+    "modernityScore": 91,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Andar baixo; janela da sala dá para cerca viva/muro (sem vista); sem portaria 24h (só portão eletrônico); mesmo imóvel que quintoandar:895715483"
+    ]
+  },
+  "quintoandar:895715483": {
+    "modernityScore": 91,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Split visível na sala e no quarto; mesmo imóvel que imovelweb:3036923811"
+    ]
+  },
+  "quintoandar:895773986": {
+    "modernityScore": 58,
+    "modernityTier": "STANDARD",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Auditoria visual (Ed. Mariangela Teixeira): só sala/quarto repaginados (laminado novo); cozinha, banheiro e área de serviço originais anos 90 (fórmica, azulejo pequeno, piso xadrez), janelas antigas e venezianas de madeira no quarto, sem split visível; 'cobertura' e 'varanda' não aparecem nas fotos; mobiliado completo"
+    ]
+  },
+  "quintoandar:895617171": {
+    "modernityScore": 86,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": true,
+    "falseGourmet": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Auditoria visual (Ed. Malaga): reforma recente (porcelanato cinza, sancas com spots, armários novos), mas janelas originais de alumínio bronze com persiana de enrolar (1996) e sem split instalado — só pontos de infraestrutura",
+      "Não possui varanda: terraço integrado à sala (texto do proprietário)",
+      "Ao lado do Hospital São Camilo (sirenes)"
+    ]
+  },
+  "quintoandar:895753000": {
+    "modernityScore": 90,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Auditoria visual: unidade nova (piso vinílico amadeirado, painel ripado com LED, cozinha planejada com forno/cooktop embutidos, banheiro em porcelanato grande); splits instalados na sala e no quarto; fotos vazias e portal 'Sem mobília', mas a descrição do proprietário diz 'mobiliado (geladeira, TVs, sofá, mesa)' — confirmar se os móveis saem"
+    ]
+  },
+  "quintoandar:894145534": {
+    "modernityScore": 86,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "floorHint": "LOW",
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": false,
+    "visualWarnings": [
+      "Loft com suíte em mezanino aberto (guarda-corpo de vidro, sem porta) e escada flutuante interna",
+      "3º andar voltado para a Rua Maria Monteiro (eixo comercial/boêmio: Oba, padaria 24h, posto em frente)",
+      "Fotos de jul/2023; acabamento estilo ~2012 (pastilha de vidro, granito preto); split só no mezanino"
+    ]
   },
   "zapimoveis:2903408622": {
     "modernityScore": 88,
@@ -402,13 +492,16 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "quintoandar:893560095": {
-    "modernityScore": 86,
+    "modernityScore": 84,
     "modernityTier": "MODERN_OR_RENOVATED",
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Piso cerâmico pequeno original na sacada"
+      "Piso cerâmico pequeno original na sacada",
+      "Quarto em mezanino aberto com escada interna caracol (loft)",
+      "Sem lavanderia na unidade — lavanderia coletiva no prédio",
+      "Garagem possivelmente com manobrista (prédio Moema Loft)"
     ]
   },
   "quintoandar:895736663": {
@@ -621,13 +714,16 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "quintoandar:895708603": {
-    "modernityScore": 86,
+    "modernityScore": 82,
     "modernityTier": "MODERN_OR_RENOVATED",
     "furnishedTier": "UNFURNISHED",
+    "noCabinets": true,
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Ausência total de armários na cozinha, banheiros e quartos (imóvel recém-entregue cru)"
+      "Ausência total de armários na cozinha, banheiros e quartos (imóvel recém-entregue cru)",
+      "Banheiros sem box, sem chuveiro instalado e sem espelho; sem luminárias (entrega padrão construtora)",
+      "Varanda com bancada de granito e pia (gourmet sem churrasqueira)"
     ]
   },
   "zapimoveis:2907744516": {
@@ -720,11 +816,14 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "zapimoveis:2903789730": {
-    "modernityScore": 88,
+    "modernityScore": 84,
     "modernityTier": "MODERN_OR_RENOVATED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Laminado amadeirado avermelhado no quarto e granito pontilhado (padrão ~2012-2015)",
+      "Sem split instalado em nenhum ambiente"
+    ]
   },
   "zapimoveis:2915120266": {
     "modernityScore": 88,

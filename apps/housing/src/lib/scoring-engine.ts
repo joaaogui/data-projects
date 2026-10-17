@@ -9,7 +9,16 @@ import type {
   ScoringWeights,
   SlimPropertyRecord,
 } from "@/types/housing";
-import { computeDistanceToNubankHubKm, resolveNeighborhoodCenter } from "./geocoding";
+import {
+  computeDistanceToNubankHubKm,
+  findHospitalNoiseCluster,
+  resolveNeighborhoodCenter,
+} from "./geocoding";
+import {
+  IPTU_ESTIMATE_PER_M2,
+  PROVIDER_LABELS,
+  prepareListingsForScoring,
+} from "./listing-normalization";
 import { PHOTO_AUDIT_OVERRIDES, type PhotoAuditOverride } from "./photo-audit-overrides";
 
 export const DEFAULT_WEIGHTS: ScoringWeights = {
@@ -319,8 +328,9 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   // Truly safe Zona Sul / Nova Lima (safetyCar: 8.3–9.6)
   "BH:Lourdes": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 9.6, commuteLogistics: 9.3, buildingStock: 9.5, budgetFit: 9.0, safetyCar: 9.6 },
   "BH:Funcionários": { cityCode: "BH", commute: "10 min do Nubank", urbanBreathing: 9.5, commuteLogistics: 9.8, buildingStock: 8.8, budgetFit: 9.2, safetyCar: 9.1 },
-  "BH:Belvedere": { cityCode: "BH", commute: "25-35 min do Nubank", urbanBreathing: 8.8, commuteLogistics: 6.2, buildingStock: 6.0, budgetFit: 5.5, safetyCar: 9.0 },
-  "BH:Vale do Sereno": { cityCode: "BH", commute: "25-35 min do Nubank", urbanBreathing: 9.2, commuteLogistics: 6.2, buildingStock: 8.8, budgetFit: 7.6, safetyCar: 9.0 },
+  // Belvedere / Vale do Sereno / Vila da Serra share the BR-356 / N. Sra. do Carmo peak bottleneck (like Buritis' single exit).
+  "BH:Belvedere": { cityCode: "BH", commute: "25-45 min do Nubank (gargalo BR-356 no pico)", urbanBreathing: 8.8, commuteLogistics: 5.6, buildingStock: 6.0, budgetFit: 5.5, safetyCar: 9.0 },
+  "BH:Vale do Sereno": { cityCode: "BH", commute: "30-50 min do Nubank (gargalo BR-356 no pico)", urbanBreathing: 9.2, commuteLogistics: 5.0, buildingStock: 8.8, budgetFit: 7.6, safetyCar: 9.0 },
   "BH:Santo Agostinho": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.8, buildingStock: 8.6, budgetFit: 8.4, safetyCar: 8.9 },
   "BH:Anchieta": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.5, buildingStock: 8.2, budgetFit: 8.0, safetyCar: 8.9 },
   "BH:Savassi": { cityCode: "BH", commute: "10-12 min do Nubank", urbanBreathing: 8.9, commuteLogistics: 9.5, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.8 },
@@ -328,7 +338,7 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "BH:Carmo": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.8, commuteLogistics: 8.8, buildingStock: 8.6, budgetFit: 8.8, safetyCar: 8.8 },
   "BH:Santo Antônio": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.8, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.7 },
   "BH:Cruzeiro": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 8.5, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.7 },
-  "BH:Vila da Serra": { cityCode: "BH", commute: "25-35 min do Nubank", urbanBreathing: 9.2, commuteLogistics: 6.2, buildingStock: 8.8, budgetFit: 7.8, safetyCar: 8.7 },
+  "BH:Vila da Serra": { cityCode: "BH", commute: "30-50 min do Nubank (gargalo BR-356/N. Sra. do Carmo no pico)", urbanBreathing: 9.2, commuteLogistics: 5.2, buildingStock: 8.8, budgetFit: 7.8, safetyCar: 8.7 },
   "BH:Cidade Jardim": { cityCode: "BH", commute: "18-22 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 7.6, buildingStock: 7.5, budgetFit: 8.0, safetyCar: 8.6 },
   "BH:Vila Paris": { cityCode: "BH", commute: "18-22 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 7.6, buildingStock: 8.0, budgetFit: 8.0, safetyCar: 8.6 },
   "BH:Gutierrez": { cityCode: "BH", commute: "18-22 min do Nubank", urbanBreathing: 8.0, commuteLogistics: 7.8, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.5 },
@@ -893,10 +903,10 @@ export function extractExplicitFloorFromText(rawText: string): number | null {
   return null;
 }
 
-function detectUnitPenthouseOrDuplex(
-  rawText: string,
-  amenities: Set<string>,
-): { isPenthouse: boolean; isDuplex: boolean } {
+function detectUnitPenthouseOrDuplex(rawText: string): {
+  isPenthouseText: boolean;
+  isDuplex: boolean;
+} {
   const cleanedForCobertura = rawText
     .replace(
       /(?<![a-zA-ZÀ-ÿ0-9_])(?:piscina|lazer|[aá]rea\s+de\s+lazer|sal[aã]o(?: de festas)?|churrasqueira|sauna|academia|fitness|espa[cç]o gourmet|rooftop|terra[cç]o|jardim|solarium|lavanderia|coworking|vista)[^.;,\n]{0,45}\bna cobertura\b/gi,
@@ -925,15 +935,13 @@ function detectUnitPenthouseOrDuplex(
     " ",
   );
 
-  const isPenthouse =
-    amenities.has("apartamento cobertura") ||
-    /\bcobertura\b/i.test(cleanedForCobertura);
+  const isPenthouseText = /\bcobertura\b/i.test(cleanedForCobertura);
   const isDuplex =
     /(?<![a-zA-ZÀ-ÿ0-9_])(duplex|triplex|loft duplex|p[eé][- ]direito duplo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       cleanedForDuplex,
     );
 
-  return { isPenthouse, isDuplex };
+  return { isPenthouseText, isDuplex };
 }
 
 function detectUnitTopFloor(
@@ -1297,6 +1305,8 @@ type ApartmentNuancesEvaluation = {
   lowFloorLabel: string | null;
   hasNoElevator: boolean;
   hasTrappedParking: boolean;
+  /** No cabinets anywhere (QuintoAndar checklist or photo audit): caps the unfurnished bonus. */
+  isBareShell: boolean;
   greenTags: string[];
   redTags: string[];
   warningTags: string[];
@@ -1326,6 +1336,7 @@ function cloneApartmentNuances(
     lowFloorLabel: cached.lowFloorLabel,
     hasNoElevator: cached.hasNoElevator,
     hasTrappedParking: cached.hasTrappedParking,
+    isBareShell: cached.isBareShell,
     greenTags: cached.greenTags.slice(),
     redTags: cached.redTags.slice(),
     warningTags: cached.warningTags.slice(),
@@ -1368,6 +1379,10 @@ export function hasActiveSaleListing(
 
 export const AC_ABSENT_TAG = "Sem ar-condicionado";
 export const AC_UNCONFIRMED_TAG = "AC não confirmado";
+export const FURNITURE_CONFLICT_TAG = "Mobília divergente — confirmar";
+export const PRICE_MISMATCH_TAG = "Preço divergente na descrição";
+export const HOSPITAL_NOISE_TAG = "Perto de hospital (sirenes)";
+
 
 export type AcStatus = "confirmed" | "unconfirmed" | "absent";
 
@@ -1376,6 +1391,7 @@ export type AcStatus = "confirmed" | "unconfirmed" | "absent";
  * AC infrastructure only, so they are not proof of an installed unit. Only the listing's own words
  * (title, description, photo captions) or a photo audit confirm AC. The scraper's
  * "Ar-condicionado" positive signal is derived from those same checkboxes, so it counts as a checkbox.
+ * `trustCheckbox` (new/renovated unit with effective modernity >= 85) accepts the checkbox as confirmed.
  */
 export function resolveAcEvidence(
   prop: Pick<
@@ -1386,8 +1402,10 @@ export function resolveAcEvidence(
     | "comfortCommodities"
     | "amenities"
     | "positiveSignals"
+    | "twinAcConfirmed"
   >,
   photoAudit?: PhotoAuditOverride,
+  options?: { trustCheckbox?: boolean },
 ): { acStatus: AcStatus; acLabel: string | null } {
   if (photoAudit?.falseAC) return { acStatus: "absent", acLabel: null };
 
@@ -1416,6 +1434,7 @@ export function resolveAcEvidence(
   }
   if (
     photoAudit?.verifiedAC ||
+    prop.twinAcConfirmed ||
     /\b(ar(?:es)?[- ]?condicionados?|climatizad[oa]s?)\b/i.test(installedAcText)
   ) {
     return { acStatus: "confirmed", acLabel: "Ar-condicionado" };
@@ -1423,14 +1442,20 @@ export function resolveAcEvidence(
 
   const comfort = (prop.comfortCommodities ?? []).map((c) => c.toLowerCase());
   const amenities = (prop.amenities ?? []).map((c) => c.toLowerCase());
-  const hasPortalOrInfraEvidence =
-    installedAcText !== ownText ||
+  const hasInfraOnlyText = installedAcText !== ownText;
+  const hasPortalCheckbox =
     comfort.includes("ar condicionado") ||
     amenities.some((a) =>
       ["ar condicionado", "ar-condicionado", "ar_condicionado", "air_conditioning"].includes(a),
     ) ||
     prop.positiveSignals.some((s) => s.toLowerCase().includes("ar-condicionado"));
-  return hasPortalOrInfraEvidence
+  const auditSawNoAc = (photoAudit?.visualWarnings ?? []).some((w) =>
+    /\bsem\s+(?:split|ar[- ]?condicionado)/i.test(w),
+  );
+  if (hasPortalCheckbox && !hasInfraOnlyText && !auditSawNoAc && options?.trustCheckbox) {
+    return { acStatus: "confirmed", acLabel: "Ar-condicionado" };
+  }
+  return hasInfraOnlyText || hasPortalCheckbox
     ? { acStatus: "unconfirmed", acLabel: null }
     : { acStatus: "absent", acLabel: null };
 }
@@ -1539,8 +1564,21 @@ export function evaluateApartmentNuances(
   const propKey = `${prop.provider}:${prop.id}`;
   const photoAudit: PhotoAuditOverride | undefined = PHOTO_AUDIT_OVERRIDES[propKey];
 
-  // Ar-condicionado: +12 when confirmed by text/photos, 0 when only a portal checkbox claims it, -10 when absent
-  const { acLabel, acStatus } = resolveAcEvidence(prop, photoAudit);
+  // Ar-condicionado: +12 when confirmed by text/photos (or a checkbox on a new/renovated unit with modernity >= 85),
+  // 0 when only a portal checkbox claims it, -10 when absent
+  const { effectiveModernityScore } = calibrateRuntimeModernity(
+    prop,
+    photoAudit,
+    buildFullLocationText(prop),
+  );
+  const isNewOrRenovatedUnit =
+    prop.condition === "NEW_OR_RENOVATED" ||
+    prop.positiveSignals.includes("Flag Novo/Reformado") ||
+    (prop.constructionYear ?? 0) >= 2015 ||
+    photoAudit?.modernityTier === "MODERN_OR_RENOVATED";
+  const { acLabel, acStatus } = resolveAcEvidence(prop, photoAudit, {
+    trustCheckbox: isNewOrRenovatedUnit && effectiveModernityScore >= 85,
+  });
   if (acStatus === "confirmed") {
     pts += 12.0;
     greenTags.push(acLabel!);
@@ -1601,7 +1639,14 @@ export function evaluateApartmentNuances(
     pts += 4.5;
     highlights.push("Sol da manhã");
   }
-  if (comfort.has("rua silenciosa") || /\brua (tranquila|silenciosa|calma)\b/i.test(fullDesc)) {
+  const hasBusyStreetText =
+    /(?<![a-zA-ZÀ-ÿ0-9_])(bares|barzinhos?|bo[eê]mi[oa]s?|vida\s+noturna|baladas?|casas?\s+noturnas?|postos?\s+(?:de\s+gasolina|de\s+combust[ií]vel|br|shell|ipiranga)|em\s+frente\s+(?:a|ao|aos|à|às)\s+(?:supermercados?|mercados?|posto)|(?:padaria|panificadora)[^.;\n]{0,25}24\s*h)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      fullDesc,
+    );
+  if (
+    !hasBusyStreetText &&
+    (comfort.has("rua silenciosa") || /\brua (tranquila|silenciosa|calma)\b/i.test(fullDesc))
+  ) {
     pts += 3.0;
     highlights.push("Rua silenciosa");
   }
@@ -1714,29 +1759,48 @@ export function evaluateApartmentNuances(
     effectiveFloor,
     effectiveTotalFloors,
   );
-  const { isPenthouse, isDuplex } = detectUnitPenthouseOrDuplex(
-    sentenceJoinedDesc,
-    amenities,
-  );
-  const isPenthouseOrDuplex = isPenthouse || isDuplex;
+  const { isPenthouseText, isDuplex } = detectUnitPenthouseOrDuplex(sentenceJoinedDesc);
+  // The portal's "Apartamento cobertura" checkbox needs the text, a top-floor match or a penthouse-sized area.
+  const isPenthouse =
+    isPenthouseText ||
+    (amenities.has("apartamento cobertura") && (isTopFloor || prop.areaM2 >= 70));
+  const hasLoftLayout =
+    isDuplex ||
+    /(?<![a-zA-ZÀ-ÿ0-9_])(loft|mezanino)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc) ||
+    (photoAudit?.visualWarnings ?? []).some((w) => /\b(loft|mezanino)\b/i.test(w));
+  const isSmallLoft = hasLoftLayout && prop.areaM2 < 60;
+  const knownBuildingFloors =
+    effectiveTotalFloors ?? (isTopFloor ? (effectiveFloor ?? textFloor) : null);
+  const isLowRiseTopFloor =
+    isTopFloor && knownBuildingFloors !== null && knownBuildingFloors < 5;
+  const isRealTopFloor = isTopFloor && !isLowRiseTopFloor;
+  const isElevatedEnoughForPremium =
+    !isLowRiseTopFloor && (isRealTopFloor || (minFloor !== null ? minFloor >= 4 : isPenthouse));
+  const hasPremiumPenthouse = isPenthouse && isElevatedEnoughForPremium;
+  const hasPremiumDuplex = isDuplex && !isSmallLoft && isElevatedEnoughForPremium;
+  const hasPremiumElevation = hasPremiumPenthouse || hasPremiumDuplex;
 
-  if (isPenthouseOrDuplex && isTopFloor) {
+  if (hasPremiumElevation && isRealTopFloor) {
     pts += 18.0;
     highFloorLabel = "Cobertura / Duplex (Último andar)";
     floorTag = { label: highFloorLabel, rarity: "legendary" };
     highlights.push(highFloorLabel);
-  } else if (isPenthouseOrDuplex) {
+  } else if (hasPremiumElevation) {
     pts += 15.0;
-    highFloorLabel = isPenthouse ? "Cobertura" : "Duplex / Pé-direito duplo";
+    highFloorLabel = hasPremiumPenthouse ? "Cobertura" : "Duplex / Pé-direito duplo";
     floorTag = { label: highFloorLabel, rarity: "legendary" };
     highlights.push(highFloorLabel);
-  } else if (isTopFloor) {
+  } else if (isRealTopFloor) {
     pts += 15.0;
     highFloorLabel = minFloor
       ? `Último andar (${minFloor}º andar)`
       : "Último andar";
     floorTag = { label: highFloorLabel, rarity: "legendary" };
     highlights.push(highFloorLabel);
+  }
+  if (hasLoftLayout && !hasPremiumElevation) {
+    pts += 3.0;
+    highlights.push("Pé-direito duplo (loft)");
   }
 
   if (minFloor !== null) {
@@ -1806,7 +1870,7 @@ export function evaluateApartmentNuances(
     greenTags.push("Sol da manhã");
   }
 
-  if (!isTopFloor && !isPenthouseOrDuplex && !highFloorLabel && !floorTag) {
+  if (!isRealTopFloor && !hasPremiumElevation && !highFloorLabel && !floorTag) {
     const isGroundFloor =
       effectiveFloor === 0 ||
       explicitGroundText ||
@@ -1928,19 +1992,27 @@ export function evaluateApartmentNuances(
     /\b(varanda\s+gourmet|sacada\s+gourmet|churrasqueira\s+na\s+varanda)\b/i.test(
       fullDesc,
     );
-  const hasGourmetBalcony = !photoAudit?.falseGourmet && rawHasGourmetBalcony;
   const hasNoBalconyInAudit =
     photoAudit?.falseGourmet === true &&
     (photoAudit.visualWarnings ?? []).some((w) =>
       /n[aã]o possui varanda|sem varanda gourmet\s*\(\s*n[aã]o possui varanda/i.test(w),
     );
+  const isBalconyIntegratedText =
+    /(?<![a-zA-ZÀ-ÿ0-9_])(?:varanda|sacada|terra[cç]o)\s+(?:foi\s+|totalmente\s+)?(?:integrad[oa]|incorporad[oa]|fechad[oa](?!\s+(?:com|em|por)\s+(?:vidro|cortina)))/i.test(
+      fullDesc,
+    );
+  const isBalconyRuledOut =
+    !photoAudit?.verifiedBalcony && (hasNoBalconyInAudit || isBalconyIntegratedText);
+  const hasGourmetBalcony =
+    !photoAudit?.falseGourmet && !isBalconyRuledOut && rawHasGourmetBalcony;
   const hasBalcony =
-    !hasNoBalconyInAudit &&
-    (hasGourmetBalcony ||
-      amenities.has("varanda") ||
-      amenities.has("balcony") ||
-      captions.includes("varanda") ||
-      /\b(varanda|sacada)\b/i.test(fullDesc));
+    photoAudit?.verifiedBalcony === true ||
+    (!isBalconyRuledOut &&
+      (hasGourmetBalcony ||
+        amenities.has("varanda") ||
+        amenities.has("balcony") ||
+        captions.includes("varanda") ||
+        /\b(varanda|sacada)\b/i.test(fullDesc)));
   if (hasGourmetBalcony) {
     pts += 6.5;
     highlights.push("Varanda gourmet");
@@ -1967,6 +2039,13 @@ export function evaluateApartmentNuances(
         : 6.0;
     pts -= noDoormanPenalty;
     warnings.push(`Sem portaria 24h (-${noDoormanPenalty} pts base)`);
+  } else if (
+    prop.doorman === null &&
+    (amenities.has("armored_security_cabin") ||
+      /(?<![a-zA-ZÀ-ÿ0-9_])guaritas?(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc))
+  ) {
+    pts += 2.5;
+    highlights.push("Guarita de segurança");
   }
 
   const hasPoolOrGym =
@@ -1990,7 +2069,9 @@ export function evaluateApartmentNuances(
     warnings.push("Imóvel também à venda (-4 pts base)");
   }
 
-  if (/\bvagas? (de garagem )?(livres?|individuais?|demarcadas?)\b/i.test(fullDesc)) {
+  if (
+    /\bvagas? (de garagem )?(cobertas? e )?(livres?|individuais?|demarcadas?|fixas?)\b/i.test(fullDesc)
+  ) {
     pts += 5.0;
     highlights.push("Vaga livre e demarcada");
   } else if (hasTrappedParking) {
@@ -1998,7 +2079,16 @@ export function evaluateApartmentNuances(
     warnings.push("Vaga presa / gaveta");
   }
 
-  if (/(?<![a-zA-ZÀ-ÿ0-9_])([aá]gua e g[aá]s(?: inclusos)?|g[aá]s incluso)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc)) {
+  const hasIndividualUtilities =
+    /(?<![a-zA-ZÀ-ÿ0-9_])(?:(?:[aá]gua|g[aá]s)(?:\s+e\s+(?:de\s+)?(?:[aá]gua|g[aá]s))?\s+(?:individua(?:l|is|lizad[oa]s?)|separad[oa]s?|medid[oa]s?)|consumos?\s+[^.;\n]{0,30}?individua(?:l|is))/i.test(
+      fullDesc,
+    );
+  if (
+    !hasIndividualUtilities &&
+    /(?<![a-zA-ZÀ-ÿ0-9_])((?:[aá]gua e g[aá]s|[aá]gua|g[aá]s)\s+(?:inclus[oa]s?|inclu[ií]d[oa]s?)|condom[ií]nio\s+(?:j[aá]\s+)?inclui\s+(?:[aá]gua|g[aá]s))(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      fullDesc,
+    )
+  ) {
     pts += 2.5;
     highlights.push("Água/gás inclusos no condomínio");
   }
@@ -2055,6 +2145,36 @@ export function evaluateApartmentNuances(
   ) {
     pts += 2.0;
     highlights.push("Armários instalados");
+  }
+
+  // A filled-in QuintoAndar checklist (>= 6 items; most listings carry 0-3) lists every cabinet item the unit has,
+  // so none of them and no cabinet text means a bare shell.
+  const hasAnyCabinetEvidence =
+    hasKitchenCabinetry ||
+    hasBedroomOrBathCabinetry ||
+    hasExplicitPlannedCabinetry ||
+    amenities.has("closet") ||
+    /(?<![a-zA-ZÀ-ÿ0-9_])(arm[aá]rios?|marcenaria|planejad[oa]s?|closet|guarda[- ]?roupas?)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      fullDesc,
+    );
+  const isChecklistBareShell =
+    prop.provider === "quintoandar" &&
+    amenities.size + practicality.size >= 6 &&
+    !hasAnyCabinetEvidence;
+  const isBareShell = hasNoCabinetsInAudit || isChecklistBareShell;
+  if (isBareShell) {
+    pts -= 6.0;
+    warnings.push("Sem nenhum armário (cozinha/quartos/banheiros) — custo de marcenaria (-6 pts base)");
+    const hasShowerBox =
+      amenities.has("box") ||
+      amenities.has("blindex_box") ||
+      practicality.has("box") ||
+      practicality.has("box blindex") ||
+      /(?<![a-zA-ZÀ-ÿ0-9_])box(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullDesc);
+    if (!hasShowerBox) {
+      pts -= 2.0;
+      warnings.push("Banheiro sem box (-2 pts base)");
+    }
   }
 
   const hasModernFlooring =
@@ -2127,6 +2247,50 @@ export function evaluateApartmentNuances(
     redTags.unshift(microEnv.redTag);
   }
 
+  const hospitalCluster = findHospitalNoiseCluster(prop);
+  const auditHospitalWarning = (photoAudit?.visualWarnings ?? []).find((w) => /hospita/i.test(w));
+  if (hospitalCluster || auditHospitalWarning) {
+    const hospitalPenalty = minFloor !== null && minFloor >= 8 ? 1.5 : 3.0;
+    pts -= hospitalPenalty;
+    warnings.push(
+      `Entorno hospitalar${hospitalCluster ? ` (${hospitalCluster.name}, ~400 m)` : ""}: sirenes e fluxo de ambulâncias (-${hospitalPenalty} pts base)`,
+    );
+    warningTags.push(HOSPITAL_NOISE_TAG);
+  }
+
+  const ownFurnitureText = describeFurnitureInText(prop.description);
+  const portalFurnitureTier =
+    photoAudit?.furnishedTier ??
+    (prop.furnished === true ? "FULLY_FURNISHED" : prop.furnished === false ? "UNFURNISHED" : null);
+  if (
+    (ownFurnitureText === "furnished" && portalFurnitureTier === "UNFURNISHED") ||
+    (ownFurnitureText === "unfurnished" && portalFurnitureTier === "FULLY_FURNISHED")
+  ) {
+    warningTags.push(FURNITURE_CONFLICT_TAG);
+    warnings.push(
+      ownFurnitureText === "furnished"
+        ? "Descrição diz mobiliado, mas portal/fotos indicam sem mobília — confirmar (sem impacto na nota)"
+        : "Descrição diz sem mobília, mas portal/fotos indicam mobiliado — confirmar (sem impacto na nota)",
+    );
+  }
+
+  if (prop.listedRent !== undefined) {
+    warningTags.push(PRICE_MISMATCH_TAG);
+    warnings.push(
+      `Descrição informa aluguel de R$ ${fmtIntPtBr(prop.rent)} (portal: R$ ${fmtIntPtBr(prop.listedRent)}); total calculado com o maior valor`,
+    );
+  }
+  if (prop.listedIptu !== undefined) {
+    warnings.push(
+      `IPTU estimado em R$ ${fmtIntPtBr(prop.iptu)}/mês (~R$ ${IPTU_ESTIMATE_PER_M2.toFixed(2).replace(".", ",")}/m²; portal informa R$ ${fmtIntPtBr(prop.listedIptu)})`,
+    );
+  }
+  for (const twinKey of prop.alsoListedOn ?? []) {
+    const provider = twinKey.split(":")[0] as SlimPropertyRecord["provider"];
+    const tag = `Também anunciado em ${PROVIDER_LABELS[provider] ?? provider}`;
+    if (!warningTags.includes(tag)) warningTags.push(tag);
+  }
+
   // Build Red Tags (floor badge is rendered separately via floorTag)
   if (isMegaCondo) {
     redTags.push("Megacondomínio");
@@ -2163,6 +2327,7 @@ export function evaluateApartmentNuances(
     lowFloorLabel,
     hasNoElevator,
     hasTrappedParking,
+    isBareShell,
     greenTags,
     redTags,
     warningTags,
@@ -3528,6 +3693,25 @@ export function isApartHotelListing(
   return prop.furnished === true && highFee && feeHeavy && RECEPTION_24H_REGEX.test(text);
 }
 
+const FURNITURE_NEGATION_REGEX =
+  /semi[- ]?mobiliad[oa]s?|desmobiliad[oa]s?|sem\s+(?:mob[ií]lias?|m[oó]veis)|n[aã]o\s+(?:est[aá]\s+|[eé]\s+|ser[aá]\s+|vem\s+)?mobiliad[oa]s?|(?:apenas|somente|s[oó])\s+(?:com\s+)?(?:os\s+)?arm[aá]rios/gi;
+const FURNITURE_AFFIRMATIVE_REGEX =
+  /(?<![a-zA-ZÀ-ÿ0-9_-])mobiliad[oa]s?(?![a-zA-ZÀ-ÿ0-9_])|\bporteira\s+fechada\b/i;
+
+/** What the owner's own text says about furniture; null when silent or contradictory ("com ou sem mobília"). */
+export function describeFurnitureInText(
+  text: string | null | undefined,
+): "furnished" | "unfurnished" | null {
+  if (!text) return null;
+  const hasNegation = new RegExp(FURNITURE_NEGATION_REGEX.source, "i").test(text);
+  const hasAffirmation = FURNITURE_AFFIRMATIVE_REGEX.test(
+    text.replace(FURNITURE_NEGATION_REGEX, " "),
+  );
+  if (hasAffirmation && !hasNegation) return "furnished";
+  if (hasNegation && !hasAffirmation) return "unfurnished";
+  return null;
+}
+
 export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
   const cached = furnitureTierCache.get(prop);
   if (cached) return cached;
@@ -3610,7 +3794,10 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
     );
 
   const tier: FurnitureTier =
-    hasGeladeira && hasSofa && hasCama ? "FULLY_FURNISHED" : "UNFURNISHED";
+    (hasGeladeira && hasSofa && hasCama) ||
+    (prop.furnished === true && describeFurnitureInText(prop.description) === "furnished")
+      ? "FULLY_FURNISHED"
+      : "UNFURNISHED";
 
   furnitureTierCache.set(prop, tier);
   return tier;
@@ -3653,6 +3840,7 @@ export interface CpFarCommute {
 }
 
 // Starts at the MODERN_OR_RENOVATED tier floor so entering the tier adds no step: +0.5 pt per point, full +8 at 94.
+const BARE_SHELL_UNFURNISHED_BONUS_CAP = 10;
 const MODERNITY_RAMP_START = 78;
 const MODERNITY_RAMP_MAX_BONUS = 8;
 
@@ -3689,6 +3877,20 @@ const staticPropertyMetaCache = new WeakMap<
   SlimPropertyRecord,
   StaticPropertyScoringMeta
 >();
+
+function buildFullLocationText(prop: SlimPropertyRecord): string {
+  return [
+    prop.street ?? "",
+    prop.title ?? "",
+    prop.description ?? "",
+    prop.generatedDescription ?? "",
+    ...(prop.comfortCommodities ?? []),
+    ...(prop.practicalityCommodities ?? []),
+    ...(prop.amenities ?? []),
+    ...(prop.installations ?? []),
+    ...(prop.photoCaptions ?? []),
+  ].join(" ");
+}
 
 function calibrateRuntimeModernity(
   prop: SlimPropertyRecord,
@@ -3834,17 +4036,7 @@ function getStaticPropertyScoringMeta(
     prop.neighborhood,
   );
   const microEnv = evaluateStreetMicroEnvironment(prop);
-  const fullLocationText = [
-    prop.street ?? "",
-    prop.title ?? "",
-    prop.description ?? "",
-    prop.generatedDescription ?? "",
-    ...(prop.comfortCommodities ?? []),
-    ...(prop.practicalityCommodities ?? []),
-    ...(prop.amenities ?? []),
-    ...(prop.installations ?? []),
-    ...(prop.photoCaptions ?? []),
-  ].join(" ");
+  const fullLocationText = buildFullLocationText(prop);
   const { effectiveModernityScore, effectiveModernityTier } =
     calibrateRuntimeModernity(prop, photoAudit, fullLocationText);
   const isDeepWestBarra =
@@ -4029,8 +4221,9 @@ function buildDetailedJustificationFromContext(
   } else {
     budgetDesc = `R$ ${totalFmt}/mês acima do teto máximo de R$ ${fmtIntPtBr(weights.budgetHardCap)}`;
   }
-  let furnitureDesc =
-    "Não mobiliado / só marcenaria fixa (pronto para receber sua mobília de Brasília)";
+  let furnitureDesc = nuances.isBareShell
+    ? "Não mobiliado e sem nenhum armário (bônus limitado: marcenaria por sua conta)"
+    : "Não mobiliado / só marcenaria fixa (pronto para receber sua mobília de Brasília)";
   if (furnitureTier === "SEMI_FURNISHED") {
     furnitureDesc =
       "Semi-mobiliado — apenas eletros/cozinha sem cama ou sofá (penalidade reduzida)";
@@ -4139,6 +4332,10 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
   listingUpdatedAt?: string | null;
   isActive?: boolean;
   deactivatedAt?: string | null;
+  listedRent?: number;
+  listedIptu?: number;
+  alsoListedOn?: string[];
+  twinAcConfirmed?: boolean;
   furnitureTier: FurnitureTier;
   commuteMinutes: number | null;
   commuteLabel: string;
@@ -4220,6 +4417,10 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
     this.listingUpdatedAt = p.listingUpdatedAt ?? null;
     this.isActive = p.isActive;
     this.deactivatedAt = p.deactivatedAt;
+    this.listedRent = p.listedRent;
+    this.listedIptu = p.listedIptu;
+    this.alsoListedOn = p.alsoListedOn;
+    this.twinAcConfirmed = p.twinAcConfirmed;
     this.furnitureTier = ctx.furnitureTier;
     this.commuteMinutes = commuteMinutes;
     this.commuteLabel = commuteLabel;
@@ -4346,7 +4547,7 @@ export function computeDynamicProperties(
     nbMap.set(`${n.cityCode}:${n.neighborhood.toLowerCase()}`, n);
   }
 
-  const evaluated: EvaluatedProperty[] = properties.map((prop) => {
+  const evaluated: EvaluatedProperty[] = prepareListingsForScoring(properties).map((prop) => {
     const staticMeta = getStaticPropertyScoringMeta(prop);
     const {
       normNbLower,
@@ -4651,6 +4852,8 @@ export function computeDynamicProperties(
       furniturePoints = Math.round(weights.furnishedPenalty * 0.35);
     } else if (furnitureTier === "FULLY_FURNISHED") {
       furniturePoints = weights.furnishedPenalty;
+    } else if (nuances.isBareShell) {
+      furniturePoints = Math.min(furniturePoints, BARE_SHELL_UNFURNISHED_BONUS_CAP);
     }
 
     // Area points (calibrated for bringing Brasília furniture: Queen bed, large sofa, fridge, washer, dishwasher)

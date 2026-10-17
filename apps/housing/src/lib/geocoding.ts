@@ -375,6 +375,64 @@ const KNOWN_STREET_COORDINATES: Record<string, [number, number]> = {
   "bsb:avenida jequitibá": [-15.8455, -48.0245],
 };
 
+export interface HospitalNoiseCluster {
+  name: string;
+  cityCode: CityHubCode;
+  /** Accent-free, lower-case neighborhood names. */
+  neighborhoods: string[];
+  /** Accent-free, lower-case streets within ~400 m of the hospitals (listings carry no per-unit coordinates). */
+  streets: string[];
+}
+
+export const HOSPITAL_NOISE_CLUSTERS: HospitalNoiseCluster[] = [
+  {
+    name: "Hospital das Clínicas / Santa Casa / João XXIII",
+    cityCode: "BH",
+    neighborhoods: ["santa efigenia"],
+    streets: [
+      "avenida professor alfredo balena",
+      "avenida alfredo balena",
+      "avenida francisco sales",
+      "avenida pasteur",
+      "avenida bernardo monteiro",
+      "rua domingos vieira",
+      "rua padre marinho",
+    ],
+  },
+  {
+    name: "Hospital São Camilo Pompeia",
+    cityCode: "SP",
+    neighborhoods: ["perdizes", "pompeia", "vila pompeia"],
+    streets: ["avenida pompeia", "rua barao do bananal", "rua cotoxo", "rua tavares bastos"],
+  },
+];
+
+function stripAccentsLower(raw: string): string {
+  return raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function findHospitalNoiseCluster(prop: {
+  cityCode: CityHubCode;
+  neighborhood: string;
+  street: string;
+}): HospitalNoiseCluster | null {
+  const nb = stripAccentsLower(prop.neighborhood);
+  const street = stripAccentsLower(prop.street);
+  return (
+    HOSPITAL_NOISE_CLUSTERS.find(
+      (c) =>
+        c.cityCode === prop.cityCode &&
+        c.neighborhoods.includes(nb) &&
+        c.streets.includes(street),
+    ) ?? null
+  );
+}
+
 function normalizeTextToken(raw: string): string {
   return raw
     .trim()

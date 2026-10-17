@@ -112,6 +112,14 @@ export interface SlimPropertyRecord {
   listingUpdatedAt?: string | null;
   isActive?: boolean;
   deactivatedAt?: string | null;
+  /** Portal rent, set only when `rent` was raised to the rent stated in the description. */
+  listedRent?: number;
+  /** Portal IPTU, set only when `iptu` holds an estimate (missing / "sob estimativa" / implausibly low). */
+  listedIptu?: number;
+  /** "provider:id" of the same unit listed on other portals. */
+  alsoListedOn?: string[];
+  /** A cross-portal twin's photo audit confirmed an installed AC. */
+  twinAcConfirmed?: boolean;
 }
 
 export interface ScoringWeights {

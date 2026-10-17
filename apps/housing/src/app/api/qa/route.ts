@@ -1496,7 +1496,10 @@ export function buildInstantGroundedAnswer(params: {
       residualFees > 0 ? ` + Taxas/Seguro ${formatBRL(residualFees)}` : "";
     sections.push(
       `### 💰 Custos & Condições (${formatBRL(snapshot.totalMonthly)}/mês)\n` +
-        `• **Pacote Mensal**: **${formatBRL(snapshot.totalMonthly)}** (Aluguel ${formatBRL(snapshot.rent)} + Condomínio ${formatBRL(snapshot.condoFee)} + IPTU ${formatBRL(snapshot.iptu)}${feesNote})\n` +
+        `• **Pacote Mensal**: **${formatBRL(snapshot.totalMonthly)}** (Aluguel ${formatBRL(snapshot.rent)} + Condomínio ${formatBRL(snapshot.condoFee)} + IPTU ${formatBRL(snapshot.iptu)}${prop?.listedIptu !== undefined ? ` estimado; portal informa ${formatBRL(prop.listedIptu)}` : ""}${feesNote})\n` +
+        (prop?.listedRent !== undefined
+          ? `• **Preço divergente**: a descrição informa aluguel de ${formatBRL(prop.rent)}, acima dos ${formatBRL(prop.listedRent)} do portal; o total usa o maior valor\n`
+          : "") +
         `• **Custo por m²**: **${formatBRL(pricePerM2)}/m²** para **${snapshot.areaM2} m²** (${snapshot.bedrooms} quarto(s), ${prop?.suites ?? 0} suíte(s), ${snapshot.bathrooms} banheiro(s), ${snapshot.parkingSpaces} vaga(s))\n` +
         (amenitiesList.length > 0
           ? `• **Infraestrutura & Lazer**: ${amenitiesList.slice(0, 12).join(", ")}\n`

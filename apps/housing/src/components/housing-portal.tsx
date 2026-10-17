@@ -7375,6 +7375,11 @@ export function HousingPortal({
                             Alug R$ {prop.rent.toLocaleString("pt-BR")} + Cond
                             R$ {prop.condoFee.toLocaleString("pt-BR")} + IPTU R${" "}
                             {prop.iptu.toLocaleString("pt-BR")}
+                            {prop.listedIptu !== undefined && (
+                              <span title={`Estimado em ~R$ 2,50/m²; portal informa R$ ${prop.listedIptu.toLocaleString("pt-BR")}`}>
+                                {" "}(est.)
+                              </span>
+                            )}
                           </p>
                         </div>
                       </div>
