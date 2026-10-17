@@ -1,6 +1,7 @@
 import { getPrecomputedListings, hashContent } from "@/lib/listing-features-store";
 import { logger } from "@/lib/logger";
 import { PHOTO_AUDIT_OVERRIDES } from "@/lib/photo-audit-overrides";
+import { buildQaLlmPrompt } from "@/lib/qa-llm-prompt";
 import { processScoped } from "@/lib/process-cache";
 import {
   AC_INFRA_ONLY_TAG,
@@ -1615,50 +1616,17 @@ async function generateDiagnosticAnswer(params: {
     return { answer: deterministicFallback, source: "instant_diagnostic" };
   }
 
-  const contextPayload = {
+  const { systemPrompt, userPrompt } = buildQaLlmPrompt({
+    question: params.question,
     propertyKey: params.propertyKey,
     snapshot: params.snapshot,
-    evaluatedBreakdown:
-      params.snapshot.breakdown ?? params.evaluated?.breakdown ?? null,
-    furnitureTier:
-      params.snapshot.furnitureTier ?? params.evaluated?.furnitureTier ?? null,
-    nuanceHighlights:
-      params.snapshot.nuanceHighlights ??
-      params.evaluated?.nuanceHighlights ??
-      [],
-    nuanceWarnings:
-      params.snapshot.nuanceWarnings ?? params.evaluated?.nuanceWarnings ?? [],
-    cardTags: params.evaluated?.cardTags ?? null,
-    amenities: params.evaluated?.amenities ?? [],
-    installations: params.evaluated?.installations ?? [],
-    comfortCommodities: params.evaluated?.comfortCommodities ?? [],
-    practicalityCommodities: params.evaluated?.practicalityCommodities ?? [],
-    photoCaptions: params.evaluated?.photoCaptions ?? [],
+    evaluated: params.evaluated,
     rawSpecs: params.rawListing?.specs ?? null,
-    rawAdvertiser: params.rawListing?.advertiser ?? null,
-    contextSummary: params.contextSummary ?? null,
-    topRankingSample: params.topEvaluated.slice(0, 5).map((p) => ({
-      key: `${p.provider}:${p.id}`,
-      rank: p.overallRank,
-      neighborhood: p.neighborhood,
-      city: p.cityCode,
-      street: p.street,
-      totalMonthly: p.totalMonthly,
-      areaM2: p.areaM2,
-      finalScore: p.finalScore,
-      modernityScore: p.modernityScore,
-    })),
-  };
-
-  const systemPrompt =
-    "Você é o Consultor Imobiliário Inteligente do Portal Housing 2026 (mudança de Brasília para BH, Campinas, SP ou RJ próximo ao Nubank). " +
-    "Responda em português de forma direta, objetiva, estruturada em tópicos curtos e 100% fundamentada nos dados reais do imóvel abaixo. " +
-    "Cite números exatos (andar, R$ aluguel/condomínio/total, m², decomposição da nota, itens de mobília e comodidades)." +
-    (params.queuedToLocalCursor
-      ? " Se o usuário apontar um erro de cadastro ou pedir ajuste na regra de pontuação, confirme os dados brutos do anúncio e avise que a sessão ativa do Cursor também recebeu o alerta para atualizar o motor/dataset."
-      : "");
-
-  const userPrompt = `Pergunta do usuário: "${params.question}"\n\nDados completos do imóvel e ranking:\n${JSON.stringify(contextPayload, null, 2)}`;
+    advertiser: params.rawListing?.advertiser ?? null,
+    topEvaluated: params.topEvaluated,
+    contextSummary: params.contextSummary,
+    queuedToLocalCursor: params.queuedToLocalCursor,
+  });
 
   if (groqKey) {
     try {
