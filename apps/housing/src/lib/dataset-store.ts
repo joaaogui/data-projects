@@ -5,6 +5,10 @@ import {
   applyListingDeactivations,
   loadListingDeactivations,
 } from "@/lib/listing-deactivations";
+import {
+  getPrecomputedListings,
+  hashContent,
+} from "@/lib/listing-features-store";
 import { cleanListingText } from "@/lib/listing-normalization";
 import { logger } from "@/lib/logger";
 import {
@@ -13,8 +17,8 @@ import {
 } from "@/lib/preferences-store";
 import {
   computeDynamicNeighborhoods,
-  computeDynamicProperties,
   DEFAULT_WEIGHTS,
+  scorePrecomputedListings,
 } from "@/lib/scoring-engine";
 import type {
   CityHubCode,
@@ -191,6 +195,13 @@ interface SeedSnapshotData {
 let cachedSnapshotPath: string | null = null;
 let cachedSnapshotMtimeMs = -1;
 let cachedSnapshotData: SeedSnapshotData | null = null;
+let cachedSnapshotHash = "";
+
+/** Content hash of the snapshot currently served (stable across instances for the same file). */
+export function getSnapshotContentHash(): string {
+  loadSnapshotFromDiskOrBundle();
+  return cachedSnapshotHash;
+}
 
 function loadSnapshotFromDiskOrBundle(): {
   data: SeedSnapshotData;
@@ -207,9 +218,9 @@ function loadSnapshotFromDiskOrBundle(): {
         ) {
           return { data: cachedSnapshotData, cacheHit: true };
         }
-        const parsed = JSON.parse(
-          readFileSync(/*turbopackIgnore: true*/ candidate, "utf8"),
-        ) as SeedSnapshotData;
+        const rawText = readFileSync(/*turbopackIgnore: true*/ candidate, "utf8");
+        const parsed = JSON.parse(rawText) as SeedSnapshotData;
+        cachedSnapshotHash = hashContent(rawText);
         cachedSnapshotPath = candidate;
         cachedSnapshotMtimeMs = mtimeMs;
         cachedSnapshotData = parsed;
@@ -461,16 +472,20 @@ export async function loadHousingDataset(
 
   if (!cachedSlimmedSnapshotProps || cachedSlimmedSnapshotSig !== slimSig) {
     const { ranked } = computeDynamicNeighborhoods(rawNbs, DEFAULT_WEIGHTS);
-    const fullEval = computeDynamicProperties(rawProps, ranked, DEFAULT_WEIGHTS, {
-      includeBsbBenchmark: true,
-    });
-    const noDescProps = rawProps.map((p) => ({
-      ...p,
-      description: null,
-      generatedDescription: null,
-    }));
-    const noDescEval = computeDynamicProperties(
-      noDescProps,
+    const fullEval = scorePrecomputedListings(
+      getPrecomputedListings(hashContent("raw", cachedSnapshotHash), () => rawProps),
+      ranked,
+      DEFAULT_WEIGHTS,
+      { includeBsbBenchmark: true },
+    );
+    const noDescEval = scorePrecomputedListings(
+      getPrecomputedListings(hashContent("raw-no-description", cachedSnapshotHash), () =>
+        rawProps.map((p) => ({
+          ...p,
+          description: null,
+          generatedDescription: null,
+        })),
+      ),
       ranked,
       DEFAULT_WEIGHTS,
       { includeBsbBenchmark: true },

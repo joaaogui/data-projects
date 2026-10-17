@@ -265,12 +265,9 @@ function resolveDuplicatePatch(
   return patch;
 }
 
-const normalizedCache = new WeakMap<SlimPropertyRecord, { sig: string; copy: SlimPropertyRecord }>();
-
 /**
  * Data-level fixes applied before scoring: HTML left in descriptions, rent stated in the description, estimated IPTU, and gap
- * filling between cross-portal duplicates. Returns the original object when nothing changes and a
- * stable copy otherwise, so the engine's per-object caches keep working.
+ * filling between cross-portal duplicates. Returns the original object when nothing changes and a patched copy otherwise.
  */
 export function prepareListingsForScoring(properties: SlimPropertyRecord[]): SlimPropertyRecord[] {
   const duplicatePatches = new Map<SlimPropertyRecord, Partial<SlimPropertyRecord>>();
@@ -287,11 +284,6 @@ export function prepareListingsForScoring(properties: SlimPropertyRecord[]): Sli
     const merged = { ...p, ...textPatch, ...duplicatePatch };
     const patch = { ...textPatch, ...duplicatePatch, ...resolvePricePatch(merged) };
     if (Object.keys(patch).length === 0) return p;
-    const sig = JSON.stringify(patch);
-    const cached = normalizedCache.get(p);
-    if (cached && cached.sig === sig) return cached.copy;
-    const copy = { ...p, ...patch };
-    normalizedCache.set(p, { sig, copy });
-    return copy;
+    return { ...p, ...patch };
   });
 }

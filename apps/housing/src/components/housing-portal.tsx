@@ -22,13 +22,14 @@ import {
   categorizePropertyFeatures,
   classifyFurnitureTier,
   computeDynamicNeighborhoods,
-  computeDynamicProperties,
   computeListingAge,
   DEFAULT_WEIGHTS,
   hasActiveSaleListing,
   normalizeNeighborhoodKey,
+  precomputeListingFeatures,
   resolveCurrentPublicationIso,
   sanitizeAndMigrateWeights,
+  scorePrecomputedListings,
 } from "@/lib/scoring-engine";
 import type {
   CityHubCode,
@@ -3111,15 +3112,20 @@ export function HousingPortal({
     [dataset.neighborhoods, weights],
   );
 
+  const precomputedListings = useMemo(
+    () => precomputeListingFeatures(dataset.properties),
+    [dataset.properties],
+  );
+
   const evaluatedProperties = useMemo(
     () =>
-      computeDynamicProperties(
-        dataset.properties,
+      scorePrecomputedListings(
+        precomputedListings,
         dynamicNeighborhoods,
         weights,
         { includeBsbBenchmark: enableBsbBenchmark },
       ),
-    [dataset.properties, dynamicNeighborhoods, weights, enableBsbBenchmark],
+    [precomputedListings, dynamicNeighborhoods, weights, enableBsbBenchmark],
   );
   evaluatedPropertiesRef.current = evaluatedProperties;
 

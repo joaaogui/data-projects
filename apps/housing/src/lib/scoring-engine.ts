@@ -996,11 +996,6 @@ export interface StreetMicroEnvironmentEvaluation {
   urbanBreathingCap: number | null;
 }
 
-const streetMicroCache = new WeakMap<
-  SlimPropertyRecord,
-  StreetMicroEnvironmentEvaluation
->();
-
 /**
  * Deterministic street & micro-location analyzer that prevents "Efeito Bunker"
  * (buildings on noisy 4–6 lane arterial avenues or degraded downtown borders
@@ -1010,9 +1005,6 @@ const streetMicroCache = new WeakMap<
 export function evaluateStreetMicroEnvironment(
   prop: SlimPropertyRecord,
 ): StreetMicroEnvironmentEvaluation {
-  const cached = streetMicroCache.get(prop);
-  if (cached) return cached;
-
   const normText = (s: string) =>
     s
       .toLowerCase()
@@ -1160,7 +1152,6 @@ export function evaluateStreetMicroEnvironment(
       safetyCarCap: 5.8,
       urbanBreathingCap: 5.0,
     };
-    streetMicroCache.set(prop, res);
     return res;
   }
 
@@ -1195,7 +1186,6 @@ export function evaluateStreetMicroEnvironment(
       safetyCarCap: null,
       urbanBreathingCap: null,
     };
-    streetMicroCache.set(prop, res);
     return res;
   }
 
@@ -1277,7 +1267,6 @@ export function evaluateStreetMicroEnvironment(
       safetyCarCap: null,
       urbanBreathingCap: null,
     };
-    streetMicroCache.set(prop, res);
     return res;
   }
 
@@ -1291,7 +1280,6 @@ export function evaluateStreetMicroEnvironment(
     safetyCarCap: null,
     urbanBreathingCap: null,
   };
-  streetMicroCache.set(prop, res);
   return res;
 }
 
@@ -1320,48 +1308,6 @@ type ApartmentNuancesEvaluation = {
   redTags: string[];
   warningTags: string[];
 };
-
-const nuancesCacheTrue = new WeakMap<
-  SlimPropertyRecord,
-  ApartmentNuancesEvaluation
->();
-const nuancesCacheFalse = new WeakMap<
-  SlimPropertyRecord,
-  ApartmentNuancesEvaluation
->();
-
-function cloneApartmentNuances(
-  cached: ApartmentNuancesEvaluation,
-): ApartmentNuancesEvaluation {
-  return {
-    rawNuancePoints: cached.rawNuancePoints,
-    nuanceHighlights: cached.nuanceHighlights.slice(),
-    nuanceWarnings: cached.nuanceWarnings.slice(),
-    parksNearby: cached.parksNearby.slice(),
-    mallsNearby: cached.mallsNearby.slice(),
-    acLabel: cached.acLabel,
-    floorTag: cached.floorTag,
-    highFloorLabel: cached.highFloorLabel,
-    lowFloorLabel: cached.lowFloorLabel,
-    hasNoElevator: cached.hasNoElevator,
-    hasTrappedParking: cached.hasTrappedParking,
-    isBareShell: cached.isBareShell,
-    greenTags: cached.greenTags.slice(),
-    redTags: cached.redTags.slice(),
-    warningTags: cached.warningTags.slice(),
-  };
-}
-
-function evaluateApartmentNuancesFast(
-  prop: SlimPropertyRecord,
-  penalizeMegaCondo: boolean,
-): ApartmentNuancesEvaluation {
-  const cache = penalizeMegaCondo ? nuancesCacheTrue : nuancesCacheFalse;
-  const cached = cache.get(prop);
-  if (cached) return cached;
-  evaluateApartmentNuances(prop, penalizeMegaCondo);
-  return cache.get(prop)!;
-}
 
 /**
  * QuintoAndar keeps `salePrice` on the house even after the sale ad is unpublished
@@ -1487,12 +1433,6 @@ export function evaluateApartmentNuances(
   prop: SlimPropertyRecord,
   penalizeMegaCondo: boolean,
 ): ApartmentNuancesEvaluation {
-  const cache = penalizeMegaCondo ? nuancesCacheTrue : nuancesCacheFalse;
-  const cached = cache.get(prop);
-  if (cached) {
-    return cloneApartmentNuances(cached);
-  }
-
   let pts = 0;
   const highlights: string[] = [];
   const warnings: string[] = [];
@@ -2344,7 +2284,7 @@ export function evaluateApartmentNuances(
     redTags.push("Infiltração / Manutenção Crítica");
   }
 
-  const result: ApartmentNuancesEvaluation = {
+  return {
     rawNuancePoints: Math.round(pts * 10) / 10,
     nuanceHighlights: highlights,
     nuanceWarnings: warnings,
@@ -2361,17 +2301,6 @@ export function evaluateApartmentNuances(
     redTags,
     warningTags,
   };
-  cache.set(prop, {
-    ...result,
-    nuanceHighlights: [...result.nuanceHighlights],
-    nuanceWarnings: [...result.nuanceWarnings],
-    parksNearby: [...result.parksNearby],
-    mallsNearby: [...result.mallsNearby],
-    greenTags: [...result.greenTags],
-    redTags: [...result.redTags],
-    warningTags: [...result.warningTags],
-  });
-  return result;
 }
 
 function formatListPt(items: string[]): string {
@@ -2749,11 +2678,6 @@ export function computeListingAge(
  * Extracts qualitative features from the apartment, condominium, and surroundings
  * that are NOT already displayed in the card header, specs row, floor badge, or green/red pills.
  */
-const nonRedundantHighlightsCache = new WeakMap<
-  SlimPropertyRecord,
-  { featureHighlights: string[]; surroundingHighlights: string[] }
->();
-
 function extractNonRedundantHighlights(
   prop: SlimPropertyRecord,
   nuances: ReturnType<typeof evaluateApartmentNuances>,
@@ -2761,9 +2685,6 @@ function extractNonRedundantHighlights(
   featureHighlights: string[];
   surroundingHighlights: string[];
 } {
-  const cached = nonRedundantHighlightsCache.get(prop);
-  if (cached) return cached;
-
   const features: string[] = [];
   const surroundings: string[] = [];
 
@@ -2932,7 +2853,6 @@ function extractNonRedundantHighlights(
     featureHighlights: features,
     surroundingHighlights: surroundings,
   };
-  nonRedundantHighlightsCache.set(prop, result);
   return result;
 }
 
@@ -3053,11 +2973,7 @@ function resolveNeighborhoodDrawback(
   return fallback;
 }
 
-const conservationDrawbacksCache = new WeakMap<SlimPropertyRecord, string[]>();
-
 function extractConservationDrawbacks(prop: SlimPropertyRecord): string[] {
-  const cached = conservationDrawbacksCache.get(prop);
-  if (cached) return cached;
 
   const result: string[] = [];
   const addUnique = (text: string) => {
@@ -3123,7 +3039,6 @@ function extractConservationDrawbacks(prop: SlimPropertyRecord): string[] {
     }
   }
 
-  conservationDrawbacksCache.set(prop, result);
   return result;
 }
 
@@ -3138,6 +3053,7 @@ function buildShortJustification(params: {
   nuances: ReturnType<typeof evaluateApartmentNuances>;
   eligible: boolean;
   exclusionReason: string | null;
+  staticMeta: ListingFeatures;
 }): string {
   const {
     prop,
@@ -3148,6 +3064,7 @@ function buildShortJustification(params: {
     weights,
     nuances,
     eligible,
+    staticMeta,
   } = params;
 
   const { commuteTimeText, officeLabel } = resolveOfficeReference(
@@ -3155,7 +3072,6 @@ function buildShortJustification(params: {
     catalogNb,
     nbCommute,
   );
-  const staticMeta = getStaticPropertyScoringMeta(prop);
 
   // === SENTENCE 1: PONTOS POSITIVOS (PRÓS) ===
   const isBunkerCorridor =
@@ -3312,8 +3228,7 @@ function buildShortJustification(params: {
   }
 
   // 5. Conservation / Building age drawbacks (only from confirmed negative conservation evidence)
-  const conservationDrawbacks = extractConservationDrawbacks(prop);
-  for (const cd of conservationDrawbacks.slice(0, 2)) {
+  for (const cd of staticMeta.conservationDrawbacks.slice(0, 2)) {
     primaryDrawbacks.push(cd);
   }
 
@@ -3435,6 +3350,7 @@ function buildNarrativeJustification(params: {
   nuances: ReturnType<typeof evaluateApartmentNuances>;
   eligible: boolean;
   exclusionReason: string | null;
+  staticMeta: ListingFeatures;
 }): string {
   const {
     prop,
@@ -3444,6 +3360,7 @@ function buildNarrativeJustification(params: {
     weights,
     nuances,
     eligible,
+    staticMeta,
   } = params;
 
   const { commuteTimeText, officeLabel } = resolveOfficeReference(
@@ -3451,7 +3368,6 @@ function buildNarrativeJustification(params: {
     catalogNb,
     nbCommute,
   );
-  const staticMeta = getStaticPropertyScoringMeta(prop);
 
   // 1. Urban breathing, office commute & surroundings synthesis
   let urbanClause = `Fica a cerca de ${commuteTimeText} do ${officeLabel}`;
@@ -3674,8 +3590,6 @@ export const PHOTO_VERIFIED_UNFURNISHED_KEYS = new Set<string>([
 
 export const PHOTO_VERIFIED_SEMI_OR_CABINETRY_KEYS = new Set<string>([]);
 
-const furnitureTierCache = new WeakMap<SlimPropertyRecord, FurnitureTier>();
-
 const APART_HOTEL_BRAND_REGEX =
   /\b(monet|max savassi|savassi hotel|radisson|mercure|ibis|trypp?|golden tulip|caesar business|manhattan flat|liberty palace|transamerica)\b/i;
 const SERVICED_CONDO_NAME_REGEX =
@@ -3742,12 +3656,9 @@ export function describeFurnitureInText(
 }
 
 export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
-  const cached = furnitureTierCache.get(prop);
-  if (cached) return cached;
 
   const propKey = `${prop.provider}:${prop.id}`;
   if (PHOTO_VERIFIED_UNFURNISHED_KEYS.has(propKey)) {
-    furnitureTierCache.set(prop, "UNFURNISHED");
     return "UNFURNISHED";
   }
   const photoAudit = PHOTO_AUDIT_OVERRIDES[propKey];
@@ -3756,16 +3667,13 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
       photoAudit.furnishedTier === "FULLY_FURNISHED"
         ? "FULLY_FURNISHED"
         : "UNFURNISHED";
-    furnitureTierCache.set(prop, tier);
     return tier;
   }
   if (PHOTO_DETECTED_FURNISHED_KEYS.has(propKey)) {
-    furnitureTierCache.set(prop, "FULLY_FURNISHED");
     return "FULLY_FURNISHED";
   }
 
   if (isApartHotelListing(prop)) {
-    furnitureTierCache.set(prop, "FULLY_FURNISHED");
     return "FULLY_FURNISHED";
   }
 
@@ -3828,11 +3736,11 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
       ? "FULLY_FURNISHED"
       : "UNFURNISHED";
 
-  furnitureTierCache.set(prop, tier);
   return tier;
 }
 
-interface StaticPropertyScoringMeta {
+/** Everything the score needs that depends only on the listing (not on weights or neighborhood ranks). */
+export interface ListingFeatures {
   normNb: string;
   normNbLower: string;
   nbLower: string;
@@ -3860,6 +3768,16 @@ interface StaticPropertyScoringMeta {
   isMegaCondoTrue: boolean;
   isMegaCondoFalse: boolean;
   cpFarCommute: CpFarCommute | null;
+  conservationDrawbacks: string[];
+  /** Nuances with `penalizeMegaCondo` on / off (the only weight they depend on). */
+  nuancesPenalize: ApartmentNuancesEvaluation;
+  nuancesNoPenalize: ApartmentNuancesEvaluation;
+}
+
+export interface PrecomputedListing {
+  /** The listing after data-level fixes (duplicates merge, IPTU estimate, stated rent). */
+  prop: SlimPropertyRecord;
+  features: ListingFeatures;
 }
 
 export interface CpFarCommute {
@@ -3975,11 +3893,6 @@ export function resolveCpFarCommute(
       ) / 10,
   };
 }
-
-const staticPropertyMetaCache = new WeakMap<
-  SlimPropertyRecord,
-  StaticPropertyScoringMeta
->();
 
 function buildFullLocationText(prop: SlimPropertyRecord): string {
   return [
@@ -4179,12 +4092,7 @@ function calibrateRuntimeModernity(
   };
 }
 
-function getStaticPropertyScoringMeta(
-  prop: SlimPropertyRecord,
-): StaticPropertyScoringMeta {
-  const cached = staticPropertyMetaCache.get(prop);
-  if (cached) return cached;
-
+export function extractListingFeatures(prop: SlimPropertyRecord): ListingFeatures {
   const propKey = `${prop.provider}:${prop.id}`;
   const photoAudit = PHOTO_AUDIT_OVERRIDES[propKey];
   const normNb = normalizeNeighborhoodKey(prop.neighborhood, prop.cityCode);
@@ -4242,10 +4150,10 @@ function getStaticPropertyScoringMeta(
     ) ||
     effectiveModernityTier === "DATED" ||
     Boolean(photoAudit?.hasMaintenanceIssue);
-  const nuancesTrue = evaluateApartmentNuancesFast(prop, true);
-  const nuancesFalse = evaluateApartmentNuancesFast(prop, false);
+  const nuancesTrue = evaluateApartmentNuances(prop, true);
+  const nuancesFalse = evaluateApartmentNuances(prop, false);
   const hl = extractNonRedundantHighlights(prop, nuancesFalse);
-  extractConservationDrawbacks(prop);
+  const conservationDrawbacks = extractConservationDrawbacks(prop);
   const topFeatures = hl.featureHighlights.slice(0, 5);
   const topSurroundings = hl.surroundingHighlights.slice(0, 3);
   const topFeaturesFormatted = formatListPt(topFeatures);
@@ -4277,7 +4185,7 @@ function getStaticPropertyScoringMeta(
     nuancesFalse.redTags.includes("Megacondomínio") ||
     nuancesFalse.nuanceWarnings.some((w) => /megacondom[ií]nio/i.test(w));
 
-  const meta: StaticPropertyScoringMeta = {
+  return {
     normNb,
     normNbLower,
     nbLower,
@@ -4305,14 +4213,15 @@ function getStaticPropertyScoringMeta(
     isMegaCondoTrue,
     isMegaCondoFalse,
     cpFarCommute: resolveCpFarCommute(prop.cityCode, prop.neighborhood),
+    conservationDrawbacks,
+    nuancesPenalize: nuancesTrue,
+    nuancesNoPenalize: nuancesFalse,
   };
-  staticPropertyMetaCache.set(prop, meta);
-  return meta;
 }
 
 interface EvaluatedJustificationContext {
   prop: SlimPropertyRecord;
-  staticMeta: StaticPropertyScoringMeta;
+  staticMeta: ListingFeatures;
   furnitureTier: FurnitureTier;
   catalogNb: ComputedNeighborhood | undefined;
   nbScore: number;
@@ -4637,6 +4546,7 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
         nuances: this.#ctx.nuances,
         eligible: this.#ctx.eligible,
         exclusionReason: this.#ctx.exclusionReason,
+        staticMeta: this.#ctx.staticMeta,
       });
     }
     return this.#short;
@@ -4653,6 +4563,7 @@ class EvaluatedPropertyImpl implements EvaluatedProperty {
         nuances: this.#ctx.nuances,
         eligible: this.#ctx.eligible,
         exclusionReason: this.#ctx.exclusionReason,
+        staticMeta: this.#ctx.staticMeta,
       });
     }
     return this.#narrative;
@@ -4695,8 +4606,33 @@ for (const key of [
   }
 }
 
+/** Listing-only feature extraction: run once per dataset, independent of weights. */
+export function precomputeListingFeatures(
+  properties: SlimPropertyRecord[],
+): PrecomputedListing[] {
+  return prepareListingsForScoring(properties).map((prop) => ({
+    prop,
+    features: extractListingFeatures(prop),
+  }));
+}
+
 export function computeDynamicProperties(
   properties: SlimPropertyRecord[],
+  computedNeighborhoods: ComputedNeighborhood[],
+  weights: ScoringWeights,
+  options?: { includeBsbBenchmark?: boolean },
+): EvaluatedProperty[] {
+  return scorePrecomputedListings(
+    precomputeListingFeatures(properties),
+    computedNeighborhoods,
+    weights,
+    options,
+  );
+}
+
+/** Cheap scoring step: weighted combination of precomputed features, neighborhood scores and weights. */
+export function scorePrecomputedListings(
+  listings: PrecomputedListing[],
   computedNeighborhoods: ComputedNeighborhood[],
   weights: ScoringWeights,
   options?: { includeBsbBenchmark?: boolean },
@@ -4705,9 +4641,9 @@ export function computeDynamicProperties(
   for (const n of computedNeighborhoods) {
     nbMap.set(`${n.cityCode}:${n.neighborhood.toLowerCase()}`, n);
   }
+  const normNbByItem = new Map<EvaluatedProperty, string>();
 
-  const evaluated: EvaluatedProperty[] = prepareListingsForScoring(properties).map((prop) => {
-    const staticMeta = getStaticPropertyScoringMeta(prop);
+  const evaluated: EvaluatedProperty[] = listings.map(({ prop, features: staticMeta }) => {
     const {
       normNbLower,
       nbLower,
@@ -4904,10 +4840,9 @@ export function computeDynamicProperties(
       ) / 10;
 
     // Nuances evaluation
-    const baseNuances = evaluateApartmentNuancesFast(
-      prop,
-      weights.penalizeMegaCondo,
-    );
+    const baseNuances = weights.penalizeMegaCondo
+      ? staticMeta.nuancesPenalize
+      : staticMeta.nuancesNoPenalize;
     const isFurnishedClassified = furnitureTier === "FULLY_FURNISHED";
     const failsFurnished = false;
     const isBunkerExcluded = false;
@@ -5161,7 +5096,7 @@ export function computeDynamicProperties(
         compactFloorM2,
       },
     );
-    staticPropertyMetaCache.set(evaluatedItem, staticMeta);
+    normNbByItem.set(evaluatedItem, staticMeta.normNbLower);
     return evaluatedItem;
   });
 
@@ -5185,10 +5120,7 @@ export function computeDynamicProperties(
     cityCounters.set(item.cityCode, cRank);
     item.cityRank = cRank;
 
-    const staticMeta = staticPropertyMetaCache.get(item);
-    const nbKey = staticMeta
-      ? `${item.cityCode}:${staticMeta.normNbLower}`
-      : `${item.cityCode}:${normalizeNeighborhoodKey(item.neighborhood, item.cityCode).toLowerCase()}`;
+    const nbKey = `${item.cityCode}:${normNbByItem.get(item)}`;
     const nRank = (nbCounters.get(nbKey) ?? 0) + 1;
     nbCounters.set(nbKey, nRank);
     item.neighborhoodRank = nRank;

@@ -23,9 +23,11 @@ import {
   PRICE_MISMATCH_TAG,
   isApartHotelListing,
   parseCommuteMinutes,
+  precomputeListingFeatures,
   resolveCpFarCommute,
   resolveCurrentPublicationIso,
   sanitizeAndMigrateWeights,
+  scorePrecomputedListings,
 } from "./scoring-engine";
 import {
   buildBenchmarkStats,
@@ -4697,5 +4699,40 @@ describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only 
     );
     expect(p!.description).toBe("•1 vaga de garagem coberta e rotativa.");
     expect(p!.eligible).toBe(false);
+  });
+});
+
+describe("Precomputed listing features (ingest) vs. weighted scoring step", () => {
+  const { ranked } = computeDynamicNeighborhoods(SAMPLE_NEIGHBORHOODS, DEFAULT_WEIGHTS);
+
+  it("scores precomputed listings exactly like the one-shot pipeline, for every preset", () => {
+    const precomputed = precomputeListingFeatures(SAMPLE_PROPERTIES);
+    for (const preset of BUILTIN_PRESETS) {
+      const nbs = computeDynamicNeighborhoods(SAMPLE_NEIGHBORHOODS, preset.weights).ranked;
+      const oneShot = computeDynamicProperties(SAMPLE_PROPERTIES, nbs, preset.weights);
+      const split = scorePrecomputedListings(precomputed, nbs, preset.weights);
+      expect(split.map((p) => [p.id, p.finalScore, p.eligible, p.overallRank, p.shortJustification])).toEqual(
+        oneShot.map((p) => [p.id, p.finalScore, p.eligible, p.overallRank, p.shortJustification]),
+      );
+    }
+  });
+
+  it("keeps both megacondo nuance variants so toggling the weight needs no re-extraction", () => {
+    const [listing] = precomputeListingFeatures([SAMPLE_PROPERTIES[0]!]);
+    expect(listing!.features.nuancesPenalize).toBeDefined();
+    expect(listing!.features.nuancesNoPenalize).toBeDefined();
+    const on = scorePrecomputedListings([listing!], ranked, { ...DEFAULT_WEIGHTS, penalizeMegaCondo: true });
+    const off = computeDynamicProperties([SAMPLE_PROPERTIES[0]!], ranked, { ...DEFAULT_WEIGHTS, penalizeMegaCondo: false });
+    expect(on[0]!.breakdown.nuancesPoints).toBe(listing!.features.nuancesPenalize.rawNuancePoints);
+    expect(scorePrecomputedListings([listing!], ranked, { ...DEFAULT_WEIGHTS, penalizeMegaCondo: false })[0]!.finalScore).toBe(off[0]!.finalScore);
+  });
+
+  it("re-extracts features from the current listing data (no stale per-object cache)", () => {
+    const prop = { ...SAMPLE_PROPERTIES[0]!, description: "Apartamento sem ar-condicionado." };
+    const before = computeDynamicProperties([prop], ranked, DEFAULT_WEIGHTS)[0]!;
+    prop.description = "Apartamento com ar-condicionado split em todos os cômodos.";
+    const after = computeDynamicProperties([prop], ranked, DEFAULT_WEIGHTS)[0]!;
+    expect(before.cardTags.acLabel).toBeNull();
+    expect(after.cardTags.acLabel).toBe("Ar-condicionado Split");
   });
 });
