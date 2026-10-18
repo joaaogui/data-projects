@@ -413,7 +413,7 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   // === CP (Campinas) ===
   "CP:Nova Campinas": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 8.2, commuteLogistics: 8.2, buildingStock: 6.5, budgetFit: 6.2, safetyCar: 9.1 },
   "CP:Gramado": { cityCode: "CP", commute: "25-30 min do Nubank (Viracopos)", urbanBreathing: 8.8, commuteLogistics: 7.4, buildingStock: 7.8, budgetFit: 7.0, safetyCar: 9.0 },
-  "CP:Cambuí": { cityCode: "CP", commute: "25-30 min do Nubank (Viracopos)", urbanBreathing: 6.2, commuteLogistics: 7.8, buildingStock: 8.8, budgetFit: 6.5, safetyCar: 8.7 },
+  "CP:Cambuí": { cityCode: "CP", commute: "25-30 min do Nubank (Viracopos)", urbanBreathing: 4.5, commuteLogistics: 7.8, buildingStock: 8.8, budgetFit: 6.5, safetyCar: 8.7 },
   "CP:Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 9.6, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
   "CP:Parque Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 9.6, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
   "CP:Mansões Santo Antônio": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 8.0, commuteLogistics: 7.2, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.6 },
