@@ -100,18 +100,19 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     "visualWarnings": []
   },
   "quintoandar:894349167": {
-    "modernityScore": 79,
-    "modernityTier": "MODERN_OR_RENOVATED",
+    "modernityScore": 58,
+    "modernityTier": "STANDARD",
     "verifiedAC": true,
     "falseFreeView": true,
+    "verifiedBalcony": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Tanque de coluna simples na lavanderia",
-      "Piso granilite/cerâmico padrão na cozinha",
-      "Auditoria visual: vista parcial — torre vizinha do mesmo condomínio bloqueia metade da vista da sala e da suíte",
-      "Split confirmado apenas na suíte (quarto 1 sem AC)"
+      "Piso cerâmico bege grande, paredes bege, cozinha de granito bege e tanque de coluna: padrão ~2010 sem reforma",
+      "Torre vizinha do mesmo condomínio bloqueia metade da vista",
+      "Megacondomínio familiar (playground, quadra, brinquedoteca)",
+      "Condensadora exposta na varanda; split na suíte (quarto 1 sem)"
     ]
   },
   "quintoandar:895702014": {
@@ -131,15 +132,16 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "zapimoveis:2915407598": {
-    "modernityScore": 92,
+    "modernityScore": 88,
     "modernityTier": "MODERN_OR_RENOVATED",
     "verifiedAC": true,
+    "verifiedBalcony": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Apenas 1 split visível (suíte); sala e 2º quarto sem ar",
-      "Perfil de megacondomínio familiar (brinquedoteca, playground, mini quadra, piscinas adulto/infantil, várias torres)"
+      "Andar 1: varanda ao nível da rua/jardim",
+      "Apenas 1 split visível (suíte)"
     ]
   },
   "quintoandar:895648124": {
@@ -151,26 +153,34 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     "visualWarnings": []
   },
   "quintoandar:895752152": {
-    "modernityScore": 82,
+    "modernityScore": 78,
     "modernityTier": "MODERN_OR_RENOVATED",
     "falseAC": true,
+    "verifiedAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "verifiedBalcony": true,
+    "noCabinets": true,
+    "floorHint": "MID",
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Sem split de ar-condicionado visível nas paredes do apartamento",
-      "Quartos sem armários embutidos visíveis nas fotos"
+      "Auditoria visual: sem split visível; cozinha sem nenhum armário (apenas cuba e bancada); quartos sem armários embutidos; varanda real com vista da piscina; prédio novo, unidade vazia"
     ]
   },
   "zapimoveis:2878532384": {
-    "modernityScore": 92,
+    "modernityScore": 90,
     "modernityTier": "MODERN_OR_RENOVATED",
-    "falseAC": true,
+    "falseAC": false,
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Sem split de ar-condicionado visível nas fotos internas do apartamento"
+      "Split visível no quarto e na sala (parede, junto ao teto)"
     ]
   },
   "quintoandar:895774030": {
@@ -216,29 +226,30 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
   "zapimoveis:2897524839": {
     "modernityScore": 88,
     "modernityTier": "MODERN_OR_RENOVATED",
-    "falseAC": true,
-    "falseGourmet": true,
+    "falseAC": false,
+    "verifiedAC": true,
+    "falseGourmet": false,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": [
-      "Sem split de ar-condicionado visível nas paredes",
-      "Varanda envidraçada simples sem churrasqueira gourmet visível"
-    ]
+    "visualWarnings": []
   },
   "quintoandar:895560013": {
     "modernityScore": 92,
     "modernityTier": "MODERN_OR_RENOVATED",
+    "falseFreeView": false,
+    "verifiedBalcony": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Sem split instalado (provável nicho de condensadora na área de serviço)",
-      "Cozinha sem cooktop/forno"
+      "Prédio novo; sem split instalado (nicho/louver de condensadora na varanda de serviço)",
+      "Cozinha americana planejada sem cooktop/forno",
+      "Deslocamento 35-40 min até Viracopos"
     ]
   },
   "zapimoveis:2892142503": {
-    "modernityScore": 95,
+    "modernityScore": 92,
     "modernityTier": "MODERN_OR_RENOVATED",
     "verifiedAC": true,
     "verifiedBalcony": true,
@@ -246,13 +257,16 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Auditoria visual: Split instalado só na sala; quarto aparenta ter apenas preparação para AC"
+      "Split visível só na sala; quarto sem aparelho confirmado",
+      "Endereço/bairro não informado pelo anúncio (Zap) — Taquaral não verificado",
+      "Imóvel também aparece à venda (flag do engine)"
     ]
   },
   "zapimoveis:2908131723": {
     "modernityScore": 86,
     "modernityTier": "MODERN_OR_RENOVATED",
     "verifiedAC": true,
+    "verifiedBalcony": true,
     "furnishedTier": "FULLY_FURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
@@ -309,15 +323,19 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     "modernityScore": 90,
     "modernityTier": "MODERN_OR_RENOVATED",
     "verifiedAC": true,
+    "falseFreeView": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Auditoria visual: unidade nova (piso vinílico amadeirado, painel ripado com LED, cozinha planejada com forno/cooktop embutidos, banheiro em porcelanato grande); splits instalados na sala e no quarto; fotos vazias e portal 'Sem mobília', mas a descrição do proprietário diz 'mobiliado (geladeira, TVs, sofá, mesa)' — confirmar se os móveis saem"
+      "Unidade nova (ripado + LED, vinílico, cooktop/forno), splits na sala",
+      "Vista é de torres vizinhas próximas através de janela piso-teto — não é vista livre",
+      "Sem varanda verificável: janela piso-teto com guarda-corpo",
+      "Descrição fala em mobiliado; fotos e portal sem móveis — confirmar"
     ]
   },
   "quintoandar:894145534": {
-    "modernityScore": 86,
+    "modernityScore": 82,
     "modernityTier": "MODERN_OR_RENOVATED",
     "verifiedAC": true,
     "floorHint": "LOW",
@@ -325,43 +343,55 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Loft com suíte em mezanino aberto (guarda-corpo de vidro, sem porta) e escada flutuante interna",
-      "3º andar voltado para a Rua Maria Monteiro (eixo comercial/boêmio: Oba, padaria 24h, posto em frente)",
-      "Fotos de jul/2023; acabamento estilo ~2012 (pastilha de vidro, granito preto); split só no mezanino"
+      "Loft/duplex com suíte em mezanino aberto (guarda-corpo de vidro, sem porta) e escada flutuante",
+      "Fotos de jul/2023 (3 anos); acabamento ~2012 (pastilha de vidro, granito preto), split só no mezanino",
+      "3º andar sobre a Rua Maria Monteiro (eixo comercial/boêmio)",
+      "Vista aberta confirmada: piscina do condomínio e cidade a partir da sala"
     ]
   },
   "zapimoveis:2903408622": {
-    "modernityScore": 88,
+    "modernityScore": 85,
     "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
     "falseGourmet": true,
+    "verifiedBalcony": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Varanda privativa do apartamento é simples (churrasqueira nas fotos pertence à área comum do condomínio)"
+      "Churrasqueira das fotos é da área comum; varanda da unidade é simples com tela de proteção",
+      "Splits na sala e nas duas suítes (confirmados)",
+      "Fotos de proprietário, iluminação irregular; última atualização do anúncio 18/08"
     ]
   },
   "zapimoveis:2905000906": {
-    "modernityScore": 88,
+    "modernityScore": 80,
     "modernityTier": "MODERN_OR_RENOVATED",
     "falseAC": true,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Edifício/fachada mais antigo (anos 90), porém interior 100% reformado",
-      "Sem split de ar-condicionado visível nas fotos"
+      "Edifício/fachada mais antigo (anos 90), porém interior reformado (porcelanato cinza, cozinha com cooktop/forno e armários azuis)",
+      "Auditoria visual: o único ar-condicionado é aparelho de janela no quarto (não é split) — sem split instalado"
     ]
   },
   "zapimoveis:2906293013": {
-    "modernityScore": 86,
-    "modernityTier": "MODERN_OR_RENOVATED",
-    "falseAC": true,
+    "modernityScore": 74,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": false,
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "floorHint": "LOW",
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Sem split de ar-condicionado visível no interior ou na fachada"
+      "Override anterior (falseAC=true) está ERRADO: splits visíveis na sala, no quarto e no corredor",
+      "Sacada ao nível das copas das árvores (~2º–3º andar); vista para praça/avenida arborizada",
+      "Salão de festas com piso cerâmico simples e cadeiras plásticas"
     ]
   },
   "zapimoveis:2913842750": {
@@ -404,31 +434,39 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "zapimoveis:2913843818": {
-    "modernityScore": 90,
+    "modernityScore": 88,
     "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
     "furnishedTier": "FULLY_FURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": []
   },
   "quintoandar:895748989": {
-    "modernityScore": 94,
+    "modernityScore": 88,
     "modernityTier": "MODERN_OR_RENOVATED",
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Andar baixo (até 3º); vista da varanda dá para casas baixas e prédios ao redor",
+      "Área de 52 m² parece pequena nas fotos (inferência; não verificada)",
+      "Mesma unidade do rank 130 (Rua Padre Vieira, 52 m², mesmos trilhos de luz, painel ripado e bancada): anunciada no QuintoAndar e no Zap com totais diferentes (QA R$ 4.332 vs Zap R$ 3.750)"
+    ]
   },
   "quintoandar:894618527": {
     "modernityScore": 68,
     "modernityTier": "WELL_MAINTAINED",
+    "falseAC": false,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
       "Armários de quarto antigos em madeira avermelhada/mel com maleiro e puxadores bola (anos 90/2000)",
       "Piso laminado avermelhado antigo nos quartos",
-      "Esquadrias antigas pintadas de escuro nos quartos"
+      "Sem split de ar-condicionado"
     ]
   },
   "zapimoveis:2891916232": {
@@ -443,12 +481,18 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "zapimoveis:2914356687": {
-    "modernityScore": 85,
-    "modernityTier": "MODERN_OR_RENOVATED",
+    "modernityScore": 66,
+    "modernityTier": "STANDARD",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Padrão ~2010: cozinha/banheiro/área de serviço com cerâmica pequena clara, bancada de granito bege, piso laminado",
+      "Ventilador de teto na sala; split visto só em um quarto",
+      "Descrição: 'vista portaria' — sem vista livre"
+    ]
   },
   "quintoandar:894151286": {
     "modernityScore": 45,
@@ -654,40 +698,45 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "quintoandar:895199327": {
-    "modernityScore": 88,
-    "modernityTier": "MODERN_OR_RENOVATED",
+    "modernityScore": 78,
+    "modernityTier": "WELL_MAINTAINED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Loft duplex: escada interna e suíte em mezanino aberta para a sala (sem privacidade)",
-      "Sem ar-condicionado Split visível em nenhum ambiente",
-      "Banheiro com pastilhas de vidro (estilo anos 2000/2010) e chuveiro elétrico",
-      "Portaria automatizada (biometria/app), sem porteiro"
+      "Cozinha minimalista: bancada preta, pia simples e poucos armários",
+      "Banheiro com pastilhas de vidro e piso de mármore",
+      "Nenhum split visível nas fotos de interior"
     ]
   },
   "quintoandar:895722432": {
-    "modernityScore": 95,
-    "modernityTier": "MODERN_OR_RENOVATED",
+    "modernityScore": 78,
+    "modernityTier": "WELL_MAINTAINED",
     "falseAC": true,
+    "verifiedBalcony": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Auditoria visual: anúncio marca ar-condicionado mas não há Split instalado nas fotos (sala e 2 quartos vazios)"
+      "Anúncio marca ar-condicionado, mas nenhum split instalado em sala/quartos",
+      "Piso porcelanato bege grande e laminado nos quartos; granito preto e armários cinza padrão",
+      "Descrição: 2 vagas 'em linha' (presa)",
+      "Vista livre não confirmada"
     ]
   },
   "quintoandar:893127481": {
-    "modernityScore": 100,
+    "modernityScore": 84,
     "modernityTier": "MODERN_OR_RENOVATED",
     "verifiedAC": true,
+    "falseFreeView": false,
+    "verifiedBalcony": true,
     "noCabinets": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Fotos de 2020 mostram cozinha sem armários (só bancada) e quarto sem guarda-roupa",
-      "Fotos antigas (ago/2020) — estado atual não confirmado",
-      "Entorno hospitalar (Hospital das Clínicas / Santa Casa / João XXIII a ~400 m): sirenes e fluxo intenso"
+      "Fotos de ago/2020: cozinha só com bancada de granito e sem armários; quarto sem guarda-roupa",
+      "Estado atual não confirmado (fotos com ~6 anos)",
+      "Entorno hospitalar a ~400 m (sirenes)"
     ]
   },
   "quintoandar:894469434": {
@@ -703,36 +752,44 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "quintoandar:894663476": {
-    "modernityScore": 68,
-    "modernityTier": "WELL_MAINTAINED",
+    "modernityScore": 52,
+    "modernityTier": "STANDARD",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Piso de taco e tábua corrida antiga na sala e nos quartos",
-      "Esquadrias de alumínio simples/antigas",
-      "Interruptores, interfone e luminária globo antigos"
+      "Tábua corrida escura antiga na sala e quartos (não é taco)",
+      "Cozinha reformada (ilha de madeira, cobogó, faixa de ladrilho hidráulico) e 1 banheiro reformado moderno",
+      "2º banheiro original bege com bidê e mármore antigo",
+      "Hall/áreas comuns antigos (piso de pedra escura, forro de madeira)",
+      "Sem AC"
     ]
   },
   "quintoandar:895708603": {
-    "modernityScore": 82,
+    "modernityScore": 80,
     "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedBalcony": true,
     "furnishedTier": "UNFURNISHED",
     "noCabinets": true,
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Ausência total de armários na cozinha, banheiros e quartos (imóvel recém-entregue cru)",
-      "Banheiros sem box, sem chuveiro instalado e sem espelho; sem luminárias (entrega padrão construtora)",
-      "Varanda com bancada de granito e pia (gourmet sem churrasqueira)"
+      "Entrega crua: sem armários, sem box, sem luminárias",
+      "Varanda gourmet com pia/bancada e vista panorâmica de andar alto"
     ]
   },
   "zapimoveis:2907744516": {
     "modernityScore": 88,
     "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "floorHint": "HIGH",
     "furnishedTier": "FULLY_FURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Mobiliado sem sofá visível",
+      "Imóvel também à venda",
+      "Vista com prédios próximos"
+    ]
   },
   "quintoandar:895281155": {
     "modernityScore": 38,
@@ -748,16 +805,18 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "quintoandar:895362019": {
-    "modernityScore": 70,
-    "modernityTier": "WELL_MAINTAINED",
+    "modernityScore": 52,
+    "modernityTier": "STANDARD",
     "falseAC": true,
+    "verifiedBalcony": true,
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Armário do quarto em laminado tom mel/cerejeira estilo anos 2000",
-      "Azulejos pequenos quadrados no box do banheiro e na cozinha",
-      "Auditoria visual: ar-condicionado anunciado não confirmado nas fotos"
+      "Cozinha com azulejo/pastilha estilo anos 2000 e granito preto",
+      "Armário do quarto em laminado cor de mel",
+      "Varanda revestida de pastilha preta; prédio vizinho muito próximo ao nível do andar",
+      "Mesmo prédio (Rua Ceará 1620) e mesmas fotos/mobília (futon preto, armário mel, piscina estreita) do rank 32: provável mesma unidade anunciada em QuintoAndar e Zap"
     ]
   },
   "quintoandar:895000407": {
@@ -794,13 +853,14 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     "visualWarnings": []
   },
   "quintoandar:895741955": {
-    "modernityScore": 70,
-    "modernityTier": "WELL_MAINTAINED",
+    "modernityScore": 42,
+    "modernityTier": "DATED",
+    "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
-    "hardExcludeDated": false,
+    "hardExcludeDated": true,
     "visualWarnings": [
-      "Azulejos quadrados 15x15 antigos na cozinha e na varanda",
-      "Portas de madeira em estilo clássico com arco"
+      "Auditoria visual (Ed. Master Studio): piso de taco de madeira, esquadrias de alumínio preto cru, azulejo 15x15 branco na cozinha e na varanda, granito marrom e portas de madeira com arco — acabamento anos 90",
+      "Auditoria visual: sem ar-condicionado e cozinha sem armários visíveis (só bancada de granito e pia)"
     ]
   },
   "quintoandar:895701513": {
@@ -890,14 +950,16 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "quintoandar:895262148": {
-    "modernityScore": 82,
-    "modernityTier": "MODERN_OR_RENOVATED",
+    "modernityScore": 74,
+    "modernityTier": "WELL_MAINTAINED",
     "floorHint": "HIGH",
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Esquadrias de alumínio natural originais na sala e no quarto (cozinha e banheiro totalmente reformados)"
+      "Fotos: cozinha e área de serviço reformadas (armários lisos, cooktop, porcelanato marmorizado) e piso vinílico, mas esquadrias de alumínio natural antigas em sala/quartos e guarda-roupas brancos antigos de prédio velho",
+      "Sem split instalado e sem varanda (apenas janelas)",
+      "Piscina pequena/antiga de pedra ardósia; prédio com aparência dos anos 80-90"
     ]
   },
   "quintoandar:895740524": {
@@ -914,12 +976,16 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "zapimoveis:2882523903": {
-    "modernityScore": 76,
-    "modernityTier": "WELL_MAINTAINED",
+    "modernityScore": 54,
+    "modernityTier": "STANDARD",
     "furnishedTier": "UNFURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Piso cerâmico bege com rejunte escuro e bancada de granito",
+      "Varanda pequena sem vista relevante",
+      "Endereço não informado no portal (bairro Lourdes)"
+    ]
   },
   "zapimoveis:2912062729": {
     "modernityScore": 55,
@@ -983,11 +1049,19 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "quintoandar:893880856": {
-    "modernityScore": 90,
+    "modernityScore": 88,
     "modernityTier": "MODERN_OR_RENOVATED",
+    "falseFreeView": true,
+    "noCabinets": false,
+    "floorHint": "LOW",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Vista livre falsa: árvores/prédios vizinhos próximos",
+      "Sem portaria 24h",
+      "Andar baixo",
+      "Sem AC"
+    ]
   },
   "quintoandar:895626344": {
     "modernityScore": 46,
@@ -1002,12 +1076,19 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "quintoandar:894892861": {
-    "modernityScore": 90,
-    "modernityTier": "MODERN_OR_RENOVATED",
+    "modernityScore": 74,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "noCabinets": false,
     "furnishedTier": "FULLY_FURNISHED",
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
-    "visualWarnings": []
+    "visualWarnings": [
+      "Fotos de unidade habitada, desordenada — acabamento neutro (cozinha branca com granito preto, piso bege), não 'moderno/renovado'",
+      "Sem varanda e sem vista aberta visíveis (janelas dão para árvores/prédios vizinhos)",
+      "Sem fotos de fachada/portaria; portaria 24h ausente",
+      "Anúncio publicado há mais de 1 ano (2025-06-21)"
+    ]
   },
   "zapimoveis:2917858063": {
     "modernityScore": 92,
@@ -1422,12 +1503,17 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "zapimoveis:2909939228": {
-    "modernityScore": 78,
+    "modernityScore": 76,
     "modernityTier": "WELL_MAINTAINED",
     "verifiedAC": true,
+    "falseGourmet": true,
+    "verifiedBalcony": true,
     "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
     "visualWarnings": [
-      "Auditoria visual: padrão construtora ~2010s sem reforma (portas amadeiradas, bancadas de granito pontilhado); split na sala visível, porcelanato e marcenaria branca"
+      "Padrão construtora ~2010s sem reforma: portas amadeiradas, bancada de granito preto, porcelanato cinza",
+      "Varanda tem só guarda-corpo de vidro — sem churrasqueira/bancada gourmet nas fotos (engine credita 'Varanda gourmet')",
+      "Split visível na sala"
     ]
   },
   "zapimoveis:2913737751": {
@@ -1445,22 +1531,1909 @@ export const PHOTO_AUDIT_OVERRIDES: Record<string, PhotoAuditOverride> = {
     ]
   },
   "zapimoveis:2914284775": {
-    "modernityScore": 82,
-    "modernityTier": "WELL_MAINTAINED",
+    "modernityScore": 68,
+    "modernityTier": "STANDARD",
     "verifiedAC": true,
     "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
     "visualWarnings": [
-      "Auditoria visual: bem conservado mas sem reforma, padrão construtora ~2010s (lustres de cristal, cerâmica bege na cozinha/varanda, faixa xadrez no banheiro); split visível só na sala"
+      "Lustres de cristal, cortinas e acabamentos padrão construtora ~2010s",
+      "Semi-mobiliado (armários, fogão, painel de TV, AC, purificador); sem geladeira/sofá/cama declarados → UNFURNISHED correto pela regra de 2 níveis",
+      "Split visível apenas na sala"
     ]
   },
   "zapimoveis:2917501636": {
-    "modernityScore": 56,
-    "modernityTier": "STANDARD",
+    "modernityScore": 40,
+    "modernityTier": "DATED",
     "verifiedAC": true,
     "hasMaintenanceIssue": false,
     "hardExcludeDated": false,
     "visualWarnings": [
-      "Auditoria visual: prédio anos 90 — armários creme com portas de vidro, cerâmica branca diagonal, banheiro bege original, esquadrias pretas; fogão de piso (não cooktop); máquina de lavar dentro do banheiro; varanda mínima com tela e vista obstruída"
+      "Auditoria visual: prédio anos 90 — armários creme com portas de vidro, cerâmica branca diagonal, banheiro bege original, esquadrias pretas; fogão de piso; máquina de lavar dentro do banheiro; varanda mínima com tela e vista obstruída"
+    ]
+  },
+  "zapimoveis:2903249333": {
+    "modernityScore": 88,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
+    "visualWarnings": [
+      "Torre vizinha próxima na frente da varanda; vista livre só em parte",
+      "Sem split visível; prédio novo 1ª locação"
+    ]
+  },
+  "zapimoveis:2908605481": {
+    "modernityScore": 70,
+    "modernityTier": "WELL_MAINTAINED",
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: sem ar-condicionado visível em nenhum cômodo; unidade alugada mobiliada (sofá, rack/TV, cama, máquina de lavar) — texto: 'todo mobiliado e equipado'",
+      "Auditoria visual: reforma de nível médio (laminado, lambri de madeira, granito, pendentes simples); cozinha ainda com armário de madeira com vidro antigo; torre antiga com hall em mármore"
+    ]
+  },
+  "zapimoveis:2909925946": {
+    "modernityScore": 72,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: ar-condicionado não instalado — o anúncio cita só 'laje técnica para instalar o ar condicionado' (infra pronta nos 2 quartos e sala); unidade vazia sem nenhum split",
+      "Acabamento padrão: cozinha com azulejo branco liso e granito preto, porcelanato bege simples; metragem informada 80 m² mas o texto diz 'Apto de 71 metros'"
+    ]
+  },
+  "quintoandar:893318221": {
+    "modernityScore": 76,
+    "modernityTier": "WELL_MAINTAINED",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: sem ar-condicionado visível; acabamento simples (porcelanato claro, laminado nos quartos, cozinha branca com granito)",
+      "Auditoria visual: vista da suíte/quarto 2 dá para torres vizinhas e garagem-edifício do shopping — vista só parcialmente livre; condomínio com várias torres (possível megacondomínio)"
+    ]
+  },
+  "zapimoveis:2914707936": {
+    "modernityScore": 92,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: sem ar-condicionado visível (apenas grelha de infraestrutura no teto); persiana automatizada na suíte (texto)"
+    ]
+  },
+  "quintoandar:895654350": {
+    "modernityScore": 30,
+    "modernityTier": "DATED",
+    "falseFreeView": true,
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Auditoria visual (Ed. São Germano): flat anos 90 — piso de granito, armários de madeira/fórmica datados, ventilador de teto, cozinha aberta no mesmo ambiente da sala/cama (planta tipo studio)",
+      "Auditoria visual: sem ar-condicionado; a varanda dá para viaduto elevado a poucos metros (ruído e vista bloqueada)",
+      "Anúncio também à venda (R$ 520 mil) — risco de o proprietário vender"
+    ]
+  },
+  "quintoandar:892874112": {
+    "modernityScore": 28,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Auditoria visual: apartamento anos 90 totalmente mobiliado com móveis de madeira maciça, cortinas e decoração antigas; cozinha estreita com azulejo branco e armários antigos",
+      "Auditoria visual: o ar-condicionado é um aparelho de janela/parede antigo (marrom), sem split"
+    ]
+  },
+  "quintoandar:895719701": {
+    "modernityScore": 85,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": true,
+    "falseFreeView": true,
+    "verifiedBalcony": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: o checklist marca ar-condicionado, mas nenhum split está instalado em sala ou quartos nas fotos — unidade nova vazia",
+      "Vista da varanda é para edifício-garagem e linha férrea (ruído de trilhos), não vista livre; megacondomínio de várias torres"
+    ]
+  },
+  "zapimoveis:2874113419": {
+    "modernityScore": 52,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Acabamentos datados anos 90 (granito/cerâmica escura, marcenaria escura)",
+      "Mesmo prédio (Rua Ceará 1620) e mesmas fotos/mobília (futon preto, armário mel, piscina estreita) do rank 12: provável mesma unidade anunciada em QuintoAndar e Zap"
+    ]
+  },
+  "netimoveis:712491": {
+    "modernityScore": 70,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Studio-like 47 m²",
+      "Só 'infraestrutura para ar-condicionado' na descrição; nenhum aparelho instalado"
+    ]
+  },
+  "zapimoveis:2897951683": {
+    "modernityScore": 82,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": []
+  },
+  "zapimoveis:2898051875": {
+    "modernityScore": 64,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "AC citado no texto mas nenhum split visível nas 15 fotos",
+      "42 m² abaixo do ideal",
+      "Fotos antigas/baixa resolução"
+    ]
+  },
+  "zapimoveis:2917803147": {
+    "modernityScore": 50,
+    "modernityTier": "STANDARD",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "AC é de janela, não split",
+      "Mobiliado completo (sofá, cama, TV, geladeira, máquina)",
+      "Mobiliário/TV rack de madeira antiga"
+    ]
+  },
+  "zapimoveis:2917613740": {
+    "modernityScore": 68,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseGourmet": true,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Sem AC",
+      "'Varanda gourmet' é área de serviço envidraçada"
+    ]
+  },
+  "zapimoveis:2903987799": {
+    "modernityScore": 68,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "falseGourmet": true,
+    "noCabinets": false,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Split instalado só em 1 dormitório (sala e 2º quarto sem aparelho visível)",
+      "'Varanda gourmet' é lazer do condomínio, não da unidade",
+      "Piso laminado/vinílico amadeirado, bancadas de granito preto, armários brancos/azul — conservado mas sem acabamento premium",
+      "Descrição diz '2 vagas cobertas' mas portal/título dizem 1 vaga"
+    ]
+  },
+  "zapimoveis:2908655016": {
+    "modernityScore": 90,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "noCabinets": false,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Layout studio/loft: quarto integrado ao ambiente, anunciado como 'studio'",
+      "Imóvel também à venda (descrição: 'disponível para venda ou primeira locação')",
+      "Vista livre/definitiva e andar alto só por texto; janelas das fotos mostram torres vizinhas em altura próxima (não verificado)",
+      "Rua não informada; torre de 43 andares, megacondomínio"
+    ]
+  },
+  "zapimoveis:2870378197": {
+    "modernityScore": 55,
+    "modernityTier": "STANDARD",
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Totalmente mobiliado (descrição: 'alugado com todos os móveis') — engine tratou como não mobiliado",
+      "Piso de taco/parquet e cerâmica pequena na cozinha, armários pretos/brancos misturados",
+      "Split AC não visível; só checklist do portal",
+      "Também 'aluga ou vende'",
+      "Descrição cita 2 banheiros, portal 1"
+    ]
+  },
+  "zapimoveis:2872525880": {
+    "modernityScore": 35,
+    "modernityTier": "DATED",
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Piso cerâmico branco 15x15 com rejunte escuro na sala/cozinha e taco de madeira escura nos quartos",
+      "Guarda-roupa de madeira com venezianas (anos 90) e armários de cozinha em madeira/laminado antigos",
+      "Esquadrias de alumínio marrom antigas; ventilador de teto, sem split",
+      "Fotos mostram imóvel mobiliado (sofá, cama, mesa) embora o portal diga sem mobília — confirmar"
+    ]
+  },
+  "zapimoveis:2912083154": {
+    "modernityScore": 38,
+    "modernityTier": "DATED",
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "FULLY_FURNISHED",
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Prédio anos 90: piso cerâmico 15x15 claro com rejunte escuro, rodapé e portas de madeira escura, bancada granito marrom",
+      "Guarda-roupas e armários de madeira antigos; espelho com moldura dourada",
+      "Sem split; só grelha de ventilação sob a janela",
+      "Mobiliado (sofá, cama, mesa, escrivaninha, geladeira) — slug do anúncio e amenity FURNISHED, mas engine tratou como não mobiliado",
+      "Gesso rebaixado antigo com sanca"
+    ]
+  },
+  "quintoandar:895771915": {
+    "modernityScore": 95,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Studio-like compacto de 40 m² (penalidade de área já aplicada)",
+      "Varanda integrada à sala e fechada com vidro",
+      "Barro Preto: segurança -15,6 já aplicada"
+    ]
+  },
+  "zapimoveis:2892963574": {
+    "modernityScore": 88,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "noCabinets": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Fotos de unidade habitada (móveis de moradores)",
+      "Sem split; apenas ventilador de teto",
+      "Prédio de 6 pavimentos sem portaria (interfone), 1 elevador",
+      "Título 'com jardim' + corredor com janelas altas sugere unidade térrea/garden — andar não confirmado",
+      "Também à venda"
+    ]
+  },
+  "zapimoveis:2912932429": {
+    "modernityScore": 80,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": false,
+    "falseGourmet": true,
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Fotos da sala com sofá e split são do apartamento decorado da construtora — a unidade real está vazia, sem aparelho de AC",
+      "Só infraestrutura para AC (confirmado pelo texto)",
+      "Varanda gourmet é lazer do condomínio",
+      "Fotos do prédio nunca habitado (1ª locação provável); 45 m² com 2 quartos pequenos"
+    ]
+  },
+  "zapimoveis:2908621159": {
+    "modernityScore": 82,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Studio de ambiente único (sofá-cama + cama no mesmo cômodo), anunciado como '1 quarto'",
+      "Portaria 'inteligente' com controle de acesso (24h humana não confirmada)",
+      "Piso laminado, acabamento padrão contemporâneo",
+      "Cobertura do prédio tem spa/sauna e lavanderia self-service"
+    ]
+  },
+  "zapimoveis:2915406375": {
+    "modernityScore": 76,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": true,
+    "falseGourmet": true,
+    "floorHint": "LOW",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Nenhum split visível na sala, nos 2 quartos nem na cozinha (checklist do portal marca AR_CONDICIONADO)",
+      "'Varanda gourmet' não aparece: sacada pequena de grade, sem bancada/churrasqueira",
+      "Descrição fala em 'casa' de 80 m² com quintal privativo, mas as fotos são de apartamento compacto em torre: texto parece de outro imóvel",
+      "Cozinha tipo kitchenette com armários verdes/madeira e bancada de granito, sem cooktop visível"
+    ]
+  },
+  "quintoandar:895149850": {
+    "modernityScore": 80,
+    "modernityTier": "WELL_MAINTAINED",
+    "floorHint": "MID",
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Mobiliado completo (sofá, TV, cama, geladeira) em 39 m²",
+      "Acabamento padrão 2019: piso de porcelanato polido tipo granito, bancadas de granito, portas de madeira; bom, mas não 'MODERN 100'"
+    ]
+  },
+  "zapimoveis:2900192614": {
+    "modernityScore": 58,
+    "modernityTier": "STANDARD",
+    "falseAC": true,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Piso de granito polido, bancadas de granito preto, paredes de azulejo branco 15x15 e portas de madeira: acabamento anos 2000, não moderno",
+      "Sem split visível na sala nem no quarto (apenas checklist do portal marca AC)",
+      "Portaria é VIRTUAL com reconhecimento facial (descrição), não portaria 24h presencial",
+      "Térreo comercial/entrada estreita sobre rua com movimento"
+    ]
+  },
+  "quintoandar:895653161": {
+    "modernityScore": 38,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "verifiedBalcony": false,
+    "noCabinets": false,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "'Totalmente reformado' não procede nas áreas molhadas/cozinha: azulejo bege/branco 15x15, piso cerâmico branco antigo, janelas de tijolo de vidro",
+      "Piso cinza escuro tipo ardósia/granilite com rodapé escuro em sala e quartos; ventilador de teto, sem AC",
+      "Posto de gasolina e casas baixas em frente (ruído/cheiro); prédio anos 70/80 com hall e salão antigos",
+      "Portaria presencial só seg–sáb 8h–18h (não 24h)"
+    ]
+  },
+  "vivareal:2900562274": {
+    "modernityScore": 82,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": false,
+    "verifiedBalcony": true,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Primeira locação, unidade vazia; sem split instalado (nem preparo visível)",
+      "Varanda com bancada/armário embutidos mas vista para rua e prédios vizinhos (não é vista livre)"
+    ]
+  },
+  "zapimoveis:2910065030": {
+    "modernityScore": 74,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": false,
+    "verifiedAC": true,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Estilo industrial: teto de concreto aparente com eletrocalhas",
+      "Cozinha corredor estreita com janelas altas",
+      "Descrição: 'imóvel em processo de rescisão' (ocupado/volta ao mercado)"
+    ]
+  },
+  "zapimoveis:2906497144": {
+    "modernityScore": 35,
+    "modernityTier": "DATED",
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Piso vinílico/laminado bege antigo e rodapé escuro na sala/quarto",
+      "Banheiros e cozinha com azulejo/piso cerâmico 15x15 branco com faixa azul e armários de madeira antigos",
+      "Prédio anos 90 com piscina e sauna de azulejo; áreas comuns datadas"
+    ]
+  },
+  "zapimoveis:2899693891": {
+    "modernityScore": 52,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "verifiedAC": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Vagas 'de gaveta' (descrição): não são livres e demarcadas",
+      "Piso de cerâmica branca brilhante e paredes bege/marrom pintadas: padrão 2010 econômico",
+      "Teto com ventilador nos quartos"
+    ]
+  },
+  "zapimoveis:2906171922": {
+    "modernityScore": 82,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": false,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Sem split nem preparo visível (sala, quarto, cozinha)",
+      "Descrição cita 'Edifício Beverly Hills', mas as fotos mostram torre de alto padrão com lazer envidraçado; vale confirmar o prédio"
+    ]
+  },
+  "quintoandar:894407889": {
+    "modernityScore": 64,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "verifiedBalcony": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: sem split visível em nenhum cômodo; sem varanda (só janelas); cozinha em nível rebaixado com guarda-corpo (meio-nível); acabamento padrão de construtora, piso laminado claro e porcelanato bege na cozinha"
+    ]
+  },
+  "quintoandar:893083464": {
+    "modernityScore": 76,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": false,
+    "falseGourmet": false,
+    "falseFreeView": true,
+    "verifiedBalcony": false,
+    "noCabinets": false,
+    "floorHint": "LOW",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: 'vista livre' é falsa — janelas dão para talude/muro de contenção e prédios vizinhos a poucos metros; sem elevador (escada), sem portaria; cozinha antiga (granito escuro, azulejo 15x15 branco, armários superiores antigos) contrastando com sala reformada"
+    ]
+  },
+  "zapimoveis:2917522017": {
+    "modernityScore": 68,
+    "modernityTier": "STANDARD",
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "verifiedBalcony": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: apenas a condensadora de AC aparece na varanda; nenhuma evaporadora (split) visível na sala ou nos quartos — AC não confirmado nas fotos"
+    ]
+  },
+  "quintoandar:895696163": {
+    "modernityScore": 74,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": false,
+    "falseGourmet": false,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: studio industrial reformado em prédio antigo (taco/parquet em espinha, tijolo aparente), quarto aberto para a sala (só cortina), unidade de parede ambígua perto do quarto (não confirmada como split), totalmente mobiliado"
+    ]
+  },
+  "zapimoveis:2896767993": {
+    "modernityScore": 86,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": false,
+    "verifiedAC": true,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: dois splits instalados (sala e quarto); varanda envidraçada; totalmente mobiliado e equipado; studio 42 m²"
+    ]
+  },
+  "quintoandar:893379716": {
+    "modernityScore": 34,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "noCabinets": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Auditoria visual: guarda-roupa de madeira maciça envernizada antigo, azulejo 15x15 branco com faixa decorativa floral, laminado desgastado, banheiros/área de serviço dos anos 90, sem AC — 'Novo/Reformado' do portal é falso"
+    ]
+  },
+  "zapimoveis:2914899911": {
+    "modernityScore": 52,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "verifiedBalcony": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: apartamento básico anos 2000 — cerâmica clara com rejunte aparente, janelas de alumínio, portas de madeira, banheiros simples, sem AC, sem varanda; 3 quartos pequenos em 60 m²"
+    ]
+  },
+  "zapimoveis:2903285501": {
+    "modernityScore": 84,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": false,
+    "verifiedAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "floorHint": "MID",
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: apartamento totalmente mobiliado (sofá, mesa, cama, TV); ar-condicionado é aparelho de janela, não split; varanda com tela de proteção e vista da piscina; cozinha e banheiro reformados"
+    ]
+  },
+  "imovelweb:3002836784": {
+    "modernityScore": 56,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: duplex/loft com quarto em mezanino aberto para a sala (escada metálica), mobiliado, bancadas de granito simples, sem split visível, sacada pequena circular; prédio estilo flat com condomínio R$ 1.430"
+    ]
+  },
+  "quintoandar:895788295": {
+    "modernityScore": 50,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: prédio antigo (anos 80/90) — cozinha com azulejo bege, faixa decorativa e granito escuro; banheiro de serviço bege datado; armário de quarto em madeira escura; sem split (apenas ventilador de teto)"
+    ]
+  },
+  "zapimoveis:2903286308": {
+    "modernityScore": 36,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual (Lourdes, R. Bernardo Guimarães): unidade MOBILIADA (sofá, cama com colchão, geladeira, fogão, escrivaninha); cozinha anos 80/90 com azulejo bege, granito e piso taco/terracota; banheiro com azulejo em relevo e rejunte escuro; armário de quarto em madeira escura; sem ar-condicionado"
+    ]
+  },
+  "quintoandar:895787012": {
+    "modernityScore": 40,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual (Lungomare, Icaraí): granito polido e cozinha/banheiros anos 90 (azulejo bege, bancada de vidro, armários com porta de vidro, gabinete de madeira escura); sem split (aparelhos de janela soltos na sala); vistas para vãos entre torres/poço de ventilação"
+    ]
+  },
+  "quintoandar:895791339": {
+    "modernityScore": 45,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "verifiedBalcony": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual (R. dos Bandeirantes 21): sala com piso de ardósia escura, quartos com parquê/sinteco avermelhado e armários de madeira avermelhada antigos; sem split; sacada pequena com tela voltada a prédio vizinho"
+    ]
+  },
+  "zapimoveis:2897868779": {
+    "modernityScore": 48,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "verifiedBalcony": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Fotos do anúncio têm carimbo de 2013/2014 (08.03.2014 e 28.06.2013) e mostram móveis que a descrição diz terem sido retirados; piso cerâmico claro, armários de madeira amarela, bancada-bar; sem split"
+    ]
+  },
+  "quintoandar:893372211": {
+    "modernityScore": 40,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "verifiedBalcony": true,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual (Acácia Real): apartamento dos anos 90 — cerâmica bege com rejunte, armários embutidos em madeira avermelhada com puxadores dourados, banheiros com azulejo estampado, esquadrias de alumínio preto; sem split; anúncio em relocação antecipada (contrato atual em rescisão)"
+    ]
+  },
+  "quintoandar:893483393": {
+    "modernityScore": 42,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual (Ed. Ursini): cerâmica clara antiga, azulejo rosado na cozinha, bancada de granito e banheiro anos 90; sem split. Anúncio suspenso na página"
+    ]
+  },
+  "zapimoveis:2913974900": {
+    "modernityScore": 86,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": false,
+    "verifiedBalcony": true,
+    "noCabinets": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Unidade nova entregue em casca: cozinha sem armários (só bancada de granito/cuba) e sem armários de quarto; sem split instalado (aparelhos só nas áreas comuns)"
+    ]
+  },
+  "quintoandar:895706084": {
+    "modernityScore": 38,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "falseFreeView": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual (Ed. Montreal): cozinha e área de serviço com piso terracota e azulejo bege, banheiro com bidê e louça anos 80/90; torres vizinhas a ~10–15 m e obra ativa ao lado; sem split"
+    ]
+  },
+  "zapimoveis:2902131951": {
+    "modernityScore": 52,
+    "modernityTier": "STANDARD",
+    "verifiedAC": true,
+    "falseGourmet": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: unidade mobiliada e habitada (cama, sofá, mesa, geladeira) — descrição diz 'MOBILIADO TOTALMENTE' mas o portal marca não mobiliado",
+      "Cozinha com granito/armários antigos e azulejo pequeno; piso de madeira/taco desgastado; esquadrias pretas simples",
+      "Sacada pequena comum (não é varanda gourmet); vista para prédios vizinhos/rua",
+      "Imóvel também à venda"
+    ]
+  },
+  "zapimoveis:2917561138": {
+    "modernityScore": 42,
+    "modernityTier": "DATED",
+    "verifiedAC": false,
+    "verifiedBalcony": true,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: prédio anos 90 — granilite/terrazzo no hall, guarda-roupa de madeira escura antigo, banheiro com azulejo branco pequeno e bancada de granito, piso laminado",
+      "Sem split instalado em nenhuma das fotos",
+      "Terraço amplo descoberto (ponto positivo), mas piso manchado"
+    ]
+  },
+  "quintoandar:895020185": {
+    "modernityScore": 86,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: split instalado na sala/jantar e no quarto; condensadora na varanda (descrição fala só em 'infraestrutura')",
+      "Unidade reformada (vinílico amadeirado, gesso com LED, cozinha planejada, banheiros em porcelanato grande); móveis são do morador atual — confirmar se ficam (portal marca mobiliado)",
+      "Galeria mistura fotos de outras unidades/prédios (arquivos com prefixo de outros IDs, ex.: sala com piso escuro e pilar)",
+      "Vista aberta sobre telhados/cidade da varanda"
+    ]
+  },
+  "zapimoveis:2916450166": {
+    "modernityScore": 72,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: split no quarto (visível nas fotos); sala/cozinha integrada com ilha, painel/marcenaria planejada e espelho",
+      "Layout compacto tipo studio (42 m²); janelas dão para prédios vizinhos (sem vista livre)",
+      "Piso de granito polido na sala (estilo ~2010), vinílico no quarto"
+    ]
+  },
+  "zapimoveis:2905603742": {
+    "modernityScore": 66,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: apartamento mobiliado (cama, sofá, mesa, geladeira, painel de TV) — portal/URL dizem 'mobiliado' mas engine tratou como não mobiliado",
+      "Split no quarto; piso de granito polido na sala; janelas para prédios vizinhos",
+      "Acabamento e prédio semelhantes ao rank 84 (mesmo padrão de marcenaria) — possível mesmo empreendimento (inferência)"
+    ]
+  },
+  "zapimoveis:2899556838": {
+    "modernityScore": 40,
+    "modernityTier": "DATED",
+    "verifiedAC": false,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: piso de cerâmica bege com rejunte (não é porcelanato moderno), paredes amarelas, guarda-roupas brancos antigos, cozinha com azulejo pequeno e granito escuro",
+      "Sem split nas fotos",
+      "Entorno hospitalar (Santa Casa) — sirenes"
+    ]
+  },
+  "zapimoveis:2907812255": {
+    "modernityScore": 60,
+    "modernityTier": "STANDARD",
+    "verifiedAC": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: sala com granito cinza polido (não porcelanato), quartos em laminado, cozinha com bancada de granito preto e armários brancos; sem split",
+      "Área de 67 m² inclui área privativa externa (parte coberta) usada como área de serviço — 1 quarto interno é bem menor",
+      "Janelas para prédios vizinhos; sem vista livre verificada"
+    ]
+  },
+  "zapimoveis:2916439228": {
+    "modernityScore": 52,
+    "modernityTier": "STANDARD",
+    "verifiedAC": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: padrão construtora — piso cerâmico bege, paredes amarelas, armários brancos simples, sem split; maioria das fotos é de áreas comuns",
+      "Megacondomínio (várias torres, brinquedoteca, quadra, salão de jogos, playground)",
+      "Varanda dá para rua/prédios; 3 quartos em 69 m²"
+    ]
+  },
+  "zapimoveis:2897994086": {
+    "modernityScore": 40,
+    "modernityTier": "DATED",
+    "verifiedAC": true,
+    "verifiedBalcony": false,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: apartamento mobiliado estilo flat/short-stay (cama, sofá, mesa, frigobar, roupa de cama decorada) — engine tratou como não mobiliado (+15)",
+      "Madeira escura, granito antigo e kitchenette compacta; modernidade ~40",
+      "Splits na sala e no quarto; frigobar (não geladeira) na kitchenette",
+      "Condomínio R$ 1.280 (32% do total) — padrão de flat/apart-hotel"
+    ]
+  },
+  "zapimoveis:2909942920": {
+    "modernityScore": 76,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: split instalado visível no quarto, acima do painel de TV (foto 6); texto diz 'Condicionador de ar'. Layout tipo studio (quarto separado só por marcenaria)."
+    ]
+  },
+  "zapimoveis:2903483629": {
+    "modernityScore": 64,
+    "modernityTier": "STANDARD",
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: mesma unidade do rank 92 (duplicata de outra imobiliária); AC não aparece nas fotos deste anúncio nem no texto; split só visível nas fotos do anúncio gêmeo."
+    ]
+  },
+  "quintoandar:895640445": {
+    "modernityScore": 38,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: acabamento anos 80-90 (granito manchado, azulejo bege antigo, armários antigos, janelas com grade); sem split instalado."
+    ]
+  },
+  "quintoandar:130272562": {
+    "modernityScore": 16,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "floorHint": "HIGH",
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Auditoria visual: acabamento anos 70-80 (piso vinílico estampado vermelho, azulejo floral, pia amarela, azulejo bege quadriculado na cozinha); sem ar-condicionado instalado."
+    ]
+  },
+  "quintoandar:894316463": {
+    "modernityScore": 49,
+    "modernityTier": "DATED",
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
+    "visualWarnings": [
+      "Auditoria visual: acabamento anos 90 (piso cerâmico claro, granito, armários de madeira com vidro); varanda envidraçada pequena; sem split instalado."
+    ]
+  },
+  "zapimoveis:2871284717": {
+    "modernityScore": 45,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
+    "visualWarnings": [
+      "Auditoria visual: torre dos anos 90; piso laminado manchado, roupeiros escuros antigos, cozinha cerâmica creme; apenas furo/ponto de AC de parede, sem split instalado."
+    ]
+  },
+  "imovelweb:3044267399": {
+    "modernityScore": 55,
+    "modernityTier": "STANDARD",
+    "falseAC": true,
+    "visualWarnings": [
+      "Auditoria visual (apenas 4 fotos): prédio anos 90-2000, piso cerâmico bege, esquadrias de alumínio escuro; sem split visível; cozinha/varanda/andar não verificados."
+    ]
+  },
+  "quintoandar:893945990": {
+    "modernityScore": 60,
+    "modernityTier": "STANDARD",
+    "falseFreeView": true,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: janelas dão para prédios vizinhos (sem vista livre); varanda envidraçada grande, sem churrasqueira/gourmet visível; sem split instalado."
+    ]
+  },
+  "zapimoveis:2900134401": {
+    "modernityScore": 89,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: prédio novo com rooftop; unidade tipo studio (quarto separado por marcenaria ripada); sem split nem varanda visíveis."
+    ]
+  },
+  "quintoandar:895392428": {
+    "modernityScore": 84,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedBalcony": false,
+    "visualWarnings": [
+      "Auditoria visual (ALDEA Vale do Sereno, Nova Lima): unidade nova com porcelanato, cozinha planejada em cinza com bancada preta, guarda-roupa de correr; planta aberta tipo studio (portal legenda todos os cômodos como 'Studio')",
+      "'Varanda' é um bay envidraçado integrado à sala (sem área aberta); sem AC split instalado nas fotos; vista parcial (torres vizinhas próximas)"
+    ]
+  },
+  "zapimoveis:2895433710": {
+    "modernityScore": 58,
+    "modernityTier": "STANDARD",
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: esquadrias de madeira/alumínio escuro com tela e grade, painel de madeira escura na sala, cozinha estreita datada (bancada bege, azulejo pequeno, fogão e geladeira simples), banheiro com piso preto e forro de madeira — 'reformado' é só piso porcelanato brilhante + spots de gesso",
+      "Sem ar-condicionado visível; cama box sem colchão; mobília usada (sofá, mesa de vidro)",
+      "Anúncio também à venda (texto: 'Imovel tambem para venda') — não detectado pelo motor"
+    ]
+  },
+  "quintoandar:894262518": {
+    "modernityScore": 58,
+    "modernityTier": "STANDARD",
+    "verifiedAC": true,
+    "visualWarnings": [
+      "Auditoria visual (Ed. Marbella): split na sala confirmado; cozinha datada (armários bege/madeira, azulejo pequeno), banheiro com bancada de mármore clara e armário antigo; varanda real com tela de proteção",
+      "Vista com torres vizinhas próximas e telhados — ampla mas não 'livre/definitiva' garantida",
+      "Condomínio R$ 1.700 empurra o total para R$ 4.943 (quase no teto)"
+    ]
+  },
+  "quintoandar:895741950": {
+    "modernityScore": 46,
+    "modernityTier": "STANDARD",
+    "visualWarnings": [
+      "Auditoria visual (Reserva do Parque, Buritis): padrão econômico tipo MCMV — cerâmica pequena com rejunte claro, cozinha mínima (pia de bancada com 2 módulos), quartos minúsculos com piso laminado barato, parede com marcas de umidade/poeira",
+      "Térreo com 'área privativa' cimentada/gramada murada com cerca concertina — NÃO é varanda; sem AC; sem vista",
+      "Construído em 2020 mas acabamento básico: bônus de ano não reflete a qualidade"
+    ]
+  },
+  "zapimoveis:2695763092": {
+    "modernityScore": 50,
+    "modernityTier": "STANDARD",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: flat mobiliado (sofá-cama, geladeira, cama com TV, mesa) com ar-condicionado de JANELA (aparelho antigo na parede) — não é split",
+      "Cozinha americana em laminado amarelo anos 90/2000, piso laminado, portas de madeira escura; flat com serviços inclusos (arrumação 3x/sem, manobrista) — perfil de apart-hotel",
+      "Anúncio 'alugo e vendo' (também à venda); área anunciada 45 m² no texto vs 42 m² no portal"
+    ]
+  },
+  "zapimoveis:2904295599": {
+    "modernityScore": 50,
+    "modernityTier": "STANDARD",
+    "visualWarnings": [
+      "Auditoria visual (Rua dos Aimorés): prédio antigo — arcos nas portas, portas de madeira escura antigas, esquadrias de alumínio com basculante dando para parede vizinha, cerâmica bege antiga, lobby com ardósia; só o banheiro foi renovado (cuba de apoio, porcelanato marmorizado)",
+      "Portaria 12h (não 24h); 2º andar; sem AC; unidade vendida como mobiliada (mobília usada de sofá-cama + mesa de canto) mas portal indica sem mobília"
+    ]
+  },
+  "zapimoveis:2907923825": {
+    "modernityScore": 62,
+    "modernityTier": "STANDARD",
+    "verifiedBalcony": false,
+    "visualWarnings": [
+      "Auditoria visual (Rua Alagoas 1421): prédio de ~7 anos, piso de granito polido na sala/cozinha e laminado nos quartos, cozinha planejada branca com bancada preta, armários de correr; ventiladores de teto, sem AC",
+      "'Área privativa' é pátio/terraço descoberto-coberto com pia, cercado por muro alto (sem vista) — aparenta ser pavimento baixo (andar não informado); janelas dos quartos para vizinhos"
+    ]
+  },
+  "zapimoveis:2910959618": {
+    "modernityScore": 72,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseGourmet": true,
+    "visualWarnings": [
+      "Auditoria visual (Taquaral, Campinas): cozinha e guarda-roupas planejados, banheiro com porcelanato marmorizado, piso laminado escuro nos quartos/sala; sacada simples com guarda-corpo (sem churrasqueira/gourmet na unidade); sem AC visível",
+      "Vista aberta sobre telhados baixos, com torres ao fundo (6º andar de 15)"
+    ]
+  },
+  "quintoandar:895156464": {
+    "modernityScore": 72,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedBalcony": false,
+    "visualWarnings": [
+      "Auditoria visual (Parque Burle Marx, Buritis): reforma recente — piso porcelanato marmorizado, cozinha com armários brancos e bancada de granito, banheiro novo; cômodos pequenos (3 quartos em 65 m²)",
+      "'Varanda da Sala' é um alcôve envidraçado pequeno voltado a lote vazio com subestação elétrica; sem AC; sofá e mesa nas fotos (provável staging, texto diz sem mobília)"
+    ]
+  },
+  "quintoandar:893910191": {
+    "modernityScore": 42,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "falseGourmet": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual (Chateau d'Avignon, Icaraí): cozinha com piso preto polido e faixa decorativa antiga, banheiro com azulejo bege pequeno e armário de madeira escura antigo, piso de tábua corrida desgastado, janelas com grade",
+      "AC apenas de janela (aparelho antigo no quarto); sem split visível; sem varanda nas fotos — 'varanda gourmet' e 'piscina privativa' do checklist não se sustentam",
+      "Vista sobre telhados e torres vizinhas — não livre/definitiva garantida"
+    ]
+  },
+  "zapimoveis:2916382982": {
+    "modernityScore": 55,
+    "modernityTier": "STANDARD",
+    "verifiedBalcony": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: piso de quartos em cerâmica antiga amarelada, portas de madeira escura, hall em ardósia escura e esquadrias de alumínio; apto sem split visível",
+      "3º andar de 10, em frente ao Corpo de Bombeiros (ruído de sirene) e próximo a Afonso Pena/Contorno"
+    ]
+  },
+  "quintoandar:894844236": {
+    "modernityScore": 78,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "floorHint": "LOW",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: acabamento simples de construtora (porcelanato bege, paredes brancas, janelas pequenas); térreo–3º andar com janelas ao nível de árvores/calçada; sem portaria 24h"
+    ]
+  },
+  "quintoandar:895752894": {
+    "modernityScore": 52,
+    "modernityTier": "STANDARD",
+    "verifiedBalcony": true,
+    "floorHint": "LOW",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: prédio anos 90 — cerâmica bege com rejunte escuro, granito bege, armários de madeira escura, ventilador de teto; AC só aparece como aparelho de janela em um quarto (sem split)",
+      "Térreo–3º andar; condomínio R$1.080 alto para a idade; piscina pequena tipo plunge"
+    ]
+  },
+  "quintoandar:895756139": {
+    "modernityScore": 40,
+    "modernityTier": "DATED",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: piso de taco/parquê escuro, paredes texturizadas, armários de madeira escura, azulejo 15x15 e cozinha branca antiga; prédio de ~4 pavimentos sem elevador aparente",
+      "Descrição do anúncio é boilerplate de venda ('Apartamento à venda'); sem AC visível"
+    ]
+  },
+  "zapimoveis:2902255224": {
+    "modernityScore": 64,
+    "modernityTier": "STANDARD",
+    "verifiedAC": true,
+    "falseGourmet": true,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: split na sala, varanda estreita com tela em andar alto (vista aberta sobre casas), apto vazio; 'varanda gourmet' não confirmada (varanda comum sem churrasqueira); banheiro social com prateleiras abertas sem gabinete"
+    ]
+  },
+  "zapimoveis:2909756626": {
+    "modernityScore": 62,
+    "modernityTier": "STANDARD",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: porcelanato polido, cozinha branca com granito preto e armário de madeira escura nos quartos; sem AC visível; condomínio R$1.139 alto para 54 m²"
+    ]
+  },
+  "quintoandar:895311175": {
+    "modernityScore": 40,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual (Ed. São Paulo, 1986): taco escuro, armários de madeira laranja/rosa dos anos 80, granito, hall em ardósia escura; apto MOBILIADO (sofá, mesa de jantar, cama, micro-ondas, geladeira, painel TV); sem split visível"
+    ]
+  },
+  "zapimoveis:2897812497": {
+    "modernityScore": 86,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual (Mandarim Patriani): studio-like 41 m² (sala+quarto integrados), semi-mobiliado só com cama, geladeira, micro-ondas e cooktop; sem sofá"
+    ]
+  },
+  "zapimoveis:2894993578": {
+    "modernityScore": 45,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: unidade de flat/apart-hotel (frigobar, micro-ondas, mobília de hotel, piso laminado, granito preto) com AC de janela, sem split",
+      "Condomínio R$1.590 inclui serviços de hotelaria; possível uso de curta temporada"
+    ]
+  },
+  "zapimoveis:2906266636": {
+    "modernityScore": 68,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: split na sala e varanda envidraçada com condensadora; piso laminado, armários planejados; cozinha mista (madeira escura + granito) levemente datada",
+      "Descrição diz 'APARTAMENTO À VENDA' — confirmar se é anúncio de aluguel válido"
+    ]
+  },
+  "zapimoveis:2916590352": {
+    "modernityScore": 38,
+    "modernityTier": "DATED",
+    "visualWarnings": [
+      "Acabamentos datados nas fotos (AI visual estimate); engine STANDARD/62 too generous"
+    ]
+  },
+  "zapimoveis:2904858701": {
+    "modernityScore": 78,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "floorHint": "LOW",
+    "visualWarnings": [
+      "Mesmo prédio (Rua Padre Vieira 685) que o rank 130 — possível duplicata/mesma construtora",
+      "Fotos mostram cozinha e banheiro sem armários, embora a descrição prometa armário embutido",
+      "Mesmo prédio (faixa vermelha, Rua Padre Vieira) dos ranks 15 e 130"
+    ]
+  },
+  "quintoandar:894735306": {
+    "modernityScore": 82,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedBalcony": true,
+    "floorHint": "LOW",
+    "visualWarnings": [
+      "Varanda com bancada/pia voltada para a mata; andar baixo (1º–3º)"
+    ]
+  },
+  "zapimoveis:2911957866": {
+    "modernityScore": 45,
+    "modernityTier": "DATED",
+    "verifiedAC": true,
+    "floorHint": "HIGH",
+    "visualWarnings": [
+      "Piso cerâmico bege e azulejos brancos pequenos em toda a unidade; armários cor mel anos 2000",
+      "Splits visíveis na sala e em 2 quartos (motor dá 0 pts de AC)"
+    ]
+  },
+  "quintoandar:895107999": {
+    "modernityScore": 35,
+    "modernityTier": "DATED",
+    "verifiedAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Acabamentos datados (AI visual estimate)"
+    ]
+  },
+  "quintoandar:895122863": {
+    "modernityScore": 78,
+    "modernityTier": "WELL_MAINTAINED",
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED"
+  },
+  "quintoandar:895647320": {
+    "modernityScore": 85,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseFreeView": true,
+    "verifiedBalcony": true,
+    "floorHint": "LOW",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Vista da varanda dá para piscina e torres vizinhas: não é vista livre",
+      "Varanda gourmet real com churrasqueira embutida",
+      "Unidade vazia (motor alerta 'mobiliado' indevidamente)"
+    ]
+  },
+  "zapimoveis:2909471621": {
+    "modernityScore": 30,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "verifiedAC": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Auditoria visual: acabamento anos 80/90 — piso cerâmico bege claro com rejunte escuro, banheiro com azulejo bege estampado e louça cor de laranja/caramelo, esquadrias de alumínio com tela de proteção, armários brancos simples",
+      "Sem ar-condicionado visível em nenhum cômodo",
+      "Vaga em pátio descoberto; sem portaria 24h (só portão eletrônico/interfone)"
+    ]
+  },
+  "quintoandar:893597870": {
+    "modernityScore": 55,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "verifiedAC": false,
+    "verifiedBalcony": false,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Auditoria visual (Raja Residence, flat): unidade tipo studio/flat de 40 m² com piso cerâmico bege, esquadrias de alumínio, bancada de granito e cozinha integrada simples — não é reformado",
+      "Quarto com espuma acústica preta na parede; mobília parcial (cama box, geladeira, bancos) mas sem sofá",
+      "Varanda é apenas porta de vidro com cortina para sacadinha mínima; sem AC (portal AR_CONDICIONADO=NAO)",
+      "Av. Raja Gabaglia: tráfego intenso; condomínio R$ 933 de flat com lazer pesado"
+    ]
+  },
+  "zapimoveis:2894697980": {
+    "modernityScore": 62,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "verifiedAC": false,
+    "verifiedBalcony": true,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Auditoria visual (Cond. Costa Azul): piso vinílico novo, mas cozinha e banheiro com azulejo anos 2000 com faixa decorativa, esquadrias com moldura de madeira escura, armários brancos simples",
+      "Sem split visível; sala só com ventilador de teto",
+      "Portal também lista imóvel à venda (R$ 495.000)"
+    ]
+  },
+  "zapimoveis:2894838518": {
+    "modernityScore": 88,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": false,
+    "verifiedAC": false,
+    "falseFreeView": false,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Auditoria visual (NOW Taquaral / Urban Design): unidade nova — piso vinílico amadeirado, marcenaria branca com nichos de madeira, esquadrias pretas, banheiro/lavabo modernos",
+      "Varanda privativa com guarda-corpo metálico e vista livre sobre bairro (andar alto)",
+      "AC: só preparação/laje técnica — nenhum split instalado; Imóvel também à venda (R$ 700.000); IPTU 'Isento' no portal"
+    ]
+  },
+  "zapimoveis:2909508720": {
+    "modernityScore": 72,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": false,
+    "verifiedAC": true,
+    "falseFreeView": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: unidade de 35 m² com fotos MOBILIADAS (sofá-cama, TV, cama box, geladeira, mesa/bancada de trabalho) embora o portal diga 'não mobiliado' — aviso 'imagens podem ser da unidade decorada'",
+      "Split instalado no quarto (visível)",
+      "Vista: janela da sala dá para prédios vizinhos a curta distância — não é vista livre (PANORAMIC_VIEW do portal não confere)"
+    ]
+  },
+  "quintoandar:895350968": {
+    "modernityScore": 48,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "verifiedAC": true,
+    "verifiedBalcony": false,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual (Square Apart Hotel): apart-hotel mobiliado — piso cerâmico bege, azulejo branco 20x30, kitchenette com geladeira pequena/bancada preta, móveis básicos de hotel",
+      "AC pequeno de parede no quarto (portal AC=SIM)",
+      "Sem varanda (portal VARANDA=NAO); vista da sala para área verde/prédios"
+    ]
+  },
+  "zapimoveis:2914132392": {
+    "modernityScore": 25,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "verifiedAC": false,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Auditoria visual: piso de ardósia/pedra escura em todos os cômodos, roupeiros de madeira velha, esquadrias de alumínio, cozinha com azulejo 10x10 branco com rejunte cinza e lavatório de coluna na área de serviço, banheiros com revestimento antigo",
+      "Sem AC visível",
+      "Vista aberta sobre telhados (8º andar), com sacada"
+    ]
+  },
+  "quintoandar:895777924": {
+    "modernityScore": 70,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": false,
+    "verifiedAC": true,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Anúncio SUSPENSO no QuintoAndar (status 'suspenso', página 404/indisponível) — engine ainda marca ativo",
+      "Fotos mostram apartamento habitado (móveis do morador); portal hasFurniture=false",
+      "Split visível no quarto; marcenaria cinza/granito preto; vista de copas de árvores (andar 4–7)"
+    ]
+  },
+  "zapimoveis:2908192129": {
+    "modernityScore": 74,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseFreeView": false,
+    "verifiedBalcony": true,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Auditoria visual (Cond. Invite Taquaral): prédio novo, piso laminado amadeirado, esquadrias claras, roupeiros brancos, banheiro branco/granito, cooktop",
+      "Sacada com guarda-corpo metálico e vista aberta sobre telhados e torres — vista livre",
+      "AC: não verificado (nenhum split visível nos cômodos); imóvel também à venda (R$ 650.000)"
+    ]
+  },
+  "quintoandar:895726315": {
+    "modernityScore": 74,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": false,
+    "verifiedAC": false,
+    "falseFreeView": false,
+    "verifiedBalcony": false,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Auditoria visual (Mirante Sion): unidade vazia, porcelanato bege grande, cozinha branca com granito preto, banheiros com box de vidro; vista panorâmica de BH e montanhas pelas janelas amplas da sala",
+      "Sem AC (portal AC=NAO) e sem varanda (VARANDA=NAO); sem portaria 24h",
+      "Preço no portal caiu para R$ 3.400 + 700 → total R$ 4.486 (snapshot 4.769)"
+    ]
+  },
+  "vivareal:2881668073": {
+    "modernityScore": 78,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedBalcony": true,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Sem split instalado nas fotos (sala/quarto); apto vazio e novo, sem armários de cozinha superiores além da bancada baixa"
+    ]
+  },
+  "zapimoveis:2863123181": {
+    "modernityScore": 85,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Studio integrado (cama na sala); fotos mostram geladeira, sofá, cama, mesa e máquina de lavar - confirmar se é entregue mobiliado"
+    ]
+  },
+  "quintoandar:895478867": {
+    "modernityScore": 28,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "falseFreeView": true,
+    "noCabinets": false,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Velharia: taco/madeira escura, roupeiros marrom escuro anos 90, cozinha com azulejo 15x15 e armário laminado branco, sem AC",
+      "Vista para estacionamento/jardim do prédio vizinho, não é vista livre"
+    ]
+  },
+  "zapimoveis:2869122432": {
+    "modernityScore": 66,
+    "modernityTier": "STANDARD",
+    "falseAC": true,
+    "verifiedBalcony": true,
+    "floorHint": "LOW",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Sem AC instalado: anúncio diz que o proprietário 'coloca o ar condicionado e desconta no aluguel'",
+      "Imóvel também à venda"
+    ]
+  },
+  "zapimoveis:2909596719": {
+    "modernityScore": 62,
+    "modernityTier": "STANDARD",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "floorHint": "LOW",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Térreo/1º andar de frente para avenida de tráfego intenso",
+      "'Reformado' é cosmético: laminado, azulejo bege nos banheiros/serviço, mosaico de pastilhas"
+    ]
+  },
+  "quintoandar:110311508": {
+    "modernityScore": 74,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": true,
+    "verifiedBalcony": true,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "AC no quarto é de janela/parede (caixa), não split",
+      "Cozinha americana reformada com forno/cooktop; varanda com vista aberta"
+    ]
+  },
+  "zapimoveis:2907915920": {
+    "modernityScore": 50,
+    "modernityTier": "STANDARD",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Piso em granito cinza (não porcelanato) em toda a área social, laminado nos quartos",
+      "Sem AC e sem varanda nas fotos; 9º andar é o último do prédio, mas não cobertura"
+    ]
+  },
+  "quintoandar:895233806": {
+    "modernityScore": 78,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Texto de anúncio inicia com 'VENDA PORTEIRA FECHADA' - pode estar também à venda"
+    ]
+  },
+  "quintoandar:151248098": {
+    "modernityScore": 55,
+    "modernityTier": "STANDARD",
+    "falseAC": true,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Checklist marca AC mas sala e 2 quartos não têm split nem espera de ar; sem varanda",
+      "Piso em granito/mármore polido na sala e laminado nos quartos; cozinha pequena e branca com bancada de granito"
+    ]
+  },
+  "zapimoveis:2916725156": {
+    "modernityScore": 86,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Layout aberto tipo studio: cozinha americana, sala e espaço de cama no mesmo salão (quarto separado não aparece nas fotos)"
+    ]
+  },
+  "zapimoveis:2906900135": {
+    "modernityScore": 60,
+    "modernityTier": "STANDARD",
+    "floorHint": "HIGH"
+  },
+  "quintoandar:117660077": {
+    "modernityScore": 32,
+    "modernityTier": "DATED",
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: flat/apto antigo, acabamentos datados; 'Novo/Reformado' do QuintoAndar não se confirma nas fotos; mobília aparece nas fotos apesar de 'não mobiliado'"
+    ]
+  },
+  "quintoandar:895164722": {
+    "modernityScore": 62,
+    "modernityTier": "STANDARD",
+    "verifiedBalcony": true,
+    "floorHint": "MID"
+  },
+  "zapimoveis:2916859442": {
+    "modernityScore": 40,
+    "modernityTier": "DATED",
+    "floorHint": "HIGH",
+    "visualWarnings": [
+      "Auditoria visual: acabamentos datados; sem split visível; layout sala/dormitório apertado"
+    ]
+  },
+  "zapimoveis:2910045895": {
+    "modernityScore": 45,
+    "modernityTier": "DATED",
+    "floorHint": "LOW",
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: unidade tipo loft/mezanino em térreo, mobília nas fotos, descrição com texto de venda"
+    ]
+  },
+  "quintoandar:895219206": {
+    "modernityScore": 28,
+    "modernityTier": "DATED",
+    "floorHint": "LOW",
+    "hasMaintenanceIssue": true,
+    "visualWarnings": [
+      "Auditoria visual: acabamentos antigos (cerâmica, armários creme, azulejo estampado), paredes manchadas/descascando (infiltração), estacionamento coberto aberto, andar 0–3; flag 'Novo/Reformado' não confirmada; também à venda (R$ 410k)"
+    ]
+  },
+  "imovelweb:3034841571": {
+    "modernityScore": 66,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "floorHint": "HIGH"
+  },
+  "zapimoveis:2902187963": {
+    "modernityScore": 80,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "floorHint": "HIGH"
+  },
+  "zapimoveis:2903712357": {
+    "modernityScore": 60,
+    "modernityTier": "STANDARD",
+    "falseGourmet": false,
+    "noCabinets": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: sem ar-condicionado visível (só ventilador de teto no quarto; gás/aquecedor na lavanderia); acabamento padrão MRV-like (piso laminado claro, armários brancos, bancada granito)"
+    ]
+  },
+  "quintoandar:125324513": {
+    "modernityScore": 76,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": false,
+    "falseFreeView": false,
+    "noCabinets": false,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: apto reformado (piso vinílico/laminado claro, cozinha nova com cooktop, banheiro novo, forro de gesso/LED) em prédio antigo dos anos 70/80 com hall escuro; sem split (só ventilador de teto)"
+    ]
+  },
+  "zapimoveis:2912894953": {
+    "modernityScore": 40,
+    "modernityTier": "DATED",
+    "verifiedAC": true,
+    "falseGourmet": false,
+    "noCabinets": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: apto anos 90 — piso de madeira escura/taco e cerâmica mosaico antiga na copa/varanda, armários de madeira escura (roupeiro veneziana), granito verde no banheiro; split instalado na sala"
+    ]
+  },
+  "quintoandar:894603358": {
+    "modernityScore": 84,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: studio de 40 m² mobiliado (sofá, TV, cama nova, geladeira, cooktop); split na sala; varanda com guarda-corpo de vidro; prédio novo com coworking/lavanderia/piscina"
+    ]
+  },
+  "quintoandar:130666021": {
+    "modernityScore": 86,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseAC": false,
+    "verifiedAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "noCabinets": false,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: prédio novo (rooftop com piscina, academia, coworking-like), piso porcelanato grande, esquadrias pretas, marcenaria em ripado/freijó, banheiro novo; sem split instalado e sem varanda visível; layout compacto 44 m² quase studio com divisória ripada"
+    ]
+  },
+  "quintoandar:895686444": {
+    "modernityScore": 55,
+    "modernityTier": "STANDARD",
+    "falseAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "noCabinets": false,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: apto anos 2000 — cozinha com bancada de granito preto e armário de vidro preto, azulejo branco liso em toda parte, portas de madeira laranja, piso laminado; sem AC; portaria virtual (não 24h presencial); 2 vagas em linha (uma atrás da outra)"
+    ]
+  },
+  "zapimoveis:2911096715": {
+    "modernityScore": 44,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "noCabinets": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: acabamento original anos 90 — piso de tábua/taco envernizado, azulejo 15x15 branco com rejunte cinza, roupeiros de madeira antiga, granito; sem AC; prédio ao lado de hospital Unimed (ruído de ambulâncias, estimativa)"
+    ]
+  },
+  "zapimoveis:2914962140": {
+    "modernityScore": 22,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "noCabinets": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: apto anos 80 — ardósia/pedra escura na sala, taco nos quartos, estante e roupeiros de madeira laranja, azulejo 15x15 branco com rejunte cinza, cuba de bancada bege antiga, ventilador de teto, sem AC"
+    ]
+  },
+  "quintoandar:895785541": {
+    "modernityScore": 72,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": false,
+    "falseGourmet": false,
+    "falseFreeView": false,
+    "verifiedBalcony": false,
+    "noCabinets": false,
+    "floorHint": "LOW",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: prédio de 2021 padrão econômico (MRV-like) — piso laminado, azulejo metrô branco, roupeiro com espelho, sem AC; térreo/1º–3º andar; vagas descobertas com tela sombreadora"
+    ]
+  },
+  "zapimoveis:2914411635": {
+    "modernityScore": 44,
+    "modernityTier": "DATED",
+    "falseAC": false,
+    "falseGourmet": true,
+    "falseFreeView": false,
+    "noCabinets": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: apto anos 90 — piso cerâmico bege 40x40, roupeiros de madeira escura, granito, azulejo 15x15 branco na área de serviço, sanca de gesso antiga, ventilador de teto (sem AC); 'varanda gourmet' é uma varanda comum telada sem bancada/churrasqueira"
+    ]
+  },
+  "zapimoveis:2880962287": {
+    "modernityScore": 25,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Auditoria visual: flat anos 90 com mobília datada, ventilador de teto e sem split",
+      "Mobiliado (sofá, cama, geladeira vistos) mas o engine pontuou como UNFURNISHED (+15 em vez de -22)"
+    ]
+  },
+  "quintoandar:895627704": {
+    "modernityScore": 82,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "visualWarnings": [
+      "Foto rotulada Varanda mostra gramado e blocos baixos (padrão MCMV), incoerente com torre moderna do Cambuí: possível foto de outra unidade; vizinho muito próximo pela janela da sala"
+    ]
+  },
+  "zapimoveis:2865685677": {
+    "modernityScore": 15,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Auditoria visual: louça sanitária marrom, piso/azulejo anos 70, armário de alumínio bruto, sem AC, só interfone"
+    ]
+  },
+  "zapimoveis:2914125057": {
+    "modernityScore": 30,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Auditoria visual: acabamentos datados, sem AC; texto cita portaria virtual enquanto amenity diz 24h"
+    ]
+  },
+  "quintoandar:130832051": {
+    "modernityScore": 70,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "verifiedBalcony": true
+  },
+  "quintoandar:130531724": {
+    "modernityScore": 72,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true
+  },
+  "quintoandar:895004991": {
+    "modernityScore": 48,
+    "modernityTier": "STANDARD",
+    "falseAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Falso reformado: móveis soltos e acabamento original; split não visível em 2 ângulos da sala e quarto apesar do texto",
+      "AVCB em regularização segundo a descrição"
+    ]
+  },
+  "zapimoveis:2912879032": {
+    "modernityScore": 22,
+    "modernityTier": "DATED",
+    "falseAC": true,
+    "hardExcludeDated": true,
+    "visualWarnings": [
+      "Piso de ardósia escura, cozinha com azulejo 15x15 de rejunte escuro, guarda-roupas de madeira antigos, banheiro anos 90",
+      "Sem AC visível; vista apenas para prédio vizinho"
+    ]
+  },
+  "quintoandar:123480155": {
+    "modernityScore": 35,
+    "modernityTier": "DATED",
+    "verifiedAC": false,
+    "noCabinets": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Listing page now redirects to /indisponivel/ (unavailable) - remove from ranking",
+      "Old reddish-brown wood wardrobes and kitchen/laundry wall cabinets",
+      "Terracotta/old ceramic floors and floral-border wall tiles in kitchen, bath and laundry; brown ceramic sink/toilet",
+      "No split AC visible in any photo",
+      "Photo set includes a Street View screenshot, not unit photos"
+    ]
+  },
+  "zapimoveis:2910733791": {
+    "modernityScore": 35,
+    "modernityTier": "DATED",
+    "verifiedAC": false,
+    "noCabinets": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Old sinteco/parquet floors throughout",
+      "Brown wood built-in wardrobes (old style)",
+      "1960s-70s building facade, no visible leisure area",
+      "No split AC visible",
+      "Photos portrait/low-res; no living-room window view or balcony"
+    ]
+  },
+  "zapimoveis:2883543779": {
+    "modernityScore": 62,
+    "modernityTier": "STANDARD",
+    "verifiedAC": false,
+    "falseGourmet": false,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Beige large-format ceramic floors, planned kitchen with mixed wood/white cabinets: standard not modern",
+      "No split AC (white overhead cabinet in living photo is a cabinet, not AC)"
+    ]
+  },
+  "zapimoveis:2900994010": {
+    "modernityScore": 40,
+    "modernityTier": "DATED",
+    "falseGourmet": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Studio-like 'quarto e sala' layout: kitchen, dining, sofa-bed and bed in open plan",
+      "Old orange/honey wood furniture and cabinet (1990s flat style)",
+      "Small window-type openings; no split AC visible in photos (text claims AC)",
+      "Coin-operated laundry (R$17 wash / R$17 dry)",
+      "No private gourmet balcony visible; the terrace in photos is a shared rooftop"
+    ]
+  },
+  "zapimoveis:2692105460": {
+    "modernityScore": 55,
+    "modernityTier": "STANDARD",
+    "verifiedAC": false,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Only ceiling fans in bedroom; split AC not visible in any photo (listed in text/amenities)",
+      "Small glassed sacada integrated to kitchen with stove on it",
+      "Small fridge, compact kitchenette (flat-like)"
+    ]
+  },
+  "zapimoveis:2915216352": {
+    "modernityScore": 80,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Photos look decorated/staged (possible developer showroom or virtual staging); two photos are duplicates",
+      "Split AC visible above bedroom window",
+      "Tower lifestyle amenities (lap pool, gym, gourmet space) from condo, not unit"
+    ]
+  },
+  "zapimoveis:2845205822": {
+    "modernityScore": 45,
+    "modernityTier": "DATED",
+    "furnishedTier": "FULLY_FURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Exposed concrete ceiling/brick industrial retrofit with old window frames",
+      "Old brown ceramic wash basin and toilet tank in WC",
+      "Open kitchen/living/bed area, studio-like",
+      "Possible split AC above fridge but not confirmable",
+      "Furnished: sofa, bed, fridge, microwave seen (listing text: 100% mobiliado)"
+    ]
+  },
+  "quintoandar:895340126": {
+    "modernityScore": 55,
+    "modernityTier": "STANDARD",
+    "verifiedAC": false,
+    "falseFreeView": false,
+    "visualWarnings": [
+      "Duplex/mezzanine layout with internal stairs (62 m² for 1 suite)",
+      "Old light wood kitchen cabinets with granite counters and tile granite floors in service areas",
+      "New herringbone parquet on upper level",
+      "Photos from rooms are unfurnished; portal says 'mobiliado' - furnished tier unverified",
+      "Photo sets from two sources (different watermarks)",
+      "No split AC visible"
+    ]
+  },
+  "zapimoveis:2898962280": {
+    "modernityScore": 66,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": false,
+    "verifiedBalcony": true,
+    "floorHint": "MID",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "No split AC visible",
+      "Listing also advertised for sale",
+      "Open view from 5th floor balcony over low-rise"
+    ]
+  },
+  "quintoandar:130305596": {
+    "modernityScore": 58,
+    "modernityTier": "STANDARD",
+    "verifiedAC": true,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Split AC visible in suite photo",
+      "Duplex with steep internal stairs",
+      "Dark red-brown wood floor (old style) and granite counters",
+      "Live portal total R$5,010 exceeds R$5,000 cap",
+      "Portal says ELEVADOR=NAO and PORTARIA_24H=NAO"
+    ]
+  },
+  "netimoveis:788104": {
+    "modernityScore": 38,
+    "modernityTier": "DATED",
+    "noCabinets": false,
+    "furnishedTier": "UNFURNISHED",
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: guarda-roupa de madeira escura antigo, piso cerâmico 15x15 claro com rodapé/sanca de madeira, banheiro com azulejo verde anos 90, cozinha antiga com bancada de madeira; sem ar-condicionado visível"
+    ]
+  },
+  "quintoandar:151409534": {
+    "modernityScore": 76,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "visualWarnings": [
+      "Fotos mostram unidade mobiliada/em uso (mesa, TV, máquina de lavar, cama) embora o anúncio diga 'não mobiliado' — confirmar o que permanece"
+    ]
+  },
+  "zapimoveis:2892289481": {
+    "modernityScore": 70,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "noCabinets": false,
+    "floorHint": "LOW",
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Descrição diz 'Mobiliado' e fotos mostram sala/jantar/TV/cozinha completos; 2º andar (baixo); anúncio sem atualização há ~2 meses (atualizado 18/08), preço no teto R$4.995"
+    ]
+  },
+  "quintoandar:895562640": {
+    "modernityScore": 76,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "falseFreeView": false,
+    "noCabinets": true,
+    "visualWarnings": [
+      "Auditoria visual: unidade nova entregue em casca — cozinha só com bancada de granito (sem armários), banheiro sem armário, piso porcelanato cinza; quarto não aparece nas fotos (layout estilo studio/open space); sem AC; condomínio megacondomínio familiar"
+    ]
+  },
+  "quintoandar:130103525": {
+    "modernityScore": 72,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedBalcony": true,
+    "noCabinets": true,
+    "visualWarnings": [
+      "Auditoria visual: unidade vazia em casca — cozinha aberta só com bancada de granito preto (sem armários), piso laminado, sem AC instalado (apenas grelhas/pontos)"
+    ]
+  },
+  "zapimoveis:2915112592": {
+    "modernityScore": 42,
+    "modernityTier": "DATED",
+    "noCabinets": false,
+    "hasMaintenanceIssue": false,
+    "visualWarnings": [
+      "Auditoria visual: piso de tábua corrida escura envelhecida, cozinha/área de serviço com azulejo branco 10x10 e armários de vidro antigos, banheiro com granito/lavatório antigo; sem ar-condicionado visível"
+    ]
+  },
+  "zapimoveis:2909468746": {
+    "modernityScore": 48,
+    "modernityTier": "STANDARD",
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "visualWarnings": [
+      "Auditoria visual: piso cerâmico bege 30x30, esquadrias de alumínio cru, cozinha com azulejo branco 15x15 e granito antigo, paredes amareladas, sem ar-condicionado; região hospitalar"
+    ]
+  },
+  "quintoandar:129415285": {
+    "modernityScore": 60,
+    "modernityTier": "STANDARD",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "floorHint": "HIGH",
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Portal marca hasFurniture=true e fotos mostram unidade totalmente mobiliada (sofá, cama, TV, mesa); condomínio de R$1.555 sugere perfil flat/serviços; acabamento anos 2000 (cerâmica bege, madeira escura, splits antigos)"
+    ]
+  },
+  "quintoandar:151767131": {
+    "modernityScore": 76,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseAC": true,
+    "verifiedBalcony": true,
+    "noCabinets": false,
+    "floorHint": "MID",
+    "visualWarnings": [
+      "Auditoria visual: anúncio marca ar-condicionado mas não há Split instalado nas fotos (ventilador de teto na sala; quartos sem aparelho)"
+    ]
+  },
+  "quintoandar:895396305": {
+    "modernityScore": 72,
+    "modernityTier": "WELL_MAINTAINED",
+    "falseFreeView": true,
+    "noCabinets": false,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: varanda gourmet de frente para fachada de prédio vizinho a poucos metros (vista bloqueada); garagem descoberta com sombrite; acabamento padrão econômico (granito, laminado)"
+    ]
+  },
+  "zapimoveis:2743063862": {
+    "modernityScore": 62,
+    "modernityTier": "STANDARD",
+    "verifiedAC": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Studio-like 1-quarto de 41 m²"
+    ]
+  },
+  "quintoandar:895181066": {
+    "modernityScore": 75,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "floorHint": "HIGH",
+    "furnishedTier": "FULLY_FURNISHED"
+  },
+  "zapimoveis:2909412921": {
+    "modernityScore": 83,
+    "modernityTier": "MODERN_OR_RENOVATED",
+    "floorHint": "LOW",
+    "visualWarnings": [
+      "Mesmo prédio (Rua Padre Vieira 685) que o rank 123",
+      "Mesma unidade do rank 15 (Rua Padre Vieira, 52 m², mesmos trilhos de luz, painel ripado e bancada): anunciada no QuintoAndar e no Zap com totais diferentes (QA R$ 4.332 vs Zap R$ 3.750)"
+    ]
+  },
+  "zapimoveis:2905603741": {
+    "modernityScore": 55,
+    "modernityTier": "STANDARD",
+    "verifiedAC": true,
+    "furnishedTier": "FULLY_FURNISHED",
+    "visualWarnings": [
+      "Auditoria visual: janelas voltadas a prédio vizinho; mobília visível nas fotos"
+    ]
+  },
+  "quintoandar:895163193": {
+    "modernityScore": 75,
+    "modernityTier": "WELL_MAINTAINED",
+    "verifiedAC": true,
+    "verifiedBalcony": true,
+    "furnishedTier": "UNFURNISHED",
+    "visualWarnings": [
+      "Mobiliado parcial: sofá, geladeira, mesa e escrivaninha, mas nenhuma cama nas 4 fotos de quarto → UNFURNISHED pela regra de 2 níveis"
     ]
   }
 };

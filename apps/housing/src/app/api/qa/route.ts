@@ -579,7 +579,7 @@ export function buildInstantGroundedAnswer(params: {
         "### ❄️ Ar-condicionado: **não confirmado nas fotos**",
         "- O anúncio cita ar-condicionado, mas a auditoria visual das fotos não encontrou split instalado.",
         ...acWarnings.map((w) => `- ${w}`),
-        "- Na nota: conta como **sem AC (−10 pts)** em vez de +12.",
+        "- Na nota: conta como **sem AC (−20 pts)** em vez de +12.",
       );
       visualWarningsShown = acWarnings.length === visualWarnings.length;
     } else if (prop?.cardTags.warningTags.includes(AC_INFRA_ONLY_TAG)) {
@@ -588,14 +588,14 @@ export function buildInstantGroundedAnswer(params: {
         acSentence
           ? `- O anúncio fala em ponto/infraestrutura para ar-condicionado, não em aparelho instalado: *"${acSentence}"*`
           : "- O anúncio fala em ponto/infraestrutura para ar-condicionado, não em aparelho instalado.",
-        "- Na nota: **0 pts** (com split instalado seria +12; sem AC, −10).",
+        "- Na nota: **0 pts** (com split instalado seria +12; sem AC, −20).",
         "- Conte com o custo de comprar e instalar os splits, ou pergunte se o proprietário instala.",
       );
     } else if (prop?.cardTags.warningTags.includes(AC_UNCONFIRMED_TAG)) {
       lines.push(
         "### ❄️ Ar-condicionado: **não confirmado**",
         "- Só aparece marcado no checklist de comodidades do portal; o texto do anúncio e as legendas das fotos não citam ar-condicionado/split.",
-        "- Na nota: **0 pts** até confirmar (com split confirmado seria +12; sem AC, −10).",
+        "- Na nota: **0 pts** até confirmar (com split confirmado seria +12; sem AC, −20).",
         "- Pergunte ao anunciante se há split instalado (e em quais cômodos) ou só a infraestrutura.",
       );
     } else if (acLabel) {
@@ -606,14 +606,14 @@ export function buildInstantGroundedAnswer(params: {
         acSentence
           ? `- Evidência no anúncio: *"${acSentence}"*`
           : "- Evidência: listado nas comodidades do anúncio.",
-        "- Na nota: **+12 pts** (sem AC seria −10).",
+        "- Na nota: **+12 pts** (sem AC seria −20).",
         "- Vale confirmar na visita se há split em todos os cômodos (quarto e sala).",
       );
     } else {
       lines.push(
         "### ❄️ Ar-condicionado: **não**",
         "- Nenhum ar-condicionado (split ou comum) aparece nas comodidades nem no texto do anúncio.",
-        "- Na nota: **−10 pts**.",
+        "- Na nota: **−20 pts**.",
       );
     }
     sections.push(lines.join("\n"));

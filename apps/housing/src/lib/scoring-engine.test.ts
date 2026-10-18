@@ -5,7 +5,12 @@ import {
   AC_ABSENT_TAG,
   AC_INFRA_ONLY_TAG,
   AC_UNCONFIRMED_TAG,
+  AC_WINDOW_TAG,
   BUILTIN_PRESETS,
+  computeCpFarCommutePenalty,
+  DUPLEX_LAYOUT_TAG,
+  SERVICED_FLAT_TAG,
+  STUDIO_LAYOUT_TAG,
   canNegotiateFurnitureRemoval,
   categorizePropertyFeatures,
   classifyFurnitureTier,
@@ -300,7 +305,9 @@ describe("Housing Dynamic Scoring Engine", () => {
       rarity: "epic",
     });
     expect(top.cardTags.greenTags).not.toContain("Andar alto (17º andar)");
-    expect(top.cardTags.greenTags).toContain("Vista livre");
+    // "Vista livre" is only a checkbox here (no text confirmation), so morning sun takes the pill.
+    expect(top.cardTags.greenTags).not.toContain("Vista livre");
+    expect(top.cardTags.greenTags).toContain("Sol da manhã");
     expect(top.cardTags.greenTags).toContain("Prédio Novo (2019)");
 
     expect(dated.eligible).toBe(true);
@@ -2604,15 +2611,16 @@ describe("Housing Dynamic Scoring Engine", () => {
     );
     expect(evalBhPrime.finalScore - evalBhSpoof.finalScore).toBeGreaterThan(75);
 
-    // Modernity 85 (ramp +3.5) vs 62 with negative conservation evidence creates ~33-point spread (75.8 vs 42.7 = 33.1 pts),
-    // while neutral 62 without negative signals has 0 curve penalty (52.7 pts)
+    // The unconfirmed "Construção recente" signal keeps only 14 of its 20 pts: 85 -> 79 (ramp +0.5) vs 62 -> 56
+    // with negative conservation evidence (penalty ramp -22.5): 67.6 vs 25.1 = 42.5 pts,
+    // while neutral 62 without signals sits on the penalty ramp at -7.5 (52.7 - 7.5 = 45.2 pts)
     const evalMod85 = byId.get("mod-85")!;
     const evalMod62 = byId.get("mod-62")!;
     const evalMod62Neutral = byId.get("mod-62-neutral")!;
     expect(
       evalMod85.breakdown.modernityPoints - evalMod62.breakdown.modernityPoints,
-    ).toBeCloseTo(33.1, 1);
-    expect(evalMod62Neutral.breakdown.modernityPoints).toBeCloseTo(52.7, 1);
+    ).toBeCloseTo(42.5, 1);
+    expect(evalMod62Neutral.breakdown.modernityPoints).toBeCloseTo(45.2, 1);
     expect(evalMod62Neutral.shortJustification).not.toContain(
       "acabamento padrão sem reforma moderna recente",
     );
@@ -2966,7 +2974,9 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
       (p) =>
         (p.cardTags.floorTag?.rarity === "uncommon" ||
           Boolean(p.cardTags.floorTag?.label.startsWith("Andar baixo"))) &&
-        !p.cardTags.greenTags.includes("Vista livre"),
+        !p.cardTags.greenTags.includes("Vista livre") &&
+        // Photo-audited units keep the low-floor penalty but may outrank unaudited ones.
+        !PHOTO_AUDIT_OVERRIDES[`${p.provider}:${p.id}`],
     );
     const streetUnsafeInTop25 = top25.filter((p) =>
       p.cardTags.redTags.includes("Alerta de Segurança na Rua"),
@@ -3182,7 +3192,7 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
     const range03WithViewSloped: SlimPropertyRecord = {
       ...range03NoViewSloped,
       id: "range03-with-view-sloped",
-      comfortCommodities: ["Vista livre"],
+      description: "Apartamento silencioso com vista livre.",
     };
     const range03NoViewFlat: SlimPropertyRecord = {
       ...range03NoViewSloped,
@@ -3193,7 +3203,7 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
     const range03WithViewFlat: SlimPropertyRecord = {
       ...range03NoViewFlat,
       id: "range03-with-view-flat",
-      comfortCommodities: ["Vista livre"],
+      description: "Apartamento silencioso com vista livre.",
     };
     const evalRange03 = computeDynamicProperties(
       [
@@ -3394,9 +3404,10 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
     expect(byCode.RJ!.medianPm2!).toBeGreaterThanOrEqual(86);
     expect(byCode.RJ!.medianPm2!).toBeLessThanOrEqual(96);
 
-    expect(byCode.SP!.medianMonthly!).toBeGreaterThanOrEqual(4800);
+    // Portal "furnished" flags now classify more SP units as furnished, which leave the cohort.
+    expect(byCode.SP!.medianMonthly!).toBeGreaterThanOrEqual(4750);
     expect(byCode.SP!.medianMonthly!).toBeLessThanOrEqual(5300);
-    expect(byCode.SP!.medianPm2!).toBeGreaterThanOrEqual(90);
+    expect(byCode.SP!.medianPm2!).toBeGreaterThanOrEqual(88);
     expect(byCode.SP!.medianPm2!).toBeLessThanOrEqual(100);
 
     for (const c of fullBench.cityComparisons) {
@@ -3768,6 +3779,7 @@ describe("Calibration fixes: CP far commute, sale status, modernity ramp, no cit
           id: `mod-${s}`,
           neighborhood: "Cambuí",
           installations: ["Elevador"],
+          positiveSignals: [],
           modernityScore: s,
           modernityTier: "MODERN_OR_RENOVATED",
         }),
@@ -3919,7 +3931,7 @@ describe("Top-20 photo audit rules: AC evidence, doorman field, Zap 1st floor, p
   };
   const modernOverride: PhotoAuditOverride = { modernityScore: 90, modernityTier: "MODERN_OR_RENOVATED" };
 
-  it("scores portal-checkbox-only AC as unconfirmed (0 pts, amber tag) and keeps +12 / -10 for confirmed / absent AC", () => {
+  it("scores portal-checkbox-only AC as unconfirmed (0 pts, amber tag) and keeps +12 / -20 for confirmed / absent AC", () => {
     const used = (overrides: Partial<SlimPropertyRecord>) =>
       rule({ condition: "USED", constructionYear: null, modernityScore: 80, ...overrides });
     withOverrides({ "quintoandar:ac-photo": { ...modernOverride, verifiedAC: true } }, () => {
@@ -3944,7 +3956,8 @@ describe("Top-20 photo audit rules: AC evidence, doorman field, Zap 1st floor, p
         expect(ev.cardTags.greenTags.some((t) => t.startsWith("Ar-condicionado"))).toBe(false);
         expect(matchesPropertyFeature(ev, "ac")).toBe(false);
       }
-      expect(pts("ac-qa-checkbox")).toBeCloseTo(pts("ac-none") + 10, 1);
+      expect(pts("ac-qa-checkbox")).toBeCloseTo(pts("ac-none") + 20, 1);
+      expect(byId.get("ac-none")!.nuanceWarnings).toContain("Sem ar-condicionado (-20 pts base)");
 
       expect(byId.get("ac-text")!.cardTags.acLabel).toBe("Ar-condicionado");
       expect(byId.get("ac-split")!.cardTags.acLabel).toBe("Ar-condicionado Split");
@@ -4004,7 +4017,7 @@ describe("Top-20 photo audit rules: AC evidence, doorman field, Zap 1st floor, p
     expect(byId.get("zap-1-andar-alto")!.cardTags.lowFloorLabel).toBeNull();
   });
 
-  it("halves a checkbox-only 'Vista livre' in a megacondo and lets a photo audit cancel it", () => {
+  it("gives the open-view bonus only for text confirmation (not a checkbox alone) and lets a photo audit cancel it", () => {
     const megaInstalls = ["Elevador", "Brinquedoteca", "Playground", "Quadra esportiva", "Salão de jogos"];
     withOverrides({ "quintoandar:view-false": { ...modernOverride, falseFreeView: true } }, () => {
       const byId = evaluate([
@@ -4013,13 +4026,19 @@ describe("Top-20 photo audit rules: AC evidence, doorman field, Zap 1st floor, p
         rule({ id: "view-mega-text", installations: megaInstalls, description: "Vista livre e definitiva." }),
         rule({ id: "view-single-none" }),
         rule({ id: "view-single-checkbox", comfortCommodities: ["Vista livre"] }),
-        rule({ id: "view-false", comfortCommodities: ["Vista livre"] }),
+        rule({ id: "view-zap-panoramic", provider: "zapimoveis", amenities: ["PANORAMIC_VIEW"] }),
+        rule({ id: "view-checkbox-and-text", comfortCommodities: ["Vista livre"], description: "Andar alto com vista livre para a serra." }),
+        rule({ id: "view-false", comfortCommodities: ["Vista livre"], description: "Vista livre e definitiva." }),
       ]);
       const pts = (id: string) => byId.get(id)!.breakdown.nuancesPoints;
-      expect(pts("view-mega-checkbox")).toBeCloseTo(pts("view-mega-none") + 4, 1);
-      expect(byId.get("view-mega-checkbox")!.nuanceHighlights).toContain("Vista livre parcial (megacondomínio)");
+      expect(pts("view-mega-checkbox")).toBeCloseTo(pts("view-mega-none"), 1);
       expect(pts("view-mega-text")).toBeCloseTo(pts("view-mega-none") + 8, 1);
-      expect(pts("view-single-checkbox")).toBeCloseTo(pts("view-single-none") + 8, 1);
+      for (const id of ["view-single-checkbox", "view-zap-panoramic"]) {
+        expect(pts(id), id).toBeCloseTo(pts("view-single-none"), 1);
+        expect(byId.get(id)!.cardTags.greenTags, id).not.toContain("Vista livre");
+        expect(byId.get(id)!.nuanceWarnings.join(" "), id).toMatch(/Vista livre só marcada no checklist/);
+      }
+      expect(byId.get("view-checkbox-and-text")!.cardTags.greenTags).toContain("Vista livre");
       expect(byId.get("view-false")!.cardTags.greenTags).not.toContain("Vista livre");
       expect(pts("view-false")).toBeCloseTo(pts("view-single-none"), 1);
     });
@@ -4075,7 +4094,8 @@ describe("Top-20 photo audit rules: AC evidence, doorman field, Zap 1st floor, p
     for (const p of positives) expect(isApartHotelListing(p), p.id).toBe(true);
     for (const p of negatives) expect(isApartHotelListing(p), p.id).toBe(false);
     expect(classifyFurnitureTier(positives[1]!)).toBe("FULLY_FURNISHED");
-    expect(classifyFurnitureTier(negatives[0]!)).toBe("UNFURNISHED");
+    // A QuintoAndar hasFurniture flag alone means furnished, so check the apart-hotel rule on a Zap listing.
+    expect(classifyFurnitureTier({ ...negatives[0]!, provider: "zapimoveis" })).toBe("UNFURNISHED");
   });
 
   it("marks QuintoAndar listings found unavailable as inactive unless they were republished afterwards", () => {
@@ -4292,9 +4312,15 @@ describe("Round-2 audit rules: duplicates, price/IPTU, lofts, furniture, cobertu
     expect(classifyFurnitureTier(unit({ id: "f-flag-text", furnished: true, description: "Todo reformado e mobiliado." }))).toBe(
       "FULLY_FURNISHED",
     );
+    // QuintoAndar's hasFurniture flag counts as the full set; a bare Zap furnished=true still needs text or the amenity.
     expect(classifyFurnitureTier(unit({ id: "f-flag-only", furnished: true, description: "Apartamento reformado." }))).toBe(
-      "UNFURNISHED",
+      "FULLY_FURNISHED",
     );
+    expect(
+      classifyFurnitureTier(
+        unit({ id: "f-zap-flag-only", provider: "zapimoveis", furnished: true, description: "Apartamento reformado." }),
+      ),
+    ).toBe("UNFURNISHED");
     expect(classifyFurnitureTier(unit({ id: "f-text-only", furnished: false, description: "Apartamento mobiliado." }))).toBe(
       "UNFURNISHED",
     );
@@ -4509,7 +4535,7 @@ describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only 
       expect(ev(id).cardTags.warningTags, id).toContain(AC_INFRA_ONLY_TAG);
       expect(ev(id).cardTags.warningTags, id).not.toContain(AC_UNCONFIRMED_TAG);
       expect(ev(id).cardTags.redTags, id).not.toContain(AC_ABSENT_TAG);
-      expect(ev(id).breakdown.nuancesPoints, id).toBeCloseTo(ev("ac-none").breakdown.nuancesPoints + 10, 1);
+      expect(ev(id).breakdown.nuancesPoints, id).toBeCloseTo(ev("ac-none").breakdown.nuancesPoints + 20, 1);
     }
     for (const id of ["academia-climatizada", "piscina-climatizada"]) {
       expect(ev(id).cardTags.acLabel, id).toBeNull();
@@ -4570,7 +4596,8 @@ describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only 
         expect(mod(id), id).toBeGreaterThan(80);
       }
       expect(mod("cap-audited")).toBe(95);
-      expect(mod("cooktop-only")).toBe(60);
+      // Back at the scraper base (60) with no modernity evidence left: the no-evidence default is 55.
+      expect(mod("cooktop-only")).toBe(55);
       expect(mod("cooktop-forno")).toBe(70);
       expect(mod("cooktop-checklist")).toBe(70);
     });
@@ -4606,8 +4633,9 @@ describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only 
       );
       expect(ev("overlap-audited").modernityScore).toBe(88);
       expect(ev("overlap-generic-leisure").modernityScore).toBe(67);
-      expect(ev("overlap-clamped-new").modernityScore).toBe(119 - 4 - 5 - 8 - 6);
-      expect(ev("overlap-ac-trust").modernityScore).toBe(80);
+      // Unconfirmed year (-6) and Novo/Reformado flag (-5) bring it below the concrete-evidence ceiling (88), which then caps it.
+      expect(ev("overlap-clamped-new").modernityScore).toBe(88);
+      expect(ev("overlap-ac-trust").modernityScore).toBe(90 - 4 - 6 - 5);
       expect(ev("overlap-ac-trust").cardTags.acLabel).toBe("Ar-condicionado");
     });
   });
@@ -4658,15 +4686,16 @@ describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only 
 
   it("ships the round-3 photo audits for the five re-audited Top-20 listings", () => {
     expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2913643725"]).toMatchObject({ falseAC: true });
-    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2909939228"]).toMatchObject({ modernityScore: 78, verifiedAC: true, furnishedTier: "UNFURNISHED" });
+    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2909939228"]).toMatchObject({ modernityScore: 76, verifiedAC: true, furnishedTier: "UNFURNISHED" });
     expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2913737751"]).toMatchObject({
       modernityScore: 60,
       modernityTier: "STANDARD",
       falseAC: true,
       falseFreeView: true,
     });
-    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2914284775"]).toMatchObject({ modernityScore: 82, floorHint: "HIGH" });
-    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2917501636"]).toMatchObject({ modernityScore: 56, verifiedAC: true });
+    // The top-200 audit re-scored these three from newer photo checks.
+    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2914284775"]).toMatchObject({ modernityScore: 68, modernityTier: "STANDARD", floorHint: "HIGH" });
+    expect(PHOTO_AUDIT_OVERRIDES["zapimoveis:2917501636"]).toMatchObject({ modernityScore: 40, modernityTier: "DATED", verifiedAC: true });
   });
 
   it("labels Jd. Guanabara at 30–35 min without changing commute points", () => {
@@ -4742,5 +4771,289 @@ describe("Precomputed listing features (ingest) vs. weighted scoring step", () =
     const after = computeDynamicProperties([prop], ranked, DEFAULT_WEIGHTS)[0]!;
     expect(before.cardTags.acLabel).toBeNull();
     expect(after.cardTags.acLabel).toBe("Ar-condicionado Split");
+  });
+});
+
+describe("Top-200 audit rules: furniture flags, AC wording, continuous ramps, checkbox trust, layout signals", () => {
+  const rankedNbs = computeDynamicNeighborhoods(SAMPLE_NEIGHBORHOODS, DEFAULT_WEIGHTS).ranked;
+  const unit = (overrides: Partial<SlimPropertyRecord>): SlimPropertyRecord => ({
+    ...SAMPLE_PROPERTIES[0]!,
+    id: "t200-base",
+    neighborhood: "Funcionários",
+    street: "Rua Alagoas",
+    streetNumber: null,
+    title: "Apartamento 1 quarto",
+    description: "Apartamento com 1 vaga.",
+    generatedDescription: null,
+    condition: "USED",
+    constructionYear: null,
+    floor: null,
+    floorRange: null,
+    totalFloors: null,
+    furnished: null,
+    installations: ["Elevador"],
+    amenities: ["Box", "Armários na cozinha"],
+    comfortCommodities: [],
+    practicalityCommodities: [],
+    photoCaptions: [],
+    positiveSignals: [],
+    negativeSignals: [],
+    modernityScore: 70,
+    modernityTier: "WELL_MAINTAINED",
+    ...overrides,
+  });
+  const zap = (overrides: Partial<SlimPropertyRecord>) => unit({ provider: "zapimoveis", ...overrides });
+  const evaluate = (props: SlimPropertyRecord[]) =>
+    new Map(computeDynamicProperties(props, rankedNbs, DEFAULT_WEIGHTS).map((p) => [p.id, p]));
+
+  it("counts portal furnished flags and 'todo/totalmente/100% mobiliado' as the full set, unless the text says unfurnished or semi", () => {
+    const full = [
+      zap({ id: "zap-amenity", furnished: false, amenities: ["FURNISHED", "KITCHEN"], description: "Excelente de 01 quarto, no bairro de Lourdes." }),
+      zap({
+        id: "zap-slug",
+        url: "https://www.zapimoveis.com.br/imovel/aluguel-apartamento-1-quarto-mobiliado-savassi-belo-horizonte-mg-50m2-id-2907744516/",
+        description: "Apartamento para locação no bairro Savassi com 50m².",
+      }),
+      zap({ id: "todo", description: "Excelente apartamento, todo mobiliado, com portaria 24 horas, lazer." }),
+      zap({ id: "totalmente", description: "Apartamento moderno, totalmente mobiliado e pronto para morar." }),
+      zap({ id: "cem", description: "Apartamento 100% mobiliado na Savassi." }),
+      zap({ id: "ja-moveis", description: "O apartamento já está com os móveis, é só trazer a mala." }),
+      zap({ id: "explicit-and-semi", description: "Apartamento totalmente mobiliado; antes era semi mobiliado." }),
+      unit({ id: "qa-has-furniture", furnished: true, description: "Apartamento com sala e 1 quarto." }),
+      unit({ id: "qa-checklist", furnished: false, amenities: ["Box", "Geladeira", "Sofá", "Cama de casal"] }),
+    ];
+    const unfurnished = [
+      unit({
+        id: "qa-flag-nao-mobiliado",
+        furnished: true,
+        description: "Alugue sem depender de ninguém! São 50m², com 1 banheiro e 1 vaga de garagem, não mobiliado, não aceita animais de estimação.",
+      }),
+      zap({ id: "zap-amenity-semi", furnished: true, amenities: ["FURNISHED"], description: "Apartamento semi mobiliado com elevador e 1 quarto no Funcionários – 40m²." }),
+      zap({
+        id: "zap-slug-semi",
+        url: "https://www.zapimoveis.com.br/imovel/aluguel-apartamento-1-quarto-semi-mobiliado-savassi-belo-horizonte-mg-id-1/",
+      }),
+      zap({ id: "plain-mobiliado", description: "Apartamento mobiliado." }),
+    ];
+    for (const p of full) expect(classifyFurnitureTier(p), p.id).toBe("FULLY_FURNISHED");
+    for (const p of unfurnished) expect(classifyFurnitureTier(p), p.id).toBe("UNFURNISHED");
+    expect(describeFurnitureInText("Apartamento mobiliado, com cozinha semi mobiliada.")).toBe("furnished");
+    expect(describeFurnitureInText("Apartamento semi mobiliado.")).toBe("unfurnished");
+  });
+
+  it("reads 'condicionador de ar' as AC, laje técnica / infraestrutura p/ / 'coloca e desconta' / espera as infrastructure, and window AC as a reduced credit", () => {
+    const byId = evaluate([
+      unit({ id: "none" }),
+      unit({ id: "condicionador", description: "Apartamento 01 quarto com armário, sala com piso em porcelanato. Condicionador de ar e armários." }),
+      unit({ id: "laje-condensador", description: "COZINHA C/ ARMÁRIOS - LAJE TÉCNICA P/ INSTALAÇAO DE CONDENSADOR DE AR CONDICIONADO - 2 VAGAS COBERTAS." }),
+      unit({ id: "laje-instalar", description: "Laje técnica para instalar o ar condicionado, com saída nos 2 quartos e sala." }),
+      unit({ id: "infra-p", description: "ARMÁRIOS NOS QUARTOS - INFRAESTRUTURA P/ AR CONDICIONADO NA SALA E NOS QUARTOS." }),
+      unit({ id: "coloca-desconta", description: "Em caso de Locação coloca o ar condicionado e desconta no aluguel." }),
+      unit({ id: "espera-split", description: "Espera para split na sala e no quarto." }),
+      unit({ id: "janela", description: "Sala com sofá, ventilador de teto e ar condicionado de janela." }),
+      unit({ id: "acj", description: "Quarto com ACJ e armários." }),
+      unit({ id: "split", description: "Sala com split inverter." }),
+    ]);
+    const pts = (id: string) => byId.get(id)!.breakdown.nuancesPoints;
+    expect(byId.get("condicionador")!.cardTags.acLabel).toBe("Ar-condicionado");
+    for (const id of ["laje-condensador", "laje-instalar", "infra-p", "coloca-desconta", "espera-split"]) {
+      expect(byId.get(id)!.cardTags.acLabel, id).toBeNull();
+      expect(byId.get(id)!.cardTags.warningTags, id).toContain(AC_INFRA_ONLY_TAG);
+      expect(byId.get(id)!.cardTags.redTags, id).not.toContain(AC_ABSENT_TAG);
+    }
+    for (const id of ["janela", "acj"]) {
+      expect(byId.get(id)!.cardTags.acLabel, id).toBeNull();
+      expect(byId.get(id)!.cardTags.warningTags, id).toContain(AC_WINDOW_TAG);
+      expect(pts(id), id).toBeCloseTo(pts("none") + 20 + 4, 1);
+      expect(pts(id), id).toBeLessThan(pts("split"));
+    }
+    expect(pts("split")).toBeCloseTo(pts("none") + 20 + 12, 1);
+  });
+
+  it("replaces the modernity -25/-40 steps with a continuous ramp (0 at 65, -25 at 55, -40 at 45) and defaults evidence-free units to 55", () => {
+    const scores = Array.from({ length: 32 }, (_, i) => 44 + i).filter((s) => s !== 60);
+    const byId = evaluate(scores.map((s) => unit({ id: `m-${s}`, modernityScore: s, modernityTier: "STANDARD" })));
+    const curve = (s: number) => byId.get(`m-${s}`)!.breakdown.modernityPoints - s * 0.85;
+    expect(curve(70)).toBeCloseTo(0, 0);
+    expect(curve(65)).toBeCloseTo(0, 0);
+    expect(curve(62)).toBeCloseTo(-7.5, 0);
+    expect(curve(59)).toBeCloseTo(-15, 0);
+    expect(curve(55)).toBeCloseTo(-25, 0);
+    expect(curve(52)).toBeCloseTo(-29.5, 0);
+    expect(curve(45)).toBeCloseTo(-40, 0);
+    expect(curve(44)).toBeCloseTo(-40, 0);
+    for (let i = 1; i < scores.length; i++) {
+      const step = byId.get(`m-${scores[i]}`)!.breakdown.modernityPoints - byId.get(`m-${scores[i - 1]}`)!.breakdown.modernityPoints;
+      expect(step, `${scores[i - 1]}->${scores[i]}`).toBeLessThanOrEqual((2.5 + 0.85) * (scores[i]! - scores[i - 1]!) + 0.1);
+    }
+    const [atBase] = computeDynamicProperties([unit({ id: "m-60", modernityScore: 60, modernityTier: "STANDARD" })], rankedNbs, DEFAULT_WEIGHTS);
+    expect(atBase!.modernityScore).toBe(55);
+    expect(atBase!.breakdown.modernityPoints).toBeCloseTo(55 * 0.85 - 25, 0);
+  });
+
+  it("ramps the CP far-commute penalty from 0 at ~33 min (15 km) to the Taquaral -11 at 16.1 km instead of a step", () => {
+    expect(computeCpFarCommutePenalty(14.7)).toBe(0);
+    expect(computeCpFarCommutePenalty(15.0)).toBeCloseTo(0, 1);
+    expect(computeCpFarCommutePenalty(15.55)).toBeCloseTo(-5.5, 0);
+    expect(computeCpFarCommutePenalty(16.1)).toBeCloseTo(-11, 1);
+    expect(computeCpFarCommutePenalty(17.6)).toBeCloseTo(-12, 1);
+    let prev = 0;
+    for (let km = 15.0; km <= 16.1; km += 0.1) {
+      const p = computeCpFarCommutePenalty(km);
+      expect(p).toBeLessThanOrEqual(prev + 0.05);
+      expect(prev - p).toBeLessThanOrEqual(1.1);
+      prev = p;
+    }
+    expect(resolveCpFarCommute("CP", "Nova Campinas")).toBeNull();
+    expect(resolveCpFarCommute("CP", "Taquaral")!.penaltyPts).toBeCloseTo(-11, 1);
+  });
+
+  it("keeps only part of the modernity points for an unconfirmed Novo/Reformado flag or construction year", () => {
+    const flagged = {
+      condition: "NEW_OR_RENOVATED" as const,
+      modernityScore: 70,
+      positiveSignals: ["Flag Novo/Reformado"],
+    };
+    const recent = { constructionYear: 2021, modernityScore: 80, positiveSignals: ["Construção recente (2021)"] };
+    Object.assign(PHOTO_AUDIT_OVERRIDES, { "quintoandar:flag-audited": { modernityScore: 82, modernityTier: "MODERN_OR_RENOVATED" } });
+    try {
+      const byId = evaluate([
+        unit({ id: "flag-only", ...flagged }),
+        unit({ id: "year-only", ...recent }),
+        unit({ id: "flag-audited", ...flagged }),
+      ]);
+      expect(byId.get("flag-only")!.modernityScore).toBe(70 - 5);
+      expect(byId.get("year-only")!.modernityScore).toBe(80 - 6);
+      expect(byId.get("flag-audited")!.modernityScore).toBe(82);
+    } finally {
+      delete PHOTO_AUDIT_OVERRIDES["quintoandar:flag-audited"];
+    }
+  });
+
+  it("does not trust condo gourmet areas, a gourmet checkbox alone or a virtual doorman", () => {
+    const byId = evaluate([
+      zap({ id: "zap-gourmet-checkbox", amenities: ["Box", "GOURMET_BALCONY"] }),
+      unit({ id: "qa-gourmet-checklist", amenities: ["Box", "Varanda gourmet"] }),
+      zap({ id: "condo-espaco-gourmet", amenities: ["Box", "BALCONY"], description: "Área de lazer com espaço gourmet, quadra poliesportiva e churrasqueira." }),
+      zap({ id: "condo-varanda-gourmet", description: "Condomínio com piscina, sauna e varanda gourmet no rooftop." }),
+      zap({ id: "unit-varanda-gourmet", description: "São 76 m² com 2 quartos (1 suíte), 2 banheiros, 1 varanda gourmet e 1 vaga." }),
+      unit({ id: "portaria-virtual", description: "Condominio conta com: Portaria virtual, 02 elevadores, agua individual, salão festas e academia." }),
+      unit({ id: "portaria-virtual-24h", installations: ["Elevador", "PORTARIA_24H"], description: "Prédio com portaria virtual 24h, academia, lavanderia OMO." }),
+      unit({ id: "portaria-remota", description: "Portaria remota e acesso por biometria." }),
+      unit({ id: "portaria-fisica", description: "Portaria física 24 horas e portaria virtual na garagem." }),
+      unit({ id: "portaria-default" }),
+      unit({ id: "portaria-24h-same-text", description: "Condominio conta com: Portaria 24h, 02 elevadores, agua individual, salão festas e academia." }),
+    ]);
+    const hl = (id: string) => byId.get(id)!.nuanceHighlights;
+    for (const id of ["zap-gourmet-checkbox", "qa-gourmet-checklist", "condo-espaco-gourmet"]) {
+      expect(hl(id), id).toContain("Varanda");
+      expect(hl(id), id).not.toContain("Varanda gourmet");
+    }
+    expect(hl("condo-varanda-gourmet")).not.toContain("Varanda gourmet");
+    expect(hl("unit-varanda-gourmet")).toContain("Varanda gourmet");
+    for (const id of ["portaria-virtual", "portaria-virtual-24h", "portaria-remota"]) {
+      expect(hl(id), id).not.toContain("Portaria 24h / Biometria");
+      expect(byId.get(id)!.nuanceWarnings.join(" "), id).toMatch(/Portaria virtual\/remota/);
+    }
+    expect(hl("portaria-fisica")).toContain("Portaria 24h / Biometria");
+    expect(hl("portaria-default")).toContain("Portaria 24h / Biometria");
+    expect(byId.get("portaria-24h-same-text")!.breakdown.nuancesPoints).toBeCloseTo(
+      byId.get("portaria-virtual")!.breakdown.nuancesPoints + 6,
+      1,
+    );
+  });
+
+  it("retains 'vagas de garagem coberta de gaveta' and scores tandem ('em linha', 'uma atrás da outra') spots as a single spot", () => {
+    const two = (id: string, description: string) => unit({ id, parkingSpaces: 2, description });
+    const byId = evaluate([
+      two("gaveta", "Área de serviço, aquecimento de água a gás, 2 vagas de garagem coberta de gaveta."),
+      two("gaveta-upper", "2 QUARTOS SENDO 1 SUÍTE, 2 VAGAS DE GARAGEM COBERTAS DE GAVETA, PLANEJADOS EM TODO APARTAMENTO."),
+      two("em-linha-demarcadas", "02 vagas de garagem cobertas, demarcadas em linha."),
+      two("em-linha", "Conta ainda com 2 vagas de garagem em linha."),
+      two("atras", "2 vagas cobertas, uma atrás da outra."),
+      two("nao-em-linha", "2 vagas livres e independentes (não são em linha)."),
+      two("control", "2 vagas de garagem cobertas."),
+    ]);
+    for (const id of ["gaveta", "gaveta-upper"]) {
+      expect(byId.get(id)!.eligible, id).toBe(false);
+      expect(byId.get(id)!.exclusionReason, id).toContain("Vaga presa, gaveta ou rotativa (eliminado)");
+    }
+    for (const id of ["em-linha-demarcadas", "em-linha", "atras"]) {
+      expect(byId.get(id)!.eligible, id).toBe(true);
+      expect(byId.get(id)!.breakdown.parkingPoints, id).toBe(DEFAULT_WEIGHTS.parkingBonus1);
+      expect(byId.get(id)!.cardTags.warningTags, id).toContain("Vagas em linha");
+    }
+    for (const id of ["nao-em-linha", "control"]) {
+      expect(byId.get(id)!.breakdown.parkingPoints, id).toBe(DEFAULT_WEIGHTS.parkingBonus2);
+    }
+  });
+
+  it("detects 'também para venda' / 'alugo e vendo' / 'venda porteira fechada' / 'aceita proposta de venda' as also for sale", () => {
+    const qa = (description: string) => ({
+      provider: "quintoandar" as const,
+      salePrice: null,
+      title: "Apartamento para alugar",
+      description,
+      generatedDescription: null,
+    });
+    for (const text of [
+      "Imóvel disponível para locação e também para venda.",
+      "Alugo e vendo Flat 45 metros quadrados com 1 quarto 1 banheiro 1 vaga de garagem.",
+      "VENDA PORTEIRA FECHADAApartamento Moderno 1 Dormitório Urban Design.",
+      "Proprietário aceita proposta de venda.",
+    ]) {
+      expect(hasActiveSaleListing(qa(text)), text).toBe(true);
+    }
+    expect(hasActiveSaleListing(qa("Atendemos nossos clientes na compra, venda ou locação de imóveis."))).toBe(false);
+  });
+
+  it("does not stack the top-floor +15 with the high-floor bonus", () => {
+    const byId = evaluate([
+      unit({ id: "top-12", floor: 12, totalFloors: 12, description: "Apartamento no último andar." }),
+      unit({ id: "high-10", floor: 10, totalFloors: 12 }),
+      unit({ id: "top-7", floor: 7, totalFloors: 7, description: "Apartamento no último andar." }),
+    ]);
+    expect(byId.get("top-12")!.nuanceHighlights).toContain("Último andar (12º andar)");
+    expect(byId.get("top-12")!.nuanceHighlights).not.toContain("Andar alto (12º andar)");
+    expect(byId.get("top-12")!.breakdown.nuancesPoints).toBeCloseTo(byId.get("high-10")!.breakdown.nuancesPoints + 15 - 11, 1);
+    expect(byId.get("top-7")!.nuanceHighlights).not.toContain("Andar médio (7º andar)");
+  });
+
+  it("treats granite as dated and drops 'Armários instalados' when the unit is delivered without cabinets", () => {
+    const byId = evaluate([
+      unit({ id: "granito", description: "Banheiro com box blindex e bancada em granito." }),
+      unit({ id: "quartzo", description: "Cozinha com bancada em quartzo e box blindex." }),
+      unit({ id: "sem-armarios", description: "Na área íntima, são dois quartos com piso Durafloor. Os cômodos são entregues sem armários, dando ao futuro morador a liberdade de escolher." }),
+      unit({ id: "um-sem-armarios", description: "Todos os quartos com piso em vinílico e apenas um sem armários." }),
+      unit({ id: "control" }),
+    ]);
+    expect(byId.get("granito")!.nuanceHighlights).not.toContain("Box blindex e bancada moderna");
+    expect(byId.get("quartzo")!.nuanceHighlights).toContain("Box blindex e bancada moderna");
+    expect(byId.get("control")!.nuanceHighlights).toContain("Armários instalados");
+    expect(byId.get("sem-armarios")!.nuanceHighlights).not.toContain("Armários instalados");
+    expect(byId.get("um-sem-armarios")!.nuanceHighlights).toContain("Armários instalados");
+  });
+
+  it("flags studio/kitnet, duplex and flat/apart-hotel layouts without points or retention", () => {
+    const byId = evaluate([
+      unit({ id: "studio", description: "Apartamento tipo studio – primeira locação, decorado com alto padrão de acabamento." }),
+      unit({ id: "kitnet", description: "Kitnet reformada perto da Savassi." }),
+      unit({ id: "pilates", description: "Condomínio com studio de pilates e academia." }),
+      unit({ id: "sala-conjugada", description: "Ambiente funcional com sala conjugada, projeto de iluminação." }),
+      unit({ id: "duplex", description: "Apartamento duplex para locação no melhor ponto de Lourdes." }),
+      unit({ id: "geladeira-duplex", description: "Cozinha com geladeira duplex." }),
+      zap({ id: "flat", title: "Flat para alugar com 42 m², 1 quarto, 1 banheiro, 1 vaga" }),
+      zap({ id: "apto", title: "Apartamento para alugar com 42 m², 1 quarto, 1 banheiro, 1 vaga" }),
+      unit({ id: "tv-flat", description: "Sala com smart TV flat." }),
+    ]);
+    const tags = (id: string) => byId.get(id)!.cardTags.warningTags;
+    for (const id of ["studio", "kitnet"]) expect(tags(id), id).toContain(STUDIO_LAYOUT_TAG);
+    for (const id of ["pilates", "sala-conjugada"]) expect(tags(id), id).not.toContain(STUDIO_LAYOUT_TAG);
+    expect(tags("duplex")).toContain(DUPLEX_LAYOUT_TAG);
+    expect(tags("geladeira-duplex")).not.toContain(DUPLEX_LAYOUT_TAG);
+    expect(tags("flat")).toContain(SERVICED_FLAT_TAG);
+    for (const id of ["apto", "tv-flat"]) expect(tags(id), id).not.toContain(SERVICED_FLAT_TAG);
+    for (const id of ["studio", "kitnet", "duplex", "flat"]) expect(byId.get(id)!.eligible, id).toBe(true);
+    expect(byId.get("flat")!.finalScore).toBe(byId.get("apto")!.finalScore);
   });
 });
