@@ -210,7 +210,7 @@ export function PropertyPhotoGalleryModal({
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 flex flex-col justify-between bg-slate-950/95 p-1.5 text-white backdrop-blur-md outline-hidden sm:p-3"
+      className="fixed inset-0 z-50 m-0 flex flex-col justify-between bg-slate-950/95 p-1.5 pt-[max(env(safe-area-inset-top),0.375rem)] pb-[max(env(safe-area-inset-bottom),0.375rem)] text-white backdrop-blur-md outline-hidden sm:p-3 sm:pt-[max(env(safe-area-inset-top),0.75rem)] sm:pb-[max(env(safe-area-inset-bottom),0.75rem)]"
     >
       {/* Top Header Bar */}
       <div className="mx-auto flex w-full max-w-[96vw] flex-wrap items-center justify-between gap-1.5 rounded-xl border border-white/10 bg-slate-900/85 px-2.5 py-1.5 shadow-lg backdrop-blur-md sm:gap-2 sm:px-3">
@@ -300,10 +300,11 @@ export function PropertyPhotoGalleryModal({
             href={property.url}
             target="_blank"
             rel="noreferrer"
+            aria-label={`Abrir no ${providerLabel}`}
             className="inline-flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-semibold text-white transition-colors hover:bg-white/20 sm:gap-1.5 sm:px-2.5"
           >
             <span className="hidden sm:inline">Abrir no </span>
-            <span>{providerLabel}</span>
+            <span className="hidden sm:inline">{providerLabel}</span>
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
 
@@ -375,15 +376,15 @@ export function PropertyPhotoGalleryModal({
         )}
 
         {/* Active Photo Counter + Room Label (Floating Pill) */}
-        <div className="pointer-events-none absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-1 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/85 px-3.5 py-1 text-xs font-semibold text-white shadow-lg backdrop-blur-sm">
+        <div className="pointer-events-none absolute bottom-2 left-1/2 z-20 flex w-max max-w-[92vw] -translate-x-1/2 flex-col items-center gap-1 text-center">
+          <div className="inline-flex max-w-full items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/85 px-3.5 py-1 text-xs font-semibold text-white shadow-lg backdrop-blur-sm">
             <span className="font-mono text-purple-300">
               Foto {safeIndex + 1} de {totalPhotos}
             </span>
             {currentPhoto.room && (
               <>
                 <span className="text-white/30">·</span>
-                <span>{currentPhoto.room}</span>
+                <span className="min-w-0 truncate">{currentPhoto.room}</span>
               </>
             )}
             {isLoadingAllPhotos && (
@@ -423,7 +424,7 @@ export function PropertyPhotoGalleryModal({
 
           return (
             <div className="mx-auto w-full max-w-[96vw] rounded-xl border border-white/10 bg-slate-900/85 px-2.5 py-1.5 backdrop-blur-md">
-              <div className="flex items-center justify-center gap-2 overflow-x-auto pb-0.5">
+              <div className="flex items-center justify-center-safe gap-2 overflow-x-auto pb-0.5">
                 {windowStart > 0 && (
                   <button
                     type="button"

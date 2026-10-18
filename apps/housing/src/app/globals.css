@@ -117,3 +117,17 @@
   border-top-color: #a855f7 !important;
 }
 
+/* On phones both bottom corners hold fixed floating buttons and the map's
+   selected-property card sits at its bottom edge, so lift the attribution
+   to the (otherwise empty) top-right corner. */
+@media (max-width: 639.98px) {
+  .leaflet-container .leaflet-bottom.leaflet-right {
+    top: 0;
+    bottom: auto;
+  }
+  .leaflet-touch .leaflet-control-zoom.leaflet-bar a {
+    width: 36px;
+    height: 36px;
+    line-height: 36px;
+  }
+}

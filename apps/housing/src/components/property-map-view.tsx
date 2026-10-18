@@ -1183,7 +1183,7 @@ export function PropertyMapView({
                 data-testid={`map-jump-${c}`}
                 onClick={() => fitMapToCurrentItems(c, true)}
                 title={`Voar para ${NUBANK_HUBS[c].name} (${NUBANK_HUBS[c].address})`}
-                className={`inline-flex items-center gap-0.5 rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-bold transition-all whitespace-nowrap ${
+                className={`inline-flex items-center gap-0.5 rounded-md border px-1.5 py-1 sm:py-0.5 font-mono text-[10px] font-bold transition-all whitespace-nowrap ${
                   isHubActive
                     ? "border-purple-500 bg-purple-700 text-white shadow-2xs"
                     : count > 0
@@ -1204,7 +1204,7 @@ export function PropertyMapView({
             data-testid="map-jump-all"
             onClick={() => fitMapToCurrentItems("ALL")}
             title="Enquadrar todos os imóveis visíveis"
-            className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold transition-colors whitespace-nowrap ${
+            className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-1 sm:py-0.5 text-[10px] font-semibold transition-colors whitespace-nowrap ${
               focusedHubCity === "ALL"
                 ? "border-primary/50 bg-primary/10 text-primary"
                 : "bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -1273,7 +1273,7 @@ export function PropertyMapView({
                 aria-pressed={isActive}
                 onClick={() => handleSelectMapStyle(opt.id)}
                 title={MAP_STYLE_CONFIG[opt.id].label}
-                className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9.5px] font-semibold transition-all whitespace-nowrap ${
+                className={`inline-flex items-center gap-1 rounded px-1.5 py-1 sm:py-0.5 text-[9.5px] font-semibold transition-all whitespace-nowrap ${
                   isActive
                     ? "bg-primary text-primary-foreground shadow-2xs"
                     : "text-muted-foreground hover:text-foreground"

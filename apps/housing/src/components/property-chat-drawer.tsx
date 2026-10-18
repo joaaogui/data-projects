@@ -707,12 +707,12 @@ export function PropertyChatDrawer({
         aria-hidden={!open}
         inert={!open}
         style={mobileBox ? { top: mobileBox.top, height: mobileBox.height } : undefined}
-        className={`fixed inset-x-0 top-0 bottom-0 z-40 flex h-dvh flex-col bg-card shadow-2xl transition-transform duration-200 ease-out sm:inset-y-0 sm:left-auto sm:h-auto sm:w-[440px] sm:border-l lg:w-[500px] ${
+        className={`fixed inset-x-0 top-0 bottom-0 z-[45] flex h-dvh flex-col bg-card shadow-2xl transition-transform duration-200 ease-out sm:inset-y-0 sm:left-auto sm:h-auto sm:w-[440px] sm:border-l lg:w-[500px] ${
           open ? "translate-x-0" : "pointer-events-none invisible translate-x-full"
         }`}
       >
         {/* Header */}
-        <div className="flex items-center gap-2 border-b px-3 pt-[max(env(safe-area-inset-top),0.625rem)] pb-2.5 sm:px-4">
+        <div className="flex shrink-0 items-center gap-2 border-b px-3 pt-[max(env(safe-area-inset-top),0.625rem)] pb-2.5 sm:px-4">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-600 text-white shadow-xs">
             <Sparkles className="h-4 w-4" />
           </div>
@@ -723,7 +723,7 @@ export function PropertyChatDrawer({
                 ⌘J
               </kbd>
             </div>
-            <p className="truncate text-[11px] text-muted-foreground">
+            <p className="truncate text-[11px] text-muted-foreground [@media(max-height:500px)]:hidden">
               {awaitingCount > 0 ? (
                 <span className="inline-flex items-center gap-1 font-medium text-emerald-700 dark:text-emerald-400">
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -772,7 +772,7 @@ export function PropertyChatDrawer({
         {/* Thread switcher */}
         <nav
           aria-label="Conversas"
-          className="flex gap-1.5 overflow-x-auto border-b bg-muted/30 px-3 py-2 [scrollbar-width:none] sm:px-4"
+          className="flex shrink-0 gap-1.5 overflow-x-auto border-b bg-muted/30 px-3 py-2 [scrollbar-width:none] sm:px-4"
         >
           <button
             type="button"
@@ -842,7 +842,7 @@ export function PropertyChatDrawer({
 
         {/* Property context */}
         {isPropertyThread && contextTitle && activeThreadKey && (
-          <div className="flex items-center gap-2.5 border-b px-3 py-2 sm:px-4">
+          <div className="flex shrink-0 items-center gap-2.5 border-b px-3 py-2 sm:px-4 [@media(max-height:500px)]:hidden">
             {contextThumb ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -973,7 +973,7 @@ export function PropertyChatDrawer({
         </div>
 
         {/* Composer */}
-        <div className="space-y-2 border-t bg-card px-3 pt-2.5 pb-[max(env(safe-area-inset-bottom),0.75rem)] sm:px-4">
+        <div className="shrink-0 space-y-2 border-t bg-card px-3 pt-2.5 pb-[max(env(safe-area-inset-bottom),0.75rem)] sm:px-4">
           {submitError && (
             <div
               role="alert"
@@ -1042,7 +1042,7 @@ export function PropertyChatDrawer({
               )}
             </button>
           </form>
-          <p className="hidden text-[10px] text-muted-foreground sm:block">
+          <p className="hidden text-[10px] text-muted-foreground sm:block [@media(max-height:500px)]:hidden">
             Enter envia · Shift+Enter quebra linha
             {draft.length > MAX_QUESTION_LENGTH - 200 &&
               ` · ${draft.length}/${MAX_QUESTION_LENGTH}`}

@@ -70,7 +70,7 @@ export default function RootLayout({
         <Providers posthogApiKey={process.env.NEXT_PUBLIC_POSTHOG_KEY}>
           <main
             id="main-content"
-            className="mx-auto w-full max-w-[1640px] px-3 py-4 sm:px-6 sm:py-5"
+            className="mx-auto w-full max-w-[1640px] px-3 pt-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] sm:px-6 sm:py-5"
           >
             {children}
           </main>
