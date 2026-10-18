@@ -6,14 +6,9 @@ import {
 } from "@/lib/geocoding";
 import { enforceRateLimit, geocodeSchema, parseJsonBody } from "@/lib/api-guards";
 import { logger } from "@/lib/logger";
+import { createRuntimeKv } from "@/lib/runtime-kv";
 import type { CityHubCode } from "@/types/housing";
 import { NextResponse } from "next/server";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-
-const GEOCACHE_FILE = join(process.cwd(), "src/data/geocache.json");
-const TMP_GEOCACHE_FILE = join(tmpdir(), "housing-geocache.json");
 
 interface CachedGeoEntry {
   lat: number;
@@ -33,42 +28,7 @@ interface GeocodeRequestItem {
   streetNumber: string | null;
 }
 
-function readGeoCacheFile(filePath: string): GeoCacheMap {
-  if (!existsSync(/*turbopackIgnore: true*/ filePath)) return {};
-  try {
-    const raw = JSON.parse(
-      readFileSync(/*turbopackIgnore: true*/ filePath, "utf8"),
-    ) as unknown;
-    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-      return raw as GeoCacheMap;
-    }
-    return {};
-  } catch {
-    return {};
-  }
-}
-
-function loadGeoCache(): GeoCacheMap {
-  return {
-    ...readGeoCacheFile(GEOCACHE_FILE),
-    ...readGeoCacheFile(TMP_GEOCACHE_FILE),
-  };
-}
-
-function saveGeoCache(cache: GeoCacheMap): void {
-  const serialized = `${JSON.stringify(cache, null, 2)}\n`;
-  try {
-    mkdirSync(dirname(GEOCACHE_FILE), { recursive: true });
-    writeFileSync(GEOCACHE_FILE, serialized, "utf8");
-  } catch {
-    // Ignore read-only filesystem errors in serverless environments
-  }
-  try {
-    writeFileSync(TMP_GEOCACHE_FILE, serialized, "utf8");
-  } catch {
-    // Ignore /tmp write errors
-  }
-}
+const geoStore = createRuntimeKv<CachedGeoEntry>("geocode", 5 * 60_000);
 
 const STATE_BY_CITY: Record<CityHubCode, string> = {
   BH: "Minas Gerais",
@@ -169,8 +129,8 @@ export async function POST(request: Request) {
     if (!parsedBody.ok) return parsedBody.response;
     const items: GeocodeRequestItem[] = parsedBody.data.items.slice(0, 35);
 
-    const cache = loadGeoCache();
-    let cacheMutated = false;
+    const cache = Object.fromEntries(await geoStore.all()) as GeoCacheMap;
+    const resolvedEntries: Array<[string, CachedGeoEntry]> = [];
     const coordinates: Record<string, PropertyCoordinate> = {};
 
     const MAX_LIVE_LOOKUPS_PER_REQUEST = 6;
@@ -242,13 +202,14 @@ export async function POST(request: Request) {
         const resolved = await queryOsmGeocoder(item);
         if (resolved.status === "found") {
           negativeGeocodeCooldownUntil.delete(addrKey);
-          cache[addrKey] = {
+          const entry: CachedGeoEntry = {
             lat: resolved.lat,
             lng: resolved.lng,
             source: "nominatim",
             updatedAt: new Date().toISOString(),
           };
-          cacheMutated = true;
+          cache[addrKey] = entry;
+          resolvedEntries.push([addrKey, entry]);
           finalCount++;
           coordinates[item.key] = {
             lat: resolved.lat,
@@ -288,9 +249,13 @@ export async function POST(request: Request) {
       };
     }
 
-    if (cacheMutated) {
-      saveGeoCache(cache);
-    }
+    await Promise.all(
+      resolvedEntries.map(([addrKey, entry]) =>
+        geoStore.set(addrKey, entry).catch((err: unknown) => {
+          logger.warn("api/geocode", "saving geocode result failed", { addrKey, error: err });
+        }),
+      ),
+    );
 
     const nextRetryDelayMs =
       pendingCount === 0

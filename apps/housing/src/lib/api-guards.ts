@@ -81,11 +81,6 @@ export const geocodeSchema = z.object({
     .default([]),
 });
 
-export const syncSchema = z.object({
-  neighborhoods: z.array(looseRecord).max(5_000).optional(),
-  properties: z.array(looseRecord).max(100_000).optional(),
-});
-
 export const loginSchema = z.object({
   token: z.string().trim().min(1).max(500),
   next: z.string().max(500).optional(),

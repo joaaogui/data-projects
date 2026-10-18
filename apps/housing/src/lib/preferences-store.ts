@@ -10,9 +10,9 @@ import { sanitizeAndMigrateWeights } from "@/lib/scoring-engine";
 import type { ScoringWeights, SharedUserPreferences } from "@/types/housing";
 import { fetchWithRetry } from "@data-projects/shared/db";
 import { neon, neonConfig } from "@neondatabase/serverless";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 const DEFAULT_PREF_ID = "default";
 const LOCAL_PREFS_FILE = join(process.cwd(), "src/data/user-preferences.json");
@@ -20,9 +20,8 @@ const FALLBACK_PREFS_FILE = join(
   process.cwd(),
   "apps/housing/src/data/user-preferences.json",
 );
+// Mirror for DB outages / no-DB dev; the committed user-preferences.json is a read-only seed.
 const TMP_PREFS_FILE = join(tmpdir(), "housing-user-preferences.json");
-const LOCAL_FAVORITES_FILE = join(process.cwd(), "src/data/favorites.json");
-const TMP_FAVORITES_FILE = join(tmpdir(), "housing-favorites.json");
 
 function normalizeStringArray(raw: unknown, fallback: string[] = []): string[] {
   if (!Array.isArray(raw)) return fallback;
@@ -141,23 +140,10 @@ function writeLocalPreferencesMirror(prefs: SharedUserPreferences): void {
     updatedAt: prefs.updatedAt,
   };
   memPreferencesCache = cleanPrefs;
-  const serialized = `${JSON.stringify(cleanPrefs, null, 2)}\n`;
-  const favsSerialized = `${JSON.stringify(cleanPrefs.favorites, null, 2)}\n`;
-  for (const target of [LOCAL_PREFS_FILE, TMP_PREFS_FILE]) {
-    try {
-      mkdirSync(dirname(target), { recursive: true });
-      writeFileSync(target, serialized, "utf8");
-    } catch {
-      // Ignore read-only filesystem errors in serverless environments
-    }
-  }
-  for (const favTarget of [LOCAL_FAVORITES_FILE, TMP_FAVORITES_FILE]) {
-    try {
-      mkdirSync(dirname(favTarget), { recursive: true });
-      writeFileSync(favTarget, favsSerialized, "utf8");
-    } catch {
-      // Ignore read-only filesystem errors
-    }
+  try {
+    writeFileSync(/*turbopackIgnore: true*/ TMP_PREFS_FILE, `${JSON.stringify(cleanPrefs, null, 2)}\n`, "utf8");
+  } catch {
+    // Ignore tmp write errors
   }
 }
 
@@ -166,32 +152,6 @@ function getSqlClient() {
   if (!url) return null;
   neonConfig.fetchFunction = fetchWithRetry;
   return neon(url);
-}
-
-let tableEnsuredPromise: Promise<void> | null = null;
-
-async function ensurePreferencesTable(): Promise<void> {
-  const sql = getSqlClient();
-  if (!sql) return;
-  if (!tableEnsuredPromise) {
-    tableEnsuredPromise = (async () => {
-      await sql`CREATE SCHEMA IF NOT EXISTS housing`;
-      await sql`
-        CREATE TABLE IF NOT EXISTS housing.user_preferences (
-          id text PRIMARY KEY,
-          filters jsonb NOT NULL DEFAULT '{}'::jsonb,
-          weights jsonb NOT NULL DEFAULT '{}'::jsonb,
-          active_preset_id text NOT NULL DEFAULT 'balanced-original',
-          favorites jsonb NOT NULL DEFAULT '[]'::jsonb,
-          updated_at timestamptz NOT NULL DEFAULT now()
-        )
-      `;
-    })().catch((err) => {
-      tableEnsuredPromise = null;
-      throw err;
-    });
-  }
-  return tableEnsuredPromise;
 }
 
 export async function loadSharedPreferences(options?: {
@@ -219,7 +179,6 @@ export async function loadSharedPreferences(options?: {
 
   const loadPromise = (async (): Promise<SharedUserPreferences> => {
     try {
-      await ensurePreferencesTable();
       const rows = await sql`
         SELECT id, filters, weights, active_preset_id, favorites, updated_at
         FROM housing.user_preferences
@@ -363,7 +322,6 @@ export async function saveSharedPreferences(
     if (!sql) return { ...next, persistedToDb: false };
 
     try {
-      await ensurePreferencesTable();
       const rows = await sql`
         INSERT INTO housing.user_preferences (
           id, filters, weights, active_preset_id, favorites, updated_at
@@ -408,24 +366,4 @@ export async function saveSharedPreferences(
   const nextTask = saveQueuePromise.then(runSave, runSave);
   saveQueuePromise = nextTask.catch(() => {});
   return nextTask;
-}
-
-export async function toggleSharedFavorite(
-  key: string,
-  favorite?: boolean,
-): Promise<string[]> {
-  const trimmedKey = key.trim();
-  const currentPrefs = await loadSharedPreferences();
-  const favSet = new Set(currentPrefs.favorites);
-  if (trimmedKey) {
-    const shouldBeFav =
-      typeof favorite === "boolean" ? favorite : !favSet.has(trimmedKey);
-    if (shouldBeFav) {
-      favSet.add(trimmedKey);
-    } else {
-      favSet.delete(trimmedKey);
-    }
-  }
-  const saved = await saveSharedPreferences({ favorites: [...favSet] });
-  return saved.favorites;
 }

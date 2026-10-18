@@ -1,37 +1,34 @@
-import {
-  filterVisibleCities,
-  isCityVisible,
-  resolveEnabledHiddenCities,
-} from "@/lib/city-config";
+import { resolveEnabledHiddenCities } from "@/lib/city-config";
 import { enforceRateLimit, parseJsonBody, qaPostSchema } from "@/lib/api-guards";
 import { requireAuth } from "@/lib/auth";
-import { getPrecomputedListings, hashContent } from "@/lib/listing-features-store";
 import { getCardQuestionsQueueFile, getLocalScraperDir } from "@/lib/local-scraper";
 import { logger } from "@/lib/logger";
+import { getScoredProperties } from "@/lib/server-scoring";
 import { PHOTO_AUDIT_OVERRIDES } from "@/lib/photo-audit-overrides";
 import { buildQaLlmPrompt } from "@/lib/qa-llm-prompt";
-import { processScoped } from "@/lib/process-cache";
+import type { ScoredSet } from "@/lib/property-query";
+import {
+  loadQaStore,
+  preservedInstantAnswer,
+  qaChangeListeners,
+  sanitizePropertySnapshot,
+  saveQaItems,
+} from "@/lib/qa-store";
 import {
   AC_INFRA_ONLY_TAG,
   AC_UNCONFIRMED_TAG,
   DEFAULT_WEIGHTS,
   classifyFurnitureTier,
-  computeDynamicNeighborhoods,
   evaluateStreetMicroEnvironment,
   resolveNeighborhoodSafetyAndMetrics,
-  scorePrecomputedListings,
 } from "@/lib/scoring-engine";
 import type {
   CityHubCode,
   EvaluatedProperty,
-  NeighborhoodEntry,
   PropertyQuestionItem,
   PropertyQuestionSnapshot,
   ScoringWeights,
-  SlimPropertyRecord,
 } from "@/types/housing";
-import { fetchWithRetry } from "@data-projects/shared/db";
-import { neon, neonConfig } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import {
@@ -39,26 +36,11 @@ import {
   existsSync,
   readFileSync,
   statSync,
-  writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_QA_ROW_ID = "default";
-const LOCAL_QA_FILE = join(process.cwd(), "src/data/property-qa.json");
-const FALLBACK_QA_FILE = join(
-  process.cwd(),
-  "apps/housing/src/data/property-qa.json",
-);
-const TMP_QA_FILE = join(tmpdir(), "housing-property-qa.json");
-const LOCAL_QA_SHADOW_FILE = join(tmpdir(), "housing-property-qa-local.json");
-const LOCAL_SNAPSHOT_FILE = join(process.cwd(), "src/data/seed-snapshot.json");
-const FALLBACK_SNAPSHOT_FILE = join(
-  process.cwd(),
-  "apps/housing/src/data/seed-snapshot.json",
-);
 const QA_ASK_RATE_LIMIT = { limit: 12, windowMs: 60_000 };
 
 interface RawListingRecord {
@@ -119,524 +101,6 @@ interface RawListingRecord {
   } | null;
 }
 
-function getSqlClient() {
-  const url = (
-    process.env.DATABASE_URL ??
-    process.env.POSTGRES_URL ??
-    ""
-  ).trim();
-  if (!url) return null;
-  neonConfig.fetchFunction = fetchWithRetry;
-  return neon(url);
-}
-
-let qaTableEnsuredPromise: Promise<void> | null = null;
-
-async function ensureQaTable(): Promise<void> {
-  const sql = getSqlClient();
-  if (!sql) return;
-  if (!qaTableEnsuredPromise) {
-    qaTableEnsuredPromise = (async () => {
-      await sql`CREATE SCHEMA IF NOT EXISTS housing`;
-      await sql`
-        CREATE TABLE IF NOT EXISTS housing.property_qa (
-          id text PRIMARY KEY,
-          items jsonb NOT NULL DEFAULT '[]'::jsonb,
-          updated_at timestamptz NOT NULL DEFAULT now()
-        )
-      `;
-    })().catch((err) => {
-      qaTableEnsuredPromise = null;
-      throw err;
-    });
-  }
-  return qaTableEnsuredPromise;
-}
-
-function sanitizePropertySnapshot(
-  raw: unknown,
-  fallback?: Partial<PropertyQuestionSnapshot>,
-): PropertyQuestionSnapshot {
-  const src =
-    raw && typeof raw === "object" && !Array.isArray(raw)
-      ? (raw as Record<string, unknown>)
-      : {};
-  const fb = fallback ?? {};
-
-  const strField = (key: keyof PropertyQuestionSnapshot, def = "", max = 2000): string => {
-    const v = src[key];
-    if (typeof v === "string") return v.slice(0, max);
-    const fv = fb[key];
-    return typeof fv === "string" ? fv.slice(0, max) : def;
-  };
-
-  const nullStrField = (
-    key: keyof PropertyQuestionSnapshot,
-    def: string | null = null,
-    max = 2000,
-  ): string | null => {
-    const v = src[key];
-    if (v === null) return null;
-    if (typeof v === "string") return v.slice(0, max);
-    const fv = fb[key];
-    return typeof fv === "string" ? fv.slice(0, max) : def;
-  };
-
-  const numField = (key: keyof PropertyQuestionSnapshot, def = 0): number => {
-    const v = src[key];
-    if (typeof v === "number" && Number.isFinite(v)) return v;
-    const fv = fb[key];
-    return typeof fv === "number" && Number.isFinite(fv) ? fv : def;
-  };
-
-  const nullNumField = (
-    key: keyof PropertyQuestionSnapshot,
-    def: number | null = null,
-  ): number | null => {
-    const v = src[key];
-    if (v === null) return null;
-    if (typeof v === "number" && Number.isFinite(v)) return v;
-    const fv = fb[key];
-    return typeof fv === "number" && Number.isFinite(fv) ? fv : def;
-  };
-
-  const strArrayField = (
-    key: keyof PropertyQuestionSnapshot,
-  ): string[] | undefined => {
-    const v = src[key] ?? fb[key];
-    if (!Array.isArray(v)) return undefined;
-    return v
-      .filter((x): x is string => typeof x === "string")
-      .slice(0, 30)
-      .map((s) => s.slice(0, 300));
-  };
-
-  const rawTier = src.furnitureTier ?? fb.furnitureTier;
-  const furnitureTier =
-    rawTier === "UNFURNISHED" ||
-    rawTier === "SEMI_FURNISHED" ||
-    rawTier === "FULLY_FURNISHED"
-      ? rawTier
-      : undefined;
-
-  const rawBd = src.breakdown ?? fb.breakdown;
-  const breakdown =
-    rawBd && typeof rawBd === "object" && !Array.isArray(rawBd)
-      ? {
-          neighborhoodPoints:
-            typeof (rawBd as Record<string, unknown>).neighborhoodPoints === "number" &&
-            Number.isFinite((rawBd as Record<string, unknown>).neighborhoodPoints)
-              ? ((rawBd as Record<string, number>).neighborhoodPoints ?? 0)
-              : (fb.breakdown?.neighborhoodPoints ?? 0),
-          modernityPoints:
-            typeof (rawBd as Record<string, unknown>).modernityPoints === "number" &&
-            Number.isFinite((rawBd as Record<string, unknown>).modernityPoints)
-              ? ((rawBd as Record<string, number>).modernityPoints ?? 0)
-              : (fb.breakdown?.modernityPoints ?? 0),
-          nuancesPoints:
-            typeof (rawBd as Record<string, unknown>).nuancesPoints === "number" &&
-            Number.isFinite((rawBd as Record<string, unknown>).nuancesPoints)
-              ? ((rawBd as Record<string, number>).nuancesPoints ?? 0)
-              : (fb.breakdown?.nuancesPoints ?? 0),
-          budgetPoints:
-            typeof (rawBd as Record<string, unknown>).budgetPoints === "number" &&
-            Number.isFinite((rawBd as Record<string, unknown>).budgetPoints)
-              ? ((rawBd as Record<string, number>).budgetPoints ?? 0)
-              : (fb.breakdown?.budgetPoints ?? 0),
-          furniturePoints:
-            typeof (rawBd as Record<string, unknown>).furniturePoints === "number" &&
-            Number.isFinite((rawBd as Record<string, unknown>).furniturePoints)
-              ? ((rawBd as Record<string, number>).furniturePoints ?? 0)
-              : (fb.breakdown?.furniturePoints ?? 0),
-          areaPoints:
-            typeof (rawBd as Record<string, unknown>).areaPoints === "number" &&
-            Number.isFinite((rawBd as Record<string, unknown>).areaPoints)
-              ? ((rawBd as Record<string, number>).areaPoints ?? 0)
-              : (fb.breakdown?.areaPoints ?? 0),
-          parkingPoints:
-            typeof (rawBd as Record<string, unknown>).parkingPoints === "number" &&
-            Number.isFinite((rawBd as Record<string, unknown>).parkingPoints)
-              ? ((rawBd as Record<string, number>).parkingPoints ?? 0)
-              : (fb.breakdown?.parkingPoints ?? 0),
-          safetyPoints:
-            typeof (rawBd as Record<string, unknown>).safetyPoints === "number" &&
-            Number.isFinite((rawBd as Record<string, unknown>).safetyPoints)
-              ? ((rawBd as Record<string, number>).safetyPoints ?? 0)
-              : (fb.breakdown?.safetyPoints ?? 0),
-          commutePoints:
-            typeof (rawBd as Record<string, unknown>).commutePoints === "number" &&
-            Number.isFinite((rawBd as Record<string, unknown>).commutePoints)
-              ? ((rawBd as Record<string, number>).commutePoints ?? 0)
-              : (fb.breakdown?.commutePoints ?? 0),
-          cityPreferencePoints:
-            typeof (rawBd as Record<string, unknown>).cityPreferencePoints === "number" &&
-            Number.isFinite((rawBd as Record<string, unknown>).cityPreferencePoints)
-              ? ((rawBd as Record<string, number>).cityPreferencePoints ?? 0)
-              : (fb.breakdown?.cityPreferencePoints ?? 0),
-        }
-      : fb.breakdown;
-
-  const rawFr = src.floorRange ?? fb.floorRange;
-  const floorRange =
-    rawFr &&
-    typeof rawFr === "object" &&
-    !Array.isArray(rawFr) &&
-    typeof (rawFr as Record<string, unknown>).min === "number" &&
-    Number.isFinite((rawFr as Record<string, unknown>).min) &&
-    typeof (rawFr as Record<string, unknown>).max === "number" &&
-    Number.isFinite((rawFr as Record<string, unknown>).max)
-      ? {
-          min: (rawFr as { min: number }).min,
-          max: (rawFr as { max: number }).max,
-        }
-      : (fb.floorRange ?? null);
-
-  return {
-    title: strField("title", "", 500),
-    neighborhood: strField("neighborhood", "", 200),
-    cityCode: strField("cityCode", "", 20),
-    street: strField("street", "", 300),
-    streetNumber: nullStrField("streetNumber", null, 60),
-    condominiumName: nullStrField("condominiumName", null, 300),
-    totalMonthly: numField("totalMonthly", 0),
-    rent: numField("rent", 0),
-    condoFee: numField("condoFee", 0),
-    iptu: numField("iptu", 0),
-    areaM2: numField("areaM2", 0),
-    bedrooms: numField("bedrooms", 0),
-    bathrooms: numField("bathrooms", 0),
-    parkingSpaces: numField("parkingSpaces", 0),
-    floor: nullNumField("floor", null),
-    floorLabel: nullStrField("floorLabel", null, 120),
-    furnished:
-      typeof src.furnished === "boolean"
-        ? src.furnished
-        : typeof fb.furnished === "boolean"
-          ? fb.furnished
-          : null,
-    modernityScore: numField("modernityScore", 0),
-    finalScore: numField("finalScore", 0),
-    overallRank: nullNumField("overallRank", null),
-    cityRank: nullNumField("cityRank", null),
-    furnitureTier,
-    breakdown,
-    url: strField("url", "", 1000),
-    shortJustification: strField("shortJustification", "", 2000),
-    description: nullStrField("description", null, 2000),
-    thumbnailUrl: nullStrField("thumbnailUrl", null, 1000),
-    suites: numField("suites", fb.suites ?? 0),
-    totalFloors: nullNumField("totalFloors", fb.totalFloors ?? null),
-    floorRange,
-    constructionYear: nullNumField("constructionYear", fb.constructionYear ?? null),
-    doorman: nullStrField("doorman", fb.doorman ?? null, 120),
-    acLabel: nullStrField("acLabel", fb.acLabel ?? null, 120),
-    greenTags: strArrayField("greenTags"),
-    redTags: strArrayField("redTags"),
-    nuanceHighlights: strArrayField("nuanceHighlights"),
-    nuanceWarnings: strArrayField("nuanceWarnings"),
-    eligible:
-      typeof src.eligible === "boolean"
-        ? src.eligible
-        : typeof fb.eligible === "boolean"
-          ? fb.eligible
-          : undefined,
-    exclusionReason: nullStrField("exclusionReason", fb.exclusionReason ?? null, 600),
-  };
-}
-
-function parseQaRaw(raw: unknown): PropertyQuestionItem[] {
-  const list = Array.isArray(raw)
-    ? raw
-    : raw &&
-        typeof raw === "object" &&
-        "items" in raw &&
-        Array.isArray((raw as { items: unknown }).items)
-      ? (raw as { items: unknown[] }).items
-      : [];
-
-  return list
-    .filter((item): item is Record<string, unknown> =>
-      Boolean(
-        item &&
-          typeof item === "object" &&
-          typeof (item as Record<string, unknown>).id === "string" &&
-          typeof (item as Record<string, unknown>).propertyKey === "string",
-      ),
-    )
-    .map((item) => ({
-      id: String(item.id).slice(0, 120),
-      propertyKey: String(item.propertyKey).slice(0, 120),
-      question:
-        typeof item.question === "string" ? item.question.slice(0, 1500) : "",
-      status: item.status === "pending" ? "pending" : "answered",
-      answer:
-        typeof item.answer === "string" ? item.answer.slice(0, 12000) : null,
-      answerSource:
-        item.answerSource === "llm" ||
-        item.answerSource === "cursor_session" ||
-        item.answerSource === "instant_diagnostic"
-          ? item.answerSource
-          : "instant_diagnostic",
-      instantAnswer:
-        typeof item.instantAnswer === "string"
-          ? item.instantAnswer.slice(0, 12000)
-          : null,
-      awaitingDetailedAnswer: item.awaitingDetailedAnswer === true,
-      createdAt:
-        typeof item.createdAt === "string"
-          ? item.createdAt.slice(0, 64)
-          : new Date().toISOString(),
-      answeredAt:
-        typeof item.answeredAt === "string"
-          ? item.answeredAt.slice(0, 64)
-          : null,
-      propertySnapshot: sanitizePropertySnapshot(item.propertySnapshot),
-    }));
-}
-
-function preservedInstantAnswer(item: PropertyQuestionItem): string | null {
-  if (item.instantAnswer) return item.instantAnswer;
-  return item.answerSource !== "cursor_session" ? item.answer : null;
-}
-
-let memQaItems: PropertyQuestionItem[] | null = null;
-let lastQaDbLoadMs = 0;
-let lastLocalQaFileMtimeMs = 0;
-let qaStoreWriteVersion = 0;
-const QA_DB_CACHE_TTL_MS = 4_000;
-let inFlightQaLoadPromise: Promise<PropertyQuestionItem[]> | null = null;
-
-function getLocalQaFileMtimeMs(): number {
-  let maxMtime = 0;
-  for (const candidate of [LOCAL_QA_SHADOW_FILE, LOCAL_QA_FILE]) {
-    try {
-      if (existsSync(/*turbopackIgnore: true*/ candidate)) {
-        const m = statSync(/*turbopackIgnore: true*/ candidate).mtimeMs;
-        if (m > maxMtime) maxMtime = m;
-      }
-    } catch {
-      // ignore stat errors
-    }
-  }
-  return maxMtime;
-}
-
-function readDiskQaItems(): PropertyQuestionItem[] {
-  for (const candidate of [
-    TMP_QA_FILE,
-    LOCAL_QA_SHADOW_FILE,
-    LOCAL_QA_FILE,
-    FALLBACK_QA_FILE,
-  ]) {
-    if (existsSync(/*turbopackIgnore: true*/ candidate)) {
-      try {
-        const raw = JSON.parse(
-          readFileSync(/*turbopackIgnore: true*/ candidate, "utf8"),
-        ) as unknown;
-        return parseQaRaw(raw);
-      } catch {
-        // try next
-      }
-    }
-  }
-  return [];
-}
-
-function readLocalQaFileItems(): PropertyQuestionItem[] {
-  for (const candidate of [LOCAL_QA_SHADOW_FILE, LOCAL_QA_FILE]) {
-    if (!existsSync(/*turbopackIgnore: true*/ candidate)) continue;
-    try {
-      const raw = JSON.parse(
-        readFileSync(/*turbopackIgnore: true*/ candidate, "utf8"),
-      ) as unknown;
-      const parsed = parseQaRaw(raw);
-      if (parsed.length > 0) return parsed;
-    } catch {
-      // try next
-    }
-  }
-  return [];
-}
-
-function writeDiskQaItems(items: PropertyQuestionItem[]): void {
-  memQaItems = [...items];
-  const serialized = `${JSON.stringify({ items }, null, 2)}\n`;
-  try {
-    writeFileSync(
-      /*turbopackIgnore: true*/ LOCAL_QA_SHADOW_FILE,
-      serialized,
-      "utf8",
-    );
-  } catch {
-    // Ignore /tmp write errors
-  }
-  try {
-    writeFileSync(/*turbopackIgnore: true*/ TMP_QA_FILE, serialized, "utf8");
-  } catch {
-    // Ignore /tmp write errors
-  }
-  lastLocalQaFileMtimeMs = getLocalQaFileMtimeMs();
-}
-
-async function loadQaStore(options?: {
-  bypassCache?: boolean;
-}): Promise<PropertyQuestionItem[]> {
-  const currentLocalMtime = getLocalQaFileMtimeMs();
-  const localFileChanged =
-    currentLocalMtime > 0 && currentLocalMtime !== lastLocalQaFileMtimeMs;
-
-  const sql = getSqlClient();
-  if (!sql) {
-    if (memQaItems !== null && !options?.bypassCache && !localFileChanged) {
-      return [...memQaItems];
-    }
-    const diskItems = readDiskQaItems();
-    memQaItems = diskItems;
-    lastLocalQaFileMtimeMs = currentLocalMtime;
-    return [...diskItems];
-  }
-
-  if (
-    !options?.bypassCache &&
-    !localFileChanged &&
-    memQaItems !== null &&
-    Date.now() - lastQaDbLoadMs < QA_DB_CACHE_TTL_MS
-  ) {
-    return [...memQaItems];
-  }
-
-  if (!options?.bypassCache && !localFileChanged && inFlightQaLoadPromise) {
-    const shared = await inFlightQaLoadPromise;
-    return [...shared];
-  }
-
-  const versionAtStart = qaStoreWriteVersion;
-
-  const loadPromise = (async (): Promise<PropertyQuestionItem[]> => {
-    try {
-      await ensureQaTable();
-      const rows = await sql`
-        SELECT items
-        FROM housing.property_qa
-        WHERE id = ${DEFAULT_QA_ROW_ID}
-        LIMIT 1
-      `;
-      if (qaStoreWriteVersion !== versionAtStart && memQaItems !== null) {
-        return [...memQaItems];
-      }
-
-      if (rows.length > 0) {
-        const dbItems = parseQaRaw((rows[0] as { items?: unknown }).items);
-        const localItems = readLocalQaFileItems();
-        const localById = new Map(localItems.map((item) => [item.id, item]));
-        let changedVsDb = false;
-
-        const updatedItems = dbItems.map((dbItem) => {
-          const localItem = localById.get(dbItem.id);
-          if (
-            localItem &&
-            localItem.status === "answered" &&
-            typeof localItem.answer === "string" &&
-            localItem.answer.trim().length > 0 &&
-            (dbItem.status === "pending" ||
-              (localItem.answerSource === "cursor_session" &&
-                dbItem.answer !== localItem.answer))
-          ) {
-            changedVsDb = true;
-            const answerSource =
-              localItem.answerSource ?? ("cursor_session" as const);
-            return {
-              ...dbItem,
-              status: "answered" as const,
-              answer: localItem.answer,
-              answeredAt: localItem.answeredAt ?? new Date().toISOString(),
-              answerSource,
-              instantAnswer: preservedInstantAnswer(dbItem),
-              awaitingDetailedAnswer:
-                answerSource === "cursor_session"
-                  ? false
-                  : dbItem.awaitingDetailedAnswer,
-            };
-          }
-          return dbItem;
-        });
-
-        if (changedVsDb && qaStoreWriteVersion === versionAtStart) {
-          await sql`
-            INSERT INTO housing.property_qa (id, items, updated_at)
-            VALUES (${DEFAULT_QA_ROW_ID}, ${JSON.stringify(updatedItems)}::jsonb, now())
-            ON CONFLICT (id) DO UPDATE SET
-              items = EXCLUDED.items,
-              updated_at = now()
-          `;
-        }
-        if (qaStoreWriteVersion === versionAtStart) {
-          memQaItems = updatedItems;
-          lastQaDbLoadMs = Date.now();
-          lastLocalQaFileMtimeMs = getLocalQaFileMtimeMs();
-        }
-        return [...(memQaItems ?? updatedItems)];
-      }
-
-      const diskItems = memQaItems ?? readDiskQaItems();
-      if (qaStoreWriteVersion === versionAtStart) {
-        await sql`
-          INSERT INTO housing.property_qa (id, items, updated_at)
-          VALUES (${DEFAULT_QA_ROW_ID}, ${JSON.stringify(diskItems)}::jsonb, now())
-          ON CONFLICT (id) DO NOTHING
-        `;
-        memQaItems = diskItems;
-        lastQaDbLoadMs = Date.now();
-        lastLocalQaFileMtimeMs = getLocalQaFileMtimeMs();
-      }
-      return [...(memQaItems ?? diskItems)];
-    } catch (err) {
-      logger.warn("api/qa", "loadQaStore DB query failed; using disk fallback", {
-        error: err,
-      });
-      if (memQaItems !== null) {
-        return [...memQaItems];
-      }
-      const diskItems = readDiskQaItems();
-      memQaItems = diskItems;
-      return [...diskItems];
-    } finally {
-      inFlightQaLoadPromise = null;
-    }
-  })();
-
-  inFlightQaLoadPromise = loadPromise;
-  return loadPromise;
-}
-
-/** Open `?stream=1` connections on this instance, notified right after a write. */
-const qaChangeListeners = new Set<() => void>();
-
-async function saveQaItems(items: PropertyQuestionItem[]): Promise<void> {
-  qaStoreWriteVersion += 1;
-  inFlightQaLoadPromise = null;
-  writeDiskQaItems(items);
-  lastQaDbLoadMs = Date.now();
-  for (const listener of qaChangeListeners) listener();
-  const sql = getSqlClient();
-  if (!sql) return;
-  try {
-    await ensureQaTable();
-    await sql`
-      INSERT INTO housing.property_qa (id, items, updated_at)
-      VALUES (${DEFAULT_QA_ROW_ID}, ${JSON.stringify(items)}::jsonb, now())
-      ON CONFLICT (id) DO UPDATE SET
-        items = EXCLUDED.items,
-        updated_at = now()
-    `;
-    lastQaDbLoadMs = Date.now();
-  } catch (err) {
-    logger.warn("api/qa", "saveQaItems DB write failed; saved to disk mirror", {
-      error: err,
-    });
-  }
-}
-
 export interface BsbBenchmark {
   count: number;
   medianTotalMonthly: number;
@@ -645,29 +109,14 @@ export interface BsbBenchmark {
   medianFinalScore: number;
 }
 
-interface SnapshotCache {
-  cacheKey: string;
-  mtimeMs: number;
+interface EvaluatedSnapshot {
   evaluatedByKey: Map<string, EvaluatedProperty>;
   topEvaluated: EvaluatedProperty[];
   rankedEligible: EvaluatedProperty[];
   bsbBenchmark: BsbBenchmark | null;
 }
 
-interface ParsedQaSnapshot {
-  fileSig: string;
-  mtimeMs: number;
-  featureHash: string;
-  neighborhoods: NeighborhoodEntry[];
-  properties: SlimPropertyRecord[];
-}
-
-const MAX_EVALUATED_SNAPSHOTS = 4;
-
-const snapshotState = processScoped("api-qa-snapshot", () => ({
-  parsed: null as ParsedQaSnapshot | null,
-  evaluated: new Map<string, SnapshotCache>(),
-}));
+const evaluatedBySet = new WeakMap<ScoredSet, EvaluatedSnapshot>();
 
 function sanitizeWeights(raw: unknown): ScoringWeights {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -686,93 +135,30 @@ function sanitizeWeights(raw: unknown): ScoringWeights {
   return merged as unknown as ScoringWeights;
 }
 
-function getEvaluatedSnapshotCache(
-  weights: ScoringWeights = DEFAULT_WEIGHTS,
-  enabledHiddenCities: CityHubCode[] = [],
-): SnapshotCache {
-  for (const candidate of [LOCAL_SNAPSHOT_FILE, FALLBACK_SNAPSHOT_FILE]) {
-    if (existsSync(/*turbopackIgnore: true*/ candidate)) {
-      try {
-        const stat = statSync(/*turbopackIgnore: true*/ candidate);
-        const fileSig = `${candidate}:${stat.mtimeMs}:${stat.size}`;
-        const cacheKey = hashContent(fileSig, JSON.stringify(weights), enabledHiddenCities.join(","));
-        const hit = snapshotState.evaluated.get(cacheKey);
-        if (hit) {
-          snapshotState.evaluated.delete(cacheKey);
-          snapshotState.evaluated.set(cacheKey, hit);
-          return hit;
-        }
-        const t0 = performance.now();
-        let parsed = snapshotState.parsed;
-        if (parsed?.fileSig !== fileSig) {
-          const raw = JSON.parse(
-            readFileSync(/*turbopackIgnore: true*/ candidate, "utf8"),
-          ) as {
-            neighborhoods?: NeighborhoodEntry[];
-            properties?: SlimPropertyRecord[];
-          };
-          parsed = {
-            fileSig,
-            mtimeMs: stat.mtimeMs,
-            featureHash: hashContent("api-qa-snapshot-v1", fileSig),
-            neighborhoods: raw.neighborhoods ?? [],
-            properties: raw.properties ?? [],
-          };
-          snapshotState.parsed = parsed;
-          snapshotState.evaluated.clear();
-        }
-        const { properties } = parsed;
-        // Hidden cities (SP, BSB unless enabled) are dropped before scoring, like the portal does.
-        const neighborhoods = computeDynamicNeighborhoods(
-          filterVisibleCities(parsed.neighborhoods, enabledHiddenCities),
-          weights,
-        );
-        const evaluated = scorePrecomputedListings(
-          getPrecomputedListings(parsed.featureHash, () => properties).filter((l) =>
-            isCityVisible(l.prop.cityCode, enabledHiddenCities),
-          ),
-          neighborhoods.ranked,
-          weights,
-          { includeBsbBenchmark: true },
-        );
-        const evaluatedByKey = new Map<string, EvaluatedProperty>();
-        for (const p of evaluated) {
-          evaluatedByKey.set(`${p.provider}:${p.id}`, p);
-        }
-        const rankedEligible = evaluated
-          .filter((p) => p.eligible && p.isActive !== false)
-          .sort((a, b) => b.finalScore - a.finalScore);
-        const entry: SnapshotCache = {
-          cacheKey,
-          mtimeMs: parsed.mtimeMs,
-          evaluatedByKey,
-          topEvaluated: rankedEligible.slice(0, 15),
-          rankedEligible,
-          bsbBenchmark: computeBsbBenchmark(evaluated),
-        };
-        snapshotState.evaluated.set(cacheKey, entry);
-        while (snapshotState.evaluated.size > MAX_EVALUATED_SNAPSHOTS) {
-          snapshotState.evaluated.delete(snapshotState.evaluated.keys().next().value!);
-        }
-        logger.info("api/qa", "evaluated snapshot for weights", {
-          count: evaluated.length,
-          durationMs: Math.round(performance.now() - t0),
-        });
-        return entry;
-      } catch {
-        // try next
-      }
-    }
+/** The portal's own scored listings for these weights, so answers match what the user sees. */
+async function getEvaluatedSnapshot(
+  weights: ScoringWeights,
+  enabledHiddenCities: CityHubCode[],
+  signal: AbortSignal,
+): Promise<EvaluatedSnapshot> {
+  const set = await getScoredProperties(weights, { enabledHiddenCities, signal });
+  const hit = evaluatedBySet.get(set);
+  if (hit) return hit;
+  const evaluatedByKey = new Map<string, EvaluatedProperty>();
+  for (const p of set.properties) {
+    evaluatedByKey.set(`${p.provider}:${p.id}`, p);
   }
-
-  return {
-    cacheKey: "",
-    mtimeMs: 0,
-    evaluatedByKey: new Map(),
-    topEvaluated: [],
-    rankedEligible: [],
-    bsbBenchmark: null,
+  const rankedEligible = set.properties
+    .filter((p) => p.eligible && p.isActive !== false)
+    .sort((a, b) => b.finalScore - a.finalScore);
+  const entry: EvaluatedSnapshot = {
+    evaluatedByKey,
+    topEvaluated: rankedEligible.slice(0, 15),
+    rankedEligible,
+    bsbBenchmark: computeBsbBenchmark(set.properties),
   };
+  evaluatedBySet.set(set, entry);
+  return entry;
 }
 
 function median(values: number[]): number {
@@ -1960,9 +1346,10 @@ export async function POST(request: Request) {
       return new NextResponse(null, { status: 499 });
     }
     const { evaluatedByKey, topEvaluated, rankedEligible, bsbBenchmark } =
-      getEvaluatedSnapshotCache(
+      await getEvaluatedSnapshot(
         weights,
         resolveEnabledHiddenCities({ enabledHiddenCities: body.enabledHiddenCities }),
+        request.signal,
       );
     const evaluated =
       propertyKey !== "general"

@@ -9,6 +9,7 @@ import type {
 } from "@/types/housing";
 import {
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -21,6 +22,7 @@ import {
 
 export const housingSchema = pgSchema("housing");
 
+/** Unused since neighborhoods ship inside the snapshot payload (kept, not dropped). */
 export const neighborhoods = housingSchema.table(
   "neighborhoods",
   {
@@ -52,6 +54,7 @@ export const neighborhoods = housingSchema.table(
   ],
 );
 
+/** Row mirror of the listings; unused since listings ship as versioned snapshots (kept, not dropped). */
 export const properties = housingSchema.table(
   "properties",
   {
@@ -176,3 +179,50 @@ export const propertyQa = housingSchema.table("property_qa", {
     .notNull(),
 });
 
+
+const bytea = customType<{ data: Buffer; driverData: Buffer | string }>({
+  dataType: () => "bytea",
+});
+
+/** Versioned listing snapshots published by the scraper: gzip JSON validated by @data-projects/housing-contract. */
+export const snapshots = housingSchema.table(
+  "snapshots",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    contentHash: text("content_hash").notNull().unique(),
+    contractVersion: integer("contract_version").notNull(),
+    propertyCount: integer("property_count").notNull(),
+    sourceUpdatedAt: text("source_updated_at").notNull(),
+    payloadGzip: bytea("payload_gzip").notNull(),
+    /** Full photo galleries keyed by "provider:id" (gzip JSON), resolved during the scrape. */
+    galleriesGzip: bytea("galleries_gzip"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+);
+
+/** Single row (id = "active") naming the snapshot the portal serves. */
+export const snapshotPointer = housingSchema.table("snapshot_pointer", {
+  id: text("id").primaryKey(),
+  snapshotId: integer("snapshot_id")
+    .notNull()
+    .references(() => snapshots.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Small runtime maps written by request handlers: listing deactivations, geocoder results and
+ * photo galleries resolved on demand. One namespace per map.
+ */
+export const runtimeKv = housingSchema.table(
+  "runtime_kv",
+  {
+    namespace: text("namespace").notNull(),
+    key: text("key").notNull(),
+    value: jsonb("value").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.namespace, table.key] }),
+    index("housing_runtime_kv_ns_updated_idx").on(table.namespace, table.updatedAt),
+  ],
+);
