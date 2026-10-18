@@ -1,126 +1,16 @@
-import { getLocalScraperDir } from "@/lib/local-scraper";
 import { logger } from "@/lib/logger";
+import { getLatestScrapeStatus } from "@/lib/scrape-jobs";
 import type { ScrapeJobStatus } from "@/types/housing";
 import { NextResponse } from "next/server";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 
-function isPidAlive(pid: number): boolean {
-  if (!Number.isFinite(pid) || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const t0 = performance.now();
-  const scraperDir = getLocalScraperDir();
-  const workerAvailable = scraperDir !== null;
-  const STATUS_FILE = join(scraperDir ?? "", ".scrape-job-status.json");
-  const PID_FILE = join(scraperDir ?? "", ".scrape-job.pid");
-
-  if (!scraperDir || !existsSync(/*turbopackIgnore: true*/ STATUS_FILE)) {
-    const idle: ScrapeJobStatus = {
-      jobId: "none",
-      status: "idle",
-      workerAvailable,
-    };
-    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
-    logger.info("api/scrape/status", "GET idle", {
-      workerAvailable,
-      status: "idle",
-      mode: null,
-      cities: null,
-      durationMs,
-    });
-    return NextResponse.json(idle);
-  }
-
   try {
-    const status = JSON.parse(
-      readFileSync(STATUS_FILE, "utf8"),
-    ) as ScrapeJobStatus;
-
-    if (status.status === "running" && existsSync(PID_FILE)) {
-      const pid = Number(readFileSync(PID_FILE, "utf8").trim());
-      if (!isPidAlive(pid)) {
-        // Re-read status file in case the process just finished writing "completed" right before exiting
-        const recheck = JSON.parse(
-          readFileSync(STATUS_FILE, "utf8"),
-        ) as ScrapeJobStatus;
-
-        if (recheck.status === "running") {
-          const now = new Date().toISOString();
-          const failedStatus: ScrapeJobStatus = {
-            ...recheck,
-            status: "failed",
-            phase: "Interrompido",
-            updatedAt: now,
-            finishedAt: now,
-            error:
-              recheck.error ??
-              "O processo de scrape encerrou inesperadamente.",
-            workerAvailable,
-          };
-          try {
-            writeFileSync(
-              STATUS_FILE,
-              `${JSON.stringify(failedStatus, null, 2)}\n`,
-              "utf8",
-            );
-            rmSync(PID_FILE, { force: true });
-          } catch {
-            // Ignore write errors
-          }
-          const durationMs = Math.round((performance.now() - t0) * 100) / 100;
-          logger.warn("api/scrape/status", "GET detected dead worker pid", {
-            workerAvailable,
-            status: failedStatus.status,
-            mode: failedStatus.mode ?? null,
-            cities: failedStatus.currentSearchLabel ?? null,
-            durationMs,
-          });
-          return NextResponse.json(failedStatus);
-        }
-
-        const durationMs = Math.round((performance.now() - t0) * 100) / 100;
-        logger.info("api/scrape/status", "GET completed after pid exit", {
-          workerAvailable,
-          status: recheck.status,
-          mode: recheck.mode ?? null,
-          cities: recheck.currentSearchLabel ?? null,
-          durationMs,
-        });
-        return NextResponse.json({ ...recheck, workerAvailable });
-      }
-    }
-
-    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
-    logger.info("api/scrape/status", "GET completed", {
-      workerAvailable,
-      status: status.status,
-      mode: status.mode ?? null,
-      cities: status.currentSearchLabel ?? null,
-      durationMs,
-    });
-    return NextResponse.json({ ...status, workerAvailable });
+    const status = await getLatestScrapeStatus();
+    return NextResponse.json(status, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
-    logger.warn("api/scrape/status", "GET fallback to idle on read error", {
-      workerAvailable,
-      status: "idle",
-      mode: null,
-      cities: null,
-      durationMs,
-      error: err,
-    });
-    return NextResponse.json({
-      jobId: "none",
-      status: "idle",
-      workerAvailable,
-    } satisfies ScrapeJobStatus);
+    logger.warn("api/scrape/status", "GET fallback to idle", { error: err });
+    return NextResponse.json({ jobId: "none", status: "idle", workerAvailable: false } satisfies ScrapeJobStatus);
   }
 }

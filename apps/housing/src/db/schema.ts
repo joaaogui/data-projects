@@ -226,3 +226,26 @@ export const runtimeKv = housingSchema.table(
     index("housing_runtime_kv_ns_updated_idx").on(table.namespace, table.updatedAt),
   ],
 );
+
+/**
+ * Scrape jobs requested from the portal and executed by the runner on the owner's Mac
+ * (scraper repo scripts/runner.ts). `progress` holds the job's ScrapeJobStatus as the runner sees it.
+ */
+export const scrapeJobs = housingSchema.table(
+  "scrape_jobs",
+  {
+    id: text("id").primaryKey(),
+    status: text("status").$type<"queued" | "running" | "completed" | "failed" | "cancelled">().notNull(),
+    mode: text("mode").$type<"full_sync" | "verify_only" | "custom_url">().notNull(),
+    params: jsonb("params").$type<Record<string, unknown>>().notNull().default({}),
+    progress: jsonb("progress").$type<Record<string, unknown>>(),
+    cancelRequested: boolean("cancel_requested").notNull().default(false),
+    requestedBy: text("requested_by").notNull().default("portal"),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    error: text("error"),
+  },
+  (table) => [index("housing_scrape_jobs_status_idx").on(table.status, table.requestedAt)],
+);

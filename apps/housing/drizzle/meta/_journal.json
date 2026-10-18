@@ -15,6 +15,13 @@
       "when": 1792281934087,
       "tag": "0001_runtime_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792284279177,
+      "tag": "0002_scrape_jobs",
+      "breakpoints": true
     }
   ]
 }

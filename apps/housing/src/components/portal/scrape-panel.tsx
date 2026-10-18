@@ -65,11 +65,9 @@ export function ScrapePanel({ ctl }: { ctl: PortalController }) {
 
           {scrapeStatus.workerAvailable === false && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-              <strong>Modo Hospedado (Somente Leitura para Scrape):</strong> O
-              worker local de scrape Playwright (`HOUSING_SCRAPER_DIR`) não
-              está disponível neste ambiente serverless. Para disparar novos
-              scrapes ao vivo, execute o portal localmente ou rode
-              `scripts/scrape-sync-job.ts`.
+              <strong>Runner local offline:</strong> o scrape roda no Mac
+              (Playwright). Pedidos feitos agora ficam na fila e começam
+              quando o runner voltar (launchd `space.joaog.housing-runner`).
             </div>
           )}
 

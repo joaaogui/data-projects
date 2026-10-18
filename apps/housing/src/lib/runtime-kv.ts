@@ -9,7 +9,8 @@ import { rename, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export type RuntimeKvNamespace = "listing-deactivation" | "geocode" | "photo-gallery";
+/** "scrape-runner" is written by the scraper's runner (heartbeat), read by lib/scrape-jobs.ts. */
+export type RuntimeKvNamespace = "listing-deactivation" | "geocode" | "photo-gallery" | "scrape-runner";
 
 export interface RuntimeKv<V> {
   /** Every entry, cached per instance for `ttlMs` (writes on this instance show up immediately). */
