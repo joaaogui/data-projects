@@ -252,16 +252,20 @@ export function PriceRange({
           }}
           className="absolute inset-x-0 top-1 h-6 w-full accent-primary"
         />
+        {/* Close marks: "ideal" hangs left of its tick and "teto" right of its own, so they never touch. */}
         {[
-          { v: ideal, label: "ideal" },
-          { v: cap, label: "teto" },
+          { v: ideal, label: "ideal", side: "left" as const },
+          { v: cap, label: "teto", side: "right" as const },
         ].map((mark) => (
           <button
             key={mark.label}
             type="button"
             onClick={() => onChange({ min, max: mark.v })}
+            aria-label={`${mark.label}: até R$ ${brl(mark.v)}`}
             title={`Até R$ ${brl(mark.v)}`}
-            className="absolute top-5 flex h-11 -translate-x-1/2 items-start px-1 pt-1 sm:top-6 sm:h-auto sm:pt-0 text-[10px] font-semibold text-amber-700 hover:underline dark:text-amber-300"
+            className={`absolute top-5 flex h-11 items-start pt-1 text-[10px] font-semibold text-amber-700 hover:underline sm:top-6 sm:h-auto sm:pt-0 dark:text-amber-300 ${
+              mark.side === "left" ? "-translate-x-full justify-end pr-1.5" : "justify-start pl-1.5"
+            }`}
             style={{ left: `${pct(mark.v)}%` }}
           >
             {mark.label}

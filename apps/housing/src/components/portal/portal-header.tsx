@@ -105,8 +105,8 @@ export function PortalHeader({ ctl }: { ctl: PortalController }) {
             </svg>
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1 whitespace-nowrap sm:flex-wrap sm:gap-2">
-              <h1 className="text-xs font-bold tracking-tight sm:text-lg">
+            <div className="flex min-w-0 items-center gap-1 whitespace-nowrap sm:flex-wrap sm:gap-2">
+              <h1 className="shrink-0 text-xs font-bold tracking-tight sm:text-lg">
                 Housing
               </h1>
               <span className="hidden sm:inline-block rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-primary">
@@ -115,16 +115,19 @@ export function PortalHeader({ ctl }: { ctl: PortalController }) {
               {meta.updatedAt && (
                 <span
                   title={`Snapshot gerado em ${meta.updatedAt} (fonte: ${meta.source})`}
-                  className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9.5px] font-medium text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200 sm:gap-1.5 sm:px-2 sm:text-[10px]"
+                  className="inline-flex min-w-0 items-center gap-1 overflow-hidden rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[9.5px] font-medium text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200 sm:gap-1.5 sm:px-2 sm:text-[10px]"
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                  <span className="sm:hidden" suppressHydrationWarning>
-                    {meta.totalCount.toLocaleString("pt-BR")} apês ·{" "}
-                    {new Date(meta.updatedAt).toLocaleDateString("pt-BR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      timeZone: "America/Sao_Paulo",
-                    })}
+                  <span className="truncate sm:hidden" suppressHydrationWarning>
+                    {meta.totalCount.toLocaleString("pt-BR")} apês
+                    <span className="hidden min-[380px]:inline">
+                      {" · "}
+                      {new Date(meta.updatedAt).toLocaleDateString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        timeZone: "America/Sao_Paulo",
+                      })}
+                    </span>
                   </span>
                   <span className="hidden sm:inline" suppressHydrationWarning>
                     Base:{" "}
