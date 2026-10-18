@@ -13,7 +13,7 @@ const DATASET_FILES = [
 /** @type {import('next').NextConfig} */
 const nextConfig = withSecurityHeaders({
   reactCompiler: true,
-  transpilePackages: ["@data-projects/ui", "@data-projects/shared"],
+  transpilePackages: ["@data-projects/ui", "@data-projects/shared", "@data-projects/housing-contract"],
   outputFileTracingIncludes: {
     "!/api/**": DATASET_FILES,
     "/api/photos": DATASET_FILES,

@@ -1,3 +1,9 @@
+import type {
+  NegativeSignalKey,
+  PositiveSignalKey,
+  ScrapeJobStatus,
+} from "@data-projects/housing-contract";
+
 export type CityHubCode = "BH" | "CP" | "SP" | "RJ" | "BSB";
 
 export type ModernityTier =
@@ -101,8 +107,11 @@ export interface SlimPropertyRecord {
   photosCount: number;
   modernityScore: number;
   modernityTier: ModernityTier;
+  /** Display labels; scoring logic reads the keys (see listing-signals.ts). */
   positiveSignals: string[];
   negativeSignals: string[];
+  positiveSignalKeys?: PositiveSignalKey[];
+  negativeSignalKeys?: NegativeSignalKey[];
   samplePhotos: SamplePhoto[];
   description: string | null;
   generatedDescription: string | null;
@@ -206,12 +215,22 @@ export interface EvaluatedProperty extends SlimPropertyRecord {
   detailedJustification: string;
 }
 
+export interface SavedView {
+  id: string;
+  name: string;
+  /** Filter fields only (same shape as the saved `filters` preference). */
+  filters: Record<string, unknown>;
+  createdAt: string;
+}
+
 export interface SharedUserPreferences {
   schemaVersion?: number;
   filters: Record<string, unknown>;
   weights: Partial<ScoringWeights>;
   activePresetId: string;
   favorites: string[];
+  /** Since schema v3. */
+  savedViews?: SavedView[];
   updatedAt: string;
 }
 
@@ -224,25 +243,7 @@ export interface HousingDatasetPayload {
   preferences?: SharedUserPreferences;
 }
 
-export interface ScrapeJobStatus {
-  jobId: string;
-  status: "idle" | "running" | "completed" | "failed";
-  workerAvailable?: boolean;
-  mode?: "full_sync" | "verify_only" | "custom_url";
-  startedAt?: string;
-  updatedAt?: string;
-  finishedAt?: string | null;
-  phase?: string;
-  currentSearchLabel?: string | null;
-  completedSteps?: number;
-  totalSteps?: number;
-  newListingsAdded?: number;
-  deactivatedCount?: number;
-  reactivatedCount?: number;
-  verifiedCount?: number;
-  logs?: string[];
-  error?: string | null;
-}
+export type { ScrapeJobStatus };
 
 export interface PropertyQuestionSnapshot {
   title: string;

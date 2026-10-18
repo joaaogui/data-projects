@@ -290,6 +290,9 @@ importers:
 
   apps/housing:
     dependencies:
+      '@data-projects/housing-contract':
+        specifier: workspace:*
+        version: link:../../packages/housing-contract
       '@data-projects/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -751,6 +754,12 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 5.0.4(@opentelemetry/api@1.9.0)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.4)(jsdom@30.1.0)(vite@7.3.1(@types/node@26.6.5)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13)(yaml@2.8.2))
+
+  packages/housing-contract:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
 
   packages/shared:
     dependencies:

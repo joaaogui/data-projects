@@ -9,6 +9,7 @@ import type {
   ScoringWeights,
   SlimPropertyRecord,
 } from "@/types/housing";
+import type { NegativeSignalKey, PositiveSignalKey } from "@data-projects/housing-contract";
 import {
   computeDistanceToNubankHubKm,
   findHospitalNoiseCluster,
@@ -19,6 +20,11 @@ import {
   PROVIDER_LABELS,
   prepareListingsForScoring,
 } from "./listing-normalization";
+import {
+  hasPositiveSignal,
+  negativeSignalKeysOf,
+  positiveSignalKeysOf,
+} from "./listing-signals";
 import { PHOTO_AUDIT_OVERRIDES, type PhotoAuditOverride } from "./photo-audit-overrides";
 
 /**
@@ -1406,6 +1412,7 @@ export function resolveAcEvidence(
     | "comfortCommodities"
     | "amenities"
     | "positiveSignals"
+    | "positiveSignalKeys"
     | "twinAcConfirmed"
   >,
   photoAudit?: PhotoAuditOverride,
@@ -1464,7 +1471,7 @@ export function resolveAcEvidence(
     amenities.some((a) =>
       ["ar condicionado", "ar-condicionado", "ar_condicionado", "air_conditioning"].includes(a),
     ) ||
-    prop.positiveSignals.some((s) => s.toLowerCase().includes("ar-condicionado"));
+    hasPositiveSignal(prop, "GENERIC_AC", "SPLIT_AC");
   const auditSawNoAc = (photoAudit?.visualWarnings ?? []).some((w) =>
     /\bsem\s+(?:split|ar[- ]?condicionado)/i.test(w),
   );
@@ -1633,7 +1640,7 @@ function evaluateApartmentNuancesBoth(
     calibrateRuntimeModernity(prop, photoAudit, buildFullLocationText(prop)).checkboxTrustScore;
   const isNewOrRenovatedUnit =
     prop.condition === "NEW_OR_RENOVATED" ||
-    prop.positiveSignals.includes("Flag Novo/Reformado") ||
+    hasPositiveSignal(prop, "NEW_OR_RENOVATED_FLAG") ||
     (prop.constructionYear ?? 0) >= 2015 ||
     photoAudit?.modernityTier === "MODERN_OR_RENOVATED";
   const { acLabel, acStatus, infraOnly } = resolveAcEvidence(prop, photoAudit, {
@@ -2131,9 +2138,7 @@ function evaluateApartmentNuancesBoth(
     amenities.has("gym") ||
     amenities.has("fitness_room") ||
     amenities.has("academia") ||
-    prop.positiveSignals.some((s) =>
-      /piscina\s+e\s+academia/i.test(s),
-    ) ||
+    hasPositiveSignal(prop, "POOL_AND_GYM") ||
     /\b(piscina|academia|espa[cç]o\s+fitness)\b/i.test(fullDesc);
   if (hasPoolOrGym) {
     pts += 1.5;
@@ -2195,7 +2200,7 @@ function evaluateApartmentNuancesBoth(
   const hasExplicitPlannedCabinetry =
     amenities.has("marcenaria planejada") ||
     amenities.has("planned_furniture") ||
-    prop.positiveSignals.includes("Marcenaria planejada / Painel") ||
+    hasPositiveSignal(prop, "PLANNED_CABINETRY") ||
     (mentionsCabinets &&
       /(?<![a-zA-ZÀ-ÿ0-9_])(marcenaria\s+planejada|arm[aá]rios?\s+planejados?|m[oó]veis\s+planejados?|arm[aá]rios?\s+sob\s+medida)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
         fullDesc,
@@ -2266,7 +2271,7 @@ function evaluateApartmentNuancesBoth(
     amenities.has("porcelain") ||
     amenities.has("laminated_floor") ||
     amenities.has("vinyl_floor") ||
-    prop.positiveSignals.includes("Porcelanato / Vinílico") ||
+    hasPositiveSignal(prop, "MODERN_FLOORING") ||
     (KW_PORCELANATO_VIN_RE.test(fullDesc) &&
       /(?<![a-zA-ZÀ-ÿ0-9_])(porcelanato|piso\s+vin[ií]lico|vin[ií]lico|piso\s+laminado|laminado)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
         fullDesc,
@@ -2843,28 +2848,28 @@ function extractNonRedundantHighlights(
 
   // 1. Interior finishes & equipment (excluding AC, Vista livre, Sol da manhã, Prédio Novo, Andar)
   if (
-    prop.positiveSignals.includes("Porcelanato / Vinílico") ||
+    hasPositiveSignal(prop, "MODERN_FLOORING") ||
     /(?<![a-zA-ZÀ-ÿ0-9_])(porcelanato|piso vin[ií]lico)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullText)
   ) {
     addFeature("piso em porcelanato/vinílico");
   }
 
   if (
-    prop.positiveSignals.includes("Fechadura eletrônica / USB") ||
+    hasPositiveSignal(prop, "SMART_LOCK_OR_USB") ||
     /(?<![a-zA-ZÀ-ÿ0-9_])fechadura (eletr[oô]nica|digital|biom[eé]trica)(?![a-zA-ZÀ-ÿ0-9_])/i.test(fullText)
   ) {
     addFeature("fechadura eletrônica");
   }
 
   if (
-    prop.positiveSignals.includes("Cooktop / Coifa / Forno embutido") ||
+    hasPositiveSignal(prop, "BUILTIN_KITCHEN_APPLIANCES") ||
     /\b(cooktop|cook top|forno embutido|coifa)\b/i.test(fullText)
   ) {
     addFeature("cooktop");
   }
 
   if (
-    prop.positiveSignals.includes("Marcenaria planejada / Painel") ||
+    hasPositiveSignal(prop, "PLANNED_CABINETRY") ||
     /(?<![a-zA-ZÀ-ÿ0-9_])(marcenaria|arm[aá]rios (planejados|sob medida|na cozinha|no quarto)|builtin_wardrobe|kitchen_cabinets|planned_furniture)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullText,
     )
@@ -2873,7 +2878,7 @@ function extractNonRedundantHighlights(
   }
 
   if (
-    prop.positiveSignals.includes("Projeto de iluminação / Gesso") ||
+    hasPositiveSignal(prop, "LIGHTING_PROJECT") ||
     /(?<![a-zA-ZÀ-ÿ0-9_])(projeto de ilumina[cç][aã]o|ilumina[cç][aã]o planejada|rebaixamento em gesso)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullText,
     )
@@ -2892,7 +2897,7 @@ function extractNonRedundantHighlights(
   }
 
   if (
-    prop.positiveSignals.includes("Janela antirruído / Blackout") ||
+    hasPositiveSignal(prop, "SOUNDPROOF_OR_BLACKOUT") ||
     nuances.nuanceHighlights.includes("Janela antirruído")
   ) {
     addFeature("janelas antirruído");
@@ -2930,7 +2935,7 @@ function extractNonRedundantHighlights(
   }
 
   if (
-    prop.positiveSignals.includes("Lazer com piscina e academia") ||
+    hasPositiveSignal(prop, "POOL_AND_GYM") ||
     (/\b(piscina|pool)\b/i.test(fullText) && /\b(academia|fitness|gym)\b/i.test(fullText))
   ) {
     addFeature("lazer com piscina e academia");
@@ -2940,7 +2945,7 @@ function extractNonRedundantHighlights(
     addFeature("academia no prédio");
   }
 
-  if (prop.positiveSignals.includes("Rooftop / Gourmet / Lavanderia")) {
+  if (hasPositiveSignal(prop, "ROOFTOP_GOURMET_OR_LAUNDRY")) {
     addFeature("rooftop/espaço gourmet");
   }
 
@@ -3119,21 +3124,15 @@ function extractConservationDrawbacks(prop: SlimPropertyRecord): string[] {
   const propKey = `${prop.provider}:${prop.id}`;
   const photoAudit = PHOTO_AUDIT_OVERRIDES[propKey];
 
-  const hasRenovationEvidence = prop.positiveSignals.some(
-    (p) =>
-      p !== "Flag Novo/Reformado" &&
-      (p.includes("Reformado") ||
-        p.includes("novo") ||
-        p.includes("Porcelanato") ||
-        p.includes("Construção 20")),
-  );
+  const hasRenovationEvidence = hasPositiveSignal(prop, ...RENOVATION_EVIDENCE_SIGNALS);
 
-  const allNegSignals = [
-    ...prop.negativeSignals,
-    ...(photoAudit?.visualWarnings ?? []),
-  ];
+  const negativeKeys = negativeSignalKeysOf(prop);
+  for (const key of negativeKeys) {
+    const reason = NEGATIVE_SIGNAL_DRAWBACKS[key];
+    if (reason) addUnique(reason);
+  }
 
-  for (const sig of allNegSignals) {
+  for (const sig of photoAudit?.visualWarnings ?? []) {
     if (/sem elevador|pr[eé]dio escada/i.test(sig)) continue;
     if (/venda|comprad/i.test(sig)) continue;
     if (/descri[cç][aã]o gen[eé]rica/i.test(sig)) continue;
@@ -3932,20 +3931,51 @@ const TEXT_ONLY_MODERNITY_CAP = 80;
 
 // Points the scraper (Empty src/imoveis/modernity.ts) adds to the snapshot modernityScore (base 60) per signal.
 const SCRAPER_MODERNITY_BASE = 60;
-const SCRAPER_SIGNAL_POINTS: Record<string, number> = {
-  "Imóvel/prédio novo ou recém-reformado": 16,
-  "Reformado / Moderno": 14,
-  "Porcelanato / Vinílico": 12,
-  "Bancada moderna / Varanda envidraçada": 8,
-  "Projeto de iluminação / Gesso": 10,
-  "Fechadura eletrônica / USB": 12,
-  "Cooktop / Coifa / Forno embutido": 10,
-  "Ar-condicionado Split": 8,
-  "Ar-condicionado": 4,
-  "Marcenaria planejada / Painel": 7,
-  "Janela antirruído / Blackout": 5,
-  "Flag Novo/Reformado": 10,
+const SCRAPER_SIGNAL_POINTS: Partial<Record<PositiveSignalKey, number>> = {
+  CONSTRUCTION_RECENT: 20,
+  CONSTRUCTION_2010S: 14,
+  CONSTRUCTION_2000S: 6,
+  NEW_OR_RECENTLY_RENOVATED: 16,
+  RENOVATED_MODERN: 14,
+  MODERN_FLOORING: 12,
+  MODERN_COUNTERTOP_OR_GLAZED_BALCONY: 8,
+  LIGHTING_PROJECT: 10,
+  SMART_LOCK_OR_USB: 12,
+  BUILTIN_KITCHEN_APPLIANCES: 10,
+  SPLIT_AC: 8,
+  GENERIC_AC: 4,
+  PLANNED_CABINETRY: 7,
+  SOUNDPROOF_OR_BLACKOUT: 5,
+  NEW_OR_RENOVATED_FLAG: 10,
 };
+// Renovation evidence other than the portal's self-reported "novo/reformado" flag.
+const RENOVATION_EVIDENCE_SIGNALS = [
+  "RENOVATED_MODERN",
+  "NEW_OR_RECENTLY_RENOVATED",
+  "MODERN_FLOORING",
+  "CONSTRUCTION_2010S",
+] as const satisfies readonly PositiveSignalKey[];
+const NEGATIVE_SIGNAL_DRAWBACKS: Record<NegativeSignalKey, string | null> = {
+  CONSTRUCTION_OLD: "prédio mais antigo sem reforma recente",
+  SERVICE_QUARTERS_LAYOUT: "planta antiga com dependência de serviço (DCE) sem reforma declarada",
+  OLD_BUILDING_MENTION: "estrutura predial antiga sem reforma recente",
+  OLD_FLOORS: "piso antigo de cerâmica ou taco",
+  UNRENOVATED_LAMINATE: "piso laminado sem reforma declarada",
+  OLD_FRAMES_OR_WINDOW_AC: "esquadrias antigas / ar de janela",
+  OLD_TILES_OR_CABINETS: "azulejos e revestimentos datados",
+  NO_ELEVATOR: null,
+  DATED_NAMED_BUILDING: "estrutura predial antiga sem reforma recente",
+};
+// Negative signals that describe dated finishes or an old building (all but laminate and elevator).
+const LEGACY_FINISH_SIGNALS: readonly NegativeSignalKey[] = [
+  "CONSTRUCTION_OLD",
+  "SERVICE_QUARTERS_LAYOUT",
+  "OLD_BUILDING_MENTION",
+  "OLD_FLOORS",
+  "OLD_FRAMES_OR_WINDOW_AC",
+  "OLD_TILES_OR_CABINETS",
+  "DATED_NAMED_BUILDING",
+];
 const SCRAPER_CONDO_LEISURE_POINTS = 6;
 const SCRAPER_GENERIC_CONDO_LEISURE_POINTS = 3;
 const SCRAPER_GENERIC_CONDO_LEISURE_RE =
@@ -4049,7 +4079,7 @@ export function countConcreteModernitySignals(prop: SlimPropertyRecord, text: st
   const lower = text.toLowerCase();
   const isNewBuilding =
     (prop.constructionYear ?? 0) >= 2015 ||
-    prop.positiveSignals.some((s) => /^Construção recente/.test(s)) ||
+    hasPositiveSignal(prop, "CONSTRUCTION_RECENT") ||
     (NEW_BUILDING_KEYWORDS_RE.test(lower) &&
       /\b(pr[eé]dio\s+(?:super\s+)?novo|primeira\s+loca[cç][aã]o|1[aª]\s+loca[cç][aã]o|nunca\s+(?:foi\s+)?habitad[oa]|rec[eé]m[- ]?(?:entregue|constru[ií]d[oa])|im[oó]vel\s+novo|apartamento\s+(?:novo|nov[ií]ssimo)|nov[ií]ssimo|novinho)\b/i.test(
         text,
@@ -4066,8 +4096,7 @@ export function countConcreteModernitySignals(prop: SlimPropertyRecord, text: st
 
 function hasScraperCondoLeisureSignal(prop: SlimPropertyRecord): boolean {
   return (
-    prop.positiveSignals.includes("Lazer com piscina e academia") ||
-    prop.positiveSignals.includes("Rooftop / Gourmet / Lavanderia")
+    hasPositiveSignal(prop, "POOL_AND_GYM", "ROOFTOP_GOURMET_OR_LAUNDRY")
   );
 }
 
@@ -4075,10 +4104,8 @@ function hasScraperCondoLeisureSignal(prop: SlimPropertyRecord): boolean {
 function estimateUnclampedScraperModernity(prop: SlimPropertyRecord): number {
   if (prop.modernityScore < 100 || prop.negativeSignals.length > 0) return prop.modernityScore;
   let sum = SCRAPER_MODERNITY_BASE;
-  for (const s of prop.positiveSignals) {
-    sum +=
-      SCRAPER_SIGNAL_POINTS[s] ??
-      (/^Construção recente/.test(s) ? 20 : /^Construção anos 2000/.test(s) ? 6 : /^Construção \d{4}/.test(s) ? 14 : 0);
+  for (const key of positiveSignalKeysOf(prop)) {
+    sum += SCRAPER_SIGNAL_POINTS[key] ?? 0;
   }
   if (hasScraperCondoLeisureSignal(prop)) sum += SCRAPER_CONDO_LEISURE_POINTS;
   return Math.max(100, sum);
@@ -4148,11 +4175,11 @@ function calibrateRuntimeModernity(
   let score = estimateUnclampedScraperModernity(prop);
   const lowerText = fullLocationText.toLowerCase();
   const year = prop.constructionYear;
-  const hasSignal = (signal: string) => prop.positiveSignals.includes(signal);
+  const hasSignal = (signal: PositiveSignalKey) => hasPositiveSignal(prop, signal);
   // Brokers write "cooktop" for a plain range; without coifa/forno embutido/indução/torre quente or a portal
   // checklist item it does not prove a modern kitchen.
   const isCooktopOnly =
-    hasSignal("Cooktop / Coifa / Forno embutido") &&
+    hasSignal("BUILTIN_KITCHEN_APPLIANCES") &&
     !/\b(forno\s+embutido|coifa|indu[cç][aã]o|torre\s+quente)\b/i.test(fullLocationText) &&
     ![
       ...(prop.amenities ?? []),
@@ -4164,22 +4191,22 @@ function calibrateRuntimeModernity(
   // AC, cabinetry, flooring and condo leisure already score as apartment nuances, so the scraper's
   // modernity points for them are taken back (flooring and cabinetry keep a small share as finish evidence).
   let unitFeatureRefund = 0;
-  for (const acSignal of ["Ar-condicionado Split", "Ar-condicionado"]) {
+  for (const acSignal of ["SPLIT_AC", "GENERIC_AC"] as const) {
     if (hasSignal(acSignal)) unitFeatureRefund += SCRAPER_SIGNAL_POINTS[acSignal]!;
   }
-  if (hasSignal("Marcenaria planejada / Painel")) unitFeatureRefund += MODERNITY_OVERLAP_REFUND.cabinetry;
-  if (hasSignal("Porcelanato / Vinílico")) unitFeatureRefund += MODERNITY_OVERLAP_REFUND.flooring;
+  if (hasSignal("PLANNED_CABINETRY")) unitFeatureRefund += MODERNITY_OVERLAP_REFUND.cabinetry;
+  if (hasSignal("MODERN_FLOORING")) unitFeatureRefund += MODERNITY_OVERLAP_REFUND.flooring;
   const leisureRefund = hasScraperCondoLeisureSignal(prop)
     ? SCRAPER_CONDO_LEISURE_POINTS
     : SCRAPER_GENERIC_CONDO_LEISURE_POINTS * Number(SCRAPER_GENERIC_CONDO_LEISURE_RE.test(fullLocationText));
   score -= unitFeatureRefund + leisureRefund;
   // The AC checkbox-trust threshold was calibrated when only a double leisure signal was taken back.
   const legacyLeisureRefund =
-    hasSignal("Lazer com piscina e academia") && hasSignal("Rooftop / Gourmet / Lavanderia")
+    hasSignal("POOL_AND_GYM") && hasSignal("ROOFTOP_GOURMET_OR_LAUNDRY")
       ? SCRAPER_CONDO_LEISURE_POINTS
       : 0;
   const checkboxTrustOffset = unitFeatureRefund + leisureRefund - legacyLeisureRefund;
-  if (isCooktopOnly) score -= SCRAPER_SIGNAL_POINTS["Cooktop / Coifa / Forno embutido"]!;
+  if (isCooktopOnly) score -= SCRAPER_SIGNAL_POINTS.BUILTIN_KITCHEN_APPLIANCES!;
 
   const hasExplicitRenovationOrNewText =
     (RENOVATION_OR_NEW_KEYWORDS_RE.test(lowerText) &&
@@ -4187,13 +4214,8 @@ function calibrateRuntimeModernity(
         fullLocationText,
       )) ||
     (year !== null && year !== undefined && year >= 2015) ||
-    prop.positiveSignals.some(
-      (s) =>
-        s !== "Flag Novo/Reformado" &&
-        /Reformado|Porcelanato|Construção recente|Construção 201[5-9]|Construção 202/i.test(
-          s,
-        ),
-    );
+    hasPositiveSignal(prop, "RENOVATED_MODERN", "NEW_OR_RECENTLY_RENOVATED", "MODERN_FLOORING", "CONSTRUCTION_RECENT") ||
+    (hasSignal("CONSTRUCTION_2010S") && (year ?? 0) >= 2015);
 
   // The old-interior proxies only matter without explicit renovation/new wording.
   const hasDceProxy =
@@ -4217,18 +4239,24 @@ function calibrateRuntimeModernity(
 
   // Discount uncorroborated Flag Novo/Reformado
   const hasInteriorModernSignal =
-    prop.positiveSignals.some(
-      (s) =>
-        /Porcelanato|Iluminação|Fechadura|Marcenaria|Bancada|Imóvel\/prédio novo|Reformado \/ Moderno/i.test(s) ||
-        (/Cooktop/i.test(s) && !isCooktopOnly),
+    hasPositiveSignal(
+      prop,
+      "MODERN_FLOORING",
+      "LIGHTING_PROJECT",
+      "SMART_LOCK_OR_USB",
+      "PLANNED_CABINETRY",
+      "MODERN_COUNTERTOP_OR_GLAZED_BALCONY",
+      "NEW_OR_RECENTLY_RENOVATED",
+      "RENOVATED_MODERN",
     ) ||
+    (hasSignal("BUILTIN_KITCHEN_APPLIANCES") && !isCooktopOnly) ||
     (INTERIOR_MODERN_KEYWORDS_RE.test(lowerText) &&
       /\b(im[oó]vel novo|apartamento novo|pr[eé]dio (?:super )?novo|rec[eé]m[- ]?(?:reformad[oa]|entregue|constru[ií]do)|primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|novinho|reformad[oa]|retrofit|modernizad[oa]|porcelanato|piso vin[ií]lico|vin[ií]lico|bancada[s]?\s+(?:em\s+|de\s+)?(?:quartzo|silestone|nanoglass|granito\s+preto|s[aã]o\s+gabriel)|(?:varanda|sacada)\s+envidra[cç]ada|cortina\s+de\s+vidro|fechamento\s+em\s+vidro|projeto\s+(?:de\s+ilumina[cç][aã]o|luminot[eé]cnico)|ilumina[cç][aã]o\s+(?:planejada|em\s+led|indireta|embutida)|sanca|rebaixamento\s+em\s+gesso|teto\s+rebaixado|forro\s+de\s+gesso|spots?\s+de\s+led|fechadura\s+(?:eletr[oô]nica|digital|biom[eé]trica)|tomadas?\s+usb|forno\s+embutido|coifa|indu[cç][aã]o|arm[aá]rios?\s+planejados?|marcenaria(?:\s+planejada)?|m[oó]veis\s+planejados?|arm[aá]rios?\s+sob\s+medida|planned_furniture|painel\s+de\s+tv)\b/i.test(
         fullLocationText,
       ));
 
   if (
-    prop.positiveSignals.includes("Flag Novo/Reformado") ||
+    hasSignal("NEW_OR_RENOVATED_FLAG") ||
     prop.condition === "NEW_OR_RENOVATED"
   ) {
     const isCorroborated =
@@ -4256,19 +4284,19 @@ function calibrateRuntimeModernity(
   if (!hasExplicitRenovationOrNewText) {
     if (
       hasDceProxy &&
-      !prop.negativeSignals.some((s) => /depend[eê]ncia|dce/i.test(s))
+      !negativeSignalKeysOf(prop).includes("SERVICE_QUARTERS_LAYOUT")
     ) {
       score -= 12;
     }
     if (
       hasOldFloorsProxy &&
-      !prop.negativeSignals.some((s) => /piso antigo|cer[aâ]mica|taco/i.test(s))
+      !negativeSignalKeysOf(prop).includes("OLD_FLOORS")
     ) {
       score -= 14;
     }
     if (
       hasOldFramesOrWindowAc &&
-      !prop.negativeSignals.some((s) => /esquadrias|ar de janela/i.test(s))
+      !negativeSignalKeysOf(prop).includes("OLD_FRAMES_OR_WINDOW_AC")
     ) {
       score -= 12;
     }
@@ -4278,8 +4306,13 @@ function calibrateRuntimeModernity(
   // "acabamentos modernos", appliance lists) stay below the top of the scale until a photo audit confirms it.
   const hasConcreteModernEvidence =
     (year !== null && year !== undefined && year >= 2015) ||
-    prop.positiveSignals.some((s) =>
-      /Porcelanato|Bancada moderna|Projeto de iluminação|Fechadura eletrônica|Construção recente/i.test(s),
+    hasPositiveSignal(
+      prop,
+      "MODERN_FLOORING",
+      "MODERN_COUNTERTOP_OR_GLAZED_BALCONY",
+      "LIGHTING_PROJECT",
+      "SMART_LOCK_OR_USB",
+      "CONSTRUCTION_RECENT",
     ) ||
     (CONCRETE_MODERN_TEXT_KEYWORDS_RE.test(lowerText) &&
       /\b(porcelanato|vin[ií]lico|quartzo|silestone|nanoglass|im[oó]vel novo|apartamento novo|pr[eé]dio (?:super )?novo|rec[eé]m[- ]?(?:entregue|constru[ií]do)|primeira loca[cç][aã]o|1[aª] loca[cç][aã]o|novinho)\b/i.test(
@@ -4345,7 +4378,7 @@ export function extractListingFeatures(prop: SlimPropertyRecord): ListingFeature
   const furnitureTier = classifyFurnitureTier(prop);
   const hasExplicitUnfurnishedOrCabinetryEvidence =
     prop.furnished === false ||
-    prop.positiveSignals.includes("Marcenaria planejada / Painel") ||
+    hasPositiveSignal(prop, "PLANNED_CABINETRY") ||
     /(?<![a-zA-ZÀ-ÿ0-9_])(sem\s+(?:mob[ií]lias?|m[oó]veis)|n[aã]o\s+(?:est[aá]\s+|[eé]\s+|ser[aá]\s+)?mobiliad[oa]|vazio|arm[aá]rios?|marcenaria|planejad[oa]s?|closet|builtin_wardrobe|kitchen_cabinets|planned_furniture)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       fullLocationText,
     );
@@ -4376,9 +4409,7 @@ export function extractListingFeatures(prop: SlimPropertyRecord): ListingFeature
       ? ` | Alertas: ${filteredNegativeSignals.join(", ")}`
       : "";
   const hasLegacyFinishSignals =
-    prop.negativeSignals.some((s) =>
-      /antig|cer[aâ]mica|t[aá]bua|taco|anos 80/i.test(s),
-    ) ||
+    negativeSignalKeysOf(prop).some((key) => LEGACY_FINISH_SIGNALS.includes(key)) ||
     effectiveModernityTier === "DATED" ||
     Boolean(photoAudit?.hasMaintenanceIssue);
   const { penalize: nuancesTrue, noPenalize: nuancesFalse } =
@@ -5018,19 +5049,9 @@ export function scorePrecomputedListings(
       Math.round(rawCommutePts * commuteWeightScale * 10) / 10;
 
     // Non-linear interior quality & modernity curve (linear ramp up to +8 pts for modern units; strong negative curve for dated/infiltrated apartments)
-    const hasRenovationEvidence = prop.positiveSignals.some(
-      (p) =>
-        p !== "Flag Novo/Reformado" &&
-        (p.includes("Reformado") ||
-          p.includes("novo") ||
-          p.includes("Porcelanato") ||
-          p.includes("Construção 20")),
-    );
+    const hasRenovationEvidence = hasPositiveSignal(prop, ...RENOVATION_EVIDENCE_SIGNALS);
     const hasNegativeConservationEvidence =
-      prop.negativeSignals.some(
-        (s) =>
-          !/descri[cç][aã]o gen[eé]rica|venda|comprad|visita[cç][aã]o/i.test(s),
-      ) ||
+      negativeSignalKeysOf(prop).length > 0 ||
       effectiveModernityTier === "DATED" ||
       Boolean(photoAudit?.hardExcludeDated) ||
       Boolean(photoAudit?.hasMaintenanceIssue) ||
