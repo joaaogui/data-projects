@@ -2,6 +2,7 @@
 
 import { Chip } from "@/components/portal/filters/controls";
 import { FilterSheet } from "@/components/portal/filters/sheet";
+import { SheetViews, ViewsMenu } from "@/components/portal/filters/views";
 import type { PortalController } from "@/components/portal/use-portal-controller";
 import { PINNED_OPTIONS } from "@/lib/filter-options";
 import { SORT_BY_OPTIONS, type SortByOption } from "@/lib/property-filters";
@@ -47,9 +48,9 @@ function Divider({ className = "" }: { className?: string }) {
 function SortSelect({ ctl }: { ctl: PortalController }) {
   const { sortBy, setSortBy } = ctl;
   return (
-    <label className="relative inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border bg-card px-2.5 text-xs font-semibold sm:h-8">
-      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-      <span>{SORT_BY_OPTIONS.find((o) => o.value === sortBy)?.shortLabel ?? "Nota ↓"}</span>
+    <label className="relative inline-flex h-9 min-w-0 items-center gap-1.5 rounded-lg border bg-card px-2.5 text-xs font-semibold sm:h-8 sm:shrink-0">
+      <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <span className="truncate">{SORT_BY_OPTIONS.find((o) => o.value === sortBy)?.shortLabel ?? "Nota ↓"}</span>
       <select
         value={sortBy}
         onChange={(e) => setSortBy(e.target.value as SortByOption)}
@@ -74,7 +75,7 @@ function ViewToggle({ ctl }: { ctl: PortalController }) {
     { value: "map" as const, label: "Só mapa", icon: <MapIcon className="h-3.5 w-3.5" />, mobile: true },
   ];
   return (
-    <div role="group" aria-label="Visualização" className="inline-flex shrink-0 items-center rounded-lg border bg-background p-0.5">
+    <div role="group" aria-label="Visualização" className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border bg-background p-0.5">
       {options.map((o) => (
         <button
           key={o.value}
@@ -125,15 +126,7 @@ function CitySelector({ ctl }: { ctl: PortalController }) {
   );
 }
 
-export function FilterBar({
-  ctl,
-  viewsMenu,
-  sheetHeader,
-}: {
-  ctl: PortalController;
-  viewsMenu?: ReactNode;
-  sheetHeader?: Parameters<typeof FilterSheet>[0]["header"];
-}) {
+export function FilterBar({ ctl }: { ctl: PortalController }) {
   const {
     activeAdvancedFilterCount,
     activeFilterPills,
@@ -288,16 +281,16 @@ export function FilterBar({
             <Divider />
             {perfeito}
             {favorites}
-            {viewsMenu}
+            <ViewsMenu ctl={ctl} />
           </div>
         </div>
 
         {/* Mobile row: presets, sort and view */}
-        <div className="flex items-center gap-1.5 sm:hidden">
+        <div className="flex flex-wrap items-center gap-1.5 sm:hidden">
           {perfeito}
           {favorites}
-          {viewsMenu}
-          <div className="ml-auto flex items-center gap-1.5">
+          <ViewsMenu ctl={ctl} />
+          <div className="ml-auto flex min-w-0 items-center gap-1.5">
             <SortSelect ctl={ctl} />
             <ViewToggle ctl={ctl} />
           </div>
@@ -347,7 +340,9 @@ export function FilterBar({
           </div>
         )}
       </div>
-      {sheetOpen && <FilterSheet ctl={ctl} onClose={closeSheet} header={sheetHeader} />}
+      {sheetOpen && (
+        <FilterSheet ctl={ctl} onClose={closeSheet} header={(draft) => <SheetViews ctl={ctl} draft={draft} />} />
+      )}
     </>
   );
 }

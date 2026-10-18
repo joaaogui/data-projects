@@ -1,6 +1,11 @@
 import "server-only";
 
 import { logger } from "@/lib/logger";
+import {
+  PREFERENCES_SCHEMA_VERSION,
+  normalizeSavedViews,
+  weightsSchemaVersion,
+} from "@/lib/saved-views";
 import { sanitizeAndMigrateWeights } from "@/lib/scoring-engine";
 import type { ScoringWeights, SharedUserPreferences } from "@/types/housing";
 import { fetchWithRetry } from "@data-projects/shared/db";
@@ -33,33 +38,35 @@ export function normalizePreferences(
   fallback?: SharedUserPreferences,
 ): SharedUserPreferences {
   const base = fallback ?? {
-    schemaVersion: 2,
+    schemaVersion: PREFERENCES_SCHEMA_VERSION,
     filters: {},
     weights: {},
     activePresetId: "balanced-original",
     favorites: [],
+    savedViews: [],
     updatedAt: new Date(0).toISOString(),
   };
   if (!raw || typeof raw !== "object") return base;
 
-  const filters =
+  const storedFilters =
     raw.filters && typeof raw.filters === "object" && !Array.isArray(raw.filters)
       ? (raw.filters as Record<string, unknown>)
-      : base.filters;
+      : null;
+  // Saved views live in the stored filters document (no extra column); the API exposes them top-level.
+  const { savedViews: storedViews, ...filtersWithoutViews } = storedFilters ?? {};
+  const filters = storedFilters ? filtersWithoutViews : base.filters;
+  const savedViews =
+    raw.savedViews !== undefined || storedViews !== undefined
+      ? normalizeSavedViews(raw.savedViews ?? storedViews)
+      : (base.savedViews ?? []);
   const rawWeightsObj =
     raw.weights && typeof raw.weights === "object" && !Array.isArray(raw.weights)
       ? (raw.weights as Partial<ScoringWeights>)
       : base.weights;
-  const isV2 =
-    raw.schemaVersion === 2 ||
-    raw.schema_version === 2 ||
-    (raw.filters &&
-      typeof raw.filters === "object" &&
-      !Array.isArray(raw.filters) &&
-      (raw.filters as Record<string, unknown>).schemaVersion === 2);
+  const rawVersion = Number(raw.schemaVersion ?? raw.schema_version ?? storedFilters?.schemaVersion ?? 1);
   const weights: Partial<ScoringWeights> = sanitizeAndMigrateWeights(
     rawWeightsObj,
-    isV2 ? 2 : 1,
+    weightsSchemaVersion(Number.isFinite(rawVersion) ? rawVersion : 1),
   );
   const activePresetId =
     typeof raw.activePresetId === "string" && raw.activePresetId.trim()
@@ -79,13 +86,19 @@ export function normalizePreferences(
         : base.updatedAt;
 
   return {
-    schemaVersion: 2,
+    schemaVersion: PREFERENCES_SCHEMA_VERSION,
     filters,
     weights,
     activePresetId,
     favorites,
+    savedViews,
     updatedAt,
   };
+}
+
+/** DB form of `filters`: the filter fields plus the saved views. */
+function toStoredFilters(prefs: SharedUserPreferences): Record<string, unknown> {
+  return { ...prefs.filters, schemaVersion: PREFERENCES_SCHEMA_VERSION, savedViews: prefs.savedViews ?? [] };
 }
 
 let memPreferencesCache: SharedUserPreferences | null = null;
@@ -119,11 +132,12 @@ export function loadLocalPreferencesFallback(): SharedUserPreferences {
 
 function writeLocalPreferencesMirror(prefs: SharedUserPreferences): void {
   const cleanPrefs: SharedUserPreferences = {
-    schemaVersion: prefs.schemaVersion ?? 2,
+    schemaVersion: prefs.schemaVersion ?? PREFERENCES_SCHEMA_VERSION,
     filters: prefs.filters,
     weights: prefs.weights,
     activePresetId: prefs.activePresetId,
     favorites: prefs.favorites,
+    savedViews: prefs.savedViews ?? [],
     updatedAt: prefs.updatedAt,
   };
   memPreferencesCache = cleanPrefs;
@@ -229,7 +243,7 @@ export async function loadSharedPreferences(options?: {
         )
         VALUES (
           ${DEFAULT_PREF_ID},
-          ${JSON.stringify(fallback.filters)}::jsonb,
+          ${JSON.stringify(toStoredFilters(fallback))}::jsonb,
           ${JSON.stringify(fallback.weights)}::jsonb,
           ${fallback.activePresetId},
           ${JSON.stringify(fallback.favorites)}::jsonb,
@@ -318,13 +332,16 @@ export async function saveSharedPreferences(
       typeof partial.activePresetId === "string" &&
       partial.activePresetId.trim().length > 0;
     const hasFavorites = Array.isArray(partial.favorites);
+    const hasSavedViews = Array.isArray(partial.savedViews);
 
-    const resolvedFilters = hasFilters
-      ? (partial.filters as Record<string, unknown>)
-      : current.filters;
+    const resolvedFilters: Record<string, unknown> = {
+      ...(hasFilters ? (partial.filters as Record<string, unknown>) : current.filters),
+    };
+    delete resolvedFilters.savedViews;
     const next: SharedUserPreferences = {
-      schemaVersion: 2,
-      filters: { ...resolvedFilters, schemaVersion: 2 },
+      schemaVersion: PREFERENCES_SCHEMA_VERSION,
+      filters: { ...resolvedFilters, schemaVersion: PREFERENCES_SCHEMA_VERSION },
+      savedViews: hasSavedViews ? normalizeSavedViews(partial.savedViews) : (current.savedViews ?? []),
       weights: hasWeights
         ? sanitizeAndMigrateWeights(
             { ...current.weights, ...partial.weights },
@@ -353,14 +370,14 @@ export async function saveSharedPreferences(
         )
         VALUES (
           ${DEFAULT_PREF_ID},
-          ${JSON.stringify(next.filters)}::jsonb,
+          ${JSON.stringify(toStoredFilters(next))}::jsonb,
           ${JSON.stringify(next.weights)}::jsonb,
           ${next.activePresetId},
           ${JSON.stringify(next.favorites)}::jsonb,
           ${nowIso}::timestamptz
         )
         ON CONFLICT (id) DO UPDATE SET
-          filters = COALESCE(${hasFilters ? JSON.stringify(next.filters) : null}::jsonb, housing.user_preferences.filters),
+          filters = COALESCE(${hasFilters || hasSavedViews ? JSON.stringify(toStoredFilters(next)) : null}::jsonb, housing.user_preferences.filters),
           weights = COALESCE(${hasWeights ? JSON.stringify(next.weights) : null}::jsonb, housing.user_preferences.weights),
           active_preset_id = COALESCE(${hasActivePresetId ? next.activePresetId : null}::text, housing.user_preferences.active_preset_id),
           favorites = COALESCE(${hasFavorites ? JSON.stringify(next.favorites) : null}::jsonb, housing.user_preferences.favorites),

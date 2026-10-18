@@ -80,7 +80,8 @@ export type PropertyFeatureKey =
   | "doorman_24h"
   | "pool_gym"
   | "pets"
-  | "safe_street";
+  | "safe_street"
+  | "free_parking";
 
 export interface PropertyExplorerFilters {
   selectedCity?: CityHubCode | "ALL";
@@ -284,7 +285,18 @@ export const PROPERTY_FEATURE_OPTIONS: {
   { key: "pool_gym", label: "Piscina / Academia" },
   { key: "pets", label: "Aceita Pet" },
   { key: "safe_street", label: "Sem problemas de segurança" },
+  { key: "free_parking", label: "Vaga livre" },
 ];
+
+/**
+ * At least one spot that is not trapped: the engine's "Vaga presa / gaveta" tag covers presa, gaveta,
+ * rotativa, coletiva, sorteio and manobrista/valet. "Não demarcada" alone counts as free, as in the engine.
+ */
+export function hasFreeParkingSpot(
+  prop: Pick<EvaluatedProperty, "parkingSpaces" | "cardTags">,
+): boolean {
+  return prop.parkingSpaces >= 1 && !prop.cardTags.redTags.includes("Vaga presa / gaveta");
+}
 
 export function hasNoSafetyProblems(prop: EvaluatedProperty): boolean {
   if (
@@ -453,6 +465,8 @@ export function matchesPropertyFeature(
       return prop.acceptsPets === true;
     case "safe_street":
       return hasNoSafetyProblems(prop);
+    case "free_parking":
+      return hasFreeParkingSpot(prop);
   }
 }
 

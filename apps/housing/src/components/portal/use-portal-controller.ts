@@ -6,6 +6,15 @@ import {
   useFilterField,
   useFilterSelector,
 } from "@/components/portal/filter-store";
+import { filtersFromSearch, filtersToSearch } from "@/lib/filter-url";
+import {
+  BUILTIN_VIEWS,
+  createSavedView,
+  normalizeSavedViews,
+  savedViewPreset,
+  weightsSchemaVersion,
+  type SavedView,
+} from "@/lib/saved-views";
 import {
   PERFEITO_PRESET,
   applyPresetFilters,
@@ -108,13 +117,18 @@ export type HousingPortalProps = {
   initialQuery: PropertyQueryResponse;
   initialQueryKey: string;
   initialPreferences?: SharedUserPreferences;
+  /** Filters from the page URL; they win over the saved preferences. */
+  initialUrlFilters?: FilterState | null;
 };
+
+const URL_PUSH_DEBOUNCE_MS = 350;
 
 export function usePortalController({
   initialMeta,
   initialQuery,
   initialQueryKey,
   initialPreferences,
+  initialUrlFilters = null,
 }: HousingPortalProps) {
   const resolvedInitialPrefs = initialPreferences;
   const initialParsedFilters = useMemo(
@@ -125,7 +139,7 @@ export function usePortalController({
     () =>
       sanitizeAndMigrateWeights(
         resolvedInitialPrefs?.weights,
-        resolvedInitialPrefs?.schemaVersion ?? 2,
+        weightsSchemaVersion(resolvedInitialPrefs?.schemaVersion),
       ),
     [resolvedInitialPrefs],
   );
@@ -136,7 +150,14 @@ export function usePortalController({
     [resolvedInitialPrefs],
   );
 
-  const [filterStore] = useState(() => createFilterStore(initialParsedFilters));
+  const initialSavedViews = useMemo(
+    () => normalizeSavedViews(resolvedInitialPrefs?.savedViews),
+    [resolvedInitialPrefs],
+  );
+  const [filterStore] = useState(() =>
+    createFilterStore(initialUrlFilters ?? initialParsedFilters),
+  );
+  const [savedViews, setSavedViews] = useState<SavedView[]>(initialSavedViews);
   const [meta, setMeta] = useState<DatasetMeta>(initialMeta);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [weights, setWeights] = useState<ScoringWeights>(initialWeights);
@@ -408,6 +429,7 @@ export function usePortalController({
       weights: initialWeights,
       activePresetId: initialPresetId,
       favorites: initialFavorites,
+      savedViews: initialSavedViews,
     }),
   );
   const hasUnsavedLocalPrefsRef = useRef<boolean>(false);
@@ -432,12 +454,13 @@ export function usePortalController({
       const parsedFilters = parseExplorerFiltersObject(prefs.filters);
       const nextWeights: ScoringWeights = sanitizeAndMigrateWeights(
         prefs.weights,
-        prefs.schemaVersion ?? 2,
+        weightsSchemaVersion(prefs.schemaVersion),
       );
       const nextPresetId = prefs.activePresetId || "balanced-original";
       const nextFavorites = Array.isArray(prefs.favorites)
         ? prefs.favorites
         : [];
+      const nextSavedViews = normalizeSavedViews(prefs.savedViews);
 
       const serializedFilters = serializeExplorerFilters(parsedFilters);
       isApplyingRemotePrefsRef.current = true;
@@ -446,8 +469,10 @@ export function usePortalController({
         weights: nextWeights,
         activePresetId: nextPresetId,
         favorites: nextFavorites,
+        savedViews: nextSavedViews,
       });
       lastSyncedUpdatedAtRef.current = prefs.updatedAt;
+      setSavedViews(nextSavedViews);
 
       applyFilterStateObject(parsedFilters);
       setWeights(nextWeights);
@@ -616,6 +641,88 @@ export function usePortalController({
     setVisibleCount(30);
   }, [filterStore]);
 
+  const viewPresets = useMemo(
+    () => [
+      ...BUILTIN_VIEWS.map((v) => ({ id: v.id, name: v.name, builtin: true, preset: v.preset })),
+      ...savedViews.map((v) => ({ id: v.id, name: v.name, builtin: false, preset: savedViewPreset(v) })),
+    ],
+    [savedViews],
+  );
+
+  /** Applies a view (replacing the filters) or, when it is already active, restores the previous filters. */
+  const toggleView = useCallback(
+    (id: string) => {
+      const view = viewPresets.find((v) => v.id === id);
+      if (!view) return;
+      const { next, previous } = togglePreset(
+        filterStore.getState(),
+        view.preset,
+        presetPreviousRef.current,
+      );
+      presetPreviousRef.current = previous;
+      filterStore.setState(next);
+      setVisibleCount(30);
+    },
+    [viewPresets, filterStore],
+  );
+
+  const saveCurrentView = useCallback(
+    (name: string) => {
+      const view = createSavedView(filterStore.getState(), name);
+      setSavedViews((prev) => [...prev, view]);
+      return view.id;
+    },
+    [filterStore],
+  );
+  const renameView = useCallback((id: string, name: string) => {
+    const trimmed = name.trim().slice(0, 60);
+    if (!trimmed) return;
+    setSavedViews((prev) => prev.map((v) => (v.id === id ? { ...v, name: trimmed } : v)));
+  }, []);
+  const deleteView = useCallback((id: string) => {
+    setSavedViews((prev) => prev.filter((v) => v.id !== id));
+  }, []);
+
+  // Filters live in the URL: shareable links, and back/forward walk through filter changes.
+  const urlStateRef = useRef<{ synced: boolean; lastSearchQuery: string }>({
+    synced: false,
+    lastSearchQuery: "",
+  });
+  useEffect(() => {
+    if (!filtersHydrated) return;
+    const sync = () => {
+      const state = filterStore.getState();
+      const search = filtersToSearch(state);
+      if (search === window.location.search) return;
+      const url = `${window.location.pathname}${search}${window.location.hash}`;
+      const ref = urlStateRef.current;
+      const typingOnly = ref.synced && ref.lastSearchQuery !== state.searchQuery;
+      if (!ref.synced || typingOnly) window.history.replaceState(null, "", url);
+      else window.history.pushState(null, "", url);
+      ref.synced = true;
+      ref.lastSearchQuery = state.searchQuery;
+    };
+    let timer = window.setTimeout(sync, 0);
+    const unsubscribe = filterStore.subscribe(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(sync, URL_PUSH_DEBOUNCE_MS);
+    });
+    const onPopState = () => {
+      const fromUrl = filtersFromSearch(window.location.search);
+      if (!fromUrl) return;
+      presetPreviousRef.current = null;
+      urlStateRef.current.lastSearchQuery = fromUrl.searchQuery;
+      filterStore.setState(fromUrl);
+      setVisibleCount(30);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.clearTimeout(timer);
+      unsubscribe();
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [filtersHydrated, filterStore]);
+
   useEffect(() => {
     try {
       const hasServerSavedFilters = Boolean(
@@ -687,10 +794,12 @@ export function usePortalController({
     } catch {
       // Ignore storage errors
     } finally {
+      if (initialUrlFilters) applyFilterStateObject(initialUrlFilters);
       setFiltersHydrated(true);
     }
   }, [
     resolvedInitialPrefs,
+    initialUrlFilters,
     applyFilterStateObject,
     applySharedPreferencesToState,
   ]);
@@ -832,6 +941,7 @@ export function usePortalController({
       weights,
       activePresetId,
       favorites: favoriteKeys,
+      savedViews,
     };
     const serialized = JSON.stringify(fullPayload);
     const wasApplyingRemote = isApplyingRemotePrefsRef.current;
@@ -950,6 +1060,7 @@ export function usePortalController({
     activePresetId,
     weights,
     favoriteKeys,
+    savedViews,
   ]);
 
   useEffect(() => {
@@ -2118,7 +2229,13 @@ export function usePortalController({
     hoveredPropertyKey,
     ineligibleActiveCount,
     applyFilterPatch,
+    deleteView,
     filterState,
+    renameView,
+    saveCurrentView,
+    savedViews,
+    toggleView,
+    viewPresets,
     optionCounts: facets?.optionCounts,
     relaxations: listState.relaxations,
     queryWeights,

@@ -88,9 +88,10 @@ export function togglePreset(
   previous: FilterState | null,
 ): { next: FilterState; previous: FilterState | null } {
   if (isPresetActive(state, preset)) {
+    const keepCurrent = PRESET_PRESERVED_KEYS.filter((k) => !(k in preset));
     const restored = previous
-      ? { ...previous, ...pick(state, PRESET_PRESERVED_KEYS) }
-      : applyPresetFilters(state, {});
+      ? { ...previous, ...pick(state, keepCurrent) }
+      : { ...CLEARED_FILTERS, ...pick(state, keepCurrent) };
     return { next: restored, previous: null };
   }
   return { next: applyPresetFilters(state, preset), previous: state };

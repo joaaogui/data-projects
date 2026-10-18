@@ -151,6 +151,7 @@ export const PINNED_OPTIONS: FilterOption[] = [
   featureOption("free_view_sun", "Vista livre"),
   featureOption("balcony", "Varanda"),
   featureOption("doorman_24h", "Portaria 24h"),
+  featureOption("free_parking", "Vaga livre"),
 ];
 
 export const AREA_OPTIONS = [
@@ -188,6 +189,7 @@ export const BUILDING_FEATURES = [
   featureOption("pool_gym", "Piscina / academia"),
   featureOption("reserved_building", "Torre única"),
   featureOption("pets", "Aceita pet"),
+  featureOption("free_parking", "Vaga livre"),
 ];
 
 export const TIER_OPTIONS = [

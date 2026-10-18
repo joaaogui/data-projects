@@ -26,6 +26,17 @@ export const preferencesSaveSchema = z.looseObject({
   weights: looseRecord.optional(),
   activePresetId: z.string().max(200).optional(),
   favorites: z.array(propertyKeySchema).max(5_000).optional(),
+  savedViews: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(80),
+        name: z.string().trim().min(1).max(60),
+        filters: looseRecord,
+        createdAt: z.string().max(40).optional(),
+      }),
+    )
+    .max(30)
+    .optional(),
   clientUpdatedAt: z.string().max(100).optional(),
 });
 

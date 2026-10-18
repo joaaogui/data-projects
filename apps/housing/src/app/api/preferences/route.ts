@@ -104,6 +104,7 @@ async function handleSave(request: Request) {
       weights: body.weights,
       activePresetId: body.activePresetId,
       favorites: body.favorites,
+      savedViews: body.savedViews?.map((v) => ({ ...v, createdAt: v.createdAt ?? new Date().toISOString() })),
       clientUpdatedAt: body.clientUpdatedAt,
     });
     const { persistedToDb: rawPersistedToDb, ...preferences } = saved;
