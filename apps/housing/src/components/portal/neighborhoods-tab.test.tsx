@@ -160,15 +160,18 @@ describe("NeighborhoodsTab top 20", () => {
     }),
   );
 
-  it("shows only the first 20 rows of the ranking, with the reference row unranked", () => {
+  it("shows the first 20 rows of the ranking plus the reference, which takes a rank and shifts the rows below", () => {
     render(<NeighborhoodsTab ctl={buildCtl({ neighborhoodRanking: ranking, referenceNeighborhoods: [REF] })} />);
     const rows = [...document.querySelectorAll("tbody tr")];
     expect(rows).toHaveLength(21);
     const refIdx = rows.findIndex((r) => r.getAttribute("data-testid") === "reference-neighborhood-row");
     // 9.3 sits below Bairro 1–3 (9.5, 9.4, 9.3: ties stay above it)
     expect(refIdx).toBe(3);
-    expect(rows[refIdx]!.textContent).not.toMatch(/#\d/);
-    expect(rows.at(-1)!.textContent).toContain("#20");
+    expect(rows[refIdx]!.textContent).toContain("#4");
+    expect(rows[refIdx + 1]!.textContent).toContain("Bairro 4");
+    expect(rows[refIdx + 1]!.textContent).toContain("#5");
+    expect(rows.at(-1)!.textContent).toContain("Bairro 20");
+    expect(rows.at(-1)!.textContent).toContain("#21");
     expect(screen.queryByText("Bairro 21")).toBeNull();
   });
 
@@ -212,7 +215,7 @@ const REF: ReferenceNeighborhoodRow = {
   key: "GO:Setor Marista",
   neighborhood: "Setor Marista",
   dynamicScore: 9.3,
-  urbanBreathingScore: 10,
+  urbanBreathingScore: 8.6,
   commuteLogisticsScore: 7.5,
   buildingStockFitScore: 9.5,
   budgetFitScore: 8.5,
@@ -234,20 +237,23 @@ function summary(overrides: Partial<NeighborhoodResearchSummary>): NeighborhoodR
 }
 
 describe("NeighborhoodsTab reference row", () => {
-  it("renders Setor Marista between the rows scoring above and below it, without a rank", () => {
+  it("ranks Setor Marista between the rows scoring above and below it, renumbering the rows below", () => {
     render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF] })} />);
     const bodyRows = [...document.querySelectorAll("tbody tr")];
     expect(bodyRows).toHaveLength(3);
     expect(bodyRows[0]!.textContent).toContain("Funcionários");
     expect(bodyRows[1]!.getAttribute("data-testid")).toBe("reference-neighborhood-row");
     expect(bodyRows[2]!.textContent).toContain("Pinheiros");
-    // Catalog ranks stay as computed; the reference shows a badge instead of a number
+    // The reference takes #2 next to its badge; Pinheiros moves to #3 but keeps its catalog-only diff (5 -> 2 = +3)
     expect(bodyRows[0]!.textContent).toContain("#1");
-    expect(bodyRows[2]!.textContent).toContain("#2");
-    expect(bodyRows[1]!.textContent).not.toMatch(/#\d/);
+    expect(bodyRows[1]!.textContent).toContain("#2");
+    expect(bodyRows[2]!.textContent).toContain("#3");
+    expect(bodyRows[2]!.textContent).toContain("(+3)");
     expect(bodyRows[1]!.textContent).toContain("Referência");
     expect(bodyRows[1]!.textContent).toContain("neutro");
-    expect(screen.getAllByText("Seu bairro de referência — não entra no ranking")).toHaveLength(2);
+    expect(bodyRows[1]!.textContent).not.toMatch(/\([+-]\d+\)/);
+    expect(screen.getAllByText("Seu bairro de referência — fora do catálogo, não altera as notas dos imóveis")).toHaveLength(2);
+    expect(document.querySelector("[data-testid='reference-neighborhood-card']")!.textContent).toContain("#2");
     const cards = [...document.querySelectorAll("article")];
     expect(cards.map((c) => c.getAttribute("data-testid"))).toEqual([null, "reference-neighborhood-card", null]);
   });
@@ -264,6 +270,14 @@ describe("NeighborhoodsTab reference row", () => {
       />,
     );
     expect(screen.queryByTestId("reference-neighborhood-row")).toBeNull();
+  });
+
+  it("keeps the merged rank numbers under a city filter", () => {
+    render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF], selectedCities: ["SP"] })} />);
+    const rows = [...document.querySelectorAll("tbody tr")];
+    expect(rows.map((r) => r.textContent!.match(/#\d+/)?.[0])).toEqual(["#2", "#3"]);
+    expect(rows[0]!.getAttribute("data-testid")).toBe("reference-neighborhood-row");
+    expect(rows[1]!.textContent).toContain("Pinheiros");
   });
 
   it("opens the research panel for GO:Setor Marista on click", () => {
@@ -287,23 +301,24 @@ describe("NeighborhoodsTab reference row", () => {
 
   const AGUAS: ReferenceNeighborhoodRow = { ...REF, key: "BSB:Águas Claras", neighborhood: "Águas Claras", dynamicScore: 9.0 };
 
-  it("renders both references unranked at their score positions, each with its own subtitle", () => {
+  it("ranks both references at their score positions, each with its own badge and subtitle", () => {
     render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF, AGUAS] })} />);
     const rows = [...document.querySelectorAll("tbody tr")];
     // Funcionários 9.61 > Marista 9.3 > Águas Claras 9.0 = Pinheiros 9.0 (ties stay above the reference)
-    expect(rows.map((r) => r.getAttribute("data-testid") ?? r.textContent!.match(/#\d+/)?.[0])).toEqual([
-      "#1",
+    expect(rows.map((r) => r.getAttribute("data-testid"))).toEqual([
+      null,
       "reference-neighborhood-row",
-      "#2",
+      null,
       "reference-neighborhood-row",
     ]);
+    expect(rows.map((r) => r.textContent!.match(/#\d+/)?.[0])).toEqual(["#1", "#2", "#3", "#4"]);
     expect(rows[1]!.textContent).toContain("Setor Marista");
+    expect(rows[1]!.textContent).toContain("Referência");
     expect(rows[3]!.textContent).toContain("Águas Claras");
     expect(rows[3]!.textContent).toContain("DF");
-    expect(rows[3]!.textContent).toContain("Referência");
-    expect(rows[3]!.textContent).not.toMatch(/#\d/);
-    expect(screen.getAllByText("Onde você mora hoje — não entra no ranking")).toHaveLength(2);
-    expect(screen.getAllByText("Seu bairro de referência — não entra no ranking")).toHaveLength(2);
+    expect(rows[3]!.textContent).toContain("Onde você mora hoje");
+    expect(screen.getAllByText("Onde você mora hoje — fora do catálogo, não altera as notas dos imóveis")).toHaveLength(2);
+    expect(screen.getAllByText("Seu bairro de referência — fora do catálogo, não altera as notas dos imóveis")).toHaveLength(2);
     expect(screen.getAllByTestId("reference-neighborhood-card")).toHaveLength(2);
   });
 

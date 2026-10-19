@@ -39,6 +39,11 @@ import {
   TAQUARAL_NEAR_LAGOA_TAG,
 } from "./scoring-engine";
 import {
+  rubricToUrbanBreathing,
+  URBAN_BREATHING_BONUS_FROM,
+  URBAN_BREATHING_BONUS_FULL_AT,
+} from "./urban-breathing";
+import {
   buildBenchmarkStats,
   DEFAULT_EXPLORER_FILTERS,
   filterAndSortProperties,
@@ -918,7 +923,7 @@ describe("Housing Dynamic Scoring Engine", () => {
     const funcNb = nbs.find((n) => n.neighborhood === "Funcionários")!;
 
     expect(tijucaNb.dynamicScore).toBeLessThan(3.5);
-    expect(funcNb.dynamicScore).toBeGreaterThan(9.5);
+    expect(funcNb.dynamicScore).toBeGreaterThan(9.0);
 
     const baseApt = SAMPLE_PROPERTIES[0]!;
     const mkProp = (
@@ -2400,9 +2405,9 @@ describe("Housing Dynamic Scoring Engine", () => {
     const bosqueNb = nbs.find((n) => n.neighborhood === "Bosque")!;
     const guanabaraNb = nbs.find((n) => n.neighborhood === "Jd. Guanabara")!;
 
-    // Calibration caps: CP:Bosque 6.3, CP:Jd. Guanabara 5.0 and Taquaral 6.3 (rubric); Taquaral still leads on stock/budget
-    expect(taquaralNb.urbanBreathingScore).toBe(6.3);
-    expect(bosqueNb.urbanBreathingScore).toBe(6.3);
+    // Calibration caps: CP:Bosque 6.2, CP:Jd. Guanabara 5.0 and Taquaral 6.2 (rubric); Taquaral still leads on stock/budget
+    expect(taquaralNb.urbanBreathingScore).toBe(6.2);
+    expect(bosqueNb.urbanBreathingScore).toBe(6.2);
     expect(guanabaraNb.urbanBreathingScore).toBe(5.0);
     expect(taquaralNb.dynamicScore - bosqueNb.dynamicScore).toBeGreaterThan(0.3);
     expect(taquaralNb.dynamicScore - guanabaraNb.dynamicScore).toBeGreaterThan(1.0);
@@ -3594,7 +3599,7 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
     );
     expect(ranked).toHaveLength(20);
 
-    // 1. BH holds the overall top 4 (Lourdes, Funcionários, Savassi, Santo Agostinho); Sion (urban breathing 6.2) is BH #5.
+    // 1. BH holds the overall top 4 (Lourdes, Funcionários, Savassi, Santo Agostinho); Sion (urban breathing 6.1) is BH #5.
     // Exact top-4 order depends on whether the seed carries the rubric urban breathing scores.
     const bhRanked = ranked
       .filter((n) => n.cityCode === "BH")
@@ -3617,7 +3622,7 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
       "Laranjeiras",
     ]);
 
-    // 3. SP Capital neighborhoods receive -1.50 discount; Moema (urban breathing 9.2) still ranks below the BH top 4 and Botafogo (Orla)
+    // 3. SP Capital neighborhoods receive -1.50 discount; Moema (urban breathing 8.1) still ranks below the BH top 4 and Botafogo (Orla)
     const rankOf = (city: string, nb: string) =>
       ranked.find((n) => n.cityCode === city && n.neighborhood === nb)!
         .dynamicOverallRank;
@@ -3818,7 +3823,7 @@ describe("Calibration fixes: CP far commute, sale status, modernity ramp, no cit
       DEFAULT_WEIGHTS,
     );
     expect(a!.neighborhoodDynamicScore).toBe(b!.neighborhoodDynamicScore);
-    expect(a!.neighborhoodDynamicScore).toBeCloseTo(5.39, 2);
+    expect(a!.neighborhoodDynamicScore).toBeCloseTo(5.51, 2);
   });
 
   it("dates QuintoAndar relistings by their current publication and keeps the first one as a hint", () => {
@@ -5325,17 +5330,30 @@ describe("computeWeightedNeighborhoodScore urban breathing curve", () => {
       DEFAULT_WEIGHTS,
     );
 
-  it.each([7.5, 9.0])("is continuous around %s", (edge) => {
+  it.each([URBAN_BREATHING_BONUS_FROM, URBAN_BREATHING_BONUS_FULL_AT])("is continuous around %s", (edge) => {
     expect(Math.abs(score(edge) - score(edge - 0.001))).toBeLessThanOrEqual(0.011);
     expect(Math.abs(score(edge + 0.001) - score(edge))).toBeLessThanOrEqual(0.011);
   });
 
-  it("ramps the bonus from 0 at 7.5 to +0.45 at 9.0 and holds it above", () => {
+  it("ramps the bonus from 0 at 7.0 to +0.45 at 8.0, holds it above and takes 1.16 per point below 7.0", () => {
     const weightedOnly = (ub: number) => (ub * 3 + 8 * 1 + 8 * 2 + 8 * 1 + 8.2 * 3) / 10;
-    expect(score(7.5)).toBeCloseTo(weightedOnly(7.5), 2);
-    expect(score(8.25)).toBeCloseTo(weightedOnly(8.25) + 0.225, 2);
-    expect(score(9.0)).toBeCloseTo(weightedOnly(9.0) + 0.45, 2);
+    expect(score(7.0)).toBeCloseTo(weightedOnly(7.0), 2);
+    expect(score(7.6)).toBeCloseTo(weightedOnly(7.6) + 0.27, 2);
+    expect(score(8.0)).toBeCloseTo(weightedOnly(8.0) + 0.45, 2);
     expect(score(9.6)).toBeCloseTo(weightedOnly(9.6) + 0.45, 2);
-    expect(score(7.0)).toBeCloseTo(weightedOnly(7.0) - 0.375, 2);
+    expect(score(6.5)).toBeCloseTo(weightedOnly(6.5) - 0.58, 2);
+  });
+
+  it("matches the pre-remap delta for the same rubric total", () => {
+    const oldUb = (t: number) => 6 + ((t - 4.4) * 4) / 3.63;
+    const oldDelta = (ub: number) =>
+      ub >= 9 ? 0.45 : ub >= 7.5 ? ((ub - 7.5) / 1.5) * 0.45 : -(7.5 - ub) * 0.75;
+    const weightedOnly = (ub: number) => (ub * 3 + 8 * 1 + 8 * 2 + 8 * 1 + 8.2 * 3) / 10;
+    for (const total of [4.4, 5.3, 5.89, 6.47, 7.32, 8.03]) {
+      const ub = rubricToUrbanBreathing(total);
+      const delta = score(ub) - weightedOnly(ub);
+      // Thresholds are rounded (6.97 → 7.0, 7.94 → 8.0) and urban breathing to one decimal.
+      expect(Math.abs(delta - oldDelta(oldUb(total))), String(total)).toBeLessThanOrEqual(0.1);
+    }
   });
 });

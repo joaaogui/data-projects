@@ -8,8 +8,8 @@ import { NeighborhoodResearchPanel } from "@/components/portal/neighborhood-rese
 import { decimal, formatDensity } from "@/components/portal/neighborhood-research-strip";
 import type { PortalController } from "@/components/portal/use-portal-controller";
 import {
+  rankWithReferences,
   REFERENCE_NEIGHBORHOODS,
-  referenceInsertIndex,
   type ReferenceNeighborhood,
   type ReferenceNeighborhoodRow,
 } from "@/lib/reference-neighborhood";
@@ -76,8 +76,8 @@ const EXTRA_RATIONALE = "Bairro fora do catálogo, com dossiê de pesquisa — n
 const REFERENCE_BY_KEY = new Map(REFERENCE_NEIGHBORHOODS.map((r) => [r.key, r]));
 
 type ListItem =
-  | { kind: "catalog"; n: ComputedNeighborhood }
-  | { kind: "reference"; ref: ReferenceNeighborhoodRow; info: ReferenceNeighborhood };
+  | { kind: "catalog"; n: ComputedNeighborhood; rank: number }
+  | { kind: "reference"; ref: ReferenceNeighborhoodRow; info: ReferenceNeighborhood; rank: number };
 
 export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
   const {
@@ -98,20 +98,21 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
 
   if (activeTab !== "neighborhoods") return null;
 
-  const rows = neighborhoodRanking
-    .filter((n) => selectedCities.length === 0 || selectedCities.includes(n.cityCode))
-    .slice(0, TOP_NEIGHBORHOODS_LIMIT);
-  const items: ListItem[] = rows.map((n) => ({ kind: "catalog", n }));
-  if (rows.length > 0) {
-    // Highest score first, so each later reference lands below an equal-scoring earlier one.
-    const refs = [...referenceNeighborhoods].sort((a, b) => b.dynamicScore - a.dynamicScore);
-    for (const ref of refs) {
-      const info = REFERENCE_BY_KEY.get(ref.key);
-      if (!info) continue;
-      const scored = items.map((it) => (it.kind === "catalog" ? it.n : it.ref));
-      items.splice(referenceInsertIndex(scored, ref.dynamicScore), 0, { kind: "reference", ref, info });
+  // Ranks come from the whole list with the references merged in, so a city filter keeps each row's number.
+  let items: ListItem[] = [];
+  let catalogShown = 0;
+  for (const it of rankWithReferences(neighborhoodRanking, referenceNeighborhoods)) {
+    if (it.kind === "reference") {
+      const info = REFERENCE_BY_KEY.get(it.ref.key);
+      if (info) items.push({ ...it, info });
+      continue;
     }
+    if (selectedCities.length > 0 && !selectedCities.includes(it.n.cityCode)) continue;
+    if (catalogShown === TOP_NEIGHBORHOODS_LIMIT) continue;
+    catalogShown++;
+    items.push(it);
   }
+  if (catalogShown === 0) items = [];
   // Catalog rows compare their base position with their catalog-only dynamic rank, so extras don't inflate the diff.
   const catalogRank = new Map(
     dynamicNeighborhoods.map((n) => [`${n.cityCode}:${n.neighborhood}`, n.dynamicOverallRank]),
@@ -155,8 +156,9 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-mono text-xs font-bold">#{item.rank}</span>
                     <span className="rounded-md border border-dashed border-muted-foreground/50 px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
-                      Referência
+                      {info.badge}
                     </span>
                     <span className="inline-block rounded-md border px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-muted-foreground">
                       {info.ufLabel}
@@ -199,7 +201,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="font-mono text-xs font-bold">
-                    #{n.dynamicOverallRank}
+                    #{item.rank}
                     {rankDiff !== 0 && (
                       <span
                         className={`ml-1 text-[10px] ${
@@ -303,8 +305,9 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                       className="cursor-pointer border-2 border-dashed border-muted-foreground/40 bg-muted/30 align-top text-muted-foreground hover:bg-muted/50"
                     >
                       <td className="px-3 py-3 whitespace-nowrap">
-                        <span className="rounded-md border border-dashed border-muted-foreground/50 px-1.5 py-0.5 text-xs font-semibold">
-                          Referência
+                        <span className="font-mono font-bold">#{item.rank}</span>
+                        <span className="ml-1.5 rounded-md border border-dashed border-muted-foreground/50 px-1.5 py-0.5 text-xs font-semibold">
+                          {info.badge}
                         </span>
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
@@ -358,7 +361,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                     className="hover:bg-muted/30 align-top"
                   >
                     <td className="px-3 py-3 font-mono font-bold whitespace-nowrap">
-                      #{n.dynamicOverallRank}
+                      #{item.rank}
                       {rankDiff !== 0 && (
                         <span
                           className={`ml-1.5 text-[10px] ${

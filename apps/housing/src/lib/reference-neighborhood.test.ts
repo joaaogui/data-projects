@@ -5,9 +5,12 @@ import researchFile from "@/data/neighborhood-research.json";
 import { filterVisibleCities } from "@/lib/city-config";
 import {
   computeReferenceNeighborhoods,
+  rankWithReferences,
   REFERENCE_NEIGHBORHOODS,
   referenceInsertIndex,
+  type ReferenceNeighborhoodRow,
 } from "@/lib/reference-neighborhood";
+import { rubricToUrbanBreathing } from "@/lib/urban-breathing";
 import {
   computeDynamicNeighborhoods,
   computeWeightedNeighborhoodScore,
@@ -32,15 +35,52 @@ describe("REFERENCE_NEIGHBORHOODS", () => {
     expect(REFERENCE_NEIGHBORHOODS.map((r) => r.key)).toEqual(["GO:Setor Marista", "BSB:Águas Claras"]);
     const dossiers = (researchFile as unknown as NeighborhoodResearchFile).dossiers;
     for (const ref of REFERENCE_NEIGHBORHOODS) expect(dossiers[ref.key]?.rubric?.total).toBeGreaterThan(0);
+    expect(REFERENCE_NEIGHBORHOODS[0]).toMatchObject({
+      badge: "Referência",
+      subScores: { urbanBreathing: 8.6, buildingStock: 9.5, budgetFit: 8.5, safetyCar: 8.5 },
+    });
     expect(REFERENCE_NEIGHBORHOODS[1]).toMatchObject({
-      subScores: { urbanBreathing: 8.1, buildingStock: 9, budgetFit: 8.5, safetyCar: 8.8 },
-      subtitle: "Onde você mora hoje — não entra no ranking",
+      badge: "Onde você mora hoje",
+      subScores: { urbanBreathing: 7.4, buildingStock: 9, budgetFit: 8.5, safetyCar: 8.8 },
+      subtitle: "Onde você mora hoje — fora do catálogo, não altera as notas dos imóveis",
     });
   });
 
-  it("maps Águas Claras' rubric total to its urban breathing (6 + (t - 4.4) * 4 / 3.63)", () => {
-    const total = (researchFile as unknown as NeighborhoodResearchFile).dossiers["BSB:Águas Claras"]!.rubric!.total;
-    expect(Math.round((6 + ((total - 4.4) * 4) / 3.63) * 10) / 10).toBe(8.1);
+  it("maps each reference's compiled rubric total to its urban breathing, Marista included (no 10 for the reference)", () => {
+    const dossiers = (researchFile as unknown as NeighborhoodResearchFile).dossiers;
+    for (const ref of REFERENCE_NEIGHBORHOODS) {
+      expect(ref.subScores.urbanBreathing).toBe(rubricToUrbanBreathing(dossiers[ref.key]!.rubric!.total));
+    }
+    expect(REFERENCE_NEIGHBORHOODS[0]!.subScores.urbanBreathing).toBeLessThan(10);
+  });
+});
+
+describe("rankWithReferences", () => {
+  const ref = (key: string, dynamicScore: number) =>
+    ({ key, dynamicScore }) as unknown as ReferenceNeighborhoodRow;
+  const rows = [{ dynamicScore: 9 }, { dynamicScore: 8 }, { dynamicScore: 7 }];
+
+  it("merges references by score and numbers every row, shifting the rows below", () => {
+    const merged = rankWithReferences(rows, [ref("b", 7.5), ref("a", 8.5)]);
+    expect(merged.map((it) => [it.kind, it.rank])).toEqual([
+      ["catalog", 1],
+      ["reference", 2],
+      ["catalog", 3],
+      ["reference", 4],
+      ["catalog", 5],
+    ]);
+    expect(merged.filter((it) => it.kind === "reference").map((it) => it.ref.key)).toEqual(["a", "b"]);
+  });
+
+  it("keeps ties above a reference and equal references in their order", () => {
+    const merged = rankWithReferences(rows, [ref("a", 8), ref("b", 8)]);
+    expect(merged.map((it) => (it.kind === "catalog" ? it.n.dynamicScore : it.ref.key))).toEqual([9, 8, "a", "b", 7]);
+  });
+
+  it("does not touch the catalog rows", () => {
+    const before = structuredClone(rows);
+    rankWithReferences(rows, [ref("a", 10)]);
+    expect(rows).toEqual(before);
   });
 });
 
