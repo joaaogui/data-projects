@@ -3818,7 +3818,7 @@ describe("Calibration fixes: CP far commute, sale status, modernity ramp, no cit
       DEFAULT_WEIGHTS,
     );
     expect(a!.neighborhoodDynamicScore).toBe(b!.neighborhoodDynamicScore);
-    expect(a!.neighborhoodDynamicScore).toBeCloseTo(8.73, 2);
+    expect(a!.neighborhoodDynamicScore).toBeCloseTo(5.39, 2);
   });
 
   it("dates QuintoAndar relistings by their current publication and keeps the first one as a hint", () => {

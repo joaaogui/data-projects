@@ -114,33 +114,8 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2903789730",
-   "rank": 6,
-   "overallRank": 4,
-   "cityRank": 2,
-   "eligible": true,
-   "finalScore": 204.4,
-   "exclusionReason": null,
-   "totalMonthly": 5156,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (11º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [
-    "Preço divergente na descrição"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "zapimoveis:2772206523",
-   "rank": 7,
+   "rank": 6,
    "overallRank": null,
    "cityRank": 2,
    "eligible": true,
@@ -163,8 +138,8 @@
   },
   {
    "key": "quintoandar:895613516",
-   "rank": 8,
-   "overallRank": 5,
+   "rank": 7,
+   "overallRank": 4,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 202.6,
@@ -184,33 +159,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2904939900",
-   "rank": 9,
-   "overallRank": 6,
-   "cityRank": 3,
-   "eligible": true,
-   "finalScore": 200.1,
-   "exclusionReason": null,
-   "totalMonthly": 5465,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (21º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:893127481",
-   "rank": 10,
-   "overallRank": 7,
-   "cityRank": 4,
+   "rank": 8,
+   "overallRank": 5,
+   "cityRank": 2,
    "eligible": true,
    "finalScore": 198.9,
    "exclusionReason": null,
@@ -232,9 +184,9 @@
   },
   {
    "key": "netimoveis:945665",
-   "rank": 11,
-   "overallRank": 8,
-   "cityRank": 5,
+   "rank": 9,
+   "overallRank": 6,
+   "cityRank": 3,
    "eligible": true,
    "finalScore": 198.4,
    "exclusionReason": null,
@@ -254,9 +206,9 @@
   },
   {
    "key": "vivareal:2897890300",
-   "rank": 12,
-   "overallRank": 9,
-   "cityRank": 6,
+   "rank": 10,
+   "overallRank": 7,
+   "cityRank": 4,
    "eligible": true,
    "finalScore": 198.4,
    "exclusionReason": null,
@@ -278,10 +230,35 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2903789730",
+   "rank": 11,
+   "overallRank": 8,
+   "cityRank": 5,
+   "eligible": true,
+   "finalScore": 195.4,
+   "exclusionReason": null,
+   "totalMonthly": 5156,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto (11º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Preço divergente na descrição"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2863444363",
-   "rank": 13,
-   "overallRank": 10,
-   "cityRank": 7,
+   "rank": 12,
+   "overallRank": 9,
+   "cityRank": 6,
    "eligible": true,
    "finalScore": 194.7,
    "exclusionReason": null,
@@ -303,9 +280,9 @@
   },
   {
    "key": "zapimoveis:2914985229",
-   "rank": 14,
-   "overallRank": 11,
-   "cityRank": 8,
+   "rank": 13,
+   "overallRank": 10,
+   "cityRank": 7,
    "eligible": true,
    "finalScore": 191.7,
    "exclusionReason": null,
@@ -324,8 +301,8 @@
   },
   {
    "key": "quintoandar:893560095",
-   "rank": 15,
-   "overallRank": 12,
+   "rank": 14,
+   "overallRank": 11,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 191.5,
@@ -338,6 +315,29 @@
    "noParking": false,
    "greenTags": [
     "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2904939900",
+   "rank": 15,
+   "overallRank": 12,
+   "cityRank": 8,
+   "eligible": true,
+   "finalScore": 191.1,
+   "exclusionReason": null,
+   "totalMonthly": 5465,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto (21º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
    ],
    "redTags": [
     "Sem ar-condicionado"
@@ -373,31 +373,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2896936974",
+   "key": "quintoandar:892929947",
    "rank": 17,
    "overallRank": 14,
    "cityRank": 10,
-   "eligible": true,
-   "finalScore": 188.1,
-   "exclusionReason": null,
-   "totalMonthly": 5603,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (23º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:892929947",
-   "rank": 18,
-   "overallRank": 15,
-   "cityRank": 11,
    "eligible": true,
    "finalScore": 185.4,
    "exclusionReason": null,
@@ -418,31 +397,8 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895346767",
-   "rank": 19,
-   "overallRank": 16,
-   "cityRank": 12,
-   "eligible": true,
-   "finalScore": 181.2,
-   "exclusionReason": null,
-   "totalMonthly": 5399,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Cobertura",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [],
-   "warningTags": [
-    "AC não confirmado"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:893334030",
-   "rank": 20,
+   "rank": 18,
    "overallRank": null,
    "cityRank": 3,
    "eligible": true,
@@ -463,8 +419,8 @@
   },
   {
    "key": "zapimoveis:2909939228",
-   "rank": 21,
-   "overallRank": 17,
+   "rank": 19,
+   "overallRank": 15,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 180.9,
@@ -484,49 +440,20 @@
    "alsoListedOn": []
   },
   {
-   "key": "vivareal:2888174381",
-   "rank": 22,
-   "overallRank": 18,
-   "cityRank": 13,
+   "key": "zapimoveis:2896936974",
+   "rank": 20,
+   "overallRank": 16,
+   "cityRank": 11,
    "eligible": true,
-   "finalScore": 179.6,
+   "finalScore": 179.1,
    "exclusionReason": null,
-   "totalMonthly": 6642,
+   "totalMonthly": 5603,
    "furnitureTier": "UNFURNISHED",
    "modernityTier": "MODERN_OR_RENOVATED",
    "acLabel": null,
-   "floorTag": "Último andar (16º andar)",
+   "floorTag": "Andar alto (23º andar)",
    "noParking": false,
-   "greenTags": [
-    "Torre única / Reservado"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [
-    "Também anunciado em Zap Imóveis"
-   ],
-   "alsoListedOn": [
-    "zapimoveis:2916846436"
-   ]
-  },
-  {
-   "key": "quintoandar:895199327",
-   "rank": 23,
-   "overallRank": 19,
-   "cityRank": 14,
-   "eligible": true,
-   "finalScore": 179,
-   "exclusionReason": null,
-   "totalMonthly": 4480,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": "Andar médio (4º–7º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
+   "greenTags": [],
    "redTags": [
     "Sem ar-condicionado"
    ],
@@ -535,7 +462,7 @@
   },
   {
    "key": "quintoandar:894481887",
-   "rank": 24,
+   "rank": 21,
    "overallRank": null,
    "cityRank": 4,
    "eligible": true,
@@ -557,8 +484,31 @@
    "alsoListedOn": []
   },
   {
+   "key": "quintoandar:895346767",
+   "rank": 22,
+   "overallRank": 17,
+   "cityRank": 12,
+   "eligible": true,
+   "finalScore": 176.4,
+   "exclusionReason": null,
+   "totalMonthly": 5399,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Cobertura",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não confirmado"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "quintoandar:895151272",
-   "rank": 25,
+   "rank": 23,
    "overallRank": null,
    "cityRank": 5,
    "eligible": true,
@@ -580,8 +530,31 @@
    "alsoListedOn": []
   },
   {
+   "key": "quintoandar:895199327",
+   "rank": 24,
+   "overallRank": 18,
+   "cityRank": 13,
+   "eligible": true,
+   "finalScore": 173.9,
+   "exclusionReason": null,
+   "totalMonthly": 4480,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": "Andar médio (4º–7º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2894633320",
-   "rank": 26,
+   "rank": 25,
    "overallRank": null,
    "cityRank": 6,
    "eligible": true,
@@ -604,9 +577,9 @@
   },
   {
    "key": "zapimoveis:2913622618",
-   "rank": 27,
-   "overallRank": 20,
-   "cityRank": 15,
+   "rank": 26,
+   "overallRank": 19,
+   "cityRank": 14,
    "eligible": true,
    "finalScore": 172.7,
    "exclusionReason": null,
@@ -626,6 +599,33 @@
     "Layout studio / kitnet"
    ],
    "alsoListedOn": []
+  },
+  {
+   "key": "vivareal:2888174381",
+   "rank": 27,
+   "overallRank": 20,
+   "cityRank": 15,
+   "eligible": true,
+   "finalScore": 170.6,
+   "exclusionReason": null,
+   "totalMonthly": 6642,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Último andar (16º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Torre única / Reservado"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Também anunciado em Zap Imóveis"
+   ],
+   "alsoListedOn": [
+    "zapimoveis:2916846436"
+   ]
   },
   {
    "key": "quintoandar:895648124",
@@ -698,30 +698,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2874880320",
+   "key": "quintoandar:895457307",
    "rank": 31,
    "overallRank": 23,
-   "cityRank": 17,
-   "eligible": true,
-   "finalScore": 168.5,
-   "exclusionReason": null,
-   "totalMonthly": 6024,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": "Andar médio (7º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [],
-   "warningTags": [
-    "AC não confirmado"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:895457307",
-   "rank": 32,
-   "overallRank": 24,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 168.5,
@@ -745,7 +724,7 @@
   },
   {
    "key": "quintoandar:893942416",
-   "rank": 33,
+   "rank": 32,
    "overallRank": null,
    "cityRank": 8,
    "eligible": true,
@@ -769,8 +748,8 @@
   },
   {
    "key": "quintoandar:893333011",
-   "rank": 34,
-   "overallRank": 25,
+   "rank": 33,
+   "overallRank": 24,
    "cityRank": 6,
    "eligible": true,
    "finalScore": 162.5,
@@ -794,8 +773,8 @@
   },
   {
    "key": "quintoandar:895560013",
-   "rank": 35,
-   "overallRank": 26,
+   "rank": 34,
+   "overallRank": 25,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 162.4,
@@ -819,8 +798,8 @@
   },
   {
    "key": "zapimoveis:2914707936",
-   "rank": 36,
-   "overallRank": 27,
+   "rank": 35,
+   "overallRank": 26,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 161.8,
@@ -846,9 +825,9 @@
   },
   {
    "key": "quintoandar:895372544",
-   "rank": 37,
-   "overallRank": 28,
-   "cityRank": 18,
+   "rank": 36,
+   "overallRank": 27,
+   "cityRank": 17,
    "eligible": true,
    "finalScore": 161,
    "exclusionReason": null,
@@ -870,8 +849,8 @@
   },
   {
    "key": "zapimoveis:2902255224",
-   "rank": 38,
-   "overallRank": 29,
+   "rank": 37,
+   "overallRank": 28,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 159.5,
@@ -893,6 +872,27 @@
    "alsoListedOn": [
     "quintoandar:121838313"
    ]
+  },
+  {
+   "key": "zapimoveis:2874880320",
+   "rank": 38,
+   "overallRank": 29,
+   "cityRank": 18,
+   "eligible": true,
+   "finalScore": 159.5,
+   "exclusionReason": null,
+   "totalMonthly": 6024,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": "Andar médio (7º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [],
+   "warningTags": [
+    "AC não confirmado"
+   ],
+   "alsoListedOn": []
   },
   {
    "key": "quintoandar:895618788",
@@ -920,34 +920,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2916846436",
+   "key": "zapimoveis:2915407598",
    "rank": 40,
    "overallRank": 31,
-   "cityRank": 19,
-   "eligible": true,
-   "finalScore": 157.7,
-   "exclusionReason": null,
-   "totalMonthly": 6641,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": "Último andar (16º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [
-    "Também anunciado em VivaReal"
-   ],
-   "alsoListedOn": [
-    "vivareal:2888174381"
-   ]
-  },
-  {
-   "key": "zapimoveis:2915407598",
-   "rank": 41,
-   "overallRank": 32,
    "cityRank": 6,
    "eligible": true,
    "finalScore": 157.5,
@@ -971,8 +946,8 @@
   },
   {
    "key": "zapimoveis:2894838518",
-   "rank": 42,
-   "overallRank": 33,
+   "rank": 41,
+   "overallRank": 32,
    "cityRank": 7,
    "eligible": true,
    "finalScore": 156.5,
@@ -995,9 +970,9 @@
   },
   {
    "key": "zapimoveis:2913945774",
-   "rank": 43,
-   "overallRank": 34,
-   "cityRank": 20,
+   "rank": 42,
+   "overallRank": 33,
+   "cityRank": 19,
    "eligible": true,
    "finalScore": 156.1,
    "exclusionReason": null,
@@ -1016,34 +991,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:894349167",
-   "rank": 44,
-   "overallRank": 35,
-   "cityRank": 8,
-   "eligible": true,
-   "finalScore": 153.5,
-   "exclusionReason": null,
-   "totalMonthly": 4751,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": "Ar-condicionado Split",
-   "floorTag": "Andar alto (12º–15º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado Split",
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Megacondomínio"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:895696163",
-   "rank": 45,
-   "overallRank": 36,
-   "cityRank": 21,
+   "rank": 43,
+   "overallRank": 34,
+   "cityRank": 20,
    "eligible": true,
    "finalScore": 151,
    "exclusionReason": null,
@@ -1066,9 +1017,9 @@
   },
   {
    "key": "quintoandar:895020185",
-   "rank": 46,
-   "overallRank": 37,
-   "cityRank": 9,
+   "rank": 44,
+   "overallRank": 35,
+   "cityRank": 8,
    "eligible": true,
    "finalScore": 150.6,
    "exclusionReason": null,
@@ -1088,33 +1039,33 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2915780889",
-   "rank": 47,
-   "overallRank": 38,
-   "cityRank": 22,
+   "key": "zapimoveis:2916846436",
+   "rank": 45,
+   "overallRank": 36,
+   "cityRank": 21,
    "eligible": true,
-   "finalScore": 148,
+   "finalScore": 148.7,
    "exclusionReason": null,
-   "totalMonthly": 5603,
+   "totalMonthly": 6641,
    "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
+   "modernityTier": "WELL_MAINTAINED",
    "acLabel": null,
-   "floorTag": "Andar alto (23º andar)",
+   "floorTag": "Último andar (16º andar)",
    "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
+   "greenTags": [],
    "redTags": [
     "Sem ar-condicionado"
    ],
    "warningTags": [
-    "Preço divergente na descrição"
+    "Também anunciado em VivaReal"
    ],
-   "alsoListedOn": []
+   "alsoListedOn": [
+    "vivareal:2888174381"
+   ]
   },
   {
    "key": "quintoandar:895650546",
-   "rank": 48,
+   "rank": 46,
    "overallRank": null,
    "cityRank": 9,
    "eligible": true,
@@ -1136,9 +1087,9 @@
   },
   {
    "key": "quintoandar:895748989",
-   "rank": 49,
-   "overallRank": 39,
-   "cityRank": 10,
+   "rank": 47,
+   "overallRank": 37,
+   "cityRank": 9,
    "eligible": true,
    "finalScore": 145.4,
    "exclusionReason": null,
@@ -1159,9 +1110,9 @@
   },
   {
    "key": "quintoandar:895362019",
-   "rank": 50,
-   "overallRank": 40,
-   "cityRank": 23,
+   "rank": 48,
+   "overallRank": 38,
+   "cityRank": 22,
    "eligible": true,
    "finalScore": 145.1,
    "exclusionReason": null,
@@ -1182,7 +1133,7 @@
   },
   {
    "key": "zapimoveis:2917677059",
-   "rank": 51,
+   "rank": 49,
    "overallRank": null,
    "cityRank": 10,
    "eligible": true,
@@ -1203,8 +1154,8 @@
   },
   {
    "key": "quintoandar:893342216",
-   "rank": 52,
-   "overallRank": 41,
+   "rank": 50,
+   "overallRank": 39,
    "cityRank": 8,
    "eligible": true,
    "finalScore": 142.5,
@@ -1234,7 +1185,7 @@
   },
   {
    "key": "zapimoveis:2916854857",
-   "rank": 53,
+   "rank": 51,
    "overallRank": null,
    "cityRank": 11,
    "eligible": true,
@@ -1255,7 +1206,7 @@
   },
   {
    "key": "zapimoveis:2915626345",
-   "rank": 54,
+   "rank": 52,
    "overallRank": null,
    "cityRank": 12,
    "eligible": true,
@@ -1276,9 +1227,34 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2915780889",
+   "rank": 53,
+   "overallRank": 40,
+   "cityRank": 23,
+   "eligible": true,
+   "finalScore": 139,
+   "exclusionReason": null,
+   "totalMonthly": 5603,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar alto (23º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Preço divergente na descrição"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "vivareal:2793048516",
-   "rank": 55,
-   "overallRank": 42,
+   "rank": 54,
+   "overallRank": 41,
    "cityRank": 24,
    "eligible": true,
    "finalScore": 137.8,
@@ -1301,55 +1277,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2906460713",
-   "rank": 56,
-   "overallRank": 43,
-   "cityRank": 25,
-   "eligible": true,
-   "finalScore": 134.7,
-   "exclusionReason": null,
-   "totalMonthly": 4040,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": "Andar médio (6º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [
-    "Layout studio / kitnet"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:895752152",
-   "rank": 57,
-   "overallRank": 44,
-   "cityRank": 11,
-   "eligible": true,
-   "finalScore": 133.5,
-   "exclusionReason": null,
-   "totalMonthly": 4736,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "zapimoveis:2860102305",
-   "rank": 58,
-   "overallRank": 45,
-   "cityRank": 12,
+   "rank": 55,
+   "overallRank": 42,
+   "cityRank": 10,
    "eligible": true,
    "finalScore": 133.4,
    "exclusionReason": null,
@@ -1370,10 +1301,34 @@
    "alsoListedOn": []
   },
   {
+   "key": "quintoandar:894349167",
+   "rank": 56,
+   "overallRank": 43,
+   "cityRank": 11,
+   "eligible": true,
+   "finalScore": 131.8,
+   "exclusionReason": null,
+   "totalMonthly": 4751,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": "Ar-condicionado Split",
+   "floorTag": "Andar alto (12º–15º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado Split",
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Megacondomínio"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
    "key": "netimoveis:712491",
-   "rank": 59,
-   "overallRank": 46,
-   "cityRank": 26,
+   "rank": 57,
+   "overallRank": 44,
+   "cityRank": 25,
    "eligible": true,
    "finalScore": 128.1,
    "exclusionReason": null,
@@ -1393,9 +1348,9 @@
   },
   {
    "key": "quintoandar:121838313",
-   "rank": 60,
-   "overallRank": 47,
-   "cityRank": 13,
+   "rank": 58,
+   "overallRank": 45,
+   "cityRank": 12,
    "eligible": true,
    "finalScore": 125.8,
    "exclusionReason": null,
@@ -1417,8 +1372,32 @@
    ]
   },
   {
+   "key": "zapimoveis:2906460713",
+   "rank": 59,
+   "overallRank": 46,
+   "cityRank": 26,
+   "eligible": true,
+   "finalScore": 125.7,
+   "exclusionReason": null,
+   "totalMonthly": 4040,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": "Andar médio (6º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
+   ],
+   "warningTags": [
+    "Layout studio / kitnet"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2910142420",
-   "rank": 61,
+   "rank": 60,
    "overallRank": null,
    "cityRank": 13,
    "eligible": true,
@@ -1439,8 +1418,8 @@
   },
   {
    "key": "quintoandar:892873059",
-   "rank": 62,
-   "overallRank": 48,
+   "rank": 61,
+   "overallRank": 47,
    "cityRank": 9,
    "eligible": true,
    "finalScore": 121.5,
@@ -1462,8 +1441,8 @@
   },
   {
    "key": "zapimoveis:2916153879",
-   "rank": 63,
-   "overallRank": 49,
+   "rank": 62,
+   "overallRank": 48,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 121.4,
@@ -1483,9 +1462,9 @@
   },
   {
    "key": "zapimoveis:2917433879",
-   "rank": 64,
-   "overallRank": 50,
-   "cityRank": 14,
+   "rank": 63,
+   "overallRank": 49,
+   "cityRank": 13,
    "eligible": true,
    "finalScore": 119.6,
    "exclusionReason": null,
@@ -1507,8 +1486,8 @@
   },
   {
    "key": "zapimoveis:2904667213",
-   "rank": 65,
-   "overallRank": 51,
+   "rank": 64,
+   "overallRank": 50,
    "cityRank": 10,
    "eligible": true,
    "finalScore": 118.9,
@@ -1528,9 +1507,9 @@
   },
   {
    "key": "zapimoveis:2915392443",
-   "rank": 66,
-   "overallRank": 52,
-   "cityRank": 15,
+   "rank": 65,
+   "overallRank": 51,
+   "cityRank": 14,
    "eligible": true,
    "finalScore": 118.4,
    "exclusionReason": null,
@@ -1551,34 +1530,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895785475",
-   "rank": 67,
-   "overallRank": 53,
-   "cityRank": 11,
-   "eligible": true,
-   "finalScore": 118,
-   "exclusionReason": null,
-   "totalMonthly": 4383,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar médio (4º–7º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [
-    "Perto de hospital (sirenes)"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:895706010",
-   "rank": 68,
-   "overallRank": 54,
+   "rank": 66,
+   "overallRank": 52,
    "cityRank": 27,
    "eligible": true,
    "finalScore": 117.2,
@@ -1603,8 +1557,8 @@
   },
   {
    "key": "zapimoveis:2876293020",
-   "rank": 69,
-   "overallRank": 55,
+   "rank": 67,
+   "overallRank": 53,
    "cityRank": 28,
    "eligible": true,
    "finalScore": 116.1,
@@ -1626,9 +1580,34 @@
    "alsoListedOn": []
   },
   {
+   "key": "quintoandar:895785475",
+   "rank": 68,
+   "overallRank": 54,
+   "cityRank": 11,
+   "eligible": true,
+   "finalScore": 116,
+   "exclusionReason": null,
+   "totalMonthly": 4383,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar médio (4º–7º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Perto de hospital (sirenes)"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "quintoandar:895712853",
-   "rank": 70,
-   "overallRank": 56,
+   "rank": 69,
+   "overallRank": 55,
    "cityRank": 12,
    "eligible": true,
    "finalScore": 114.2,
@@ -1651,35 +1630,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "imovelweb:3046317057",
-   "rank": 71,
-   "overallRank": 57,
-   "cityRank": 29,
-   "eligible": true,
-   "finalScore": 114.1,
-   "exclusionReason": null,
-   "totalMonthly": 6560,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [
-    "Vagas em linha"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "vivareal:2898578258",
-   "rank": 72,
-   "overallRank": 58,
+   "rank": 70,
+   "overallRank": 56,
    "cityRank": 13,
    "eligible": true,
    "finalScore": 113.9,
@@ -1701,8 +1654,8 @@
   },
   {
    "key": "quintoandar:895412768",
-   "rank": 73,
-   "overallRank": 59,
+   "rank": 71,
+   "overallRank": 57,
    "cityRank": 14,
    "eligible": true,
    "finalScore": 113.2,
@@ -1728,9 +1681,30 @@
    ]
   },
   {
+   "key": "quintoandar:895752152",
+   "rank": 72,
+   "overallRank": 58,
+   "cityRank": 15,
+   "eligible": true,
+   "finalScore": 111.8,
+   "exclusionReason": null,
+   "totalMonthly": 4736,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2869993530",
-   "rank": 74,
-   "overallRank": 60,
+   "rank": 73,
+   "overallRank": 59,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 111.4,
@@ -1753,9 +1727,9 @@
   },
   {
    "key": "zapimoveis:2906497144",
-   "rank": 75,
-   "overallRank": 61,
-   "cityRank": 30,
+   "rank": 74,
+   "overallRank": 60,
+   "cityRank": 29,
    "eligible": true,
    "finalScore": 111.2,
    "exclusionReason": null,
@@ -1776,8 +1750,8 @@
   },
   {
    "key": "zapimoveis:2912616636",
-   "rank": 76,
-   "overallRank": 62,
+   "rank": 75,
+   "overallRank": 61,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 110.9,
@@ -1799,8 +1773,8 @@
   },
   {
    "key": "zapimoveis:2916427741",
-   "rank": 77,
-   "overallRank": 63,
+   "rank": 76,
+   "overallRank": 62,
    "cityRank": 15,
    "eligible": true,
    "finalScore": 110.4,
@@ -1825,8 +1799,8 @@
   },
   {
    "key": "zapimoveis:2917527250",
-   "rank": 78,
-   "overallRank": 64,
+   "rank": 77,
+   "overallRank": 63,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 109.6,
@@ -1848,8 +1822,8 @@
   },
   {
    "key": "vivareal:2901017313",
-   "rank": 79,
-   "overallRank": 65,
+   "rank": 78,
+   "overallRank": 64,
    "cityRank": 16,
    "eligible": true,
    "finalScore": 108.5,
@@ -1878,8 +1852,8 @@
   },
   {
    "key": "quintoandar:893240454",
-   "rank": 80,
-   "overallRank": 66,
+   "rank": 79,
+   "overallRank": 65,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 108,
@@ -1903,9 +1877,9 @@
   },
   {
    "key": "zapimoveis:2912062729",
-   "rank": 81,
-   "overallRank": 67,
-   "cityRank": 31,
+   "rank": 80,
+   "overallRank": 66,
+   "cityRank": 30,
    "eligible": true,
    "finalScore": 107.8,
    "exclusionReason": null,
@@ -1926,8 +1900,8 @@
   },
   {
    "key": "quintoandar:894664935",
-   "rank": 82,
-   "overallRank": 68,
+   "rank": 81,
+   "overallRank": 67,
    "cityRank": 17,
    "eligible": true,
    "finalScore": 107.2,
@@ -1952,8 +1926,8 @@
   },
   {
    "key": "quintoandar:121484164",
-   "rank": 83,
-   "overallRank": 69,
+   "rank": 82,
+   "overallRank": 68,
    "cityRank": 18,
    "eligible": true,
    "finalScore": 106.6,
@@ -1975,9 +1949,9 @@
   },
   {
    "key": "zapimoveis:2883684497",
-   "rank": 84,
-   "overallRank": 70,
-   "cityRank": 32,
+   "rank": 83,
+   "overallRank": 69,
+   "cityRank": 31,
    "eligible": true,
    "finalScore": 105.2,
    "exclusionReason": null,
@@ -1994,6 +1968,32 @@
     "Sem ar-condicionado"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "imovelweb:3046317057",
+   "rank": 84,
+   "overallRank": 70,
+   "cityRank": 32,
+   "eligible": true,
+   "finalScore": 105.1,
+   "exclusionReason": null,
+   "totalMonthly": 6560,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
+   ],
+   "warningTags": [
+    "Vagas em linha"
+   ],
    "alsoListedOn": []
   },
   {
@@ -2687,12 +2687,33 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:894822323",
+   "key": "zapimoveis:2788387634",
    "rank": 115,
    "overallRank": 98,
+   "cityRank": 8,
+   "eligible": true,
+   "finalScore": 56.2,
+   "exclusionReason": null,
+   "totalMonthly": 6833,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar alto (9º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:894822323",
+   "rank": 116,
+   "overallRank": 99,
    "cityRank": 30,
    "eligible": true,
-   "finalScore": 57.2,
+   "finalScore": 55.2,
    "exclusionReason": null,
    "totalMonthly": 4616,
    "furnitureTier": "UNFURNISHED",
@@ -2709,27 +2730,6 @@
    "warningTags": [
     "Perto de hospital (sirenes)"
    ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2788387634",
-   "rank": 116,
-   "overallRank": 99,
-   "cityRank": 8,
-   "eligible": true,
-   "finalScore": 56.2,
-   "exclusionReason": null,
-   "totalMonthly": 6833,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar alto (9º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
    "alsoListedOn": []
   },
   {
@@ -2758,33 +2758,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895259698",
+   "key": "vivareal:2896846775",
    "rank": 118,
    "overallRank": 101,
-   "cityRank": 41,
-   "eligible": true,
-   "finalScore": 49.6,
-   "exclusionReason": null,
-   "totalMonthly": 5564,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar baixo (1º–3º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "vivareal:2896846775",
-   "rank": 119,
-   "overallRank": 102,
    "cityRank": 32,
    "eligible": true,
    "finalScore": 46.8,
@@ -2805,9 +2781,9 @@
   },
   {
    "key": "quintoandar:894978734",
-   "rank": 120,
-   "overallRank": 103,
-   "cityRank": 42,
+   "rank": 119,
+   "overallRank": 102,
+   "cityRank": 41,
    "eligible": true,
    "finalScore": 44.7,
    "exclusionReason": null,
@@ -2829,8 +2805,8 @@
   },
   {
    "key": "quintoandar:894414169",
-   "rank": 121,
-   "overallRank": 104,
+   "rank": 120,
+   "overallRank": 103,
    "cityRank": 22,
    "eligible": true,
    "finalScore": 43.8,
@@ -2848,6 +2824,30 @@
    "warningTags": [
     "Mobília divergente — confirmar"
    ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:895259698",
+   "rank": 121,
+   "overallRank": 104,
+   "cityRank": 42,
+   "eligible": true,
+   "finalScore": 40.6,
+   "exclusionReason": null,
+   "totalMonthly": 5564,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar baixo (1º–3º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
+   ],
+   "warningTags": [],
    "alsoListedOn": []
   },
   {
@@ -2959,7 +2959,7 @@
    "overallRank": null,
    "cityRank": null,
    "eligible": true,
-   "finalScore": 16.1,
+   "finalScore": 19.7,
    "exclusionReason": null,
    "totalMonthly": 3525,
    "furnitureTier": "UNFURNISHED",
@@ -4433,35 +4433,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2903789730",
+   "key": "zapimoveis:2863444363",
    "rank": 11,
    "overallRank": 10,
    "cityRank": 5,
-   "eligible": true,
-   "finalScore": 194.4,
-   "exclusionReason": null,
-   "totalMonthly": 5156,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (11º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [
-    "Preço divergente na descrição"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2863444363",
-   "rank": 12,
-   "overallRank": 11,
-   "cityRank": 6,
    "eligible": true,
    "finalScore": 190.8,
    "exclusionReason": null,
@@ -4482,32 +4457,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2904939900",
-   "rank": 13,
-   "overallRank": 12,
-   "cityRank": 7,
-   "eligible": true,
-   "finalScore": 190.1,
-   "exclusionReason": null,
-   "totalMonthly": 5465,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (21º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:893560095",
-   "rank": 14,
-   "overallRank": 13,
+   "rank": 12,
+   "overallRank": 11,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 187.3,
@@ -4528,57 +4480,34 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2896936974",
-   "rank": 15,
-   "overallRank": 14,
-   "cityRank": 8,
+   "key": "zapimoveis:2903789730",
+   "rank": 13,
+   "overallRank": 12,
+   "cityRank": 6,
    "eligible": true,
    "finalScore": 186.1,
    "exclusionReason": null,
-   "totalMonthly": 5603,
+   "totalMonthly": 5156,
    "furnitureTier": "UNFURNISHED",
    "modernityTier": "MODERN_OR_RENOVATED",
    "acLabel": null,
-   "floorTag": "Andar alto (23º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "vivareal:2888174381",
-   "rank": 16,
-   "overallRank": 15,
-   "cityRank": 9,
-   "eligible": true,
-   "finalScore": 185.6,
-   "exclusionReason": null,
-   "totalMonthly": 6642,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Último andar (16º andar)",
+   "floorTag": "Andar alto (11º andar)",
    "noParking": false,
    "greenTags": [
-    "Torre única / Reservado"
+    "Vista livre"
    ],
    "redTags": [
     "Sem ar-condicionado"
    ],
    "warningTags": [
-    "Também anunciado em Zap Imóveis"
+    "Preço divergente na descrição"
    ],
-   "alsoListedOn": [
-    "zapimoveis:2916846436"
-   ]
+   "alsoListedOn": []
   },
   {
    "key": "quintoandar:893334030",
-   "rank": 17,
-   "overallRank": 16,
+   "rank": 14,
+   "overallRank": 13,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 185.3,
@@ -4598,9 +4527,9 @@
   },
   {
    "key": "quintoandar:895651295",
-   "rank": 18,
-   "overallRank": 17,
-   "cityRank": 10,
+   "rank": 15,
+   "overallRank": 14,
+   "cityRank": 7,
    "eligible": true,
    "finalScore": 185.3,
    "exclusionReason": null,
@@ -4625,8 +4554,8 @@
   },
   {
    "key": "zapimoveis:2909939228",
-   "rank": 19,
-   "overallRank": 18,
+   "rank": 16,
+   "overallRank": 15,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 184.3,
@@ -4646,21 +4575,21 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895199327",
-   "rank": 20,
-   "overallRank": 19,
-   "cityRank": 11,
+   "key": "zapimoveis:2904939900",
+   "rank": 17,
+   "overallRank": 16,
+   "cityRank": 8,
    "eligible": true,
-   "finalScore": 183.1,
+   "finalScore": 181.8,
    "exclusionReason": null,
-   "totalMonthly": 4480,
+   "totalMonthly": 5465,
    "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
+   "modernityTier": "MODERN_OR_RENOVATED",
    "acLabel": null,
-   "floorTag": "Andar médio (4º–7º andar)",
+   "floorTag": "Andar alto (21º andar)",
    "noParking": false,
    "greenTags": [
-    "Sol da manhã"
+    "Vista livre"
    ],
    "redTags": [
     "Sem ar-condicionado"
@@ -4670,8 +4599,8 @@
   },
   {
    "key": "quintoandar:894481887",
-   "rank": 21,
-   "overallRank": 20,
+   "rank": 18,
+   "overallRank": 17,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 180,
@@ -4693,9 +4622,9 @@
   },
   {
    "key": "zapimoveis:2914985229",
-   "rank": 22,
-   "overallRank": 21,
-   "cityRank": 12,
+   "rank": 19,
+   "overallRank": 18,
+   "cityRank": 9,
    "eligible": true,
    "finalScore": 179.8,
    "exclusionReason": null,
@@ -4711,6 +4640,77 @@
    ],
    "warningTags": [],
    "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:895199327",
+   "rank": 20,
+   "overallRank": 19,
+   "cityRank": 10,
+   "eligible": true,
+   "finalScore": 178.5,
+   "exclusionReason": null,
+   "totalMonthly": 4480,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": "Andar médio (4º–7º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2896936974",
+   "rank": 21,
+   "overallRank": 20,
+   "cityRank": 11,
+   "eligible": true,
+   "finalScore": 177.8,
+   "exclusionReason": null,
+   "totalMonthly": 5603,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto (23º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "vivareal:2888174381",
+   "rank": 22,
+   "overallRank": 21,
+   "cityRank": 12,
+   "eligible": true,
+   "finalScore": 177.3,
+   "exclusionReason": null,
+   "totalMonthly": 6642,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Último andar (16º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Torre única / Reservado"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Também anunciado em Zap Imóveis"
+   ],
+   "alsoListedOn": [
+    "zapimoveis:2916846436"
+   ]
   },
   {
    "key": "zapimoveis:2894633320",
@@ -4781,32 +4781,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895346767",
+   "key": "quintoandar:893942416",
    "rank": 26,
    "overallRank": 25,
-   "cityRank": 14,
-   "eligible": true,
-   "finalScore": 168.9,
-   "exclusionReason": null,
-   "totalMonthly": 5399,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Cobertura",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [],
-   "warningTags": [
-    "AC não confirmado"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:893942416",
-   "rank": 27,
-   "overallRank": 26,
    "cityRank": 7,
    "eligible": true,
    "finalScore": 167.3,
@@ -4829,8 +4806,8 @@
   },
   {
    "key": "zapimoveis:2914707936",
-   "rank": 28,
-   "overallRank": 27,
+   "rank": 27,
+   "overallRank": 26,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 166.8,
@@ -4855,20 +4832,22 @@
    ]
   },
   {
-   "key": "zapimoveis:2874880320",
-   "rank": 29,
-   "overallRank": 28,
-   "cityRank": 15,
+   "key": "quintoandar:895346767",
+   "rank": 28,
+   "overallRank": 27,
+   "cityRank": 14,
    "eligible": true,
-   "finalScore": 166.5,
+   "finalScore": 164.4,
    "exclusionReason": null,
-   "totalMonthly": 6024,
+   "totalMonthly": 5399,
    "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
+   "modernityTier": "STANDARD",
    "acLabel": null,
-   "floorTag": "Andar médio (7º andar)",
+   "floorTag": "Cobertura",
    "noParking": false,
-   "greenTags": [],
+   "greenTags": [
+    "Sol da manhã"
+   ],
    "redTags": [],
    "warningTags": [
     "AC não confirmado"
@@ -4876,34 +4855,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2916846436",
-   "rank": 30,
-   "overallRank": 29,
-   "cityRank": 16,
-   "eligible": true,
-   "finalScore": 163.7,
-   "exclusionReason": null,
-   "totalMonthly": 6641,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": "Último andar (16º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [
-    "Também anunciado em VivaReal"
-   ],
-   "alsoListedOn": [
-    "vivareal:2888174381"
-   ]
-  },
-  {
    "key": "quintoandar:895151272",
-   "rank": 31,
-   "overallRank": 30,
+   "rank": 29,
+   "overallRank": 28,
    "cityRank": 8,
    "eligible": true,
    "finalScore": 163.4,
@@ -4925,8 +4879,8 @@
   },
   {
    "key": "zapimoveis:2915407598",
-   "rank": 32,
-   "overallRank": 31,
+   "rank": 30,
+   "overallRank": 29,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 162.6,
@@ -4950,8 +4904,8 @@
   },
   {
    "key": "zapimoveis:2902255224",
-   "rank": 33,
-   "overallRank": 32,
+   "rank": 31,
+   "overallRank": 30,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 160.9,
@@ -4976,8 +4930,8 @@
   },
   {
    "key": "zapimoveis:2894838518",
-   "rank": 34,
-   "overallRank": 33,
+   "rank": 32,
+   "overallRank": 31,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 159.6,
@@ -5000,8 +4954,8 @@
   },
   {
    "key": "quintoandar:895560013",
-   "rank": 35,
-   "overallRank": 34,
+   "rank": 33,
+   "overallRank": 32,
    "cityRank": 6,
    "eligible": true,
    "finalScore": 159.5,
@@ -5025,8 +4979,8 @@
   },
   {
    "key": "quintoandar:895648124",
-   "rank": 36,
-   "overallRank": 35,
+   "rank": 34,
+   "overallRank": 33,
    "cityRank": 7,
    "eligible": true,
    "finalScore": 159.4,
@@ -5050,10 +5004,31 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2874880320",
+   "rank": 35,
+   "overallRank": 34,
+   "cityRank": 15,
+   "eligible": true,
+   "finalScore": 158.2,
+   "exclusionReason": null,
+   "totalMonthly": 6024,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": "Andar médio (7º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [],
+   "warningTags": [
+    "AC não confirmado"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2896416016",
-   "rank": 37,
-   "overallRank": 36,
-   "cityRank": 17,
+   "rank": 36,
+   "overallRank": 35,
+   "cityRank": 16,
    "eligible": true,
    "finalScore": 155.9,
    "exclusionReason": null,
@@ -5071,6 +5046,31 @@
    ],
    "warningTags": [],
    "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2916846436",
+   "rank": 37,
+   "overallRank": 36,
+   "cityRank": 17,
+   "eligible": true,
+   "finalScore": 155.4,
+   "exclusionReason": null,
+   "totalMonthly": 6641,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": "Último andar (16º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Também anunciado em VivaReal"
+   ],
+   "alsoListedOn": [
+    "vivareal:2888174381"
+   ]
   },
   {
    "key": "quintoandar:895457307",
@@ -5123,33 +5123,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:894349167",
+   "key": "zapimoveis:2917677059",
    "rank": 40,
    "overallRank": 39,
-   "cityRank": 8,
-   "eligible": true,
-   "finalScore": 149.5,
-   "exclusionReason": null,
-   "totalMonthly": 4751,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": "Ar-condicionado Split",
-   "floorTag": "Andar alto (12º–15º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado Split",
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Megacondomínio"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2917677059",
-   "rank": 41,
-   "overallRank": 40,
    "cityRank": 9,
    "eligible": true,
    "finalScore": 148.5,
@@ -5169,9 +5145,9 @@
   },
   {
    "key": "quintoandar:895748989",
-   "rank": 42,
-   "overallRank": 41,
-   "cityRank": 9,
+   "rank": 41,
+   "overallRank": 40,
+   "cityRank": 8,
    "eligible": true,
    "finalScore": 148.4,
    "exclusionReason": null,
@@ -5192,8 +5168,8 @@
   },
   {
    "key": "quintoandar:895362019",
-   "rank": 43,
-   "overallRank": 42,
+   "rank": 42,
+   "overallRank": 41,
    "cityRank": 19,
    "eligible": true,
    "finalScore": 147.2,
@@ -5215,8 +5191,8 @@
   },
   {
    "key": "quintoandar:895696163",
-   "rank": 44,
-   "overallRank": 43,
+   "rank": 43,
+   "overallRank": 42,
    "cityRank": 20,
    "eligible": true,
    "finalScore": 146.1,
@@ -5239,34 +5215,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2915780889",
-   "rank": 45,
-   "overallRank": 44,
-   "cityRank": 21,
-   "eligible": true,
-   "finalScore": 146,
-   "exclusionReason": null,
-   "totalMonthly": 5603,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar alto (23º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [
-    "Preço divergente na descrição"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:895618788",
-   "rank": 46,
-   "overallRank": 45,
+   "rank": 44,
+   "overallRank": 43,
    "cityRank": 6,
    "eligible": true,
    "finalScore": 145.3,
@@ -5290,9 +5241,9 @@
   },
   {
    "key": "zapimoveis:2913945774",
-   "rank": 47,
-   "overallRank": 46,
-   "cityRank": 22,
+   "rank": 45,
+   "overallRank": 44,
+   "cityRank": 21,
    "eligible": true,
    "finalScore": 144.5,
    "exclusionReason": null,
@@ -5312,8 +5263,8 @@
   },
   {
    "key": "quintoandar:895650546",
-   "rank": 48,
-   "overallRank": 47,
+   "rank": 46,
+   "overallRank": 45,
    "cityRank": 10,
    "eligible": true,
    "finalScore": 143.5,
@@ -5334,8 +5285,8 @@
   },
   {
    "key": "quintoandar:893333011",
-   "rank": 49,
-   "overallRank": 48,
+   "rank": 47,
+   "overallRank": 46,
    "cityRank": 7,
    "eligible": true,
    "finalScore": 143.1,
@@ -5359,8 +5310,8 @@
   },
   {
    "key": "zapimoveis:2916854857",
-   "rank": 50,
-   "overallRank": 49,
+   "rank": 48,
+   "overallRank": 47,
    "cityRank": 11,
    "eligible": true,
    "finalScore": 142.5,
@@ -5380,9 +5331,9 @@
   },
   {
    "key": "quintoandar:895372544",
-   "rank": 51,
-   "overallRank": 50,
-   "cityRank": 23,
+   "rank": 49,
+   "overallRank": 48,
+   "cityRank": 22,
    "eligible": true,
    "finalScore": 141.1,
    "exclusionReason": null,
@@ -5403,10 +5354,35 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2915780889",
+   "rank": 50,
+   "overallRank": 49,
+   "cityRank": 23,
+   "eligible": true,
+   "finalScore": 137.7,
+   "exclusionReason": null,
+   "totalMonthly": 5603,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar alto (23º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Preço divergente na descrição"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "quintoandar:895020185",
-   "rank": 52,
-   "overallRank": 51,
-   "cityRank": 10,
+   "rank": 51,
+   "overallRank": 50,
+   "cityRank": 9,
    "eligible": true,
    "finalScore": 137.6,
    "exclusionReason": null,
@@ -5427,8 +5403,8 @@
   },
   {
    "key": "vivareal:2793048516",
-   "rank": 53,
-   "overallRank": 52,
+   "rank": 52,
+   "overallRank": 51,
    "cityRank": 24,
    "eligible": true,
    "finalScore": 133.9,
@@ -5452,8 +5428,8 @@
   },
   {
    "key": "zapimoveis:2915626345",
-   "rank": 54,
-   "overallRank": 53,
+   "rank": 53,
+   "overallRank": 52,
    "cityRank": 12,
    "eligible": true,
    "finalScore": 132.5,
@@ -5473,34 +5449,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2906460713",
-   "rank": 55,
-   "overallRank": 54,
-   "cityRank": 25,
-   "eligible": true,
-   "finalScore": 131.6,
-   "exclusionReason": null,
-   "totalMonthly": 4040,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": "Andar médio (6º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [
-    "Layout studio / kitnet"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "zapimoveis:2860102305",
-   "rank": 56,
-   "overallRank": 55,
-   "cityRank": 11,
+   "rank": 54,
+   "overallRank": 53,
+   "cityRank": 10,
    "eligible": true,
    "finalScore": 130.5,
    "exclusionReason": null,
@@ -5522,8 +5474,8 @@
   },
   {
    "key": "quintoandar:893342216",
-   "rank": 57,
-   "overallRank": 56,
+   "rank": 55,
+   "overallRank": 54,
    "cityRank": 8,
    "eligible": true,
    "finalScore": 129.9,
@@ -5552,31 +5504,34 @@
    ]
   },
   {
-   "key": "quintoandar:895752152",
-   "rank": 58,
-   "overallRank": 57,
-   "cityRank": 12,
+   "key": "quintoandar:894349167",
+   "rank": 56,
+   "overallRank": 55,
+   "cityRank": 11,
    "eligible": true,
-   "finalScore": 129.5,
+   "finalScore": 128.8,
    "exclusionReason": null,
-   "totalMonthly": 4736,
+   "totalMonthly": 4751,
    "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto",
+   "modernityTier": "STANDARD",
+   "acLabel": "Ar-condicionado Split",
+   "floorTag": "Andar alto (12º–15º andar)",
    "noParking": false,
-   "greenTags": [],
+   "greenTags": [
+    "Ar-condicionado Split",
+    "Sol da manhã"
+   ],
    "redTags": [
-    "Sem ar-condicionado"
+    "Megacondomínio"
    ],
    "warningTags": [],
    "alsoListedOn": []
   },
   {
    "key": "quintoandar:121838313",
-   "rank": 59,
-   "overallRank": 58,
-   "cityRank": 13,
+   "rank": 57,
+   "overallRank": 56,
+   "cityRank": 12,
    "eligible": true,
    "finalScore": 128.2,
    "exclusionReason": null,
@@ -5599,8 +5554,8 @@
   },
   {
    "key": "zapimoveis:2910142420",
-   "rank": 60,
-   "overallRank": 59,
+   "rank": 58,
+   "overallRank": 57,
    "cityRank": 13,
    "eligible": true,
    "finalScore": 127,
@@ -5620,8 +5575,8 @@
   },
   {
    "key": "quintoandar:892873059",
-   "rank": 61,
-   "overallRank": 60,
+   "rank": 59,
+   "overallRank": 58,
    "cityRank": 9,
    "eligible": true,
    "finalScore": 125.3,
@@ -5642,9 +5597,33 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2906460713",
+   "rank": 60,
+   "overallRank": 59,
+   "cityRank": 25,
+   "eligible": true,
+   "finalScore": 123.3,
+   "exclusionReason": null,
+   "totalMonthly": 4040,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": "Andar médio (6º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
+   ],
+   "warningTags": [
+    "Layout studio / kitnet"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2904667213",
-   "rank": 62,
-   "overallRank": 61,
+   "rank": 61,
+   "overallRank": 60,
    "cityRank": 10,
    "eligible": true,
    "finalScore": 121.7,
@@ -5663,12 +5642,33 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2916153879",
+   "rank": 62,
+   "overallRank": 61,
+   "cityRank": 1,
+   "eligible": true,
+   "finalScore": 118.1,
+   "exclusionReason": null,
+   "totalMonthly": 6485,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": "Ar-condicionado",
+   "floorTag": "Andar baixo (2º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado"
+   ],
+   "redTags": [],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
    "key": "quintoandar:895785475",
    "rank": 63,
    "overallRank": 62,
    "cityRank": 11,
    "eligible": true,
-   "finalScore": 119.9,
+   "finalScore": 117.9,
    "exclusionReason": null,
    "totalMonthly": 4383,
    "furnitureTier": "UNFURNISHED",
@@ -5688,30 +5688,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2916153879",
+   "key": "vivareal:2898578258",
    "rank": 64,
    "overallRank": 63,
-   "cityRank": 1,
-   "eligible": true,
-   "finalScore": 118.1,
-   "exclusionReason": null,
-   "totalMonthly": 6485,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": "Ar-condicionado",
-   "floorTag": "Andar baixo (2º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado"
-   ],
-   "redTags": [],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "vivareal:2898578258",
-   "rank": 65,
-   "overallRank": 64,
    "cityRank": 12,
    "eligible": true,
    "finalScore": 116.7,
@@ -5733,9 +5712,9 @@
   },
   {
    "key": "zapimoveis:2917433879",
-   "rank": 66,
-   "overallRank": 65,
-   "cityRank": 14,
+   "rank": 65,
+   "overallRank": 64,
+   "cityRank": 13,
    "eligible": true,
    "finalScore": 116.7,
    "exclusionReason": null,
@@ -5757,8 +5736,8 @@
   },
   {
    "key": "netimoveis:712491",
-   "rank": 67,
-   "overallRank": 66,
+   "rank": 66,
+   "overallRank": 65,
    "cityRank": 26,
    "eligible": true,
    "finalScore": 115.5,
@@ -5779,9 +5758,9 @@
   },
   {
    "key": "zapimoveis:2915392443",
-   "rank": 68,
-   "overallRank": 67,
-   "cityRank": 15,
+   "rank": 67,
+   "overallRank": 66,
+   "cityRank": 14,
    "eligible": true,
    "finalScore": 115.5,
    "exclusionReason": null,
@@ -5803,8 +5782,8 @@
   },
   {
    "key": "zapimoveis:2906497144",
-   "rank": 69,
-   "overallRank": 68,
+   "rank": 68,
+   "overallRank": 67,
    "cityRank": 27,
    "eligible": true,
    "finalScore": 114.3,
@@ -5826,8 +5805,8 @@
   },
   {
    "key": "zapimoveis:2876293020",
-   "rank": 70,
-   "overallRank": 69,
+   "rank": 69,
+   "overallRank": 68,
    "cityRank": 28,
    "eligible": true,
    "finalScore": 111.5,
@@ -5849,36 +5828,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "imovelweb:3046317057",
-   "rank": 71,
-   "overallRank": 70,
-   "cityRank": 29,
-   "eligible": true,
-   "finalScore": 111.1,
-   "exclusionReason": null,
-   "totalMonthly": 6560,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [
-    "Vagas em linha"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:895706010",
-   "rank": 72,
-   "overallRank": 71,
-   "cityRank": 30,
+   "rank": 70,
+   "overallRank": 69,
+   "cityRank": 29,
    "eligible": true,
    "finalScore": 110.3,
    "exclusionReason": null,
@@ -5901,9 +5854,30 @@
    "alsoListedOn": []
   },
   {
+   "key": "quintoandar:895752152",
+   "rank": 71,
+   "overallRank": 70,
+   "cityRank": 15,
+   "eligible": true,
+   "finalScore": 108.8,
+   "exclusionReason": null,
+   "totalMonthly": 4736,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2869993530",
-   "rank": 73,
-   "overallRank": 72,
+   "rank": 72,
+   "overallRank": 71,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 105.5,
@@ -5926,9 +5900,9 @@
   },
   {
    "key": "zapimoveis:2912062729",
-   "rank": 74,
-   "overallRank": 73,
-   "cityRank": 31,
+   "rank": 73,
+   "overallRank": 72,
+   "cityRank": 30,
    "eligible": true,
    "finalScore": 102.8,
    "exclusionReason": null,
@@ -5941,6 +5915,32 @@
    "greenTags": [],
    "redTags": [
     "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Vagas em linha"
+   ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "imovelweb:3046317057",
+   "rank": 74,
+   "overallRank": 73,
+   "cityRank": 31,
+   "eligible": true,
+   "finalScore": 102.8,
+   "exclusionReason": null,
+   "totalMonthly": 6560,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
    ],
    "warningTags": [
     "Vagas em linha"
@@ -6867,7 +6867,7 @@
    "overallRank": 110,
    "cityRank": 28,
    "eligible": true,
-   "finalScore": 53.1,
+   "finalScore": 51.1,
    "exclusionReason": null,
    "totalMonthly": 4616,
    "furnitureTier": "UNFURNISHED",
@@ -7005,33 +7005,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895259698",
+   "key": "zapimoveis:2887585305",
    "rank": 120,
    "overallRank": 116,
-   "cityRank": 42,
-   "eligible": true,
-   "finalScore": 38.5,
-   "exclusionReason": null,
-   "totalMonthly": 5564,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar baixo (1º–3º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2887585305",
-   "rank": 121,
-   "overallRank": 117,
    "cityRank": 32,
    "eligible": true,
    "finalScore": 34,
@@ -7051,6 +7027,30 @@
    "warningTags": [
     "Flat / apart-hotel"
    ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:895259698",
+   "rank": 121,
+   "overallRank": 117,
+   "cityRank": 42,
+   "eligible": true,
+   "finalScore": 30.2,
+   "exclusionReason": null,
+   "totalMonthly": 5564,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar baixo (1º–3º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
+   ],
+   "warningTags": [],
    "alsoListedOn": []
   },
   {
@@ -7136,7 +7136,7 @@
    "overallRank": null,
    "cityRank": null,
    "eligible": true,
-   "finalScore": 11.8,
+   "finalScore": 15.2,
    "exclusionReason": null,
    "totalMonthly": 3525,
    "furnitureTier": "UNFURNISHED",
@@ -8520,33 +8520,8 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2903789730",
-   "rank": 6,
-   "overallRank": 4,
-   "cityRank": 2,
-   "eligible": true,
-   "finalScore": 204.4,
-   "exclusionReason": null,
-   "totalMonthly": 5156,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (11º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [
-    "Preço divergente na descrição"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "zapimoveis:2772206523",
-   "rank": 7,
+   "rank": 6,
    "overallRank": null,
    "cityRank": 2,
    "eligible": true,
@@ -8569,8 +8544,8 @@
   },
   {
    "key": "quintoandar:895613516",
-   "rank": 8,
-   "overallRank": 5,
+   "rank": 7,
+   "overallRank": 4,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 202.6,
@@ -8590,33 +8565,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2904939900",
-   "rank": 9,
-   "overallRank": 6,
-   "cityRank": 3,
-   "eligible": true,
-   "finalScore": 200.1,
-   "exclusionReason": null,
-   "totalMonthly": 5465,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (21º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "netimoveis:945665",
-   "rank": 10,
-   "overallRank": 7,
-   "cityRank": 4,
+   "rank": 8,
+   "overallRank": 5,
+   "cityRank": 2,
    "eligible": true,
    "finalScore": 198.4,
    "exclusionReason": null,
@@ -8636,9 +8588,9 @@
   },
   {
    "key": "vivareal:2897890300",
-   "rank": 11,
-   "overallRank": 8,
-   "cityRank": 5,
+   "rank": 9,
+   "overallRank": 6,
+   "cityRank": 3,
    "eligible": true,
    "finalScore": 198.4,
    "exclusionReason": null,
@@ -8660,10 +8612,35 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2903789730",
+   "rank": 10,
+   "overallRank": 7,
+   "cityRank": 4,
+   "eligible": true,
+   "finalScore": 195.4,
+   "exclusionReason": null,
+   "totalMonthly": 5156,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto (11º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Preço divergente na descrição"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2863444363",
-   "rank": 12,
-   "overallRank": 9,
-   "cityRank": 6,
+   "rank": 11,
+   "overallRank": 8,
+   "cityRank": 5,
    "eligible": true,
    "finalScore": 194.7,
    "exclusionReason": null,
@@ -8685,9 +8662,9 @@
   },
   {
    "key": "zapimoveis:2914985229",
-   "rank": 13,
-   "overallRank": 10,
-   "cityRank": 7,
+   "rank": 12,
+   "overallRank": 9,
+   "cityRank": 6,
    "eligible": true,
    "finalScore": 191.7,
    "exclusionReason": null,
@@ -8706,8 +8683,8 @@
   },
   {
    "key": "quintoandar:893560095",
-   "rank": 14,
-   "overallRank": 11,
+   "rank": 13,
+   "overallRank": 10,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 191.5,
@@ -8720,6 +8697,29 @@
    "noParking": false,
    "greenTags": [
     "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2904939900",
+   "rank": 14,
+   "overallRank": 11,
+   "cityRank": 7,
+   "eligible": true,
+   "finalScore": 191.1,
+   "exclusionReason": null,
+   "totalMonthly": 5465,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto (21º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
    ],
    "redTags": [
     "Sem ar-condicionado"
@@ -8755,31 +8755,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2896936974",
+   "key": "quintoandar:892929947",
    "rank": 16,
    "overallRank": 13,
    "cityRank": 9,
-   "eligible": true,
-   "finalScore": 188.1,
-   "exclusionReason": null,
-   "totalMonthly": 5603,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (23º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:892929947",
-   "rank": 17,
-   "overallRank": 14,
-   "cityRank": 10,
    "eligible": true,
    "finalScore": 185.4,
    "exclusionReason": null,
@@ -8800,31 +8779,8 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895346767",
-   "rank": 18,
-   "overallRank": 15,
-   "cityRank": 11,
-   "eligible": true,
-   "finalScore": 181.2,
-   "exclusionReason": null,
-   "totalMonthly": 5399,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Cobertura",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [],
-   "warningTags": [
-    "AC não confirmado"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:893334030",
-   "rank": 19,
+   "rank": 17,
    "overallRank": null,
    "cityRank": 3,
    "eligible": true,
@@ -8845,8 +8801,8 @@
   },
   {
    "key": "zapimoveis:2909939228",
-   "rank": 20,
-   "overallRank": 16,
+   "rank": 18,
+   "overallRank": 14,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 180.9,
@@ -8866,49 +8822,20 @@
    "alsoListedOn": []
   },
   {
-   "key": "vivareal:2888174381",
-   "rank": 21,
-   "overallRank": 17,
-   "cityRank": 12,
+   "key": "zapimoveis:2896936974",
+   "rank": 19,
+   "overallRank": 15,
+   "cityRank": 10,
    "eligible": true,
-   "finalScore": 179.6,
+   "finalScore": 179.1,
    "exclusionReason": null,
-   "totalMonthly": 6642,
+   "totalMonthly": 5603,
    "furnitureTier": "UNFURNISHED",
    "modernityTier": "MODERN_OR_RENOVATED",
    "acLabel": null,
-   "floorTag": "Último andar (16º andar)",
+   "floorTag": "Andar alto (23º andar)",
    "noParking": false,
-   "greenTags": [
-    "Torre única / Reservado"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [
-    "Também anunciado em Zap Imóveis"
-   ],
-   "alsoListedOn": [
-    "zapimoveis:2916846436"
-   ]
-  },
-  {
-   "key": "quintoandar:895199327",
-   "rank": 22,
-   "overallRank": 18,
-   "cityRank": 13,
-   "eligible": true,
-   "finalScore": 179,
-   "exclusionReason": null,
-   "totalMonthly": 4480,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": "Andar médio (4º–7º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
+   "greenTags": [],
    "redTags": [
     "Sem ar-condicionado"
    ],
@@ -8916,8 +8843,31 @@
    "alsoListedOn": []
   },
   {
+   "key": "quintoandar:895346767",
+   "rank": 20,
+   "overallRank": 16,
+   "cityRank": 11,
+   "eligible": true,
+   "finalScore": 176.4,
+   "exclusionReason": null,
+   "totalMonthly": 5399,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Cobertura",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não confirmado"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "quintoandar:895717428",
-   "rank": 23,
+   "rank": 21,
    "overallRank": null,
    "cityRank": 4,
    "eligible": true,
@@ -8942,7 +8892,7 @@
   },
   {
    "key": "quintoandar:895151272",
-   "rank": 24,
+   "rank": 22,
    "overallRank": null,
    "cityRank": 5,
    "eligible": true,
@@ -8965,8 +8915,8 @@
   },
   {
    "key": "quintoandar:895648124",
-   "rank": 25,
-   "overallRank": 19,
+   "rank": 23,
+   "overallRank": 17,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 174.3,
@@ -8990,8 +8940,31 @@
    "alsoListedOn": []
   },
   {
+   "key": "quintoandar:895199327",
+   "rank": 24,
+   "overallRank": 18,
+   "cityRank": 12,
+   "eligible": true,
+   "finalScore": 173.9,
+   "exclusionReason": null,
+   "totalMonthly": 4480,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": "Andar médio (4º–7º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2894633320",
-   "rank": 26,
+   "rank": 25,
    "overallRank": null,
    "cityRank": 6,
    "eligible": true,
@@ -9014,9 +8987,9 @@
   },
   {
    "key": "zapimoveis:2913622618",
-   "rank": 27,
-   "overallRank": 20,
-   "cityRank": 14,
+   "rank": 26,
+   "overallRank": 19,
+   "cityRank": 13,
    "eligible": true,
    "finalScore": 172.7,
    "exclusionReason": null,
@@ -9036,6 +9009,33 @@
     "Layout studio / kitnet"
    ],
    "alsoListedOn": []
+  },
+  {
+   "key": "vivareal:2888174381",
+   "rank": 27,
+   "overallRank": 20,
+   "cityRank": 14,
+   "eligible": true,
+   "finalScore": 170.6,
+   "exclusionReason": null,
+   "totalMonthly": 6642,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Último andar (16º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Torre única / Reservado"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Também anunciado em Zap Imóveis"
+   ],
+   "alsoListedOn": [
+    "zapimoveis:2916846436"
+   ]
   },
   {
    "key": "quintoandar:895753972",
@@ -9107,29 +9107,8 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2874880320",
-   "rank": 31,
-   "overallRank": 22,
-   "cityRank": 16,
-   "eligible": true,
-   "finalScore": 168.5,
-   "exclusionReason": null,
-   "totalMonthly": 6024,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": "Andar médio (7º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [],
-   "warningTags": [
-    "AC não confirmado"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:893942416",
-   "rank": 32,
+   "rank": 31,
    "overallRank": null,
    "cityRank": 9,
    "eligible": true,
@@ -9153,8 +9132,8 @@
   },
   {
    "key": "quintoandar:893333011",
-   "rank": 33,
-   "overallRank": 23,
+   "rank": 32,
+   "overallRank": 22,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 162.5,
@@ -9178,8 +9157,8 @@
   },
   {
    "key": "quintoandar:895560013",
-   "rank": 34,
-   "overallRank": 24,
+   "rank": 33,
+   "overallRank": 23,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 162.4,
@@ -9203,8 +9182,8 @@
   },
   {
    "key": "zapimoveis:2914707936",
-   "rank": 35,
-   "overallRank": 25,
+   "rank": 34,
+   "overallRank": 24,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 161.8,
@@ -9230,9 +9209,9 @@
   },
   {
    "key": "quintoandar:895372544",
-   "rank": 36,
-   "overallRank": 26,
-   "cityRank": 17,
+   "rank": 35,
+   "overallRank": 25,
+   "cityRank": 16,
    "eligible": true,
    "finalScore": 161,
    "exclusionReason": null,
@@ -9254,8 +9233,8 @@
   },
   {
    "key": "zapimoveis:2902255224",
-   "rank": 37,
-   "overallRank": 27,
+   "rank": 36,
+   "overallRank": 26,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 159.5,
@@ -9279,34 +9258,30 @@
    ]
   },
   {
-   "key": "zapimoveis:2916846436",
-   "rank": 38,
-   "overallRank": 28,
-   "cityRank": 18,
+   "key": "zapimoveis:2874880320",
+   "rank": 37,
+   "overallRank": 27,
+   "cityRank": 17,
    "eligible": true,
-   "finalScore": 157.7,
+   "finalScore": 159.5,
    "exclusionReason": null,
-   "totalMonthly": 6641,
+   "totalMonthly": 6024,
    "furnitureTier": "UNFURNISHED",
    "modernityTier": "WELL_MAINTAINED",
    "acLabel": null,
-   "floorTag": "Último andar (16º andar)",
+   "floorTag": "Andar médio (7º andar)",
    "noParking": false,
    "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
+   "redTags": [],
    "warningTags": [
-    "Também anunciado em VivaReal"
+    "AC não confirmado"
    ],
-   "alsoListedOn": [
-    "vivareal:2888174381"
-   ]
+   "alsoListedOn": []
   },
   {
    "key": "zapimoveis:2915407598",
-   "rank": 39,
-   "overallRank": 29,
+   "rank": 38,
+   "overallRank": 28,
    "cityRank": 6,
    "eligible": true,
    "finalScore": 157.5,
@@ -9329,34 +9304,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:894349167",
-   "rank": 40,
-   "overallRank": 30,
-   "cityRank": 7,
-   "eligible": true,
-   "finalScore": 157.5,
-   "exclusionReason": null,
-   "totalMonthly": 4751,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": "Ar-condicionado Split",
-   "floorTag": "Andar alto (12º–15º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado Split",
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Megacondomínio"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "zapimoveis:2894838518",
-   "rank": 41,
-   "overallRank": 31,
-   "cityRank": 8,
+   "rank": 39,
+   "overallRank": 29,
+   "cityRank": 7,
    "eligible": true,
    "finalScore": 156.5,
    "exclusionReason": null,
@@ -9378,9 +9329,9 @@
   },
   {
    "key": "zapimoveis:2913945774",
-   "rank": 42,
-   "overallRank": 32,
-   "cityRank": 19,
+   "rank": 40,
+   "overallRank": 30,
+   "cityRank": 18,
    "eligible": true,
    "finalScore": 156.1,
    "exclusionReason": null,
@@ -9400,7 +9351,7 @@
   },
   {
    "key": "quintoandar:895650546",
-   "rank": 43,
+   "rank": 41,
    "overallRank": null,
    "cityRank": 10,
    "eligible": true,
@@ -9422,9 +9373,9 @@
   },
   {
    "key": "quintoandar:895696163",
-   "rank": 44,
-   "overallRank": 33,
-   "cityRank": 20,
+   "rank": 42,
+   "overallRank": 31,
+   "cityRank": 19,
    "eligible": true,
    "finalScore": 151,
    "exclusionReason": null,
@@ -9447,9 +9398,9 @@
   },
   {
    "key": "quintoandar:895020185",
-   "rank": 45,
-   "overallRank": 34,
-   "cityRank": 9,
+   "rank": 43,
+   "overallRank": 32,
+   "cityRank": 8,
    "eligible": true,
    "finalScore": 150.6,
    "exclusionReason": null,
@@ -9469,35 +9420,35 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2915780889",
-   "rank": 46,
-   "overallRank": 35,
-   "cityRank": 21,
+   "key": "zapimoveis:2916846436",
+   "rank": 44,
+   "overallRank": 33,
+   "cityRank": 20,
    "eligible": true,
-   "finalScore": 148,
+   "finalScore": 148.7,
    "exclusionReason": null,
-   "totalMonthly": 5603,
+   "totalMonthly": 6641,
    "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
+   "modernityTier": "WELL_MAINTAINED",
    "acLabel": null,
-   "floorTag": "Andar alto (23º andar)",
+   "floorTag": "Último andar (16º andar)",
    "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
+   "greenTags": [],
    "redTags": [
     "Sem ar-condicionado"
    ],
    "warningTags": [
-    "Preço divergente na descrição"
+    "Também anunciado em VivaReal"
    ],
-   "alsoListedOn": []
+   "alsoListedOn": [
+    "vivareal:2888174381"
+   ]
   },
   {
    "key": "quintoandar:895748989",
-   "rank": 47,
-   "overallRank": 36,
-   "cityRank": 10,
+   "rank": 45,
+   "overallRank": 34,
+   "cityRank": 9,
    "eligible": true,
    "finalScore": 145.4,
    "exclusionReason": null,
@@ -9518,9 +9469,9 @@
   },
   {
    "key": "quintoandar:895362019",
-   "rank": 48,
-   "overallRank": 37,
-   "cityRank": 22,
+   "rank": 46,
+   "overallRank": 35,
+   "cityRank": 21,
    "eligible": true,
    "finalScore": 145.1,
    "exclusionReason": null,
@@ -9541,7 +9492,7 @@
   },
   {
    "key": "zapimoveis:2917677059",
-   "rank": 49,
+   "rank": 47,
    "overallRank": null,
    "cityRank": 11,
    "eligible": true,
@@ -9562,7 +9513,7 @@
   },
   {
    "key": "quintoandar:895717442",
-   "rank": 50,
+   "rank": 48,
    "overallRank": null,
    "cityRank": 12,
    "eligible": true,
@@ -9586,7 +9537,7 @@
   },
   {
    "key": "zapimoveis:2916854857",
-   "rank": 51,
+   "rank": 49,
    "overallRank": null,
    "cityRank": 13,
    "eligible": true,
@@ -9607,7 +9558,7 @@
   },
   {
    "key": "zapimoveis:2915626345",
-   "rank": 52,
+   "rank": 50,
    "overallRank": null,
    "cityRank": 14,
    "eligible": true,
@@ -9628,9 +9579,34 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2915780889",
+   "rank": 51,
+   "overallRank": 36,
+   "cityRank": 22,
+   "eligible": true,
+   "finalScore": 139,
+   "exclusionReason": null,
+   "totalMonthly": 5603,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar alto (23º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Preço divergente na descrição"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "vivareal:2793048516",
-   "rank": 53,
-   "overallRank": 38,
+   "rank": 52,
+   "overallRank": 37,
    "cityRank": 23,
    "eligible": true,
    "finalScore": 137.8,
@@ -9653,55 +9629,34 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2906460713",
-   "rank": 54,
-   "overallRank": 39,
-   "cityRank": 24,
+   "key": "quintoandar:894349167",
+   "rank": 53,
+   "overallRank": 38,
+   "cityRank": 10,
    "eligible": true,
-   "finalScore": 134.7,
+   "finalScore": 135.8,
    "exclusionReason": null,
-   "totalMonthly": 4040,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": "Andar médio (6º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [
-    "Layout studio / kitnet"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:895752152",
-   "rank": 55,
-   "overallRank": 40,
-   "cityRank": 11,
-   "eligible": true,
-   "finalScore": 133.5,
-   "exclusionReason": null,
-   "totalMonthly": 4736,
+   "totalMonthly": 4751,
    "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto",
+   "modernityTier": "STANDARD",
+   "acLabel": "Ar-condicionado Split",
+   "floorTag": "Andar alto (12º–15º andar)",
    "noParking": false,
-   "greenTags": [],
+   "greenTags": [
+    "Ar-condicionado Split",
+    "Sol da manhã"
+   ],
    "redTags": [
-    "Sem ar-condicionado"
+    "Megacondomínio"
    ],
    "warningTags": [],
    "alsoListedOn": []
   },
   {
    "key": "zapimoveis:2860102305",
-   "rank": 56,
-   "overallRank": 41,
-   "cityRank": 12,
+   "rank": 54,
+   "overallRank": 39,
+   "cityRank": 11,
    "eligible": true,
    "finalScore": 133.4,
    "exclusionReason": null,
@@ -9723,9 +9678,9 @@
   },
   {
    "key": "netimoveis:712491",
-   "rank": 57,
-   "overallRank": 42,
-   "cityRank": 25,
+   "rank": 55,
+   "overallRank": 40,
+   "cityRank": 24,
    "eligible": true,
    "finalScore": 128.1,
    "exclusionReason": null,
@@ -9745,9 +9700,9 @@
   },
   {
    "key": "quintoandar:121838313",
-   "rank": 58,
-   "overallRank": 43,
-   "cityRank": 13,
+   "rank": 56,
+   "overallRank": 41,
+   "cityRank": 12,
    "eligible": true,
    "finalScore": 125.8,
    "exclusionReason": null,
@@ -9769,8 +9724,32 @@
    ]
   },
   {
+   "key": "zapimoveis:2906460713",
+   "rank": 57,
+   "overallRank": 42,
+   "cityRank": 25,
+   "eligible": true,
+   "finalScore": 125.7,
+   "exclusionReason": null,
+   "totalMonthly": 4040,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": "Andar médio (6º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
+   ],
+   "warningTags": [
+    "Layout studio / kitnet"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2910142420",
-   "rank": 59,
+   "rank": 58,
    "overallRank": null,
    "cityRank": 15,
    "eligible": true,
@@ -9791,8 +9770,8 @@
   },
   {
    "key": "quintoandar:892873059",
-   "rank": 60,
-   "overallRank": 44,
+   "rank": 59,
+   "overallRank": 43,
    "cityRank": 6,
    "eligible": true,
    "finalScore": 121.5,
@@ -9814,8 +9793,8 @@
   },
   {
    "key": "zapimoveis:2916153879",
-   "rank": 61,
-   "overallRank": 45,
+   "rank": 60,
+   "overallRank": 44,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 121.4,
@@ -9835,9 +9814,9 @@
   },
   {
    "key": "zapimoveis:2917433879",
-   "rank": 62,
-   "overallRank": 46,
-   "cityRank": 14,
+   "rank": 61,
+   "overallRank": 45,
+   "cityRank": 13,
    "eligible": true,
    "finalScore": 119.6,
    "exclusionReason": null,
@@ -9859,8 +9838,8 @@
   },
   {
    "key": "zapimoveis:2904667213",
-   "rank": 63,
-   "overallRank": 47,
+   "rank": 62,
+   "overallRank": 46,
    "cityRank": 7,
    "eligible": true,
    "finalScore": 118.9,
@@ -9880,9 +9859,9 @@
   },
   {
    "key": "zapimoveis:2915392443",
-   "rank": 64,
-   "overallRank": 48,
-   "cityRank": 15,
+   "rank": 63,
+   "overallRank": 47,
+   "cityRank": 14,
    "eligible": true,
    "finalScore": 118.4,
    "exclusionReason": null,
@@ -9903,34 +9882,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895785475",
-   "rank": 65,
-   "overallRank": 49,
-   "cityRank": 8,
-   "eligible": true,
-   "finalScore": 118,
-   "exclusionReason": null,
-   "totalMonthly": 4383,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar médio (4º–7º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [
-    "Perto de hospital (sirenes)"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:895706010",
-   "rank": 66,
-   "overallRank": 50,
+   "rank": 64,
+   "overallRank": 48,
    "cityRank": 26,
    "eligible": true,
    "finalScore": 117.2,
@@ -9955,8 +9909,8 @@
   },
   {
    "key": "zapimoveis:2876293020",
-   "rank": 67,
-   "overallRank": 51,
+   "rank": 65,
+   "overallRank": 49,
    "cityRank": 27,
    "eligible": true,
    "finalScore": 116.1,
@@ -9978,9 +9932,34 @@
    "alsoListedOn": []
   },
   {
+   "key": "quintoandar:895785475",
+   "rank": 66,
+   "overallRank": 50,
+   "cityRank": 8,
+   "eligible": true,
+   "finalScore": 116,
+   "exclusionReason": null,
+   "totalMonthly": 4383,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar médio (4º–7º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Perto de hospital (sirenes)"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "quintoandar:895712853",
-   "rank": 68,
-   "overallRank": 52,
+   "rank": 67,
+   "overallRank": 51,
    "cityRank": 9,
    "eligible": true,
    "finalScore": 114.2,
@@ -10003,35 +9982,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "imovelweb:3046317057",
-   "rank": 69,
-   "overallRank": 53,
-   "cityRank": 28,
-   "eligible": true,
-   "finalScore": 114.1,
-   "exclusionReason": null,
-   "totalMonthly": 6560,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": null,
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [
-    "Vagas em linha"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:895412768",
-   "rank": 70,
-   "overallRank": 54,
+   "rank": 68,
+   "overallRank": 52,
    "cityRank": 10,
    "eligible": true,
    "finalScore": 113.2,
@@ -10058,8 +10011,8 @@
   },
   {
    "key": "quintoandar:893240454",
-   "rank": 71,
-   "overallRank": 55,
+   "rank": 69,
+   "overallRank": 53,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 112,
@@ -10082,9 +10035,30 @@
    "alsoListedOn": []
   },
   {
+   "key": "quintoandar:895752152",
+   "rank": 70,
+   "overallRank": 54,
+   "cityRank": 15,
+   "eligible": true,
+   "finalScore": 111.8,
+   "exclusionReason": null,
+   "totalMonthly": 4736,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2869993530",
-   "rank": 72,
-   "overallRank": 56,
+   "rank": 71,
+   "overallRank": 55,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 111.4,
@@ -10107,9 +10081,9 @@
   },
   {
    "key": "zapimoveis:2906497144",
-   "rank": 73,
-   "overallRank": 57,
-   "cityRank": 29,
+   "rank": 72,
+   "overallRank": 56,
+   "cityRank": 28,
    "eligible": true,
    "finalScore": 111.2,
    "exclusionReason": null,
@@ -10130,8 +10104,8 @@
   },
   {
    "key": "zapimoveis:2912616636",
-   "rank": 74,
-   "overallRank": 58,
+   "rank": 73,
+   "overallRank": 57,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 110.9,
@@ -10153,8 +10127,8 @@
   },
   {
    "key": "zapimoveis:2916427741",
-   "rank": 75,
-   "overallRank": 59,
+   "rank": 74,
+   "overallRank": 58,
    "cityRank": 11,
    "eligible": true,
    "finalScore": 110.4,
@@ -10179,8 +10153,8 @@
   },
   {
    "key": "zapimoveis:2917527250",
-   "rank": 76,
-   "overallRank": 60,
+   "rank": 75,
+   "overallRank": 59,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 109.6,
@@ -10202,9 +10176,9 @@
   },
   {
    "key": "zapimoveis:2912062729",
-   "rank": 77,
-   "overallRank": 61,
-   "cityRank": 30,
+   "rank": 76,
+   "overallRank": 60,
+   "cityRank": 29,
    "eligible": true,
    "finalScore": 107.8,
    "exclusionReason": null,
@@ -10225,8 +10199,8 @@
   },
   {
    "key": "quintoandar:121484164",
-   "rank": 78,
-   "overallRank": 62,
+   "rank": 77,
+   "overallRank": 61,
    "cityRank": 12,
    "eligible": true,
    "finalScore": 106.6,
@@ -10248,9 +10222,9 @@
   },
   {
    "key": "zapimoveis:2883684497",
-   "rank": 79,
-   "overallRank": 63,
-   "cityRank": 31,
+   "rank": 78,
+   "overallRank": 62,
+   "cityRank": 30,
    "eligible": true,
    "finalScore": 105.2,
    "exclusionReason": null,
@@ -10267,6 +10241,32 @@
     "Sem ar-condicionado"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "imovelweb:3046317057",
+   "rank": 79,
+   "overallRank": 63,
+   "cityRank": 31,
+   "eligible": true,
+   "finalScore": 105.1,
+   "exclusionReason": null,
+   "totalMonthly": 6560,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": null,
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
+   ],
+   "warningTags": [
+    "Vagas em linha"
+   ],
    "alsoListedOn": []
   },
   {
@@ -10817,12 +10817,33 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:894822323",
+   "key": "zapimoveis:2788387634",
    "rank": 104,
    "overallRank": 85,
+   "cityRank": 9,
+   "eligible": true,
+   "finalScore": 56.2,
+   "exclusionReason": null,
+   "totalMonthly": 6833,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar alto (9º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:894822323",
+   "rank": 105,
+   "overallRank": 86,
    "cityRank": 19,
    "eligible": true,
-   "finalScore": 57.2,
+   "finalScore": 55.2,
    "exclusionReason": null,
    "totalMonthly": 4616,
    "furnitureTier": "UNFURNISHED",
@@ -10842,54 +10863,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2788387634",
-   "rank": 105,
-   "overallRank": 86,
-   "cityRank": 9,
-   "eligible": true,
-   "finalScore": 56.2,
-   "exclusionReason": null,
-   "totalMonthly": 6833,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar alto (9º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:895259698",
+   "key": "vivareal:2896846775",
    "rank": 106,
    "overallRank": 87,
-   "cityRank": 38,
-   "eligible": true,
-   "finalScore": 49.6,
-   "exclusionReason": null,
-   "totalMonthly": 5564,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar baixo (1º–3º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "vivareal:2896846775",
-   "rank": 107,
-   "overallRank": 88,
    "cityRank": 20,
    "eligible": true,
    "finalScore": 46.8,
@@ -10910,9 +10886,9 @@
   },
   {
    "key": "quintoandar:894978734",
-   "rank": 108,
-   "overallRank": 89,
-   "cityRank": 39,
+   "rank": 107,
+   "overallRank": 88,
+   "cityRank": 38,
    "eligible": true,
    "finalScore": 44.7,
    "exclusionReason": null,
@@ -10934,8 +10910,8 @@
   },
   {
    "key": "quintoandar:894414169",
-   "rank": 109,
-   "overallRank": 90,
+   "rank": 108,
+   "overallRank": 89,
    "cityRank": 22,
    "eligible": true,
    "finalScore": 43.8,
@@ -10953,6 +10929,30 @@
    "warningTags": [
     "Mobília divergente — confirmar"
    ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:895259698",
+   "rank": 109,
+   "overallRank": 90,
+   "cityRank": 39,
+   "eligible": true,
+   "finalScore": 40.6,
+   "exclusionReason": null,
+   "totalMonthly": 5564,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar baixo (1º–3º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
+   ],
+   "warningTags": [],
    "alsoListedOn": []
   },
   {
@@ -11059,8 +11059,32 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895767843",
+   "key": "quintoandar:894742404",
    "rank": 114,
+   "overallRank": null,
+   "cityRank": null,
+   "eligible": true,
+   "finalScore": 19.7,
+   "exclusionReason": null,
+   "totalMonthly": 3525,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "DATED",
+   "acLabel": null,
+   "floorTag": "Andar médio (4º–7º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Alerta de Segurança na Rua",
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:895767843",
+   "rank": 115,
    "overallRank": 94,
    "cityRank": 23,
    "eligible": true,
@@ -11081,30 +11105,6 @@
     "Sem ar-condicionado",
     "Megacondomínio",
     "Totalmente mobiliado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:894742404",
-   "rank": 115,
-   "overallRank": null,
-   "cityRank": null,
-   "eligible": true,
-   "finalScore": 16.1,
-   "exclusionReason": null,
-   "totalMonthly": 3525,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "DATED",
-   "acLabel": null,
-   "floorTag": "Andar médio (4º–7º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Alerta de Segurança na Rua",
-    "Sem ar-condicionado"
    ],
    "warningTags": [],
    "alsoListedOn": []
