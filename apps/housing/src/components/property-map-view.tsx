@@ -68,7 +68,7 @@ const MAP_STYLE_CONFIG: Record<
 };
 
 const HUB_BANNER_SUBTITLE: Record<CityHubCode, string> = {
-  BH: "BH · Santa Efigênia",
+  BH: "BH · Belvedere",
   RJ: "RJ · Porto Maravilha",
   SP: "SP · Pinheiros",
   CP: "CP · Viracopos",

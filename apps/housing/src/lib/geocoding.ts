@@ -13,16 +13,17 @@ export interface NubankHubLocation {
 }
 
 export const NUBANK_HUBS: Record<CityHubCode, NubankHubLocation> = {
+  // OSM has no house numbers on the avenue: point at ~432 m from its north end (BH numbers in metres from the end nearest the centre), ±350 m.
   BH: {
-    id: "bh-boulevard",
+    id: "bh-terraco-jardim",
     cityCode: "BH",
-    name: "Nubank BH — Boulevard Corporate Tower (Santa Efigênia)",
+    name: "Nubank BH — Terraço Jardim (Belvedere)",
     shortLabel: "Nu BH",
-    bannerSubtitle: "BH · Santa Efigênia (Boulevard)",
+    bannerSubtitle: "BH · Belvedere (Terraço Jardim)",
     address:
-      "Av. dos Andradas, 3000 — Santa Efigênia, Belo Horizonte - MG, 30260-070",
-    lat: -19.920682,
-    lng: -43.920117,
+      "Av. Paulo Camilo Pena, 432 — Belvedere, Belo Horizonte - MG, 30320-380",
+    lat: -19.9717,
+    lng: -43.9417,
   },
   RJ: {
     id: "rj-vista-maua",

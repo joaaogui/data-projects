@@ -379,38 +379,41 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "RJ:Estácio": { cityCode: "RJ", commute: "10-15 min do Nubank", urbanBreathing: 5.2, commuteLogistics: 8.8, buildingStock: 6.0, budgetFit: 8.5, safetyCar: 3.5 },
 
   // === BH (Belo Horizonte & Nova Lima) ===
+  // Commute to Terraço Jardim (Av. Paulo Camilo Pena 432, Belvedere), from each neighbourhood centre in geocoding.ts:
+  // OSRM driving km + free-flow min (2026-10-19); peak = max(free-flow × 1.8, km × 3.5), 3.5 min/km being BH's
+  // 2025 rush-hour average (TomTom Traffic Index: 35 min 5 s per 10 km). Label "free-flow–peak" with peak ceiled to 5.
+  // commuteLogistics from peak minutes: ≤15 → 9.5 + 0.05/min under 15 (max 9.8); 15–50 → 9.5 − 0.1/min; >50 → 6.0 − 0.1/min (min 2.5).
   // Truly safe Zona Sul / Nova Lima (safetyCar: 8.0–9.6)
-  "BH:Lourdes": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 7.6, commuteLogistics: 9.3, buildingStock: 9.5, budgetFit: 9.0, safetyCar: 9.6 },
-  "BH:Funcionários": { cityCode: "BH", commute: "10 min do Nubank", urbanBreathing: 8.5, commuteLogistics: 9.8, buildingStock: 8.8, budgetFit: 9.2, safetyCar: 8.3 },
-  // Belvedere / Vale do Sereno / Vila da Serra share the BR-356 / N. Sra. do Carmo peak bottleneck (like Buritis' single exit).
-  "BH:Belvedere": { cityCode: "BH", commute: "25-45 min do Nubank (gargalo BR-356 no pico)", urbanBreathing: 8.8, commuteLogistics: 5.6, buildingStock: 6.0, budgetFit: 5.5, safetyCar: 9.0 },
-  "BH:Vale do Sereno": { cityCode: "BH", commute: "30-50 min do Nubank (gargalo BR-356 no pico)", urbanBreathing: 9.2, commuteLogistics: 5.0, buildingStock: 8.8, budgetFit: 7.6, safetyCar: 9.0 },
-  "BH:Santo Agostinho": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 7.6, commuteLogistics: 8.8, buildingStock: 8.6, budgetFit: 8.4, safetyCar: 8.9 },
-  "BH:Anchieta": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.5, buildingStock: 8.2, budgetFit: 8.0, safetyCar: 8.9 },
-  "BH:Savassi": { cityCode: "BH", commute: "10-12 min do Nubank", urbanBreathing: 8.3, commuteLogistics: 9.5, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.0 },
-  "BH:Sion": { cityCode: "BH", commute: "15-20 min do Nubank", urbanBreathing: 6.2, commuteLogistics: 8.4, buildingStock: 8.0, budgetFit: 9.2, safetyCar: 8.8 },
-  "BH:Carmo": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.8, commuteLogistics: 8.8, buildingStock: 8.6, budgetFit: 8.8, safetyCar: 8.8 },
-  "BH:Santo Antônio": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.8, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.7 },
-  "BH:Cruzeiro": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 8.5, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.7 },
-  "BH:Vila da Serra": { cityCode: "BH", commute: "30-50 min do Nubank (gargalo BR-356/N. Sra. do Carmo no pico)", urbanBreathing: 9.2, commuteLogistics: 5.2, buildingStock: 8.8, budgetFit: 7.8, safetyCar: 8.7 },
-  "BH:Cidade Jardim": { cityCode: "BH", commute: "18-22 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 7.6, buildingStock: 7.5, budgetFit: 8.0, safetyCar: 8.6 },
-  "BH:Vila Paris": { cityCode: "BH", commute: "18-22 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 7.6, buildingStock: 8.0, budgetFit: 8.0, safetyCar: 8.6 },
-  "BH:Gutierrez": { cityCode: "BH", commute: "18-22 min do Nubank", urbanBreathing: 8.0, commuteLogistics: 7.8, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.5 },
-  "BH:Mangabeiras": { cityCode: "BH", commute: "15-20 min do Nubank", urbanBreathing: 9.0, commuteLogistics: 8.0, buildingStock: 7.5, budgetFit: 7.5, safetyCar: 8.5 },
-  "BH:São Pedro": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 8.6, buildingStock: 8.0, budgetFit: 8.0, safetyCar: 8.4 },
-  "BH:Luxemburgo": { cityCode: "BH", commute: "18-22 min do Nubank", urbanBreathing: 8.2, commuteLogistics: 7.6, buildingStock: 8.2, budgetFit: 8.2, safetyCar: 8.4 },
-  "BH:Santa Lúcia": { cityCode: "BH", commute: "18-25 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 7.4, buildingStock: 8.0, budgetFit: 8.0, safetyCar: 8.4 },
-  "BH:Serra": { cityCode: "BH", commute: "10-12 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 9.0, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.3 },
-  "BH:Buritis": { cityCode: "BH", commute: "35-45 min do Nubank (saída única com gargalo no pico)", urbanBreathing: 7.8, commuteLogistics: 4.8, buildingStock: 8.4, budgetFit: 8.8, safetyCar: 8.3 },
-  // Transition / Near Nubank & Central BH
-  "BH:Santa Efigênia": { cityCode: "BH", commute: "5 min do Nubank (mesmo bairro)", urbanBreathing: 8.6, commuteLogistics: 9.9, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 7.8 },
-  "BH:Boa Viagem": { cityCode: "BH", commute: "8-12 min do Nubank", urbanBreathing: 7.6, commuteLogistics: 9.2, buildingStock: 7.5, budgetFit: 8.4, safetyCar: 7.6 },
-  "BH:Prado": { cityCode: "BH", commute: "15-20 min do Nubank", urbanBreathing: 7.4, commuteLogistics: 8.2, buildingStock: 7.6, budgetFit: 8.4, safetyCar: 7.5 },
-  "BH:Floresta": { cityCode: "BH", commute: "8-10 min do Nubank", urbanBreathing: 7.0, commuteLogistics: 9.2, buildingStock: 6.8, budgetFit: 8.4, safetyCar: 7.0 },
-  "BH:Barro Preto": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 6.8, commuteLogistics: 8.8, buildingStock: 7.0, budgetFit: 8.4, safetyCar: 7.0 },
-  "BH:Carlos Prates": { cityCode: "BH", commute: "15-20 min do Nubank", urbanBreathing: 6.4, commuteLogistics: 8.2, buildingStock: 6.8, budgetFit: 8.6, safetyCar: 6.5 },
-  "BH:Centro": { cityCode: "BH", commute: "10 min do Nubank", urbanBreathing: 5.5, commuteLogistics: 9.2, buildingStock: 6.8, budgetFit: 8.6, safetyCar: 5.2 },
-  "BH:Lagoinha": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 5.0, commuteLogistics: 8.6, buildingStock: 5.8, budgetFit: 8.6, safetyCar: 4.2 },
+  "BH:Lourdes": { cityCode: "BH", commute: "11-25 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 7.6, commuteLogistics: 8.5, buildingStock: 9.5, budgetFit: 9.0, safetyCar: 9.6 },
+  "BH:Funcionários": { cityCode: "BH", commute: "9-25 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 8.5, commuteLogistics: 9.0, buildingStock: 8.8, budgetFit: 9.2, safetyCar: 8.3 },
+  "BH:Belvedere": { cityCode: "BH", commute: "5-10 min do Nubank (mesmo bairro)", urbanBreathing: 8.8, commuteLogistics: 9.8, buildingStock: 6.0, budgetFit: 5.5, safetyCar: 9.0 },
+  "BH:Vale do Sereno": { cityCode: "BH", commute: "7-15 min do Nubank (vizinho ao Belvedere)", urbanBreathing: 9.2, commuteLogistics: 9.6, buildingStock: 8.8, budgetFit: 7.6, safetyCar: 9.0 },
+  "BH:Santo Agostinho": { cityCode: "BH", commute: "11-30 min do Nubank (via Raja Gabaglia)", urbanBreathing: 7.6, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 8.4, safetyCar: 8.9 },
+  "BH:Anchieta": { cityCode: "BH", commute: "9-20 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 8.6, commuteLogistics: 9.0, buildingStock: 8.2, budgetFit: 8.0, safetyCar: 8.9 },
+  "BH:Savassi": { cityCode: "BH", commute: "10-25 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 8.3, commuteLogistics: 8.8, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.0 },
+  "BH:Sion": { cityCode: "BH", commute: "8-20 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 6.2, commuteLogistics: 9.3, buildingStock: 8.0, budgetFit: 9.2, safetyCar: 8.8 },
+  "BH:Carmo": { cityCode: "BH", commute: "8-20 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 8.8, commuteLogistics: 9.3, buildingStock: 8.6, budgetFit: 8.8, safetyCar: 8.8 },
+  "BH:Santo Antônio": { cityCode: "BH", commute: "9-25 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 8.6, commuteLogistics: 8.9, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.7 },
+  "BH:Cruzeiro": { cityCode: "BH", commute: "10-25 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 8.4, commuteLogistics: 8.8, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.7 },
+  "BH:Vila da Serra": { cityCode: "BH", commute: "6-15 min do Nubank (vizinho ao Belvedere)", urbanBreathing: 9.2, commuteLogistics: 9.7, buildingStock: 8.8, budgetFit: 7.8, safetyCar: 8.7 },
+  "BH:Cidade Jardim": { cityCode: "BH", commute: "10-25 min do Nubank (via Raja Gabaglia)", urbanBreathing: 8.4, commuteLogistics: 8.6, buildingStock: 7.5, budgetFit: 8.0, safetyCar: 8.6 },
+  "BH:Vila Paris": { cityCode: "BH", commute: "9-25 min do Nubank (via Raja Gabaglia)", urbanBreathing: 8.4, commuteLogistics: 8.9, buildingStock: 8.0, budgetFit: 8.0, safetyCar: 8.6 },
+  "BH:Gutierrez": { cityCode: "BH", commute: "10-25 min do Nubank (via Raja Gabaglia)", urbanBreathing: 8.0, commuteLogistics: 8.6, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.5 },
+  "BH:Mangabeiras": { cityCode: "BH", commute: "11-25 min do Nubank (via Av. dos Bandeirantes)", urbanBreathing: 9.0, commuteLogistics: 8.8, buildingStock: 7.5, budgetFit: 7.5, safetyCar: 8.5 },
+  "BH:São Pedro": { cityCode: "BH", commute: "8-20 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 8.4, commuteLogistics: 9.1, buildingStock: 8.0, budgetFit: 8.0, safetyCar: 8.4 },
+  "BH:Luxemburgo": { cityCode: "BH", commute: "8-20 min do Nubank (via Raja Gabaglia)", urbanBreathing: 8.2, commuteLogistics: 9.1, buildingStock: 8.2, budgetFit: 8.2, safetyCar: 8.4 },
+  "BH:Santa Lúcia": { cityCode: "BH", commute: "6-20 min do Nubank (via BR-356)", urbanBreathing: 8.4, commuteLogistics: 9.5, buildingStock: 8.0, budgetFit: 8.0, safetyCar: 8.4 },
+  "BH:Serra": { cityCode: "BH", commute: "12-30 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 8.4, commuteLogistics: 8.4, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.3 },
+  "BH:Buritis": { cityCode: "BH", commute: "7-15 min do Nubank (saída única pela Raja Gabaglia)", urbanBreathing: 7.8, commuteLogistics: 9.5, buildingStock: 8.4, budgetFit: 8.8, safetyCar: 8.3 },
+  // Transition / Central BH
+  "BH:Santa Efigênia": { cityCode: "BH", commute: "12-30 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 8.6, commuteLogistics: 8.3, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 7.8 },
+  "BH:Boa Viagem": { cityCode: "BH", commute: "10-25 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 7.6, commuteLogistics: 8.7, buildingStock: 7.5, budgetFit: 8.4, safetyCar: 7.6 },
+  "BH:Prado": { cityCode: "BH", commute: "13-30 min do Nubank (via Raja Gabaglia)", urbanBreathing: 7.4, commuteLogistics: 8.0, buildingStock: 7.6, budgetFit: 8.4, safetyCar: 7.5 },
+  "BH:Floresta": { cityCode: "BH", commute: "13-30 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 7.0, commuteLogistics: 8.0, buildingStock: 6.8, budgetFit: 8.4, safetyCar: 7.0 },
+  "BH:Barro Preto": { cityCode: "BH", commute: "12-30 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 6.8, commuteLogistics: 8.3, buildingStock: 7.0, budgetFit: 8.4, safetyCar: 7.0 },
+  "BH:Carlos Prates": { cityCode: "BH", commute: "14-40 min do Nubank (via Raja Gabaglia)", urbanBreathing: 6.4, commuteLogistics: 7.3, buildingStock: 6.8, budgetFit: 8.6, safetyCar: 6.5 },
+  "BH:Centro": { cityCode: "BH", commute: "12-30 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 5.5, commuteLogistics: 8.3, buildingStock: 6.8, budgetFit: 8.6, safetyCar: 5.2 },
+  "BH:Lagoinha": { cityCode: "BH", commute: "13-35 min do Nubank (via N. Sra. do Carmo)", urbanBreathing: 5.0, commuteLogistics: 7.8, buildingStock: 5.8, budgetFit: 8.6, safetyCar: 4.2 },
 
   // === CP (Campinas) ===
   "CP:Nova Campinas": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 6.1, commuteLogistics: 8.2, buildingStock: 6.5, budgetFit: 6.2, safetyCar: 9.1 },
@@ -582,12 +585,21 @@ export function computeWeightedNeighborhoodScore(
   return Math.round(finalScore * 100) / 100;
 }
 
-// Snapshot catalog labels that disagree with the centroid distance (14.4 km × 2.2 min/km for Jd. Guanabara).
+// Snapshot catalog labels that disagree with the centroid distance (14.4 km × 2.2 min/km for Jd. Guanabara;
+// BH: OSRM route to Terraço Jardim, see the BH rows of NEIGHBORHOOD_SAFETY_AND_METRICS).
 // Label only: commute points come from commuteLogisticsScore and the CP far-commute distance rule.
 const CATALOG_COMMUTE_LABEL_FIXES: Record<string, string> = {
   "CP:Jd. Guanabara": "30-35 min",
   "CP:Jardim Guanabara": "30-35 min",
   "CP:Guanabara": "30-35 min",
+  "BH:Lourdes": "11-25 min",
+  "BH:Funcionários": "9-25 min",
+  "BH:Savassi": "10-25 min",
+  "BH:Santo Agostinho": "11-30 min",
+  "BH:Sion": "8-20 min",
+};
+const CATALOG_HUB_LABEL_FIXES: Partial<Record<CityHubCode, string>> = {
+  BH: "Terraço Jardim / Belvedere (Centro-Sul)",
 };
 
 export function computeDynamicNeighborhoods(
@@ -659,6 +671,7 @@ export function computeDynamicNeighborhoods(
     return {
       ...n,
       commuteTime: CATALOG_COMMUTE_LABEL_FIXES[`${n.cityCode}:${n.neighborhood}`] ?? n.commuteTime,
+      nubankHub: CATALOG_HUB_LABEL_FIXES[n.cityCode] ?? n.nubankHub,
       urbanBreathingScore: effectiveUrbanBreathing,
       commuteLogisticsScore: effectiveCommuteLogistics,
       safetyCarScore: effectiveSafetyCar,

@@ -277,7 +277,7 @@ describe("Housing Dynamic Scoring Engine", () => {
     expect(top.shortJustification).toContain("varanda");
     expect(top.shortJustification).toContain("portaria 24h");
     expect(top.shortJustification).toContain("Praça da Liberdade");
-    expect(top.shortJustification).toContain("5 min do escritório do Nubank");
+    expect(top.shortJustification).toContain("12-30 min do escritório do Nubank");
     expect(top.shortJustification).toContain("folga confortável no orçamento.");
     expect(top.shortJustification).not.toMatch(/\b(Por outro lado,|Em contrapartida,)/i);
     expect(top.shortJustification).not.toContain("sem ar-condicionado instalado");
@@ -294,7 +294,7 @@ describe("Housing Dynamic Scoring Engine", () => {
     expect(top.shortJustification).not.toContain("100/100");
 
     // narrativeJustification focuses on analytical synthesis & trade-offs without repeating raw specs/badges
-    expect(top.narrativeJustification).toContain("5 min do escritório do Nubank");
+    expect(top.narrativeJustification).toContain("12-30 min do escritório do Nubank");
     expect(top.narrativeJustification).toContain("fechadura eletrônica");
     expect(top.narrativeJustification).toContain("mudança de Brasília");
     expect(top.narrativeJustification).toContain("Checklist para visita:");
@@ -323,7 +323,7 @@ describe("Housing Dynamic Scoring Engine", () => {
     expect(dated.eligible).toBe(true);
     expect(dated.exclusionReason).toBeNull();
     expect(dated.breakdown.modernityPoints).toBeLessThan(0);
-    expect(dated.shortJustification).toContain("10 min do escritório do Nubank");
+    expect(dated.shortJustification).toContain("9-25 min do escritório do Nubank");
     expect(dated.shortJustification).not.toMatch(/\b(Por outro lado,|Em contrapartida,)/i);
     expect(dated.shortJustification).toMatch(/fica em andar baixo/i);
     expect(dated.shortJustification).not.toContain("Funcionários");
@@ -702,8 +702,8 @@ describe("Housing Dynamic Scoring Engine", () => {
   });
 
   it("resolves accurate property coordinates and Nubank hub distances across BH, RJ, CP, and SP", () => {
-    expect(NUBANK_HUBS.BH.lat).toBeCloseTo(-19.9207, 3);
-    expect(NUBANK_HUBS.BH.lng).toBeCloseTo(-43.9201, 3);
+    expect(NUBANK_HUBS.BH.lat).toBeCloseTo(-19.9717, 3);
+    expect(NUBANK_HUBS.BH.lng).toBeCloseTo(-43.9417, 3);
     expect(NUBANK_HUBS.RJ.lat).toBeCloseTo(-22.8983, 3);
     expect(NUBANK_HUBS.RJ.lng).toBeCloseTo(-43.1794, 3);
     expect(NUBANK_HUBS.SP.lat).toBeCloseTo(-23.561, 3);
@@ -711,16 +711,16 @@ describe("Housing Dynamic Scoring Engine", () => {
     expect(NUBANK_HUBS.CP.lat).toBeCloseTo(-23.0061, 3);
     expect(NUBANK_HUBS.CP.lng).toBeCloseTo(-47.1178, 3);
     expect(ALL_NUBANK_HUB_LOCATIONS).toHaveLength(4);
-    const bhBoulevard = ALL_NUBANK_HUB_LOCATIONS.find(
-      (h) => h.id === "bh-boulevard",
+    const bhTerracoJardim = ALL_NUBANK_HUB_LOCATIONS.find(
+      (h) => h.id === "bh-terraco-jardim",
     );
-    expect(bhBoulevard?.lat).toBeCloseTo(-19.9207, 3);
-    expect(bhBoulevard?.lng).toBeCloseTo(-43.9201, 3);
+    expect(bhTerracoJardim?.lat).toBeCloseTo(-19.9717, 3);
+    expect(bhTerracoJardim?.lng).toBeCloseTo(-43.9417, 3);
 
     const bhKnownStreet = resolveInstantPropertyCoordinate({
       cityCode: "BH",
-      neighborhood: "Santa Efigênia",
-      street: "Rua Padre Marinho",
+      neighborhood: "Belvedere",
+      street: "Avenida Paulo Camilo Pena",
       streetNumber: "318",
       id: "893127481",
     });
@@ -1994,27 +1994,33 @@ describe("Housing Dynamic Scoring Engine", () => {
     const props: SlimPropertyRecord[] = [
       {
         ...baseProp,
-        id: "commute-5-santa-efigenia",
+        id: "commute-10-belvedere",
         cityCode: "BH",
-        neighborhood: "Santa Efigênia",
+        neighborhood: "Belvedere",
       },
       {
         ...baseProp,
-        id: "commute-14-carmo",
+        id: "commute-15-vila-da-serra",
+        cityCode: "BH",
+        neighborhood: "Vila da Serra",
+      },
+      {
+        ...baseProp,
+        id: "commute-20-carmo",
         cityCode: "BH",
         neighborhood: "Carmo",
       },
       {
         ...baseProp,
-        id: "commute-15-lourdes",
+        id: "commute-25-lourdes",
         cityCode: "BH",
         neighborhood: "Lourdes",
       },
       {
         ...baseProp,
-        id: "commute-18-sion",
+        id: "commute-30-santa-efigenia",
         cityCode: "BH",
-        neighborhood: "Sion",
+        neighborhood: "Santa Efigênia",
       },
       {
         ...baseProp,
@@ -2037,23 +2043,23 @@ describe("Housing Dynamic Scoring Engine", () => {
     const evaluated = computeDynamicProperties(props, nbs, DEFAULT_WEIGHTS);
     const byId = new Map(evaluated.map((p) => [p.id, p]));
 
-    expect(byId.get("commute-5-santa-efigenia")?.commuteMinutes).toBe(5);
-    expect(byId.get("commute-14-carmo")?.commuteMinutes).toBe(15);
-    expect(byId.get("commute-15-lourdes")?.commuteMinutes).toBe(15);
-    expect(byId.get("commute-18-sion")?.commuteMinutes).toBe(20);
+    expect(byId.get("commute-10-belvedere")?.commuteMinutes).toBe(10);
+    expect(byId.get("commute-15-vila-da-serra")?.commuteMinutes).toBe(15);
+    expect(byId.get("commute-20-carmo")?.commuteMinutes).toBe(20);
+    expect(byId.get("commute-25-lourdes")?.commuteMinutes).toBe(25);
+    expect(byId.get("commute-30-santa-efigenia")?.commuteMinutes).toBe(30);
     expect(byId.get("commute-38-taquaral")?.commuteMinutes).toBe(40);
     expect(byId.get("commute-85-barra-olimpica")?.commuteMinutes).toBe(85);
     expect(byId.get("commute-85-barra-olimpica")?.commuteLabel).toBe("75–100 min");
 
-    // Filter maxCommuteMinutes: 15 keeps <= 15 min (5, 15, 15) and excludes 20, 40, 85 (ranges count as their worst case)
+    // Filter maxCommuteMinutes: 15 keeps <= 15 min (10, 15) and excludes 20+ (ranges count as their worst case)
     const under15 = filterAndSortProperties(evaluated, {
       ...DEFAULT_EXPLORER_FILTERS,
       maxCommuteMinutes: 15,
     });
     expect(under15.map((p) => p.id).sort()).toEqual([
-      "commute-14-carmo",
-      "commute-15-lourdes",
-      "commute-5-santa-efigenia",
+      "commute-10-belvedere",
+      "commute-15-vila-da-serra",
     ]);
 
     // Sort by commute_asc orders from fastest commute to slowest commute (with maxCommuteMinutes >= 40 revealing >35min properties)
@@ -2062,12 +2068,12 @@ describe("Housing Dynamic Scoring Engine", () => {
       maxCommuteMinutes: 90,
       sortBy: "commute_asc",
     });
-    // Carmo (12-15) and Lourdes (15) tie at 15 min; the tie keeps the score order.
     expect(sortedByCommute.map((p) => p.id)).toEqual([
-      "commute-5-santa-efigenia",
-      "commute-15-lourdes",
-      "commute-14-carmo",
-      "commute-18-sion",
+      "commute-10-belvedere",
+      "commute-15-vila-da-serra",
+      "commute-20-carmo",
+      "commute-25-lourdes",
+      "commute-30-santa-efigenia",
       "commute-38-taquaral",
       "commute-85-barra-olimpica",
     ]);
@@ -2747,7 +2753,7 @@ describe("Housing Dynamic Scoring Engine", () => {
       description: "Apartamento com 2 vagas livres (não são gaveta).",
     };
 
-    // Clause 5: Commute > 50 min (Barra da Tijuca 75m) IS retained; Buritis (40m) and Taquaral (38m) are NOT retained
+    // Clause 5: Commute > 50 min (Barra da Tijuca 75m) IS retained; Carlos Prates (40m) and Taquaral (38m) are NOT retained
     const clause5Barra: SlimPropertyRecord = {
       ...baseCleanProp,
       id: "clause5-barra",
@@ -2756,13 +2762,13 @@ describe("Housing Dynamic Scoring Engine", () => {
       neighborhood: "Barra da Tijuca",
       street: "Avenida Lúcio Costa",
     };
-    const clause5Buritis: SlimPropertyRecord = {
+    const clause5CarlosPrates: SlimPropertyRecord = {
       ...baseCleanProp,
-      id: "clause5-buritis",
+      id: "clause5-carlos-prates",
       cityCode: "BH",
       city: "Belo Horizonte",
-      neighborhood: "Buritis",
-      street: "Rua Eli Seabra Filho",
+      neighborhood: "Carlos Prates",
+      street: "Rua Padre Eustáquio",
     };
     const clause5Taquaral: SlimPropertyRecord = {
       ...baseCleanProp,
@@ -2786,7 +2792,7 @@ describe("Housing Dynamic Scoring Engine", () => {
         clause4Manobrista,
         clause4FreeNegatedGaveta,
         clause5Barra,
-        clause5Buritis,
+        clause5CarlosPrates,
         clause5Taquaral,
       ],
       nbs,
@@ -2830,19 +2836,19 @@ describe("Housing Dynamic Scoring Engine", () => {
     }
     expect(byId.get("clause4-negated-gaveta")!.eligible).toBe(true);
 
-    // Verify Clause 5 (Barra 60-90 min counts as 90 > 50 min and is retained; Buritis and Taquaral <= 50 min are eligible)
+    // Verify Clause 5 (Barra 60-90 min counts as 90 > 50 min and is retained; Carlos Prates and Taquaral <= 50 min are eligible)
     const c5Barra = byId.get("clause5-barra")!;
-    const c5Buritis = byId.get("clause5-buritis")!;
+    const c5CarlosPrates = byId.get("clause5-carlos-prates")!;
     const c5Taquaral = byId.get("clause5-taquaral")!;
     expect(c5Barra.commuteMinutes).toBe(90);
-    expect(c5Buritis.commuteMinutes).toBe(45);
+    expect(c5CarlosPrates.commuteMinutes).toBe(40);
     expect(c5Taquaral.commuteMinutes).toBe(40);
 
     expect(c5Barra.eligible).toBe(false);
     expect(c5Barra.exclusionReason).toContain(
       "Tempo até o escritório (90 min) acima do limite de 50 min (eliminado)",
     );
-    expect(c5Buritis.eligible).toBe(true);
+    expect(c5CarlosPrates.eligible).toBe(true);
     expect(c5Taquaral.eligible).toBe(true);
     expect(c5Taquaral.breakdown.commutePoints).toBe(-11);
 
@@ -4420,18 +4426,20 @@ describe("Round-2 audit rules: duplicates, price/IPTU, lofts, furniture, cobertu
     );
   });
 
-  it("treats the BH south axis (Vila da Serra, Vale do Sereno, Belvedere) as a 30–50 min BR-356 commute", () => {
+  it("treats the BH south axis (Vila da Serra, Vale do Sereno, Belvedere) as next to the Belvedere office and the centre as farther", () => {
     const byId = evaluate([
       unit({ id: "nb-vila-serra", neighborhood: "Vila da Serra" }),
       unit({ id: "nb-sereno", neighborhood: "Vale do Sereno" }),
       unit({ id: "nb-belvedere", neighborhood: "Belvedere" }),
+      unit({ id: "nb-centro", neighborhood: "Centro" }),
     ]);
-    expect(byId.get("nb-vila-serra")!.commuteLabel).toBe("30–50 min");
-    expect(byId.get("nb-sereno")!.commuteLabel).toBe("30–50 min");
-    expect(byId.get("nb-belvedere")!.commuteLabel).toBe("25–45 min");
-    for (const p of byId.values()) {
-      expect(p.eligible).toBe(true);
-      expect(p.breakdown.commutePoints).toBeLessThan(-3);
+    expect(byId.get("nb-vila-serra")!.commuteLabel).toBe("6–15 min");
+    expect(byId.get("nb-sereno")!.commuteLabel).toBe("7–15 min");
+    expect(byId.get("nb-belvedere")!.commuteLabel).toBe("5–10 min");
+    expect(byId.get("nb-centro")!.commuteLabel).toBe("12–30 min");
+    for (const id of ["nb-vila-serra", "nb-sereno", "nb-belvedere"]) {
+      expect(byId.get(id)!.eligible).toBe(true);
+      expect(byId.get(id)!.breakdown.commutePoints).toBeGreaterThan(byId.get("nb-centro")!.breakdown.commutePoints);
     }
   });
 
