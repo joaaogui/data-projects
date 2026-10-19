@@ -37,13 +37,13 @@ export function TimelineView({ channelId, videos, initialVideoId }: Readonly<Tim
   if (videos.length === 0 || !layout) return null;
 
   const { left, top, width } = viewport.viewport;
-  const { from, to, anchor } = renderWindow(left, width, layout.scale.width);
+  const { from, to, anchor } = renderWindow(left, width, layout.width);
   const storyCount = seriesIndex.series.length;
   const first = layout.nodes[0].video.publishedAt;
   const last = layout.nodes[layout.nodes.length - 1].video.publishedAt;
   const position = selected?.seriesId ? seriesIndex.byVideo.get(selected.video.videoId) ?? null : null;
-  let bandNote: string | null = null;
-  if (storyCount === 0) bandNote = isLoadingSagas ? "Detecting continuations…" : "No continuations detected";
+  let storyNote = "";
+  if (storyCount === 0) storyNote = isLoadingSagas ? " · detecting continuations…" : " · no continuations detected";
 
   return (
     <TimelineNavContext value={nav}>
@@ -54,6 +54,7 @@ export function TimelineView({ channelId, videos, initialVideoId }: Readonly<Tim
               <span className="font-medium tabular-nums text-foreground">{videos.length.toLocaleString()}</span> videos
               · {dayjs(first).format("MMM YYYY")} – {dayjs(last).format("MMM YYYY")} ·{" "}
               <span className="font-medium tabular-nums text-foreground">{storyCount.toLocaleString()}</span> stories
+              {storyNote}
             </>
           }
           query={map.query}
@@ -61,38 +62,34 @@ export function TimelineView({ channelId, videos, initialVideoId }: Readonly<Tim
           matchCount={map.matchCount}
           matchPosition={map.matchPosition}
           onJumpToMatch={map.jumpToMatch}
-          zoom={map.zoom}
-          onZoomChange={map.changeZoom}
+          density={map.density}
+          onDensityChange={map.changeDensity}
           onJumpToLatest={map.jumpToLatest}
         />
         <MapOverview layout={layout} viewport={viewport.viewport} onScrollTo={(x) => viewport.scrollTo(x, top, false)} />
-
-        <div className="flex min-h-0 flex-1 flex-col gap-3 xl:flex-row">
-          <StoryMap
-            layout={layout}
-            from={from}
-            to={to}
-            anchor={anchor}
-            mapRef={viewport.ref}
-            element={viewport.element}
-            label={`Story map: ${videos.length} videos and ${storyCount} stories over time. Left and Right arrows move between episodes, Escape clears the selection.`}
-            selectedId={selected?.video.videoId ?? null}
-            selectedSeriesId={selected?.seriesId ?? null}
-            matches={map.matches}
-            byVideo={seriesIndex.byVideo}
-            bandNote={bandNote}
-            focusRequest={map.focusRequest}
-            onSelect={map.select}
-            onStep={map.step}
-            onClear={map.clear}
-          />
-          <MapDetail
-            video={selected?.video ?? null}
-            position={position}
-            onReveal={reveal}
-            className="max-h-[45%] xl:max-h-none xl:w-96"
-          />
-        </div>
+        <StoryMap
+          layout={layout}
+          from={from}
+          to={to}
+          anchor={anchor}
+          mapRef={viewport.ref}
+          element={viewport.element}
+          label={`Story map: ${videos.length} videos in upload order and ${storyCount} stories. Left and Right move along the line, Shift with Left or Right moves between episodes of the selected story, Escape clears the selection.`}
+          selectedId={selected?.video.videoId ?? null}
+          selectedSeriesId={selected?.seriesId ?? null}
+          matches={map.matches}
+          byVideo={seriesIndex.byVideo}
+          focusRequest={map.focusRequest}
+          onSelect={map.select}
+          onStep={map.step}
+          onClear={map.clear}
+        />
+        <MapDetail
+          video={selected?.video ?? null}
+          position={position}
+          onReveal={reveal}
+          className={selected ? "min-h-0 flex-1" : ""}
+        />
 
         <p className="sr-only" aria-live="polite">
           {selected &&
@@ -104,3 +101,4 @@ export function TimelineView({ channelId, videos, initialVideoId }: Readonly<Tim
     </TimelineNavContext>
   );
 }
+

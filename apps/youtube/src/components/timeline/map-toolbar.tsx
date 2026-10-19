@@ -3,7 +3,7 @@
 import { Input } from "@data-projects/ui";
 import { ChevronLeft, ChevronRight, Search, SkipForward } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { ZOOM_SPECS, ZOOMS, type Zoom } from "./map-layout";
+import { DENSITIES, DENSITY_SPECS, type Density } from "./map-layout";
 import { FOCUS_RING } from "./timeline-model";
 
 interface MapToolbarProps {
@@ -13,8 +13,8 @@ interface MapToolbarProps {
   matchCount: number;
   matchPosition: number;
   onJumpToMatch: (direction: -1 | 1) => void;
-  zoom: Zoom;
-  onZoomChange: (zoom: Zoom) => void;
+  density: Density;
+  onDensityChange: (density: Density) => void;
   onJumpToLatest: () => void;
 }
 
@@ -33,8 +33,8 @@ export function MapToolbar({
   matchCount,
   matchPosition,
   onJumpToMatch,
-  zoom,
-  onZoomChange,
+  density,
+  onDensityChange,
   onJumpToLatest,
 }: Readonly<MapToolbarProps>) {
   const handleSearchKey = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -53,12 +53,11 @@ export function MapToolbar({
       <p className="text-xs text-muted-foreground sm:text-sm">{summary}</p>
 
       <span className="hidden items-center gap-1.5 text-[11px] text-muted-foreground lg:flex" aria-hidden>
-        <svg width="28" height="8" viewBox="0 0 28 8" className="text-data">
-          <path d="M2 6 C10 6 14 2 26 2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          <circle cx="2" cy="6" r="2" fill="currentColor" />
-          <circle cx="26" cy="2" r="2" fill="currentColor" />
+        <svg width="28" height="10" viewBox="0 0 28 10" className="text-data">
+          <path d="M2 7 V3 H26 V7" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M8 3 V8 M20 3 V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
-        line = story / series
+        bracket = story, ticks = its episodes
       </span>
 
       <div className="flex w-full items-center gap-1.5 sm:ml-auto sm:w-auto">
@@ -96,20 +95,20 @@ export function MapToolbar({
         </button>
       </div>
 
-      <div role="group" aria-label="Zoom" className="flex h-8 items-center rounded-md border border-border p-0.5">
-        {ZOOMS.map((value) => {
-          const pressed = value === zoom;
+      <div role="group" aria-label="Density" className="flex h-8 items-center rounded-md border border-border p-0.5">
+        {DENSITIES.map((value) => {
+          const pressed = value === density;
           return (
             <button
               type="button"
               key={value}
               aria-pressed={pressed}
-              onClick={() => onZoomChange(value)}
+              onClick={() => onDensityChange(value)}
               className={`h-full rounded px-2.5 text-xs font-medium transition-colors ${FOCUS_RING} ${
                 pressed ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {ZOOM_SPECS[value].label}
+              {DENSITY_SPECS[value].label}
             </button>
           );
         })}

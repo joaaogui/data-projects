@@ -2,7 +2,7 @@ import type { SeriesPosition } from "@/lib/series";
 import dayjs from "dayjs";
 import Image from "next/image";
 import { useMemo } from "react";
-import { visibleSlice, type ZoomSpec } from "./map-layout";
+import { visibleRange } from "./map-layout";
 import type { MapLayout, MapNode } from "./map-model";
 import { seriesColor } from "./series-colors";
 import { FOCUS_RING } from "./timeline-model";
@@ -35,51 +35,65 @@ function scoreFill(score: number): string {
 
 interface NodeProps {
   node: MapNode;
-  spec: ZoomSpec;
+  layout: MapLayout;
   label: string;
   selected: boolean;
   dimmed: boolean;
   tabbable: boolean;
 }
 
-export const cardHeight = (spec: ZoomSpec) => spec.rowHeight - 6;
-
-function NodeCard({ node, spec, label, selected, dimmed, tabbable }: Readonly<NodeProps>) {
+/** Thumbnail card (with title and day number at Cards density) whose top bar carries the story color. */
+function NodeCard({ node, layout, label, selected, dimmed, tabbable }: Readonly<NodeProps>) {
+  const { spec, trackTop } = layout;
   const width = spec.nodeWidth;
-  const height = cardHeight(spec);
-  const withTitle = spec.rowHeight > 80;
   return (
-    <button
-      type="button"
-      data-video-id={node.video.videoId}
-      tabIndex={tabbable ? 0 : -1}
-      aria-label={label}
-      aria-current={selected ? "true" : undefined}
-      className={`absolute z-10 flex flex-col overflow-hidden rounded-md border-2 bg-background text-left transition-opacity motion-reduce:transition-none ${FOCUS_RING} ${
-        node.seriesId ? "" : "border-border"
-      } ${selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""} ${dimmed ? "opacity-25" : ""}`}
-      style={{
-        left: node.x - width / 2,
-        top: node.y - height / 2,
-        width,
-        height,
-        borderColor: node.seriesId ? seriesColor(node.seriesId) : undefined,
-      }}
-    >
-      <span className="relative block aspect-video w-full shrink-0 bg-muted">
-        <Image src={node.video.thumbnail} alt="" fill unoptimized sizes={`${width}px`} className="object-cover" />
-      </span>
-      {withTitle && (
-        <span className="line-clamp-2 px-1 pt-0.5 text-[10px] leading-3 text-foreground">{node.video.title}</span>
+    <>
+      <button
+        type="button"
+        data-video-id={node.video.videoId}
+        tabIndex={tabbable ? 0 : -1}
+        aria-label={label}
+        aria-current={selected ? "true" : undefined}
+        className={`absolute z-10 flex flex-col overflow-hidden rounded-md border border-border bg-background text-left transition-opacity motion-reduce:transition-none ${FOCUS_RING} ${
+          selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
+        } ${dimmed ? "opacity-25" : ""}`}
+        style={{ left: node.x - width / 2, top: trackTop, width, height: spec.nodeHeight }}
+      >
+        <span
+          aria-hidden
+          className="block h-[3px] w-full shrink-0"
+          style={{ backgroundColor: node.seriesId ? seriesColor(node.seriesId) : "transparent" }}
+        />
+        <span className="relative block w-full shrink-0 bg-muted" style={{ height: spec.thumbHeight }}>
+          <Image src={node.video.thumbnail} alt="" fill unoptimized sizes={`${width}px`} className="object-cover" />
+        </span>
+        {spec.title && (
+          <span className="line-clamp-2 px-1 pt-0.5 text-[10px] leading-3 text-foreground">{node.video.title}</span>
+        )}
+      </button>
+      {spec.dayLabels && (
+        <span
+          aria-hidden
+          className={`absolute -translate-x-1/2 text-[10px] tabular-nums leading-3 text-muted-foreground ${dimmed ? "opacity-40" : ""}`}
+          style={{ left: node.x, top: trackTop + spec.nodeHeight + 2 }}
+        >
+          {new Date(node.time).getUTCDate()}
+        </span>
       )}
-    </button>
+    </>
   );
 }
 
-function NodeDot({ node, label, selected, dimmed, tabbable }: Readonly<NodeProps>) {
+/** Dot on the rule: size by views, fill by score, story color as a small bar above it. */
+function NodeDot({ node, layout, label, selected, dimmed, tabbable }: Readonly<NodeProps>) {
+  const y = layout.lineY;
+  const barY = y - layout.spec.nodeWidth / 2 - 3;
   return (
     <g opacity={dimmed ? 0.2 : 1}>
-      {selected && <circle cx={node.x} cy={node.y} r={node.r + 3} fill="none" className="stroke-primary" strokeWidth={2} />}
+      {node.seriesId && (
+        <rect x={node.x - 3} y={barY} width={6} height={2} rx={1} fill={seriesColor(node.seriesId)} />
+      )}
+      {selected && <circle cx={node.x} cy={y} r={node.r + 2.5} fill="none" className="stroke-primary" strokeWidth={2} />}
       <circle
         data-video-id={node.video.videoId}
         role="button"
@@ -87,47 +101,45 @@ function NodeDot({ node, label, selected, dimmed, tabbable }: Readonly<NodeProps
         aria-label={label}
         aria-current={selected ? "true" : undefined}
         cx={node.x}
-        cy={node.y}
+        cy={y}
         r={node.r}
-        stroke={node.seriesId ? seriesColor(node.seriesId) : "none"}
-        strokeWidth={1.5}
-        className={`${scoreFill(node.video.score)} cursor-pointer outline-none focus-visible:stroke-foreground focus-visible:[stroke-width:3px]`}
+        className={`${scoreFill(node.video.score)} cursor-pointer outline-none focus-visible:stroke-foreground focus-visible:[stroke-width:2px]`}
       />
     </g>
   );
 }
 
-/** Only the nodes inside the render window: thumbnail cards at Week/Month, dots at Quarter/Year. */
+/** Only the videos inside the render window, as cards/thumbnails or dots on the line. */
 export function MapNodes({ layout, from, to, anchor, selectedId, selectedSeriesId, matches, byVideo }: Readonly<MapNodesProps>) {
   // Labels for the whole layout once, so crossing a chunk boundary does no date formatting.
   const labels = useMemo(
     () => new Map(layout.nodes.map((node) => [node.video.videoId, nodeLabel(node, byVideo)])),
     [layout, byVideo]
   );
-  const [lo, hi] = visibleSlice(layout.xs, from, to);
+  const [lo, hi] = visibleRange(layout.nodes.length, layout.spec.pitch, from, to);
   const nodes = layout.nodes.slice(lo, hi);
   const selectedRendered = selectedId !== null && nodes.some((node) => node.video.videoId === selectedId);
   const tabStopId = selectedRendered
     ? selectedId
     : (nodes.find((node) => node.x >= anchor) ?? nodes[0])?.video.videoId;
-  const { spec } = layout;
+  const dots = layout.spec.thumbHeight === 0;
 
   const items = nodes.map((node) => {
     const id = node.video.videoId;
     const props: NodeProps = {
       node,
-      spec,
+      layout,
       label: labels.get(id) ?? node.video.title,
       selected: id === selectedId,
       dimmed: (selectedSeriesId !== null && node.seriesId !== selectedSeriesId) || (matches !== null && !matches.has(id)),
       tabbable: id === tabStopId,
     };
-    return spec.node === "card" ? <NodeCard key={id} {...props} /> : <NodeDot key={id} {...props} />;
+    return dots ? <NodeDot key={id} {...props} /> : <NodeCard key={id} {...props} />;
   });
 
-  if (spec.node === "card") return <>{items}</>;
+  if (!dots) return <>{items}</>;
   const left = Math.max(0, from);
-  const width = Math.max(0, Math.min(layout.scale.width, to) - left);
+  const width = Math.max(0, Math.min(layout.width, to) - left);
   return (
     <svg
       className="absolute top-0 z-10 overflow-visible"

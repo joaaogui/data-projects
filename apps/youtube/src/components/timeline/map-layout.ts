@@ -1,194 +1,48 @@
 /**
- * Pure geometry for the story map: time scale, axis ticks, lane packing,
- * row stacking, visible-range slicing and the overview histogram. All dates
+ * Pure geometry for the story map. The track is ORDINAL: x is a video's index
+ * in upload order, so a daily and a weekly channel read the same way. Dates
  * are handled in UTC so the math is deterministic.
  */
 
 export const DAY_MS = 86_400_000;
-export const WEEK_MS = 7 * DAY_MS;
-/** Horizontal room before the first / after the last upload (cards are centered on x). */
-export const EDGE_PAD = 140;
+/** Room before the first / after the last video. */
+export const EDGE_PAD = 80;
+/** Consecutive uploads further apart than this get a break marker on the line. */
+export const GAP_MARKER_MIN_DAYS = 7;
 
-export type Zoom = "week" | "month" | "quarter" | "year";
-export const ZOOMS: readonly Zoom[] = ["week", "month", "quarter", "year"];
+export type Density = "cards" | "thumbs" | "dots";
+export const DENSITIES: readonly Density[] = ["cards", "thumbs", "dots"];
 
-export interface ZoomSpec {
+export interface DensitySpec {
   label: string;
-  pxPerDay: number;
-  node: "card" | "dot";
+  /** Horizontal distance between consecutive videos. */
+  pitch: number;
   /** Card width, or the largest dot diameter. */
   nodeWidth: number;
-  rowHeight: number;
-  /** Horizontal space kept free after a thread's start for its label. */
+  thumbHeight: number;
+  /** Full node height, including the 3px story bar. */
+  nodeHeight: number;
+  title: boolean;
+  dayLabels: boolean;
+  /** Horizontal space kept after a bracket's start for its label when packing rows. */
   labelReserve: number;
-  threadRows: number;
-  bandRows: number;
 }
 
-export const ZOOM_SPECS: Record<Zoom, ZoomSpec> = {
-  week: { label: "Week", pxPerDay: 140, node: "card", nodeWidth: 112, rowHeight: 100, labelReserve: 220, threadRows: 3, bandRows: 3 },
-  month: { label: "Month", pxPerDay: 36, node: "card", nodeWidth: 72, rowHeight: 48, labelReserve: 200, threadRows: 3, bandRows: 4 },
-  quarter: { label: "Quarter", pxPerDay: 10, node: "dot", nodeWidth: 12, rowHeight: 16, labelReserve: 130, threadRows: 2, bandRows: 4 },
-  year: { label: "Year", pxPerDay: 2.5, node: "dot", nodeWidth: 10, rowHeight: 12, labelReserve: 0, threadRows: 2, bandRows: 6 },
+export const DENSITY_SPECS: Record<Density, DensitySpec> = {
+  cards: { label: "Cards", pitch: 124, nodeWidth: 112, thumbHeight: 63, nodeHeight: 92, title: true, dayLabels: true, labelReserve: 150 },
+  thumbs: { label: "Thumbnails", pitch: 56, nodeWidth: 50, thumbHeight: 28, nodeHeight: 31, title: false, dayLabels: false, labelReserve: 140 },
+  dots: { label: "Dots", pitch: 8, nodeWidth: 7, thumbHeight: 0, nodeHeight: 13, title: false, dayLabels: false, labelReserve: 0 },
 };
 
-/** Month is 36 px/day and a card ~100 px wide, so uploads closer than ~3 days overlap there. */
-export const WEEK_ZOOM_MAX_MEDIAN_GAP_DAYS = 2.5;
-const CADENCE_SAMPLE = 200;
+/** Center x of the video at `index` (fractional indexes interpolate). */
+export const indexToX = (index: number, pitch: number) => EDGE_PAD + index * pitch + pitch / 2;
+export const xToIndex = (x: number, pitch: number) => (x - EDGE_PAD - pitch / 2) / pitch;
+export const trackWidth = (count: number, pitch: number) => EDGE_PAD * 2 + count * pitch;
 
-/** Week for channels whose recent median upload gap is under the threshold, Month otherwise. */
-export function pickInitialZoom(videos: readonly { publishedAt: string }[]): Zoom {
-  const times = videos
-    .map((video) => Date.parse(video.publishedAt))
-    .filter(Number.isFinite)
-    .sort((a, b) => a - b)
-    .slice(-CADENCE_SAMPLE);
-  if (times.length < 2) return "month";
-  const gaps = times.slice(1).map((t, i) => (t - times[i]) / DAY_MS).sort((a, b) => a - b);
-  const mid = Math.floor(gaps.length / 2);
-  const median = gaps.length % 2 ? gaps[mid] : (gaps[mid - 1] + gaps[mid]) / 2;
-  return median < WEEK_ZOOM_MAX_MEDIAN_GAP_DAYS ? "week" : "month";
-}
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-export const startOfUtcDay = (t: number) => Math.floor(t / DAY_MS) * DAY_MS;
-
-function utcMonthStart(t: number, addMonths = 0): number {
-  const d = new Date(t);
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + addMonths, 1);
-}
-
-function utcYearStart(t: number, addYears = 0): number {
-  return Date.UTC(new Date(t).getUTCFullYear() + addYears, 0, 1);
-}
-
-export interface TimeScale {
-  origin: number;
-  pxPerDay: number;
-  width: number;
-}
-
-export function createScale(minTime: number, maxTime: number, pxPerDay: number): TimeScale {
-  const origin = startOfUtcDay(minTime);
-  const days = (startOfUtcDay(maxTime) - origin) / DAY_MS + 1;
-  return { origin, pxPerDay, width: Math.ceil(EDGE_PAD * 2 + days * pxPerDay) };
-}
-
-export const timeToX = (s: TimeScale, t: number) => EDGE_PAD + ((t - s.origin) / DAY_MS) * s.pxPerDay;
-export const xToTime = (s: TimeScale, x: number) => s.origin + ((x - EDGE_PAD) / s.pxPerDay) * DAY_MS;
-
-export interface Tick {
-  time: number;
-  label: string;
-}
-
-export interface Period extends Tick {
-  end: number;
-}
-
-const MAX_TICKS = 2000;
-
-/** Minor axis ticks inside [from, to]: days, Mondays, months or quarters by zoom. */
-export function axisTicks(zoom: Zoom, from: number, to: number): Tick[] {
-  const ticks: Tick[] = [];
-  const push = (time: number, label: string) => {
-    if (time >= from && time <= to && ticks.length < MAX_TICKS) ticks.push({ time, label });
-  };
-  if (zoom === "week" || zoom === "month") {
-    let t = startOfUtcDay(from);
-    if (zoom === "month") t -= ((new Date(t).getUTCDay() + 6) % 7) * DAY_MS;
-    const step = zoom === "week" ? DAY_MS : WEEK_MS;
-    for (; t <= to && ticks.length < MAX_TICKS; t += step) push(t, String(new Date(t).getUTCDate()));
-    return ticks;
-  }
-  const step = zoom === "quarter" ? 1 : 3;
-  let t = zoom === "quarter" ? utcMonthStart(from) : utcYearStart(from);
-  for (; t <= to && ticks.length < MAX_TICKS; t = utcMonthStart(t, step)) {
-    push(t, MONTHS[new Date(t).getUTCMonth()]);
-  }
-  return ticks;
-}
-
-/** Labelled spans above the ticks: months (Week/Month zoom) or years (Quarter/Year). */
-export function axisPeriods(zoom: Zoom, from: number, to: number): Period[] {
-  const byMonth = zoom === "week" || zoom === "month";
-  const periods: Period[] = [];
-  let t = byMonth ? utcMonthStart(from) : utcYearStart(from);
-  while (t <= to && periods.length < MAX_TICKS) {
-    const end = byMonth ? utcMonthStart(t, 1) : utcYearStart(t, 1);
-    const d = new Date(t);
-    const label = byMonth ? `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}` : String(d.getUTCFullYear());
-    periods.push({ time: t, end, label });
-    t = end;
-  }
-  return periods;
-}
-
-export interface Interval {
-  id: string;
-  start: number;
-  end: number;
-}
-
-/** Greedy first-fit packing: each interval takes the lowest lane free `gap` before its start. */
-export function packLanes(intervals: readonly Interval[], gap: number): { lanes: Map<string, number>; count: number } {
-  const sorted = [...intervals].sort((a, b) => a.start - b.start);
-  const laneEnds: number[] = [];
-  const lanes = new Map<string, number>();
-  for (const interval of sorted) {
-    let lane = laneEnds.findIndex((end) => end + gap <= interval.start);
-    if (lane < 0) lane = laneEnds.length;
-    laneEnds[lane] = interval.end;
-    lanes.set(interval.id, lane);
-  }
-  return { lanes, count: laneEnds.length };
-}
-
-/**
- * Row for each x (ascending) so nodes closer than `spacing` stack instead of
- * overlapping. Past `maxRows`, the row that frees up first is reused.
- */
-export function stackRows(xs: readonly number[], spacing: number, maxRows: number): { rows: number[]; count: number } {
-  const rowEnds: number[] = [];
-  const rows = xs.map((x) => {
-    let row = rowEnds.findIndex((end) => x - end >= spacing);
-    if (row < 0 && rowEnds.length < maxRows) row = rowEnds.length;
-    if (row < 0) row = rowEnds.indexOf(Math.min(...rowEnds));
-    rowEnds[row] = x;
-    return row;
-  });
-  return { rows, count: rowEnds.length };
-}
-
-/** First index whose value is >= `value` in an ascending array. */
-export function lowerBound(sorted: readonly number[], value: number): number {
-  let lo = 0;
-  let hi = sorted.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if (sorted[mid] < value) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
-}
-
-/** First index whose value is > `value` in an ascending array. */
-function upperBound(sorted: readonly number[], value: number): number {
-  let lo = 0;
-  let hi = sorted.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if (sorted[mid] <= value) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
-}
-
-/** [lo, hi) of the xs inside [from, to], widened by `neighbors` so lines crossing the edge still draw. */
-export function visibleSlice(xs: readonly number[], from: number, to: number, neighbors = 0): [number, number] {
-  const lo = Math.max(0, lowerBound(xs, from) - neighbors);
-  const hi = Math.min(xs.length, upperBound(xs, to) + neighbors);
+/** [lo, hi) of the video indexes whose slot intersects [from, to]. */
+export function visibleRange(count: number, pitch: number, from: number, to: number): [number, number] {
+  const lo = Math.min(count, Math.max(0, Math.floor((from - EDGE_PAD) / pitch)));
+  const hi = Math.min(count, Math.ceil((to - EDGE_PAD) / pitch));
   return [lo, Math.max(lo, hi)];
 }
 
@@ -213,4 +67,74 @@ export function renderWindow(scrollLeft: number, viewportWidth: number, contentW
     to: Math.min(contentWidth, anchor + chunk + width * 2),
     anchor,
   };
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+export interface PeriodMark {
+  /** First video of the period. */
+  index: number;
+  /** First video of the next period (exclusive end). */
+  endIndex: number;
+  label: string;
+}
+
+/** One mark per calendar month (or year) at its first video; `times` must be ascending. */
+export function periodMarks(times: readonly number[], unit: "month" | "year"): PeriodMark[] {
+  const marks: PeriodMark[] = [];
+  let previous = "";
+  times.forEach((time, index) => {
+    const d = new Date(time);
+    const key = unit === "month" ? `${d.getUTCFullYear()}-${d.getUTCMonth()}` : String(d.getUTCFullYear());
+    if (key === previous) return;
+    previous = key;
+    const last = marks[marks.length - 1];
+    if (last) last.endIndex = index;
+    marks.push({
+      index,
+      endIndex: times.length,
+      label: unit === "month" ? `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}` : String(d.getUTCFullYear()),
+    });
+  });
+  return marks;
+}
+
+export interface GapMark {
+  /** Index of the video after the break. */
+  index: number;
+  days: number;
+}
+
+/** Breaks between consecutive uploads more than `minDays` apart; `times` must be ascending. */
+export function gapMarks(times: readonly number[], minDays = GAP_MARKER_MIN_DAYS): GapMark[] {
+  const gaps: GapMark[] = [];
+  for (let i = 1; i < times.length; i++) {
+    const days = (times[i] - times[i - 1]) / DAY_MS;
+    if (days > minDays) gaps.push({ index: i, days: Math.round(days) });
+  }
+  return gaps;
+}
+
+export interface Interval {
+  id: string;
+  start: number;
+  end: number;
+}
+
+/**
+ * Greedy first-fit row packing: each interval takes the lowest row free `gap`
+ * before its start. Past `maxRows`, the row that frees up first is reused.
+ */
+export function packRows(intervals: readonly Interval[], gap: number, maxRows: number): { rows: Map<string, number>; count: number } {
+  const sorted = [...intervals].sort((a, b) => a.start - b.start);
+  const rowEnds: number[] = [];
+  const rows = new Map<string, number>();
+  for (const interval of sorted) {
+    let row = rowEnds.findIndex((end) => end + gap <= interval.start);
+    if (row < 0 && rowEnds.length < maxRows) row = rowEnds.length;
+    if (row < 0) row = rowEnds.indexOf(Math.min(...rowEnds));
+    rowEnds[row] = Math.max(rowEnds[row] ?? -Infinity, interval.end);
+    rows.set(interval.id, row);
+  }
+  return { rows, count: rowEnds.length };
 }

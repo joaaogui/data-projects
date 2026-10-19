@@ -2,64 +2,58 @@
 
 import type { KeyboardEvent, PointerEvent } from "react";
 import { useMemo } from "react";
-import { axisPeriods, timeToX, xToTime } from "./map-layout";
+import { indexToX, visibleRange } from "./map-layout";
 import type { MapLayout, Viewport } from "./map-model";
-import { bucketWeeks } from "./map-shapes";
+import { ordinalWeeks } from "./map-shapes";
 import { FOCUS_RING } from "./timeline-model";
 
-/** Weekly upload bars over the whole channel: gray = all uploads, accent = share inside a story. */
+/**
+ * Weekly runs laid on the ordinal track (a week's width = its upload count),
+ * height = uploads that week; gray tint = average score, accent = share inside a story.
+ */
 function OverviewBars({ layout }: Readonly<{ layout: MapLayout }>) {
-  const { scale } = layout;
-  const { buckets, years, maxCount } = useMemo(() => {
-    const first = layout.nodes[0].time;
-    const last = layout.nodes[layout.nodes.length - 1].time;
+  const { width, spec } = layout;
+  const { weeks, maxCount } = useMemo(() => {
     const items = layout.nodes.map((n) => ({ time: n.time, score: n.video.score, inThread: n.seriesId !== null }));
-    const weekly = bucketWeeks(items, first, last);
-    return {
-      buckets: weekly,
-      years: axisPeriods("year", first, last).slice(1),
-      maxCount: Math.max(1, ...weekly.map((b) => b.count)),
-    };
+    const runs = ordinalWeeks(items);
+    return { weeks: runs, maxCount: Math.max(1, ...runs.map((w) => w.count)) };
   }, [layout.nodes]);
-  const barWidth = 7 * scale.pxPerDay * 0.8;
+  const slotLeft = (index: number) => indexToX(index, spec.pitch) - spec.pitch / 2;
 
   return (
     <>
-      <svg
-        aria-hidden
-        className="absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${scale.width} ${maxCount}`}
-        preserveAspectRatio="none"
-      >
-        {buckets.map((b) =>
-          b.count === 0 ? null : (
-            <g key={b.start}>
+      <svg aria-hidden className="absolute inset-0 h-full w-full" viewBox={`0 0 ${width} ${maxCount}`} preserveAspectRatio="none">
+        {weeks.map((week) => {
+          const x = slotLeft(week.startIndex);
+          const w = week.count * spec.pitch * 0.9;
+          return (
+            <g key={week.startIndex}>
               <rect
-                x={timeToX(scale, b.start)}
-                y={maxCount - b.count}
-                width={barWidth}
-                height={b.count}
+                x={x}
+                y={maxCount - week.count}
+                width={w}
+                height={week.count}
                 className="fill-foreground"
-                opacity={0.15 + (0.35 * b.avgScore) / 100}
+                opacity={0.15 + (0.35 * week.avgScore) / 100}
               />
               <rect
-                x={timeToX(scale, b.start)}
-                y={maxCount - b.count * b.threadShare}
-                width={barWidth}
-                height={b.count * b.threadShare}
+                x={x}
+                y={maxCount - week.count * week.threadShare}
+                width={w}
+                height={week.count * week.threadShare}
                 className="fill-data"
                 opacity={0.65}
               />
             </g>
-          )
-        )}
+          );
+        })}
       </svg>
-      {years.map((year) => (
+      {layout.years.slice(1).map((year) => (
         <span
-          key={year.time}
+          key={year.index}
           aria-hidden
           className="pointer-events-none absolute top-0 h-full border-l border-border pl-1 text-[10px] leading-none text-muted-foreground"
-          style={{ left: `${(timeToX(scale, year.time) / scale.width) * 100}%` }}
+          style={{ left: `${(slotLeft(year.index) / width) * 100}%` }}
         >
           {year.label}
         </span>
@@ -76,11 +70,15 @@ interface MapOverviewProps {
 
 /** Whole-channel strip with the map's visible window; click, drag or arrow keys move the map. */
 export function MapOverview({ layout, viewport, onScrollTo }: Readonly<MapOverviewProps>) {
-  const width = layout.scale.width;
+  const { width } = layout;
   const maxLeft = Math.max(0, width - viewport.width);
   const leftPct = (viewport.left / width) * 100;
   const widthPct = Math.max(0.6, (viewport.width / width) * 100);
-  const centerTime = xToTime(layout.scale, viewport.left + viewport.width / 2);
+  const [lo, hi] = visibleRange(layout.nodes.length, layout.spec.pitch, viewport.left, viewport.left + viewport.width);
+  const first = layout.nodes[lo]?.time;
+  const last = layout.nodes[Math.max(lo, hi - 1)]?.time;
+  const format = (time: number | undefined) =>
+    time === undefined ? "" : new Date(time).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 
   const scrollToPointer = (event: PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -109,7 +107,7 @@ export function MapOverview({ layout, viewport, onScrollTo }: Readonly<MapOvervi
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(maxLeft ? (viewport.left / maxLeft) * 100 : 100)}
-      aria-valuetext={new Date(centerTime).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+      aria-valuetext={`Videos ${lo + 1} to ${hi} of ${layout.nodes.length}, ${format(first)} to ${format(last)}`}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         scrollToPointer(event);

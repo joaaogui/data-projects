@@ -3,13 +3,13 @@
 import type { SeriesIndex } from "@/lib/series";
 import type { VideoData } from "@/types/youtube";
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import { pickInitialZoom, timeToX, xToTime, type Zoom } from "./map-layout";
+import { indexToX, xToIndex, type Density } from "./map-layout";
 import { buildMapLayout, matchVideoIds, neighborId, scrollTargetFor } from "./map-model";
 import type { MapViewportApi } from "./use-map-viewport";
 
 type ScrollIntent =
   | { kind: "latest"; smooth: boolean }
-  | { kind: "time"; time: number }
+  | { kind: "index"; index: number }
   | { kind: "video"; videoId: string; smooth: boolean };
 type ScrollRequest = ScrollIntent & { nonce: number };
 
@@ -17,21 +17,21 @@ interface Options {
   videos: VideoData[];
   seriesIndex: SeriesIndex;
   initialVideoId?: string | null;
-  /** False while sagas load: lanes are not final yet. */
+  /** False while sagas load: stories are not final yet. */
   ready: boolean;
   viewport: MapViewportApi;
 }
 
-/** Zoom, selection, search and every scroll the map performs (deep link, zoom, jumps). */
+/** Density, selection, search and every scroll the map performs (deep link, density, jumps). */
 export function useStoryMap({ videos, seriesIndex, initialVideoId, ready, viewport }: Options) {
   const { element, scrollTo } = viewport;
-  const [zoom, setZoom] = useState<Zoom>(() => pickInitialZoom(videos));
+  const [density, setDensity] = useState<Density>("cards");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [scrollRequest, setScrollRequest] = useState<ScrollRequest>({ kind: "latest", smooth: false, nonce: 0 });
   const [focusRequest, setFocusRequest] = useState<{ videoId: string; nonce: number } | null>(null);
 
-  const layout = useMemo(() => buildMapLayout(videos, seriesIndex, zoom), [videos, seriesIndex, zoom]);
+  const layout = useMemo(() => buildMapLayout(videos, seriesIndex, density), [videos, seriesIndex, density]);
   const matches = useMemo(() => matchVideoIds(videos, query, seriesIndex.byVideo), [videos, query, seriesIndex.byVideo]);
   const matchList = useMemo(
     () => (matches && layout ? layout.nodes.filter((n) => matches.has(n.video.videoId)) : []),
@@ -43,16 +43,16 @@ export function useStoryMap({ videos, seriesIndex, initialVideoId, ready, viewpo
     []
   );
 
-  // Applied after commit, so a zoom change and its scroll land on the new layout together.
+  // Applied after commit, so a density change and its scroll land on the new layout together.
   const appliedNonce = useRef(-1);
   useEffect(() => {
     if (!element || !layout || appliedNonce.current === scrollRequest.nonce) return;
     appliedNonce.current = scrollRequest.nonce;
     const view = { left: element.scrollLeft, top: element.scrollTop, width: element.clientWidth, height: element.clientHeight };
     if (scrollRequest.kind === "latest") {
-      scrollTo(layout.scale.width - view.width, null, scrollRequest.smooth);
-    } else if (scrollRequest.kind === "time") {
-      scrollTo(timeToX(layout.scale, scrollRequest.time) - view.width / 2, null, false);
+      scrollTo(layout.width - view.width, null, scrollRequest.smooth);
+    } else if (scrollRequest.kind === "index") {
+      scrollTo(indexToX(scrollRequest.index, layout.spec.pitch) - view.width / 2, null, false);
     } else {
       const node = layout.byId.get(scrollRequest.videoId);
       if (!node) return;
@@ -73,7 +73,7 @@ export function useStoryMap({ videos, seriesIndex, initialVideoId, ready, viewpo
   // background refetches (new `videos` identity) never re-scroll the user.
   const handledDeepLinkId = useRef<string | null>(null);
   const revealDeepLink = useEffectEvent((videoId: string) => {
-    setZoom(pickInitialZoom(videos));
+    setDensity("cards");
     setSelectedId(videoId);
     requestScroll({ kind: "video", videoId, smooth: false });
   });
@@ -85,18 +85,18 @@ export function useStoryMap({ videos, seriesIndex, initialVideoId, ready, viewpo
     revealDeepLink(initialVideoId);
   }, [initialVideoId, videos, ready]);
 
-  const changeZoom = (next: Zoom) => {
-    if (next === zoom) return;
+  /** Keeps the video at the center of the view centered across the density change. */
+  const changeDensity = (next: Density) => {
+    if (next === density) return;
     if (element && layout) {
-      const time = xToTime(layout.scale, element.scrollLeft + element.clientWidth / 2);
-      requestScroll({ kind: "time", time });
+      requestScroll({ kind: "index", index: xToIndex(element.scrollLeft + element.clientWidth / 2, layout.spec.pitch) });
     }
-    setZoom(next);
+    setDensity(next);
   };
 
-  const step = (direction: -1 | 1, fromId: string) => {
+  const step = (direction: -1 | 1, fromId: string, byEpisode: boolean) => {
     if (!layout) return;
-    const target = neighborId(layout, seriesIndex.byVideo, fromId, direction);
+    const target = neighborId(layout, seriesIndex.byVideo, fromId, direction, byEpisode);
     if (!target) return;
     reveal(target);
     setFocusRequest((prev) => ({ videoId: target, nonce: (prev?.nonce ?? 0) + 1 }));
@@ -108,7 +108,7 @@ export function useStoryMap({ videos, seriesIndex, initialVideoId, ready, viewpo
     const current = matchList.findIndex((node) => node.video.videoId === selectedId);
     let next = (current + direction + n) % n;
     if (current < 0) {
-      // Nothing matched is selected: continue from the map's center date.
+      // Nothing matched is selected: continue from the video at the map's center.
       const center = element ? element.scrollLeft + element.clientWidth / 2 : 0;
       const after = matchList.findIndex((node) => node.x > center);
       const firstAfter = after < 0 ? n : after;
@@ -122,8 +122,8 @@ export function useStoryMap({ videos, seriesIndex, initialVideoId, ready, viewpo
 
   return {
     layout,
-    zoom,
-    changeZoom,
+    density,
+    changeDensity,
     selected,
     select: setSelectedId,
     clear: () => setSelectedId(null),

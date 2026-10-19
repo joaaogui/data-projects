@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bucketWeeks, dotRadius, threadPath } from "../map-shapes";
+import { dotRadius, ordinalWeeks } from "../map-shapes";
 
 const utc = (y: number, m: number, d: number) => Date.UTC(y, m - 1, d);
 
@@ -15,31 +15,23 @@ describe("dotRadius", () => {
   });
 });
 
-describe("threadPath", () => {
-  it("draws straight segments on one row and curves between rows", () => {
-    expect(threadPath([])).toBe("");
-    expect(threadPath([{ x: 0, y: 10 }, { x: 40, y: 10 }])).toBe("M0 10 L40 10");
-    expect(threadPath([{ x: 0, y: 10 }, { x: 40, y: 30 }])).toBe("M0 10 C20 10 20 30 40 30");
-  });
-});
-
-describe("bucketWeeks", () => {
-  it("counts uploads per week, keeping empty weeks", () => {
-    const buckets = bucketWeeks(
-      [
-        { time: utc(2023, 1, 1), score: 40, inThread: true },
-        { time: utc(2023, 1, 3), score: 60, inThread: false },
-        { time: utc(2023, 1, 20), score: 80, inThread: true },
-      ],
-      utc(2023, 1, 1),
-      utc(2023, 1, 20)
-    );
-    expect(buckets.map((b) => b.count)).toEqual([2, 0, 1]);
-    expect(buckets[0]).toMatchObject({ avgScore: 50, threadShare: 0.5 });
-    expect(buckets[1]).toMatchObject({ avgScore: 0, threadShare: 0 });
+describe("ordinalWeeks", () => {
+  it("groups consecutive videos by Monday-start week as runs on the track", () => {
+    const weeks = ordinalWeeks([
+      { time: utc(2023, 5, 7), score: 40, inThread: true }, // Sunday
+      { time: utc(2023, 5, 8), score: 60, inThread: false }, // Monday: new week
+      { time: utc(2023, 5, 9), score: 80, inThread: true },
+      { time: utc(2023, 5, 30), score: 50, inThread: false }, // empty weeks skipped
+    ]);
+    expect(weeks.map((w) => [w.startIndex, w.count])).toEqual([
+      [0, 1],
+      [1, 2],
+      [3, 1],
+    ]);
+    expect(weeks[1]).toMatchObject({ avgScore: 70, threadShare: 0.5 });
   });
 
   it("returns nothing for no uploads", () => {
-    expect(bucketWeeks([], 0, 0)).toEqual([]);
+    expect(ordinalWeeks([])).toEqual([]);
   });
 });

@@ -3,11 +3,11 @@
 import type { SeriesPosition } from "@/lib/series";
 import type { KeyboardEvent, SyntheticEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MapAxis } from "./map-axis";
+import { MapBracketLabels, MapBrackets } from "./map-brackets";
 import type { MapLayout } from "./map-model";
 import { MapNodes } from "./map-nodes";
-import { MapLabels, MapThreads } from "./map-threads";
-import { MapTooltip } from "./map-tooltip";
+import { MapRuler, MapTrackDecor } from "./map-ruler";
+import { MapTooltip, type TooltipAnchor } from "./map-tooltip";
 import { FOCUS_RING } from "./timeline-model";
 
 interface StoryMapProps {
@@ -23,19 +23,27 @@ interface StoryMapProps {
   selectedSeriesId: string | null;
   matches: ReadonlySet<string> | null;
   byVideo: ReadonlyMap<string, SeriesPosition>;
-  bandNote: string | null;
   focusRequest: { videoId: string; nonce: number } | null;
   onSelect: (videoId: string) => void;
-  onStep: (direction: -1 | 1, fromId: string) => void;
+  /** byEpisode: move inside the selected story instead of along the line. */
+  onStep: (direction: -1 | 1, fromId: string, byEpisode: boolean) => void;
   onClear: () => void;
 }
 
-function nodeIdOf(event: SyntheticEvent): string | null {
+function nodeOf(event: SyntheticEvent): Element | null {
   const target = event.target as Element | null;
-  return target?.closest?.("[data-video-id]")?.getAttribute("data-video-id") ?? null;
+  return target?.closest?.("[data-video-id]") ?? null;
 }
 
-/** The scrollable map: sticky axis, thread curves and labels, nodes, tooltip. Events are delegated. */
+function anchorOf(event: SyntheticEvent): TooltipAnchor | null {
+  const node = nodeOf(event);
+  const videoId = node?.getAttribute("data-video-id");
+  if (!node || !videoId) return null;
+  const rect = node.getBoundingClientRect();
+  return { videoId, left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, viewportWidth: window.innerWidth };
+}
+
+/** The scrollable map: sticky date ruler, story brackets, the track and its nodes. Events are delegated. */
 export function StoryMap({
   layout,
   from,
@@ -48,13 +56,12 @@ export function StoryMap({
   selectedSeriesId,
   matches,
   byVideo,
-  bandNote,
   focusRequest,
   onSelect,
   onStep,
   onClear,
 }: Readonly<StoryMapProps>) {
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [tooltip, setTooltip] = useState<TooltipAnchor | null>(null);
 
   const matchedSeries = useMemo(() => {
     if (!matches) return null;
@@ -66,7 +73,7 @@ export function StoryMap({
     return ids;
   }, [matches, layout]);
 
-  // Keyboard stepping focuses the new node once it is rendered (it may need the scroll to arrive first).
+  // Keyboard stepping focuses the new node once it is rendered (the scroll may need to arrive first).
   const handledFocus = useRef(0);
   useEffect(() => {
     if (!focusRequest || !element || handledFocus.current === focusRequest.nonce) return;
@@ -79,12 +86,12 @@ export function StoryMap({
   }, [focusRequest, element, from, layout]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const targetId = nodeIdOf(event);
+    const targetId = nodeOf(event)?.getAttribute("data-video-id") ?? null;
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       const base = selectedId ?? targetId;
       if (!base) return;
       event.preventDefault();
-      onStep(event.key === "ArrowLeft" ? -1 : 1, base);
+      onStep(event.key === "ArrowLeft" ? -1 : 1, base, event.shiftKey);
     } else if (event.key === "Escape" && selectedId) {
       event.preventDefault();
       onClear();
@@ -94,7 +101,7 @@ export function StoryMap({
     }
   };
 
-  const hovered = hoveredId ? layout.byId.get(hoveredId) : undefined;
+  const hovered = tooltip ? layout.byId.get(tooltip.videoId) : undefined;
   const layer = { layout, from, to, selectedSeriesId, matchedSeries };
 
   return (
@@ -105,24 +112,26 @@ export function StoryMap({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onClick={(event) => {
-        const id = nodeIdOf(event);
+        const id = nodeOf(event)?.getAttribute("data-video-id");
         if (id) onSelect(id);
       }}
-      onPointerOver={(event) => setHoveredId(nodeIdOf(event))}
-      onPointerLeave={() => setHoveredId(null)}
-      onFocus={(event) => setHoveredId(nodeIdOf(event))}
-      onBlur={() => setHoveredId(null)}
-      className={`relative min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain rounded-md border border-border bg-background ${FOCUS_RING}`}
+      onPointerOver={(event) => setTooltip(anchorOf(event))}
+      onPointerLeave={() => setTooltip(null)}
+      onFocus={(event) => setTooltip(anchorOf(event))}
+      onBlur={() => setTooltip(null)}
+      onScroll={() => setTooltip(null)}
+      className={`relative max-h-[60%] min-w-0 shrink-0 overflow-auto overscroll-contain rounded-md border border-border bg-background ${FOCUS_RING}`}
     >
-      <div className="relative" style={{ width: layout.scale.width }}>
-        <MapAxis layout={layout} from={from} to={to} />
+      <div className="relative" style={{ width: layout.width }}>
+        <MapRuler layout={layout} from={from} to={to} />
         <div className="relative" style={{ height: layout.height }}>
-          <MapThreads {...layer} />
-          <MapLabels {...layer} note={bandNote} />
+          <MapTrackDecor layout={layout} from={from} to={to} />
+          <MapBrackets {...layer} />
+          <MapBracketLabels {...layer} />
           <MapNodes {...layer} anchor={anchor} selectedId={selectedId} matches={matches} byVideo={byVideo} />
-          {hovered && <MapTooltip layout={layout} node={hovered} />}
         </div>
       </div>
+      {tooltip && hovered && <MapTooltip video={hovered.video} anchor={tooltip} />}
     </div>
   );
 }

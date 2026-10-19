@@ -1,8 +1,8 @@
 import type { Series, SeriesIndex, SeriesPosition } from "@/lib/series";
 import type { VideoData } from "@/types/youtube";
 import { describe, expect, it } from "vitest";
-import { DAY_MS, ZOOM_SPECS } from "../map-layout";
-import { AXIS_HEIGHT, buildMapLayout, matchVideoIds, neighborId, scrollTargetFor } from "../map-model";
+import { DAY_MS, DENSITY_SPECS, indexToX } from "../map-layout";
+import { buildMapLayout, MAX_BRACKET_ROWS, matchVideoIds, neighborId, RULER_HEIGHT, scrollTargetFor } from "../map-model";
 
 const START = Date.UTC(2023, 0, 1, 12);
 
@@ -45,83 +45,85 @@ function makeIndex(videos: VideoData[], groups: { id: string; name: string; ids:
 const EMPTY: SeriesIndex = { series: [], byVideo: new Map() };
 
 describe("buildMapLayout", () => {
-  it("returns null without videos", () => {
-    expect(buildMapLayout([], EMPTY, "month")).toBeNull();
+  it("returns null without dated videos", () => {
+    expect(buildMapLayout([], EMPTY, "cards")).toBeNull();
   });
 
-  it("puts everything in the Other uploads band when there are no threads", () => {
-    const videos = [video("a", 0), video("b", 10), video("c", 20)];
-    const layout = buildMapLayout(videos, EMPTY, "month")!;
-    expect(layout.laneCount).toBe(0);
-    expect(layout.threads).toEqual([]);
-    expect(layout.band.top).toBe(0);
+  it("puts every video on one ordinal line, same-day uploads side by side", () => {
+    const videos = [video("c", 30), video("a", 0), video("b", 0.2)];
+    const layout = buildMapLayout(videos, EMPTY, "cards")!;
     expect(layout.nodes.map((n) => n.video.videoId)).toEqual(["a", "b", "c"]);
-    expect(new Set(layout.nodes.map((n) => n.y)).size).toBe(1);
+    expect(layout.nodes.map((n) => n.x)).toEqual([0, 1, 2].map((i) => indexToX(i, DENSITY_SPECS.cards.pitch)));
+    expect(layout.brackets).toEqual([]);
+    expect(layout.bracketRows).toBe(0);
+    expect(layout.gaps).toEqual([{ index: 2, days: 30 }]);
+    expect(layout.months.map((m) => m.label)).toEqual(["Jan 2023"]);
   });
 
-  it("stacks concurrent threads on separate lanes above the band", () => {
-    const videos = [video("a1", 0), video("b1", 1), video("a2", 3), video("b2", 4), video("s", 2)];
+  it("stacks interleaved stories into bracket rows above the track", () => {
+    const videos = ["a1", "b1", "a2", "s", "b2"].map((id, i) => video(id, i));
     const index = makeIndex(videos, [
       { id: "A", name: "Alpha", ids: ["a1", "a2"] },
       { id: "B", name: "Beta", ids: ["b1", "b2"] },
     ]);
-    const layout = buildMapLayout(videos, index, "month")!;
-    expect(layout.laneCount).toBe(2);
-    const [a, b] = ["A", "B"].map((id) => layout.threads.find((t) => t.series.id === id)!);
-    expect(a.lane).not.toBe(b.lane);
+    const layout = buildMapLayout(videos, index, "cards")!;
+    const [a, b] = ["A", "B"].map((id) => layout.brackets.find((br) => br.series.id === id)!);
+    expect(a.row).not.toBe(b.row);
+    expect(layout.bracketRows).toBe(2);
+    expect(a.members.map((m) => m.order)).toEqual([0, 2]);
+    expect(a.lineStart).toBe(layout.nodes[0].x - DENSITY_SPECS.cards.nodeWidth / 2);
     expect(layout.byId.get("s")!.seriesId).toBeNull();
-    expect(layout.byId.get("s")!.y).toBeGreaterThan(Math.max(a.nodes[0].y, b.nodes[0].y));
-    expect(a.xs).toEqual(a.nodes.map((n) => n.x));
+    expect(layout.trackTop).toBeGreaterThan(b.top);
   });
 
-  it("offsets same-day episodes of one thread onto different rows", () => {
-    const videos = [video("a1", 0), video("a2", 0.1)];
-    const layout = buildMapLayout(videos, makeIndex(videos, [{ id: "A", name: "A", ids: ["a1", "a2"] }]), "week")!;
-    const [n1, n2] = layout.threads[0].nodes;
-    expect(n2.y - n1.y).toBe(ZOOM_SPECS.week.rowHeight);
+  it("caps bracket rows", () => {
+    const videos = Array.from({ length: 20 }, (_, i) => video(`v${i}`, i));
+    const groups = Array.from({ length: 10 }, (_, g) => ({ id: `g${g}`, name: `G${g}`, ids: [`v${g}`, `v${g + 10}`] }));
+    const layout = buildMapLayout(videos, makeIndex(videos, groups), "dots")!;
+    expect(layout.bracketRows).toBe(MAX_BRACKET_ROWS);
   });
 
-  it("lays out a 3,700-video channel with hundreds of threads quickly", () => {
+  it("lays out a 3,700-video channel with hundreds of stories quickly", () => {
     const videos = Array.from({ length: 3700 }, (_, i) => video(`v${i}`, i * 0.55));
     const groups = Array.from({ length: 400 }, (_, g) => ({
       id: `t${g}`,
       name: `Thread ${g}`,
-      ids: Array.from({ length: 5 }, (_, k) => `v${g * 9 + k * 2}`),
+      ids: Array.from({ length: 3 }, (_, k) => `v${g * 9 + k * 2}`),
     }));
     const started = performance.now();
-    const layout = buildMapLayout(videos, makeIndex(videos, groups), "year")!;
+    const layout = buildMapLayout(videos, makeIndex(videos, groups), "dots")!;
     expect(performance.now() - started).toBeLessThan(1000);
     expect(layout.nodes).toHaveLength(3700);
-    expect(layout.threads).toHaveLength(400);
-    expect(layout.laneCount).toBeLessThan(20);
+    expect(layout.brackets).toHaveLength(400);
   });
 });
 
 describe("navigation helpers", () => {
   const videos = [video("a1", 0), video("s1", 1), video("a2", 2), video("s2", 3)];
   const index = makeIndex(videos, [{ id: "A", name: "Alpha saga", ids: ["a1", "a2"] }]);
-  const layout = buildMapLayout(videos, index, "month")!;
+  const layout = buildMapLayout(videos, index, "cards")!;
 
-  it("moves by episode inside a thread and chronologically otherwise", () => {
-    expect(neighborId(layout, index.byVideo, "a1", 1)).toBe("a2");
-    expect(neighborId(layout, index.byVideo, "a1", -1)).toBeNull();
-    expect(neighborId(layout, index.byVideo, "s1", 1)).toBe("a2");
-    expect(neighborId(layout, index.byVideo, "s2", 1)).toBeNull();
+  it("moves along the line, or by episode inside a story", () => {
+    expect(neighborId(layout, index.byVideo, "a1", 1, false)).toBe("s1");
+    expect(neighborId(layout, index.byVideo, "s2", 1, false)).toBeNull();
+    expect(neighborId(layout, index.byVideo, "a1", 1, true)).toBe("a2");
+    expect(neighborId(layout, index.byVideo, "a1", -1, true)).toBeNull();
+    expect(neighborId(layout, index.byVideo, "s1", 1, true)).toBeNull();
   });
 
-  it("matches titles and thread names", () => {
+  it("matches titles and story names", () => {
     expect(matchVideoIds(videos, "  ", index.byVideo)).toBeNull();
     expect([...matchVideoIds(videos, "ALPHA", index.byVideo)!]).toEqual(["a1", "a2"]);
     expect([...matchVideoIds(videos, "video s2", index.byVideo)!]).toEqual(["s2"]);
   });
 
-  it("centers a node horizontally and scrolls its lane into view", () => {
+  it("centers a node horizontally and brings the track into view", () => {
     const node = layout.byId.get("a2")!;
     const target = scrollTargetFor(layout, node, { left: 0, top: 0, width: 200, height: 2000 });
-    expect(target.left).toBeCloseTo(Math.max(0, Math.min(layout.scale.width - 200, node.x - 100)));
+    expect(target.left).toBeCloseTo(Math.min(layout.width - 200, node.x - 100));
     expect(target.top).toBe(0);
-    const far = scrollTargetFor(layout, node, { left: 0, top: 5000, width: 200, height: 100 });
-    expect(far.top).toBeLessThanOrEqual(AXIS_HEIGHT + node.y);
-    expect(far.top + 100).toBeGreaterThanOrEqual(AXIS_HEIGHT + node.y);
+    const short = scrollTargetFor(layout, node, { left: 0, top: 0, width: 200, height: 60 });
+    expect(short.top).toBeGreaterThan(0);
+    expect(short.top).toBeLessThanOrEqual(layout.trackTop + RULER_HEIGHT);
   });
 });

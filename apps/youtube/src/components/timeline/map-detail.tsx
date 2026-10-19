@@ -58,7 +58,7 @@ export function MapDetail({ video, position, onReveal, className = "" }: Readonl
                 className={STEP_BUTTON}
               >
                 <ArrowLeft aria-hidden className="h-3 w-3" />
-                Previous
+                Previous episode
               </button>
               <button
                 type="button"
@@ -66,7 +66,7 @@ export function MapDetail({ video, position, onReveal, className = "" }: Readonl
                 onClick={() => position.nextVideoId && onReveal(position.nextVideoId)}
                 className={STEP_BUTTON}
               >
-                Next
+                Next episode
                 <ArrowRight aria-hidden className="h-3 w-3" />
               </button>
             </span>
