@@ -114,7 +114,6 @@ const MODERNITY_TIER_LABELS: Record<ModernityTier, string> = {
 
 const FURNITURE_TIER_LABELS: Record<FurnitureTier, string> = {
   UNFURNISHED: "Não mobiliado",
-  SEMI_FURNISHED: "Semi-mobiliado",
   FULLY_FURNISHED: "Mobiliado",
 };
 

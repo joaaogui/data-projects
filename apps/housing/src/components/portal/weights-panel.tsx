@@ -144,29 +144,6 @@ export function WeightsPanel({ ctl }: { ctl: PortalController }) {
 
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
-                    <label htmlFor="weight-min-modernity-score">
-                      Corte Mínimo Modernidade (0–100)
-                    </label>
-                    <span className="font-mono text-primary">
-                      ≥ {weights.minModernityScore}/100
-                    </span>
-                  </div>
-                  <input
-                    id="weight-min-modernity-score"
-                    type="range"
-                    min={30}
-                    max={85}
-                    step={2}
-                    value={weights.minModernityScore}
-                    onChange={(e) =>
-                      updateWeight("minModernityScore", Number(e.target.value))
-                    }
-                    className="w-full accent-primary"
-                  />
-                </div>
-
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between font-medium">
                     <label htmlFor="weight-budget-ideal">
                       Teto Ideal All-in (R$)
                     </label>

@@ -279,22 +279,14 @@ export const PropertyCard = memo(function PropertyCard({
                 <span className="sm:hidden">
                   {prop.bedrooms}q{prop.suites > 0 ? ` (${prop.suites}s)` : ""}{" "}
                   · {prop.bathrooms}b · {prop.parkingSpaces}v · Mob:{" "}
-                  {prop.furnitureTier === "FULLY_FURNISHED"
-                    ? "Sim"
-                    : prop.furnitureTier === "SEMI_FURNISHED"
-                      ? "Semi"
-                      : "Não"}
+                  {prop.furnitureTier === "FULLY_FURNISHED" ? "Sim" : "Não"}
                 </span>
                 <span className="hidden sm:inline">
                   {prop.bedrooms} quarto(s)
                   {prop.suites > 0 ? ` (${prop.suites} suíte)` : ""} ·{" "}
                   {prop.bathrooms} banheiro(s) · {prop.parkingSpaces} vaga(s) ·
                   Mobiliado:{" "}
-                  {prop.furnitureTier === "FULLY_FURNISHED"
-                    ? "Sim"
-                    : prop.furnitureTier === "SEMI_FURNISHED"
-                      ? "Semi (Eletros)"
-                      : "Não"}
+                  {prop.furnitureTier === "FULLY_FURNISHED" ? "Sim" : "Não"}
                 </span>
               </p>
             </div>

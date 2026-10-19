@@ -76,12 +76,13 @@ export function sanitizePropertySnapshot(
   };
 
   const rawTier = src.furnitureTier ?? fb.furnitureTier;
+  // Snapshots persisted before the two-tier model may still say "SEMI_FURNISHED".
   const furnitureTier =
-    rawTier === "UNFURNISHED" ||
-    rawTier === "SEMI_FURNISHED" ||
-    rawTier === "FULLY_FURNISHED"
+    rawTier === "UNFURNISHED" || rawTier === "FULLY_FURNISHED"
       ? rawTier
-      : undefined;
+      : rawTier === "SEMI_FURNISHED"
+        ? "UNFURNISHED"
+        : undefined;
 
   const rawBd = src.breakdown ?? fb.breakdown;
   const breakdown =

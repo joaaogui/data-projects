@@ -446,7 +446,7 @@ describe("Portal Filters & Feature Matching", () => {
     expect(general).not.toContain("(RJ)");
   });
 
-  it("enforces hasNoSafetyProblems and the Perfeito preset (AC, HIGH_OR_TOP, <= 4500, <= 25 min, UNFURNISHED/SEMI_FURNISHED, onlySafeStreets)", () => {
+  it("enforces hasNoSafetyProblems and the Perfeito preset (AC, HIGH_OR_TOP, <= 4500, <= 25 min, UNFURNISHED, onlySafeStreets)", () => {
     const perfectMatch = makeProperty({
       id: "perfect-1",
       cityCode: "RJ",

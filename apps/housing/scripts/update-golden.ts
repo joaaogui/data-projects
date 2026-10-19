@@ -107,7 +107,7 @@ async function reselect(): Promise<void> {
   pick("parking rotativa", 5, (p) => /vagas?\b[^.]{0,40}rotativ/i.test(text(p)));
   pick("parking presa/gaveta", 5, (p) => /\b(presas?|gavetas?)\b/i.test(text(p)));
   pick("parking demarcada/livre", 4, (p) => /vagas?\b[^.]{0,30}(demarcad|livre)/i.test(text(p)));
-  for (const tier of ["UNFURNISHED", "SEMI_FURNISHED", "FULLY_FURNISHED"]) {
+  for (const tier of ["UNFURNISHED", "FULLY_FURNISHED"]) {
     pick(`furniture ${tier}`, 5, (p) => p.furnitureTier === tier);
   }
   pick("furniture conflict", 5, (p) => tagsOf(p).includes(FURNITURE_CONFLICT_TAG));

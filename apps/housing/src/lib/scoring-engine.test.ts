@@ -1838,7 +1838,7 @@ describe("Housing Dynamic Scoring Engine", () => {
         .sort(),
     ).toEqual(["full-no-removal", "full-with-removal"]);
 
-    // Selecting all 3 tiers in parseExplorerFiltersObject normalizes back to [] (Todos)
+    // A legacy three-tier selection (SEMI_FURNISHED is dropped) still normalizes back to [] (Todos)
     const parsedAllThree = parseExplorerFiltersObject({
       selectedFurnitureTiers: [
         "UNFURNISHED",
@@ -3337,7 +3337,7 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
     expect(migratedV1.sweetSpotMinM2).toBe(50);
     expect(migratedV1.sweetSpotMaxM2).toBe(72);
 
-    // 7. buildBenchmarkStats treats SEMI_FURNISHED records identically regardless of raw furnished boolean, and cohortCount matches the population used by its statistics
+    // 7. buildBenchmarkStats treats "semi-mobiliado" records identically regardless of raw furnished boolean, and cohortCount matches the population used by its statistics
     const semiFurnTrue: SlimPropertyRecord = {
       ...base,
       id: "bench-semi-true",

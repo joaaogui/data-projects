@@ -12,10 +12,7 @@ export type ModernityTier =
   | "STANDARD"
   | "DATED";
 
-export type FurnitureTier =
-  | "UNFURNISHED"
-  | "SEMI_FURNISHED"
-  | "FULLY_FURNISHED";
+export type FurnitureTier = "UNFURNISHED" | "FULLY_FURNISHED";
 
 export type FloorRarity =
   | "legendary"

@@ -53,8 +53,6 @@ export type SortByOption =
 export type FurnishedFilterOption =
   | "ALL"
   | "UNFURNISHED"
-  | "UNFURNISHED_OR_SEMI"
-  | "SEMI_FURNISHED"
   | "FURNISHED";
 
 export type ProviderFilterOption =
@@ -831,13 +829,10 @@ export function buildFilterConstraints(
     add("furniture", (p) => activeFurnitureTiers.includes(furnitureTierOf(p)));
   } else if (filters.furnishedFilter && filters.furnishedFilter !== "ALL") {
     const furnished = filters.furnishedFilter;
-    add("furniture", (p) => {
-      const tier = furnitureTierOf(p);
-      if (furnished === "UNFURNISHED") return tier === "UNFURNISHED";
-      if (furnished === "UNFURNISHED_OR_SEMI") return tier !== "FULLY_FURNISHED";
-      if (furnished === "SEMI_FURNISHED") return tier === "SEMI_FURNISHED";
-      return tier === "FULLY_FURNISHED" || tier === "SEMI_FURNISHED";
-    });
+    add("furniture", (p) =>
+      furnitureTierOf(p) ===
+      (furnished === "UNFURNISHED" ? "UNFURNISHED" : "FULLY_FURNISHED"),
+    );
   }
   if (filters.providerFilter !== "ALL") {
     const provider = filters.providerFilter;
@@ -1231,11 +1226,7 @@ export function formatTopPropertiesForAiPrompt(
       ...p.cardTags.redTags,
     ];
     const furnitureLabel =
-      p.furnitureTier === "FULLY_FURNISHED"
-        ? "Mobiliado"
-        : p.furnitureTier === "SEMI_FURNISHED"
-          ? "Semi-mobiliado (eletros)"
-          : "Sem mobília";
+      p.furnitureTier === "FULLY_FURNISHED" ? "Mobiliado" : "Sem mobília";
 
     const rawDesc = (p.description ?? p.generatedDescription ?? "").trim();
     const cleanDesc =
@@ -1309,28 +1300,9 @@ export interface ParsedExplorerFiltersState {
 export function deriveLegacyFurnishedFilter(
   tiers: FurnitureTier[],
 ): FurnishedFilterOption {
-  if (tiers.length === 0 || tiers.length >= 3) return "ALL";
   const set = new Set(tiers);
-  if (set.size === 1) {
-    if (set.has("UNFURNISHED")) return "UNFURNISHED";
-    if (set.has("SEMI_FURNISHED")) return "SEMI_FURNISHED";
-    if (set.has("FULLY_FURNISHED")) return "FURNISHED";
-  }
-  if (
-    set.size === 2 &&
-    set.has("UNFURNISHED") &&
-    set.has("SEMI_FURNISHED")
-  ) {
-    return "UNFURNISHED_OR_SEMI";
-  }
-  if (
-    set.size === 2 &&
-    set.has("SEMI_FURNISHED") &&
-    set.has("FULLY_FURNISHED")
-  ) {
-    return "FURNISHED";
-  }
-  return "ALL";
+  if (set.size !== 1) return "ALL";
+  return set.has("UNFURNISHED") ? "UNFURNISHED" : "FURNISHED";
 }
 
 export function deriveFurnitureTiersFromLegacyFilter(
@@ -1339,12 +1311,8 @@ export function deriveFurnitureTiersFromLegacyFilter(
   switch (furnishedFilter) {
     case "UNFURNISHED":
       return ["UNFURNISHED"];
-    case "UNFURNISHED_OR_SEMI":
-      return ["UNFURNISHED", "SEMI_FURNISHED"];
-    case "SEMI_FURNISHED":
-      return ["SEMI_FURNISHED"];
     case "FURNISHED":
-      return ["SEMI_FURNISHED", "FULLY_FURNISHED"];
+      return ["FULLY_FURNISHED"];
     default:
       return [];
   }
@@ -1430,25 +1398,28 @@ export function parseExplorerFiltersObject(
       ].sort((a, b) => a - b)
     : [];
 
+  // Saved prefs/URLs from the three-tier era may carry "UNFURNISHED_OR_SEMI"
+  // (now the same as UNFURNISHED) or "SEMI_FURNISHED" (no longer a tier → ALL).
+  const storedFurnishedFilter: unknown = parsed.furnishedFilter;
+  const rawFurnishedFilter =
+    storedFurnishedFilter === "UNFURNISHED_OR_SEMI"
+      ? "UNFURNISHED"
+      : storedFurnishedFilter;
   const validLegacyFurnishedFilter: FurnishedFilterOption =
-    parsed.furnishedFilter === "ALL" ||
-    parsed.furnishedFilter === "UNFURNISHED" ||
-    parsed.furnishedFilter === "UNFURNISHED_OR_SEMI" ||
-    parsed.furnishedFilter === "SEMI_FURNISHED" ||
-    parsed.furnishedFilter === "FURNISHED"
-      ? parsed.furnishedFilter
+    rawFurnishedFilter === "ALL" ||
+    rawFurnishedFilter === "UNFURNISHED" ||
+    rawFurnishedFilter === "FURNISHED"
+      ? rawFurnishedFilter
       : "ALL";
 
   let selectedFurnitureTiers: FurnitureTier[] = [];
   if (Array.isArray(parsed.selectedFurnitureTiers)) {
     const validTiers = parsed.selectedFurnitureTiers.filter(
       (t): t is FurnitureTier =>
-        t === "UNFURNISHED" ||
-        t === "SEMI_FURNISHED" ||
-        t === "FULLY_FURNISHED",
+        t === "UNFURNISHED" || t === "FULLY_FURNISHED",
     );
     const uniqueTiers = [...new Set(validTiers)];
-    selectedFurnitureTiers = uniqueTiers.length >= 3 ? [] : uniqueTiers;
+    selectedFurnitureTiers = uniqueTiers.length >= 2 ? [] : uniqueTiers;
   } else if (validLegacyFurnishedFilter !== "ALL") {
     selectedFurnitureTiers = deriveFurnitureTiersFromLegacyFilter(
       validLegacyFurnishedFilter,
