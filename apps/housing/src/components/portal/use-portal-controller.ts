@@ -54,6 +54,7 @@ import {
   type PropertyQueryRequest,
   type PropertyQueryResponse,
 } from "@/lib/property-query";
+import { computeReferenceNeighborhood } from "@/lib/reference-neighborhood";
 import {
   BUILTIN_PRESETS,
   computeDynamicNeighborhoods,
@@ -88,6 +89,7 @@ const QA_PUSH_MUTATION_GRACE_MS = 1500;
 const MAX_DETAILS_CACHE_ENTRIES = 40;
 const EMPTY_BENCHMARK_STATS = buildBenchmarkStats([]);
 const EMPTY_DETAILS_MAP = new Map<string, PropertyCardDTO>();
+const EMPTY_NEIGHBORHOOD_RESEARCH: NonNullable<DatasetMeta["neighborhoodResearch"]> = {};
 
 interface ListState {
   key: string;
@@ -1432,6 +1434,11 @@ export function usePortalController({
       ),
     [meta.neighborhoods, weights, enabledHiddenCities],
   );
+  const referenceNeighborhood = useMemo(
+    () => computeReferenceNeighborhood(dynamicNeighborhoods, weights),
+    [dynamicNeighborhoods, weights],
+  );
+  const neighborhoodResearch = meta.neighborhoodResearch ?? EMPTY_NEIGHBORHOOD_RESEARCH;
 
   const queryFilters = useMemo(
     () =>
@@ -2205,6 +2212,8 @@ export function usePortalController({
     deletePropertyQuestion,
     displayedProperties,
     dynamicNeighborhoods,
+    referenceNeighborhood,
+    neighborhoodResearch,
     enableBsbBenchmark,
     enabledHiddenCities,
     expandedId,

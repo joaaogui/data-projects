@@ -12,6 +12,7 @@ const SUMMARY: NeighborhoodResearchSummary = {
   maristaSource: "rubric",
   robberyRatio: 1.18,
   densityPerKm2: 14023,
+  apartmentsShare: 99.1,
   highlight: "Rua Curitiba: bares com mesas na calçada",
   redFlag: "Série de roubos de correntes em 2025-26",
 };

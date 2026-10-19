@@ -6,7 +6,16 @@ import { createPortal } from "react-dom";
 import { NeighborhoodResearchPanel } from "@/components/portal/neighborhood-research-panel";
 import type { NeighborhoodResearchSummary } from "@/types/neighborhood-research";
 
-const decimal = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+export const decimal = (v: number) =>
+  v.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/** "14 mil", "5,1 mil" or "850" (hab/km²). */
+export function formatDensity(perKm2: number): string {
+  const thousands = perKm2 / 1000;
+  return thousands >= 1
+    ? `${thousands.toLocaleString("pt-BR", { maximumFractionDigits: thousands >= 10 ? 0 : 1 })} mil`
+    : perKm2.toLocaleString("pt-BR");
+}
 
 /** Commercial bairros whose robbery rate is per resident, so visitor traffic inflates the ratio. */
 const PER_RESIDENT_COMMERCIAL_KEYS = new Set(["BH:Funcionários", "BH:Savassi", "BH:Lourdes"]);
@@ -35,13 +44,9 @@ export function researchStripNumbers(s: NeighborhoodResearchSummary): { id: stri
     });
   }
   if (s.densityPerKm2 !== null) {
-    const thousands = s.densityPerKm2 / 1000;
     out.push({
       id: "density",
-      text:
-        thousands >= 1
-          ? `${thousands.toLocaleString("pt-BR", { maximumFractionDigits: thousands >= 10 ? 0 : 1 })} mil hab/km²`
-          : `${s.densityPerKm2.toLocaleString("pt-BR")} hab/km²`,
+      text: `${formatDensity(s.densityPerKm2)} hab/km²`,
       title: "Densidade demográfica (IBGE Censo 2022)",
     });
   }

@@ -84,6 +84,8 @@ export interface DatasetMeta {
   countByCity?: Partial<Record<CityHubCode, number>>;
   neighborhoods: NeighborhoodEntry[];
   neighborhoodNamesByCity: Partial<Record<CityHubCode, string[]>>;
+  /** Research summaries by `<cityCode>:<neighborhood>` (catalog names, plus the reference neighbourhood). */
+  neighborhoodResearch?: Record<string, NeighborhoodResearchSummary>;
 }
 
 export interface PropertyQueryResponse {

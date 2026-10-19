@@ -371,6 +371,7 @@ describe("PropertyCard — neighbourhood research strip", () => {
           maristaSource: "rubric",
           robberyRatio: 1.97,
           densityPerKm2: 13869,
+          apartmentsShare: 99,
           highlight: "Praça da Liberdade a pé",
           redFlag: "Roubos ~2× a média",
         },

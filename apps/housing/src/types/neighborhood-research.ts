@@ -90,6 +90,8 @@ export interface NeighborhoodResearchSummary {
   maristaSource: "rubric" | "judgement" | null;
   robberyRatio: number | null;
   densityPerKm2: number | null;
+  /** Share of households that are apartments (%). */
+  apartmentsShare: number | null;
   highlight: string | null;
   redFlag: string | null;
 }

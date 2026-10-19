@@ -28,6 +28,7 @@ export function getNeighborhoodDossier(key: string): NeighborhoodDossier | null 
 export function summarizeDossier(d: NeighborhoodDossier): NeighborhoodResearchSummary {
   const robbery = d.crime.series.find((s) => s.kind === "robbery");
   const density = d.numbers.find((n) => n.metric === "density");
+  const apartments = d.numbers.find((n) => n.metric === "apartments");
   const marista = d.rubric?.total ?? d.maristaJudgement?.score ?? null;
   return {
     key: d.key,
@@ -35,6 +36,7 @@ export function summarizeDossier(d: NeighborhoodDossier): NeighborhoodResearchSu
     maristaSource: d.rubric ? "rubric" : d.maristaJudgement ? "judgement" : null,
     robberyRatio: robbery?.ratioToCity ?? null,
     densityPerKm2: density?.unit === "hab/km²" ? density.value : null,
+    apartmentsShare: apartments?.unit.startsWith("%") ? apartments.value : null,
     highlight: d.highlights[0] ?? null,
     redFlag: d.redFlags[0] ?? null,
   };
