@@ -83,8 +83,10 @@ export interface DatasetMeta {
   /** Listings per city (hidden cities included); the portal sums only the visible ones. */
   countByCity?: Partial<Record<CityHubCode, number>>;
   neighborhoods: NeighborhoodEntry[];
+  /** Non-catalog neighbourhoods with engine sub-scores and active listings (lib/extra-neighborhoods); ranking tab only. */
+  extraNeighborhoods?: NeighborhoodEntry[];
   neighborhoodNamesByCity: Partial<Record<CityHubCode, string[]>>;
-  /** Research summaries by `<cityCode>:<neighborhood>` (catalog names, plus the reference neighbourhood). */
+  /** Research summaries by `<cityCode>:<neighborhood>` (catalog and extra names, plus the reference neighbourhood). */
   neighborhoodResearch?: Record<string, NeighborhoodResearchSummary>;
 }
 
@@ -240,7 +242,7 @@ export function toCardDTO(p: EvaluatedProperty): PropertyCardDTO {
     nuanceWarnings: [],
     parksNearby: [],
     mallsNearby: [],
-    shortJustification: p.shortJustification,
+    shortJustification: "",
     narrativeJustification: "",
     detailedJustification: "",
     detailsLoaded: false,

@@ -13,6 +13,7 @@ import {
   buildQueryKey,
   coerceWeights,
   runPropertyQuery,
+  toDetailsDTO,
   toExplorerFilters,
   toQueryFilters,
   type PropertyQueryRequest,
@@ -142,7 +143,10 @@ describe("server-side property query", () => {
     expect(card!.amenities).toEqual([]);
     expect(card!.narrativeJustification).toBe("");
     expect(card!.samplePhotos).toHaveLength(3);
-    expect(card!.shortJustification).toBe(full.shortJustification);
+    expect(card!.shortJustification).toBe("");
+    expect(card!.detailedJustification).toBe("");
+    expect(full.shortJustification.length).toBeGreaterThan(0);
+    expect(toDetailsDTO(full).shortJustification).toBe(full.shortJustification);
     expect(card!.finalScore).toBe(full.finalScore);
     expect(card!.cardTags).toEqual(full.cardTags);
     expect(card!.breakdown).toEqual(full.breakdown);

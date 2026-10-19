@@ -9,9 +9,14 @@ import type {
   NeighborhoodResearchSummary,
 } from "@/types/neighborhood-research";
 
+const FILE = researchFile as unknown as NeighborhoodResearchFile;
 const DOSSIERS = new Map<string, NeighborhoodDossier>(
-  Object.values((researchFile as unknown as NeighborhoodResearchFile).dossiers).map((d) => [d.key.toLowerCase(), d]),
+  Object.values(FILE.dossiers).map((d) => [d.key.toLowerCase(), d]),
 );
+for (const [alias, key] of Object.entries(FILE.aliases ?? {})) {
+  const dossier = DOSSIERS.get(key.toLowerCase());
+  if (dossier && !DOSSIERS.has(alias.toLowerCase())) DOSSIERS.set(alias.toLowerCase(), dossier);
+}
 const SUMMARIES = new Map<string, NeighborhoodResearchSummary>();
 
 function lookupKey(cityCode: string, neighborhood: string): string {

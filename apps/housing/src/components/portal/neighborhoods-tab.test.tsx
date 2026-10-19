@@ -55,10 +55,12 @@ const SP = makeNeighborhood({
 function buildCtl(
   overrides: Partial<PortalController> = {},
 ): PortalController {
+  const ranking = overrides.neighborhoodRanking ?? [BH, SP];
   return {
     activeTab: "neighborhoods",
-    dynamicNeighborhoods: [BH, SP],
-    referenceNeighborhood: null,
+    neighborhoodRanking: ranking,
+    dynamicNeighborhoods: ranking.filter((n) => !n.isExtra),
+    referenceNeighborhoods: [],
     neighborhoodResearch: {},
     weights: DEFAULT_WEIGHTS,
     selectedCities: [],
@@ -102,7 +104,7 @@ describe("NeighborhoodsTab", () => {
   it("shows an empty section when no neighborhood matches", () => {
     const { container } = render(
       <NeighborhoodsTab
-        ctl={buildCtl({ selectedCities: ["RJ"], dynamicNeighborhoods: [BH] })}
+        ctl={buildCtl({ selectedCities: ["RJ"], neighborhoodRanking: [BH] })}
       />,
     );
     expect(screen.queryByText("Funcionários")).toBeNull();
@@ -137,13 +139,72 @@ describe("NeighborhoodsTab", () => {
     render(
       <NeighborhoodsTab
         ctl={buildCtl({
-          dynamicNeighborhoods: [
+          neighborhoodRanking: [
             makeNeighborhood({ overallPosition: 1, dynamicOverallRank: 4 }),
           ],
         })}
       />,
     );
     expect(screen.getAllByText("(-3)").length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("NeighborhoodsTab top 20", () => {
+  const ranking = Array.from({ length: 25 }, (_, i) =>
+    makeNeighborhood({
+      neighborhood: `Bairro ${i + 1}`,
+      dynamicOverallRank: i + 1,
+      overallPosition: i < 10 ? i + 1 : 30 + i,
+      dynamicScore: Math.round((9.5 - i * 0.1) * 100) / 100,
+      ...(i >= 10 ? { isExtra: true as const, shortRationale: "", detailedJustification: "" } : {}),
+    }),
+  );
+
+  it("shows only the first 20 rows of the ranking, with the reference row unranked", () => {
+    render(<NeighborhoodsTab ctl={buildCtl({ neighborhoodRanking: ranking, referenceNeighborhoods: [REF] })} />);
+    const rows = [...document.querySelectorAll("tbody tr")];
+    expect(rows).toHaveLength(21);
+    const refIdx = rows.findIndex((r) => r.getAttribute("data-testid") === "reference-neighborhood-row");
+    // 9.3 sits below Bairro 1–3 (9.5, 9.4, 9.3: ties stay above it)
+    expect(refIdx).toBe(3);
+    expect(rows[refIdx]!.textContent).not.toMatch(/#\d/);
+    expect(rows.at(-1)!.textContent).toContain("#20");
+    expect(screen.queryByText("Bairro 21")).toBeNull();
+  });
+
+  it("caps at 20 after the city filter", () => {
+    const mixed = [...ranking.slice(0, 15), ...ranking.slice(15).map((n) => ({ ...n, cityCode: "RJ" as const }))];
+    render(<NeighborhoodsTab ctl={buildCtl({ neighborhoodRanking: mixed, selectedCities: ["RJ"] })} />);
+    expect(document.querySelectorAll("tbody tr")).toHaveLength(10);
+  });
+
+  it("marks extra rows with a badge, no rank diff and the calibration note", () => {
+    render(<NeighborhoodsTab ctl={buildCtl({ neighborhoodRanking: ranking })} />);
+    const rows = [...document.querySelectorAll("tbody tr")];
+    expect(rows[0]!.querySelector('[data-testid="extra-neighborhood-badge"]')).toBeNull();
+    const extra = rows[10]!;
+    expect(extra.querySelector('[data-testid="extra-neighborhood-badge"]')?.textContent).toBe("extra");
+    expect(extra.textContent).toContain("#11");
+    expect(extra.textContent).not.toMatch(/\([+-]\d+\)/);
+    expect(extra.textContent).toContain("Bairro fora do catálogo");
+    // Mobile cards carry the badge too: 10 extras in the top 20
+    expect(document.querySelectorAll("article [data-testid='extra-neighborhood-badge']")).toHaveLength(10);
+  });
+
+  it("computes catalog rank diffs against the catalog-only ranking, not the combined one", () => {
+    const extra = makeNeighborhood({ neighborhood: "Extra", dynamicOverallRank: 1, overallPosition: 30, isExtra: true });
+    const catalogRow = makeNeighborhood({ overallPosition: 1, dynamicOverallRank: 2 });
+    render(
+      <NeighborhoodsTab
+        ctl={buildCtl({
+          neighborhoodRanking: [extra, catalogRow],
+          dynamicNeighborhoods: [{ ...catalogRow, dynamicOverallRank: 1 }],
+        })}
+      />,
+    );
+    const rows = [...document.querySelectorAll("tbody tr")];
+    expect(rows[1]!.textContent).toContain("#2");
+    expect(rows.some((r) => /\([+-]\d+\)/.test(r.textContent ?? ""))).toBe(false);
   });
 });
 
@@ -174,7 +235,7 @@ function summary(overrides: Partial<NeighborhoodResearchSummary>): NeighborhoodR
 
 describe("NeighborhoodsTab reference row", () => {
   it("renders Setor Marista between the rows scoring above and below it, without a rank", () => {
-    render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhood: REF })} />);
+    render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF] })} />);
     const bodyRows = [...document.querySelectorAll("tbody tr")];
     expect(bodyRows).toHaveLength(3);
     expect(bodyRows[0]!.textContent).toContain("Funcionários");
@@ -193,13 +254,13 @@ describe("NeighborhoodsTab reference row", () => {
 
   it("goes last when it scores below every visible row and is hidden without rows", () => {
     const low = { ...REF, dynamicScore: 5 };
-    const { unmount } = render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhood: low })} />);
+    const { unmount } = render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [low] })} />);
     const bodyRows = [...document.querySelectorAll("tbody tr")];
     expect(bodyRows.at(-1)!.getAttribute("data-testid")).toBe("reference-neighborhood-row");
     unmount();
     render(
       <NeighborhoodsTab
-        ctl={buildCtl({ referenceNeighborhood: REF, selectedCities: ["RJ"], dynamicNeighborhoods: [BH] })}
+        ctl={buildCtl({ referenceNeighborhoods: [REF], selectedCities: ["RJ"], neighborhoodRanking: [BH] })}
       />,
     );
     expect(screen.queryByTestId("reference-neighborhood-row")).toBeNull();
@@ -209,7 +270,7 @@ describe("NeighborhoodsTab reference row", () => {
     const fetchMock = vi.fn(() => new Promise<Response>(() => {}));
     vi.stubGlobal("fetch", fetchMock);
     try {
-      const ctl = buildCtl({ referenceNeighborhood: REF });
+      const ctl = buildCtl({ referenceNeighborhoods: [REF] });
       render(<NeighborhoodsTab ctl={ctl} />);
       fireEvent.click(screen.getByTestId("reference-neighborhood-row"));
       expect(screen.getByTestId("neighborhood-research-panel")).toBeTruthy();
@@ -219,6 +280,50 @@ describe("NeighborhoodsTab reference row", () => {
       );
       expect(ctl.setActiveTab).not.toHaveBeenCalled();
       expect(ctl.setSelectedCities).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  const AGUAS: ReferenceNeighborhoodRow = { ...REF, key: "BSB:Águas Claras", neighborhood: "Águas Claras", dynamicScore: 9.0 };
+
+  it("renders both references unranked at their score positions, each with its own subtitle", () => {
+    render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF, AGUAS] })} />);
+    const rows = [...document.querySelectorAll("tbody tr")];
+    // Funcionários 9.61 > Marista 9.3 > Águas Claras 9.0 = Pinheiros 9.0 (ties stay above the reference)
+    expect(rows.map((r) => r.getAttribute("data-testid") ?? r.textContent!.match(/#\d+/)?.[0])).toEqual([
+      "#1",
+      "reference-neighborhood-row",
+      "#2",
+      "reference-neighborhood-row",
+    ]);
+    expect(rows[1]!.textContent).toContain("Setor Marista");
+    expect(rows[3]!.textContent).toContain("Águas Claras");
+    expect(rows[3]!.textContent).toContain("DF");
+    expect(rows[3]!.textContent).toContain("Referência");
+    expect(rows[3]!.textContent).not.toMatch(/#\d/);
+    expect(screen.getAllByText("Onde você mora hoje — não entra no ranking")).toHaveLength(2);
+    expect(screen.getAllByText("Seu bairro de referência — não entra no ranking")).toHaveLength(2);
+    expect(screen.getAllByTestId("reference-neighborhood-card")).toHaveLength(2);
+  });
+
+  it("keeps two references with the same score in a stable order", () => {
+    render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF, { ...AGUAS, dynamicScore: 9.3 }] })} />);
+    const refs = screen.getAllByTestId("reference-neighborhood-row").map((r) => r.textContent);
+    expect(refs[0]).toContain("Setor Marista");
+    expect(refs[1]).toContain("Águas Claras");
+  });
+
+  it("opens Águas Claras' dossier on click", () => {
+    const fetchMock = vi.fn(() => new Promise<Response>(() => {}));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF, AGUAS] })} />);
+      fireEvent.click(screen.getAllByTestId("reference-neighborhood-row")[1]!);
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/neighborhoods/${encodeURIComponent("BSB:Águas Claras")}`,
+        expect.anything(),
+      );
     } finally {
       vi.unstubAllGlobals();
     }
@@ -243,7 +348,7 @@ describe("NeighborhoodsTab metric columns", () => {
     render(
       <NeighborhoodsTab
         ctl={buildCtl({
-          referenceNeighborhood: REF,
+          referenceNeighborhoods: [REF],
           neighborhoodResearch: {
             "BH:Funcionários": summary({}),
             "GO:Setor Marista": summary({ key: "GO:Setor Marista", marista: 8.03, densityPerKm2: 5061, apartmentsShare: 87.3 }),

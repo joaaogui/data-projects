@@ -374,74 +374,6 @@ export const PropertyCard = memo(function PropertyCard({
             ))}
           </div>
 
-          {/* Complementary Non-Redundant Highlights (Prós & Ressalvas) — collapsed when map is open unless card is expanded */}
-          {(viewMode === "list" || isExpanded) &&
-            (() => {
-              const text = prop.shortJustification.trim();
-              let prosText = text;
-              let consText = "";
-
-              if (text.includes("\n")) {
-                const [firstLine, ...restLines] = text.split("\n");
-                prosText = (firstLine ?? "").trim();
-                consText = restLines
-                  .join(" ")
-                  .trim()
-                  .replace(/^(?:Por outro lado|Em contrapartida),/i, "")
-                  .trimStart();
-              } else {
-                const legacyIdx = text.search(
-                  /(?:Por outro lado|Em contrapartida),/,
-                );
-                if (legacyIdx > 0) {
-                  prosText = text.slice(0, legacyIdx).trim();
-                  consText = text
-                    .slice(legacyIdx)
-                    .trim()
-                    .replace(/^(?:Por outro lado|Em contrapartida),/i, "")
-                    .trimStart();
-                } else {
-                  // Find sentence boundary after the em-dash (—) so abbreviations like "próx." never split the sentence
-                  const dashPos = text.indexOf("—");
-                  const dotAfterDash =
-                    dashPos !== -1 ? text.indexOf(". ", dashPos) : -1;
-                  if (dotAfterDash !== -1) {
-                    prosText = text.slice(0, dotAfterDash + 1).trim();
-                    consText = text.slice(dotAfterDash + 2).trim();
-                  }
-                }
-              }
-
-              if (consText) {
-                consText = consText.charAt(0).toUpperCase() + consText.slice(1);
-              }
-
-              if (!consText) {
-                return (
-                  <p className="text-xs leading-relaxed text-muted-foreground pt-0.5">
-                    {prosText}
-                  </p>
-                );
-              }
-
-              return (
-                <div className="space-y-1 pt-0.5 text-xs leading-relaxed">
-                  <p className="text-muted-foreground">
-                    <span className="mr-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
-                      Prós:
-                    </span>
-                    {prosText}
-                  </p>
-                  <p className="text-muted-foreground">
-                    <span className="mr-1.5 font-semibold text-rose-700 dark:text-rose-400">
-                      Ressalvas:
-                    </span>
-                    {consText}
-                  </p>
-                </div>
-              );
-            })()}
-
           {/* Action Row */}
           <div className="flex flex-col gap-1.5 pt-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
             <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5">
@@ -554,6 +486,9 @@ export const PropertyCard = memo(function PropertyCard({
               <Sparkles className="h-3.5 w-3.5" />
               Análise & Trade-offs da Escolha
             </h4>
+            {prop.shortJustification && (
+              <ProsAndCons justification={prop.shortJustification} />
+            )}
             <p className="text-xs leading-relaxed text-foreground">
               {prop.narrativeJustification || "Carregando análise completa…"}
             </p>
@@ -789,3 +724,70 @@ export const PropertyCard = memo(function PropertyCard({
     </article>
   );
 });
+
+/** Prós & Ressalvas split of the short justification; details-only (the list payload omits it). */
+function ProsAndCons({ justification }: { justification: string }) {
+  const text = justification.trim();
+  let prosText = text;
+  let consText = "";
+
+  if (text.includes("\n")) {
+    const [firstLine, ...restLines] = text.split("\n");
+    prosText = (firstLine ?? "").trim();
+    consText = restLines
+      .join(" ")
+      .trim()
+      .replace(/^(?:Por outro lado|Em contrapartida),/i, "")
+      .trimStart();
+  } else {
+    const legacyIdx = text.search(
+      /(?:Por outro lado|Em contrapartida),/,
+    );
+    if (legacyIdx > 0) {
+      prosText = text.slice(0, legacyIdx).trim();
+      consText = text
+        .slice(legacyIdx)
+        .trim()
+        .replace(/^(?:Por outro lado|Em contrapartida),/i, "")
+        .trimStart();
+    } else {
+      // Find sentence boundary after the em-dash (—) so abbreviations like "próx." never split the sentence
+      const dashPos = text.indexOf("—");
+      const dotAfterDash =
+        dashPos !== -1 ? text.indexOf(". ", dashPos) : -1;
+      if (dotAfterDash !== -1) {
+        prosText = text.slice(0, dotAfterDash + 1).trim();
+        consText = text.slice(dotAfterDash + 2).trim();
+      }
+    }
+  }
+
+  if (consText) {
+    consText = consText.charAt(0).toUpperCase() + consText.slice(1);
+  }
+
+  if (!consText) {
+    return (
+      <p className="text-xs leading-relaxed text-muted-foreground pt-0.5">
+        {prosText}
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-1 pt-0.5 text-xs leading-relaxed">
+      <p className="text-muted-foreground">
+        <span className="mr-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
+          Prós:
+        </span>
+        {prosText}
+      </p>
+      <p className="text-muted-foreground">
+        <span className="mr-1.5 font-semibold text-rose-700 dark:text-rose-400">
+          Ressalvas:
+        </span>
+        {consText}
+      </p>
+    </div>
+  );
+}

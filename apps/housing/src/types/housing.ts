@@ -55,6 +55,8 @@ export interface NeighborhoodEntry {
   detailedJustification: string;
   pros: string[];
   cons: string[];
+  /** Not a catalog neighbourhood: scored from the engine table, shown only in the ranking tab. */
+  isExtra?: true;
 }
 
 export type PropertyProvider =

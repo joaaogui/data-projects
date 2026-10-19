@@ -114,6 +114,10 @@ const META: DatasetMeta = {
   source: "snapshot",
   totalCount: 2,
   neighborhoods: NEIGHBORHOODS,
+  extraNeighborhoods: [
+    { ...NEIGHBORHOODS[1]!, neighborhood: "Bairro Extra", overallPosition: 4, urbanBreathingScore: 10, commuteLogisticsScore: 10, buildingStockFitScore: 10, budgetFitScore: 10, safetyCarScore: 10, isExtra: true },
+    { ...NEIGHBORHOODS[2]!, neighborhood: "Moema", overallPosition: 5, isExtra: true },
+  ],
   neighborhoodNamesByCity: {
     BH: ["Funcionários", "Savassi"],
     SP: ["Pinheiros"],
@@ -515,6 +519,17 @@ describe("usePortalController — initial state", () => {
     expect(result.current.selectableCityList).toEqual(["BH", "CP", "RJ"]);
     // SP neighborhoods are hidden by default, so only the 2 BH entries rank.
     expect(result.current.dynamicNeighborhoods.length).toBe(2);
+    // The ranking tab adds the visible extras (BH Bairro Extra); the SP extra stays hidden with SP.
+    // Both top rows clamp to 10.00: the score tie keeps the catalog row first.
+    expect(result.current.neighborhoodRanking.map((n) => n.neighborhood)).toEqual([
+      "Funcionários",
+      "Bairro Extra",
+      "Savassi",
+    ]);
+    expect(result.current.dynamicNeighborhoods.map((n) => n.neighborhood)).toEqual([
+      "Funcionários",
+      "Savassi",
+    ]);
     expect(result.current.cityTop3ByCode.get("BH")?.top3Names).toContain("Funcionários");
     // The parsed default maxTotalMonthly (5000) counts as one price filter.
     expect(result.current.activeAdvancedFilterCount).toBe(1);

@@ -99,4 +99,6 @@ export interface NeighborhoodResearchSummary {
 export interface NeighborhoodResearchFile {
   builtAt: string;
   dossiers: Record<string, NeighborhoodDossier>;
+  /** Engine keys covered by a combined dossier (e.g. "BH:Vale do Sereno" → "BH:Vila da Serra - Vale do Sereno"). */
+  aliases?: Record<string, string>;
 }

@@ -243,7 +243,7 @@ describe("PropertyCard — off-viewport placeholder", () => {
 });
 
 describe("PropertyCard — collapsed card", () => {
-  it("renders badges, specs, price, tags and the split pros/cons justification", () => {
+  it("renders badges, specs, price and tags without the justification", () => {
     const { container } = render(<PropertyCard {...buildProps()} />);
 
     expect(screen.getByTestId("photo-showcase")).toBeTruthy();
@@ -259,10 +259,9 @@ describe("PropertyCard — collapsed card", () => {
     expect(screen.getByText("5º andar")).toBeTruthy();
     expect(screen.getByText("Tem AC")).toBeTruthy();
     expect(screen.getByText("Confira a vaga")).toBeTruthy();
-    expect(screen.getByText("Prós:")).toBeTruthy();
-    expect(screen.getByText("Ótimo custo-benefício.")).toBeTruthy();
-    expect(screen.getByText("Ressalvas:")).toBeTruthy();
-    expect(screen.getByText("Rua movimentada.")).toBeTruthy();
+    expect(screen.queryByText("Prós:")).toBeNull();
+    expect(container.textContent).not.toContain("Ótimo custo-benefício");
+    expect(container.textContent).not.toContain("Narrativa completa");
     expect(
       screen.getByRole("button", { name: "Adicionar aos favoritos" }),
     ).toBeTruthy();
@@ -273,15 +272,40 @@ describe("PropertyCard — collapsed card", () => {
     ).toBe("https://example.com/imovel/1");
   });
 
-  it("hides the justification in split mode and shows a single line without cons", () => {
-    const split = buildProps({ viewMode: "split" });
-    const { container, rerender } = render(<PropertyCard {...split} />);
-    expect(screen.queryByText("Prós:")).toBeNull();
-    expect(screen.getByTestId("photo-showcase").dataset.compact).toBe("true");
+  it("keeps the justification out of every collapsed view mode", () => {
+    for (const viewMode of ["list", "split", "map"] as const) {
+      const { container, unmount } = render(<PropertyCard {...buildProps({ viewMode })} />);
+      expect(container.textContent).not.toContain("Ótimo custo-benefício");
+      expect(screen.queryByText("Prós:")).toBeNull();
+      unmount();
+    }
+  });
+});
 
-    rerender(
+describe("PropertyCard — justification in the expanded details", () => {
+  it("renders the pros/cons split of the short justification", () => {
+    const { container } = render(<PropertyCard {...buildProps({ isExpanded: true })} />);
+    expect(screen.getByText("Prós:")).toBeTruthy();
+    expect(screen.getByText("Ótimo custo-benefício.")).toBeTruthy();
+    expect(screen.getByText("Ressalvas:")).toBeTruthy();
+    expect(screen.getByText("Rua movimentada.")).toBeTruthy();
+    expect(container.textContent).toContain("Narrativa completa do imóvel.");
+  });
+
+  it("renders nothing for the short justification until details load", () => {
+    render(
+      <PropertyCard
+        {...buildProps({ isExpanded: true, prop: makeProperty({ shortJustification: "" }) })}
+      />,
+    );
+    expect(screen.queryByText("Prós:")).toBeNull();
+  });
+
+  it("shows a single line without cons", () => {
+    const { container } = render(
       <PropertyCard
         {...buildProps({
+          isExpanded: true,
           prop: makeProperty({ shortJustification: "Só pontos positivos aqui." }),
         })}
       />,
@@ -292,6 +316,7 @@ describe("PropertyCard — collapsed card", () => {
 
   it("splits a newline justification into pros and cons", () => {
     const props = buildProps({
+      isExpanded: true,
       prop: makeProperty({
         shortJustification: "Perto do metrô e silencioso.\nRua com pouco comércio.",
       }),
@@ -299,6 +324,13 @@ describe("PropertyCard — collapsed card", () => {
     render(<PropertyCard {...props} />);
     expect(screen.getByText("Perto do metrô e silencioso.")).toBeTruthy();
     expect(screen.getByText("Rua com pouco comércio.")).toBeTruthy();
+  });
+});
+
+describe("PropertyCard — card states", () => {
+  it("uses the compact showcase in split mode", () => {
+    render(<PropertyCard {...buildProps({ viewMode: "split" })} />);
+    expect(screen.getByTestId("photo-showcase").dataset.compact).toBe("true");
   });
 
   it("shows deactivated, retained and missing-floor states", () => {

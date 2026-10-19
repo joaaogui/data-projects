@@ -121,4 +121,33 @@ describe("buildResearchFile", () => {
   it("leaves the rubric null when there is no rubric file", () => {
     expect(buildResearchFile([raw], []).dossiers["CP:Jd. Guanabara"]!.rubric).toBeNull();
   });
+
+  it("reads a round-2 dossier's own rubric block (total_0_10 or total) ahead of the rubric file", () => {
+    const inline = { ...raw, rubric: { total_0_10: 6.1, measured_share: 0.8, criteria: { x: { name: "X", score: 7, evidence: [] } } } };
+    expect(buildResearchFile([inline], rubric).dossiers["CP:Jd. Guanabara"]!.rubric).toEqual({
+      total: 6.1,
+      measuredShare: 0.8,
+      criteria: [{ name: "X", score: 7, evidence: [] }],
+    });
+    const legacy = { ...raw, rubric: { total: 5.5, criteria: {} } };
+    expect(buildResearchFile([legacy], []).dossiers["CP:Jd. Guanabara"]!.rubric?.total).toBe(5.5);
+    const noTotal = { ...raw, rubric: { criteria: {} } };
+    expect(buildResearchFile([noTotal], rubric).dossiers["CP:Jd. Guanabara"]!.rubric?.total).toBe(3.2);
+  });
+
+  it("maps engine neighbourhoods covered by a combined dossier name onto it", () => {
+    const built = buildResearchFile(
+      [
+        { ...raw, city: "BH", neighborhood: "Vila da Serra - Vale do Sereno" },
+        { ...raw, city: "RJ", neighborhood: "Barra da Tijuca (Jardim Oceânico)" },
+        { ...raw, city: "RJ", neighborhood: "Botafogo (Orla)" },
+      ],
+      [],
+    );
+    expect(built.aliases).toEqual({
+      "BH:Vila da Serra": "BH:Vila da Serra - Vale do Sereno",
+      "BH:Vale do Sereno": "BH:Vila da Serra - Vale do Sereno",
+      "RJ:Jd. Oceânico": "RJ:Barra da Tijuca (Jardim Oceânico)",
+    });
+  });
 });

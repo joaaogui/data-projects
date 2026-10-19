@@ -8,8 +8,9 @@ import { NeighborhoodResearchPanel } from "@/components/portal/neighborhood-rese
 import { decimal, formatDensity } from "@/components/portal/neighborhood-research-strip";
 import type { PortalController } from "@/components/portal/use-portal-controller";
 import {
-  REFERENCE_NEIGHBORHOOD,
+  REFERENCE_NEIGHBORHOODS,
   referenceInsertIndex,
+  type ReferenceNeighborhood,
   type ReferenceNeighborhoodRow,
 } from "@/lib/reference-neighborhood";
 import type { ComputedNeighborhood, ScoringWeights } from "@/types/housing";
@@ -67,15 +68,23 @@ const RESEARCH_HEADERS = [
 
 const COMMUTE_NEUTRAL_TEXT = "neutro";
 
+export const TOP_NEIGHBORHOODS_LIMIT = 20;
+
+const EXTRA_TITLE = "Fora do catálogo original, com dossiê e rubrica de pesquisa; notas da tabela de calibração do motor; não afeta as notas dos imóveis";
+const EXTRA_RATIONALE = "Bairro fora do catálogo, com dossiê de pesquisa — notas da tabela de calibração do motor.";
+
+const REFERENCE_BY_KEY = new Map(REFERENCE_NEIGHBORHOODS.map((r) => [r.key, r]));
+
 type ListItem =
   | { kind: "catalog"; n: ComputedNeighborhood }
-  | { kind: "reference"; ref: ReferenceNeighborhoodRow };
+  | { kind: "reference"; ref: ReferenceNeighborhoodRow; info: ReferenceNeighborhood };
 
 export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
   const {
     activeTab,
     dynamicNeighborhoods,
-    referenceNeighborhood,
+    neighborhoodRanking,
+    referenceNeighborhoods,
     neighborhoodResearch,
     selectedCities,
     setActiveTab,
@@ -83,32 +92,43 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
     setSelectedNeighborhoods,
     weights,
   } = ctl;
-  const [researchOpen, setResearchOpen] = useState(false);
+  const [researchOpenKey, setResearchOpenKey] = useState<string | null>(null);
   const [showMoreMetrics, setShowMoreMetrics] = useState(false);
-  const closeResearch = useCallback(() => setResearchOpen(false), []);
+  const closeResearch = useCallback(() => setResearchOpenKey(null), []);
 
   if (activeTab !== "neighborhoods") return null;
 
-  const rows = dynamicNeighborhoods.filter(
-    (n) => selectedCities.length === 0 || selectedCities.includes(n.cityCode),
-  );
+  const rows = neighborhoodRanking
+    .filter((n) => selectedCities.length === 0 || selectedCities.includes(n.cityCode))
+    .slice(0, TOP_NEIGHBORHOODS_LIMIT);
   const items: ListItem[] = rows.map((n) => ({ kind: "catalog", n }));
-  if (referenceNeighborhood && rows.length > 0) {
-    items.splice(referenceInsertIndex(rows, referenceNeighborhood.dynamicScore), 0, {
-      kind: "reference",
-      ref: referenceNeighborhood,
-    });
+  if (rows.length > 0) {
+    // Highest score first, so each later reference lands below an equal-scoring earlier one.
+    const refs = [...referenceNeighborhoods].sort((a, b) => b.dynamicScore - a.dynamicScore);
+    for (const ref of refs) {
+      const info = REFERENCE_BY_KEY.get(ref.key);
+      if (!info) continue;
+      const scored = items.map((it) => (it.kind === "catalog" ? it.n : it.ref));
+      items.splice(referenceInsertIndex(scored, ref.dynamicScore), 0, { kind: "reference", ref, info });
+    }
   }
+  // Catalog rows compare their base position with their catalog-only dynamic rank, so extras don't inflate the diff.
+  const catalogRank = new Map(
+    dynamicNeighborhoods.map((n) => [`${n.cityCode}:${n.neighborhood}`, n.dynamicOverallRank]),
+  );
+  const rankDiffOf = (n: ComputedNeighborhood) => {
+    const rank = n.isExtra ? undefined : catalogRank.get(`${n.cityCode}:${n.neighborhood}`);
+    return rank === undefined ? 0 : n.overallPosition - rank;
+  };
   const researchFor = (n: ComputedNeighborhood) => neighborhoodResearch[`${n.cityCode}:${n.neighborhood}`];
-  const referenceResearch = researchCells(neighborhoodResearch[REFERENCE_NEIGHBORHOOD.key]);
-  const commuteNeutralTitle = (ref: ReferenceNeighborhoodRow) =>
-    `${REFERENCE_NEIGHBORHOOD.commuteLabel}: mediana dos bairros visíveis, ${decimal(ref.commuteLogisticsScore)}`;
+  const commuteNeutralTitle = (ref: ReferenceNeighborhoodRow, info: ReferenceNeighborhood) =>
+    `${info.commuteLabel}: mediana dos bairros visíveis, ${decimal(ref.commuteLogisticsScore)}`;
   const goToNeighborhood = (n: ComputedNeighborhood) => {
     setSelectedCities([n.cityCode]);
     setSelectedNeighborhoods([`${n.cityCode}:${n.neighborhood}`]);
     setActiveTab("properties");
   };
-  const openResearch = () => setResearchOpen(true);
+
 
   return (
     <section className="space-y-4">
@@ -126,10 +146,10 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
         </div>
         {items.map((item) => {
           if (item.kind === "reference") {
-            const ref = item.ref;
+            const { ref, info } = item;
             return (
               <article
-                key="mob-reference"
+                key={`mob-reference-${ref.key}`}
                 data-testid="reference-neighborhood-card"
                 className="space-y-2.5 rounded-xl border-2 border-dashed border-muted-foreground/40 bg-muted/30 p-3.5"
               >
@@ -139,11 +159,11 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                       Referência
                     </span>
                     <span className="inline-block rounded-md border px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-muted-foreground">
-                      {REFERENCE_NEIGHBORHOOD.ufLabel}
+                      {info.ufLabel}
                     </span>
                     <button
                       type="button"
-                      onClick={openResearch}
+                      onClick={() => setResearchOpenKey(ref.key)}
                       aria-haspopup="dialog"
                       className="text-sm font-bold text-foreground hover:underline"
                     >
@@ -154,10 +174,10 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                     {ref.dynamicScore.toFixed(2)}/10
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">{REFERENCE_NEIGHBORHOOD.subtitle}</p>
+                <p className="text-xs text-muted-foreground">{info.subtitle}</p>
                 <div className="grid grid-cols-5 gap-1 rounded-lg bg-background/60 p-2 text-center">
                   {SUB_SCORES.map((s) => (
-                    <div key={s.id} title={s.id === "commute" ? commuteNeutralTitle(ref) : undefined}>
+                    <div key={s.id} title={s.id === "commute" ? commuteNeutralTitle(ref, info) : undefined}>
                       <span className="block text-xs leading-tight text-muted-foreground">{s.short}</span>
                       <strong className="font-mono text-xs">
                         {s.id === "commute" ? COMMUTE_NEUTRAL_TEXT : s.value(ref).toFixed(1)}
@@ -165,12 +185,12 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                     </div>
                   ))}
                 </div>
-                {showMoreMetrics && <MobileResearchRow cells={referenceResearch} />}
+                {showMoreMetrics && <MobileResearchRow cells={researchCells(neighborhoodResearch[ref.key])} />}
               </article>
             );
           }
           const n = item.n;
-          const rankDiff = n.overallPosition - n.dynamicOverallRank;
+          const rankDiff = rankDiffOf(n);
           return (
             <article
               key={`mob-${n.cityCode}:${n.neighborhood}`}
@@ -206,6 +226,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                   >
                     {n.neighborhood}
                   </button>
+                  {n.isExtra && <ExtraBadge />}
                 </div>
                 <span className="font-mono text-base font-bold text-primary">
                   {n.dynamicScore.toFixed(2)}/10
@@ -226,14 +247,16 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                 <span className="font-mono text-[11px] text-muted-foreground mr-1.5">
                   [{n.commuteTime}]
                 </span>
-                {n.shortRationale}
+                {n.isExtra ? <span className="font-normal text-muted-foreground">{EXTRA_RATIONALE}</span> : n.shortRationale}
               </p>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {n.detailedJustification.replace(
-                  /^Nota\s+[\d.]+\/10\s*\([^)]*\):\s*/i,
-                  "",
-                )}
-              </p>
+              {!n.isExtra && (
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {n.detailedJustification.replace(
+                    /^Nota\s+[\d.]+\/10\s*\([^)]*\):\s*/i,
+                    "",
+                  )}
+                </p>
+              )}
             </article>
           );
         })}
@@ -270,12 +293,13 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
             <tbody className="divide-y">
               {items.map((item) => {
                 if (item.kind === "reference") {
-                  const ref = item.ref;
+                  const { ref, info } = item;
+                  const research = researchCells(neighborhoodResearch[ref.key]);
                   return (
                     <tr
-                      key="reference"
+                      key={`reference-${ref.key}`}
                       data-testid="reference-neighborhood-row"
-                      onClick={openResearch}
+                      onClick={() => setResearchOpenKey(ref.key)}
                       className="cursor-pointer border-2 border-dashed border-muted-foreground/40 bg-muted/30 align-top text-muted-foreground hover:bg-muted/50"
                     >
                       <td className="px-3 py-3 whitespace-nowrap">
@@ -285,7 +309,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">
                         <span className="inline-block rounded-md border px-2 py-0.5 font-mono text-xs font-bold tracking-wider">
-                          {REFERENCE_NEIGHBORHOOD.ufLabel}
+                          {info.ufLabel}
                         </span>
                       </td>
                       <td className="px-3 py-3 font-bold whitespace-nowrap">
@@ -294,7 +318,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                           aria-haspopup="dialog"
                           onClick={(e) => {
                             e.stopPropagation();
-                            openResearch();
+                            setResearchOpenKey(ref.key);
                           }}
                           className="text-foreground hover:underline"
                         >
@@ -306,7 +330,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                       </td>
                       {SUB_SCORES.map((s) =>
                         s.id === "commute" ? (
-                          <td key={s.id} className="px-3 py-3 text-right" title={commuteNeutralTitle(ref)}>
+                          <td key={s.id} className="px-3 py-3 text-right" title={commuteNeutralTitle(ref, info)}>
                             {COMMUTE_NEUTRAL_TEXT}
                           </td>
                         ) : (
@@ -317,16 +341,16 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                       )}
                       {RESEARCH_HEADERS.map((h) => (
                         <td key={h.id} className="px-3 py-3 text-right font-mono">
-                          {referenceResearch[h.id]}
+                          {research[h.id]}
                         </td>
                       ))}
-                      <td className="px-3 py-3 whitespace-nowrap">{REFERENCE_NEIGHBORHOOD.commuteLabel}</td>
-                      <td className="px-3 py-3">{REFERENCE_NEIGHBORHOOD.subtitle}</td>
+                      <td className="px-3 py-3 whitespace-nowrap">{info.commuteLabel}</td>
+                      <td className="px-3 py-3">{info.subtitle}</td>
                     </tr>
                   );
                 }
                 const n = item.n;
-                const rankDiff = n.overallPosition - n.dynamicOverallRank;
+                const rankDiff = rankDiffOf(n);
                 const research = researchCells(researchFor(n));
                 return (
                   <tr
@@ -364,6 +388,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                       >
                         {n.neighborhood}
                       </button>
+                      {n.isExtra && <ExtraBadge className="ml-1.5" />}
                     </td>
                     <td className="px-3 py-3 text-right font-mono text-sm font-bold text-primary">
                       {n.dynamicScore.toFixed(2)}
@@ -382,15 +407,21 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                       {n.commuteTime}
                     </td>
                     <td className="px-3 py-3 min-w-[340px] max-w-xl leading-relaxed text-muted-foreground space-y-1.5">
-                      <p className="font-medium text-foreground">
-                        {n.shortRationale}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {n.detailedJustification.replace(
-                          /^Nota\s+[\d.]+\/10\s*\([^)]*\):\s*/i,
-                          "",
-                        )}
-                      </p>
+                      {n.isExtra ? (
+                        <p>{EXTRA_RATIONALE}</p>
+                      ) : (
+                        <>
+                          <p className="font-medium text-foreground">
+                            {n.shortRationale}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {n.detailedJustification.replace(
+                              /^Nota\s+[\d.]+\/10\s*\([^)]*\):\s*/i,
+                              "",
+                            )}
+                          </p>
+                        </>
+                      )}
                       <details className="group rounded-lg border bg-background/60 p-2.5 text-[11px]">
                         <summary className="cursor-pointer font-semibold text-muted-foreground hover:text-foreground">
                           Ver memória de cálculo e notas quebradas
@@ -407,16 +438,28 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
           </table>
         </div>
       </div>
-      {researchOpen &&
+      {researchOpenKey &&
         createPortal(
           <NeighborhoodResearchPanel
-            researchKey={REFERENCE_NEIGHBORHOOD.key}
-            neighborhood={REFERENCE_NEIGHBORHOOD.neighborhood}
+            researchKey={researchOpenKey}
+            neighborhood={REFERENCE_BY_KEY.get(researchOpenKey)?.neighborhood ?? researchOpenKey}
             onClose={closeResearch}
           />,
           document.body,
         )}
     </section>
+  );
+}
+
+function ExtraBadge({ className = "" }: { className?: string }) {
+  return (
+    <span
+      title={EXTRA_TITLE}
+      data-testid="extra-neighborhood-badge"
+      className={`rounded border border-dashed border-muted-foreground/40 px-1 py-px text-[10px] font-medium text-muted-foreground ${className}`}
+    >
+      extra
+    </span>
   );
 }
 

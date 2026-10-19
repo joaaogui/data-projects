@@ -7,6 +7,7 @@ import {
 } from "@/lib/city-config";
 import { processScoped } from "@/lib/process-cache";
 import { loadServedListings, type ServedListings } from "@/lib/dataset-store";
+import { buildExtraNeighborhoods } from "@/lib/extra-neighborhoods";
 import { getPrecomputedListings, hashContent } from "@/lib/listing-features-store";
 import { logger } from "@/lib/logger";
 import {
@@ -14,7 +15,7 @@ import {
   getNeighborhoodSummary,
   summarizeDossier,
 } from "@/lib/neighborhood-research";
-import { REFERENCE_NEIGHBORHOOD } from "@/lib/reference-neighborhood";
+import { REFERENCE_NEIGHBORHOODS } from "@/lib/reference-neighborhood";
 import {
   buildWeightsKey,
   type DatasetMeta,
@@ -147,19 +148,29 @@ export async function getDatasetMeta(): Promise<DatasetMeta> {
     countByCity[p.cityCode] = (countByCity[p.cityCode] ?? 0) + 1;
     (namesByCity[p.cityCode] ??= new Set()).add(p.neighborhood);
   }
+  const extraNeighborhoods = buildExtraNeighborhoods(
+    served.neighborhoods,
+    served.properties,
+    (city, name) =>
+      !REFERENCE_NEIGHBORHOODS.some((ref) => ref.key === `${city}:${name}`) &&
+      getNeighborhoodSummary(city, name)?.maristaSource === "rubric",
+  );
   const neighborhoodResearch: Record<string, NeighborhoodResearchSummary> = {};
-  for (const n of served.neighborhoods) {
+  for (const n of [...served.neighborhoods, ...extraNeighborhoods]) {
     const summary = getNeighborhoodSummary(n.cityCode, n.neighborhood);
     if (summary) neighborhoodResearch[`${n.cityCode}:${n.neighborhood}`] = summary;
   }
-  const reference = getNeighborhoodDossier(REFERENCE_NEIGHBORHOOD.key);
-  if (reference) neighborhoodResearch[REFERENCE_NEIGHBORHOOD.key] = summarizeDossier(reference);
+  for (const ref of REFERENCE_NEIGHBORHOODS) {
+    const dossier = getNeighborhoodDossier(ref.key);
+    if (dossier) neighborhoodResearch[ref.key] = summarizeDossier(dossier);
+  }
   const meta: DatasetMeta = {
     updatedAt: served.updatedAt,
     source: served.source,
     totalCount: served.properties.length,
     countByCity,
     neighborhoods: served.neighborhoods,
+    extraNeighborhoods,
     neighborhoodNamesByCity: Object.fromEntries(
       Object.entries(namesByCity).map(([city, names]) => [city, [...names]]),
     ),

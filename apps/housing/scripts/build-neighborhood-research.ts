@@ -11,7 +11,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { normalizeNeighborhoodKey } from "../src/lib/scoring-engine";
+import { normalizeNeighborhoodKey, resolveNeighborhoodSafetyAndMetrics } from "../src/lib/scoring-engine";
 import type { CityHubCode } from "../src/types/housing";
 import type {
   NeighborhoodDossier,
@@ -222,9 +222,31 @@ const CITY_CODES: Record<string, string> = {
   "rio de janeiro": "RJ",
   "são paulo": "SP",
   goiânia: "GO",
+  brasília: "BSB",
 };
 
-/** Accepts `[...]` or `{ neighborhoods: [...] }`, with city codes or full city names. */
+/** A rubric block (`total_0_10` or `total`, `measured_share`, `criteria`); null without a numeric total. */
+export function parseRubric(raw: unknown): ResearchRubric | null {
+  const entry = asRec(raw);
+  const total = num(entry.total_0_10) ?? num(entry.total);
+  if (total === null) return null;
+  const criteria = Object.entries(asRec(entry.criteria)).map(([id, c]) => {
+    const cr = asRec(c);
+    const basis = str(cr.basis);
+    return {
+      name: str(cr.name) || id,
+      ...(basis ? { basis } : {}),
+      score: num(cr.score),
+      evidence: asArr(cr.evidence)
+        .map(toEvidence)
+        .filter((e): e is ResearchEvidence => e !== null)
+        .slice(0, MAX_EVIDENCE),
+    };
+  });
+  return { total, measuredShare: num(entry.measured_share), criteria };
+}
+
+/** Round-1 rubric file: `[...]` or `{ neighborhoods: [...] }`, with city codes or full city names. */
 export function buildRubricIndex(raw: unknown): Map<string, ResearchRubric> {
   const index = new Map<string, ResearchRubric>();
   const entries = Array.isArray(raw) ? raw : asArr(asRec(raw).neighborhoods);
@@ -232,28 +254,36 @@ export function buildRubricIndex(raw: unknown): Map<string, ResearchRubric> {
     const cityRaw = str(entry.city);
     const city = CITY_CODES[cityRaw.toLowerCase()] ?? cityRaw;
     const nb = str(entry.neighborhood);
-    const total = num(entry.total_0_10);
-    if (!city || !nb || total === null) continue;
-    const criteria = Object.entries(asRec(entry.criteria)).map(([id, c]) => {
-      const cr = asRec(c);
-      const basis = str(cr.basis);
-      return {
-        name: str(cr.name) || id,
-        ...(basis ? { basis } : {}),
-        score: num(cr.score),
-        evidence: asArr(cr.evidence)
-          .map(toEvidence)
-          .filter((e): e is ResearchEvidence => e !== null)
-          .slice(0, MAX_EVIDENCE),
-      };
-    });
-    index.set(researchKey(city, nb).toLowerCase(), {
-      total,
-      measuredShare: num(entry.measured_share),
-      criteria,
-    });
+    const rubric = parseRubric(entry);
+    if (!city || !nb || !rubric) continue;
+    index.set(researchKey(city, nb).toLowerCase(), rubric);
   }
   return index;
+}
+
+/**
+ * Engine neighbourhoods covered by a combined dossier name ("Vila da Serra - Vale do Sereno",
+ * "Barra da Tijuca (Jardim Oceânico)"): each " - " part and the inside/outside of a parenthesis, kept only
+ * when it is an engine-table neighbourhood other than the dossier's own key.
+ */
+export function aliasKeys(city: string, neighborhood: string): string[] {
+  const own = researchKey(city, neighborhood);
+  const parts = neighborhood.split(/\s+-\s+/);
+  const candidates = new Set<string>();
+  for (const part of parts.length > 1 ? parts : []) candidates.add(part);
+  const paren = /^(.+?)\s*\(([^)]+)\)\s*$/.exec(neighborhood);
+  if (paren) {
+    candidates.add(paren[1]!);
+    candidates.add(paren[2]!);
+  }
+  const out: string[] = [];
+  for (const c of candidates) {
+    const key = researchKey(city, c);
+    if (key !== own && resolveNeighborhoodSafetyAndMetrics(city as CityHubCode, c) && !out.includes(key)) {
+      out.push(key);
+    }
+  }
+  return out;
 }
 
 export function buildDossier(raw: unknown, rubrics: Map<string, ResearchRubric>): NeighborhoodDossier {
@@ -307,7 +337,8 @@ export function buildDossier(raw: unknown, rubrics: Map<string, ResearchRubric>)
       .slice(0, MAX_GAPS),
     maristaJudgement:
       maristaScore !== null ? { score: maristaScore, why: clip(str(marista.why), TEXT_MAX.why) } : null,
-    rubric: rubrics.get(key.toLowerCase()) ?? null,
+    // Round-2 dossiers carry their own rubric block; round-1 ones are scored in the rubric file.
+    rubric: parseRubric(d.rubric) ?? rubrics.get(key.toLowerCase()) ?? null,
   };
 }
 
@@ -317,11 +348,14 @@ export function buildResearchFile(
   builtAt = new Date().toISOString(),
 ): NeighborhoodResearchFile {
   const rubrics = buildRubricIndex(rubricRaw);
-  const out: NeighborhoodResearchFile = { builtAt, dossiers: {} };
+  const out: NeighborhoodResearchFile = { builtAt, dossiers: {}, aliases: {} };
   for (const raw of dossiers) {
     const dossier = buildDossier(raw, rubrics);
-    if (dossier.city && dossier.neighborhood) out.dossiers[dossier.key] = dossier;
+    if (!dossier.city || !dossier.neighborhood) continue;
+    out.dossiers[dossier.key] = dossier;
+    for (const alias of aliasKeys(dossier.city, dossier.neighborhood)) out.aliases![alias] = dossier.key;
   }
+  for (const key of Object.keys(out.dossiers)) delete out.aliases![key];
   return out;
 }
 

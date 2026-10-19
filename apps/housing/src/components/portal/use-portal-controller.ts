@@ -54,7 +54,7 @@ import {
   type PropertyQueryRequest,
   type PropertyQueryResponse,
 } from "@/lib/property-query";
-import { computeReferenceNeighborhood } from "@/lib/reference-neighborhood";
+import { computeReferenceNeighborhoods } from "@/lib/reference-neighborhood";
 import {
   BUILTIN_PRESETS,
   computeDynamicNeighborhoods,
@@ -1434,8 +1434,19 @@ export function usePortalController({
       ),
     [meta.neighborhoods, weights, enabledHiddenCities],
   );
-  const referenceNeighborhood = useMemo(
-    () => computeReferenceNeighborhood(dynamicNeighborhoods, weights),
+  const neighborhoodRanking = useMemo(
+    () =>
+      computeDynamicNeighborhoods(
+        filterVisibleCities(
+          [...meta.neighborhoods, ...(meta.extraNeighborhoods ?? [])],
+          enabledHiddenCities,
+        ),
+        weights,
+      ).ranked,
+    [meta.neighborhoods, meta.extraNeighborhoods, weights, enabledHiddenCities],
+  );
+  const referenceNeighborhoods = useMemo(
+    () => computeReferenceNeighborhoods(dynamicNeighborhoods, weights),
     [dynamicNeighborhoods, weights],
   );
   const neighborhoodResearch = meta.neighborhoodResearch ?? EMPTY_NEIGHBORHOOD_RESEARCH;
@@ -2212,7 +2223,8 @@ export function usePortalController({
     deletePropertyQuestion,
     displayedProperties,
     dynamicNeighborhoods,
-    referenceNeighborhood,
+    neighborhoodRanking,
+    referenceNeighborhoods,
     neighborhoodResearch,
     enableBsbBenchmark,
     enabledHiddenCities,
