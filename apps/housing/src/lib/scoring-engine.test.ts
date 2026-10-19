@@ -2753,7 +2753,7 @@ describe("Housing Dynamic Scoring Engine", () => {
       description: "Apartamento com 2 vagas livres (não são gaveta).",
     };
 
-    // Clause 5: Commute > 50 min (Barra da Tijuca 75m) IS retained; Carlos Prates (40m) and Taquaral (38m) are NOT retained
+    // Clause 5: Commute > 50 min (Barra da Tijuca 75m) IS retained; Carlos Prates (50m, at the limit) and Taquaral (38m) are NOT retained
     const clause5Barra: SlimPropertyRecord = {
       ...baseCleanProp,
       id: "clause5-barra",
@@ -2841,7 +2841,7 @@ describe("Housing Dynamic Scoring Engine", () => {
     const c5CarlosPrates = byId.get("clause5-carlos-prates")!;
     const c5Taquaral = byId.get("clause5-taquaral")!;
     expect(c5Barra.commuteMinutes).toBe(90);
-    expect(c5CarlosPrates.commuteMinutes).toBe(40);
+    expect(c5CarlosPrates.commuteMinutes).toBe(50);
     expect(c5Taquaral.commuteMinutes).toBe(40);
 
     expect(c5Barra.eligible).toBe(false);

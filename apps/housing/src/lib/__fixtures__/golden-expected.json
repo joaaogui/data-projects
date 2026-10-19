@@ -2780,33 +2780,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:894978734",
+   "key": "quintoandar:894414169",
    "rank": 119,
    "overallRank": 102,
-   "cityRank": 41,
-   "eligible": true,
-   "finalScore": 44.7,
-   "exclusionReason": null,
-   "totalMonthly": 3622,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar baixo (1º–3º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [
-    "Mobília divergente — confirmar"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:894414169",
-   "rank": 120,
-   "overallRank": 103,
    "cityRank": 22,
    "eligible": true,
    "finalScore": 43.8,
@@ -2820,6 +2796,30 @@
    "greenTags": [],
    "redTags": [
     "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Mobília divergente — confirmar"
+   ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:894978734",
+   "rank": 120,
+   "overallRank": 103,
+   "cityRank": 41,
+   "eligible": true,
+   "finalScore": 41.5,
+   "exclusionReason": null,
+   "totalMonthly": 3622,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar baixo (1º–3º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
    ],
    "warningTags": [
     "Mobília divergente — confirmar"
@@ -3347,7 +3347,7 @@
    "overallRank": null,
    "cityRank": null,
    "eligible": false,
-   "finalScore": 139.2,
+   "finalScore": 138.7,
    "exclusionReason": "Sem elevador (eliminado)",
    "totalMonthly": 4833,
    "furnitureTier": "UNFURNISHED",
@@ -5602,7 +5602,7 @@
    "overallRank": 59,
    "cityRank": 25,
    "eligible": true,
-   "finalScore": 123.3,
+   "finalScore": 123.2,
    "exclusionReason": null,
    "totalMonthly": 4040,
    "furnitureTier": "FULLY_FURNISHED",
@@ -6959,33 +6959,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:894978734",
+   "key": "vivareal:2896846775",
    "rank": 118,
    "overallRank": 114,
-   "cityRank": 41,
-   "eligible": true,
-   "finalScore": 41.6,
-   "exclusionReason": null,
-   "totalMonthly": 3622,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar baixo (1º–3º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [
-    "Mobília divergente — confirmar"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "vivareal:2896846775",
-   "rank": 119,
-   "overallRank": 115,
    "cityRank": 31,
    "eligible": true,
    "finalScore": 40.2,
@@ -7002,6 +6978,30 @@
     "Totalmente mobiliado"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:894978734",
+   "rank": 119,
+   "overallRank": 115,
+   "cityRank": 41,
+   "eligible": true,
+   "finalScore": 36.2,
+   "exclusionReason": null,
+   "totalMonthly": 3622,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar baixo (1º–3º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
+   ],
+   "warningTags": [
+    "Mobília divergente — confirmar"
+   ],
    "alsoListedOn": []
   },
   {
@@ -7035,7 +7035,7 @@
    "overallRank": 117,
    "cityRank": 42,
    "eligible": true,
-   "finalScore": 30.2,
+   "finalScore": 30.1,
    "exclusionReason": null,
    "totalMonthly": 5564,
    "furnitureTier": "FULLY_FURNISHED",
@@ -7550,7 +7550,7 @@
    "overallRank": null,
    "cityRank": null,
    "eligible": false,
-   "finalScore": 135.6,
+   "finalScore": 134.8,
    "exclusionReason": "Sem elevador (eliminado)",
    "totalMonthly": 4833,
    "furnitureTier": "UNFURNISHED",
@@ -10885,33 +10885,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:894978734",
+   "key": "quintoandar:894414169",
    "rank": 107,
    "overallRank": 88,
-   "cityRank": 38,
-   "eligible": true,
-   "finalScore": 44.7,
-   "exclusionReason": null,
-   "totalMonthly": 3622,
-   "furnitureTier": "FULLY_FURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar baixo (1º–3º andar)",
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Totalmente mobiliado"
-   ],
-   "warningTags": [
-    "Mobília divergente — confirmar"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:894414169",
-   "rank": 108,
-   "overallRank": 89,
    "cityRank": 22,
    "eligible": true,
    "finalScore": 43.8,
@@ -10925,6 +10901,30 @@
    "greenTags": [],
    "redTags": [
     "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Mobília divergente — confirmar"
+   ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:894978734",
+   "rank": 108,
+   "overallRank": 89,
+   "cityRank": 38,
+   "eligible": true,
+   "finalScore": 41.5,
+   "exclusionReason": null,
+   "totalMonthly": 3622,
+   "furnitureTier": "FULLY_FURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar baixo (1º–3º andar)",
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Totalmente mobiliado"
    ],
    "warningTags": [
     "Mobília divergente — confirmar"
@@ -11473,7 +11473,7 @@
    "overallRank": null,
    "cityRank": null,
    "eligible": false,
-   "finalScore": 139.2,
+   "finalScore": 138.7,
    "exclusionReason": "Sem elevador (eliminado)",
    "totalMonthly": 4833,
    "furnitureTier": "UNFURNISHED",
