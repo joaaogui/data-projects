@@ -25,6 +25,7 @@ import {
   getProviderStyle,
   MODERNITY_TIER_BADGES,
 } from "@/components/portal/constants";
+import { NeighborhoodResearchStrip } from "@/components/portal/neighborhood-research-strip";
 
 import type { PropertyCardDTO } from "@/lib/property-query";
 import type { PropertyQuestionItem, SamplePhoto } from "@/types/housing";
@@ -315,6 +316,13 @@ export const PropertyCard = memo(function PropertyCard({
               </p>
             </div>
           </div>
+
+          {prop.neighborhoodResearch && (
+            <NeighborhoodResearchStrip
+              summary={prop.neighborhoodResearch}
+              neighborhood={prop.neighborhood}
+            />
+          )}
 
           {!prop.eligible && prop.exclusionReason && (
             <div className="rounded-lg border border-rose-500/40 bg-rose-500/12 px-2.5 py-1.5 text-xs font-medium text-rose-800 dark:border-rose-400/35 dark:bg-rose-950/35 dark:text-rose-200">

@@ -1,6 +1,7 @@
 import { AuthBadge } from "@/components/auth-badge";
 import { HousingPortal } from "@/components/housing-portal";
 import { filtersFromSearch } from "@/lib/filter-url";
+import { withNeighborhoodResearch } from "@/lib/neighborhood-research";
 import { parseExplorerFiltersObject } from "@/lib/property-filters";
 import {
   buildQueryKey,
@@ -50,11 +51,13 @@ export default async function HousingHomePage({
     getScoredProperties(weights, { enabledHiddenCities: state.enabledHiddenCities }),
     getDatasetMeta(),
   ]);
+  const initialQuery = runPropertyQuery(scored, request);
+  initialQuery.items = withNeighborhoodResearch(initialQuery.items);
   return (
     <>
       <HousingPortal
         initialMeta={meta}
-        initialQuery={runPropertyQuery(scored, request)}
+        initialQuery={initialQuery}
         initialQueryKey={buildQueryKey(request)}
         initialPreferences={preferences}
         initialUrlFilters={urlFilters}

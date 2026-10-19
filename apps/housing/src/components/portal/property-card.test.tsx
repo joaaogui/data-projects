@@ -358,6 +358,35 @@ describe("PropertyCard — collapsed card", () => {
   });
 });
 
+describe("PropertyCard — neighbourhood research strip", () => {
+  it("shows the strip only when the listing carries a research summary", () => {
+    const { rerender } = render(<PropertyCard {...buildProps()} />);
+    expect(screen.queryByTestId("neighborhood-research-strip")).toBeNull();
+
+    const props = buildProps({
+      prop: makeProperty({
+        neighborhoodResearch: {
+          key: "BH:Funcionários",
+          marista: 6.8,
+          maristaSource: "rubric",
+          robberyRatio: 1.97,
+          densityPerKm2: 13869,
+          highlight: "Praça da Liberdade a pé",
+          redFlag: "Roubos ~2× a média",
+        },
+      }),
+    });
+    rerender(<PropertyCard {...props} />);
+    const strip = screen.getByTestId("neighborhood-research-strip");
+    expect(strip.textContent).toContain("Marista 6,8/10");
+    expect(strip.textContent).toContain("Roubo 2,0× média");
+    expect(strip.textContent).toContain("14 mil hab/km²");
+    fireEvent.click(strip);
+    expect(props.setExpandedId).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Pesquisa do bairro Funcionários" })).toBeTruthy();
+  });
+});
+
 describe("PropertyCard — actions", () => {
   it("wires favorite, map, chat, gallery and expand actions without expanding", () => {
     const props = buildProps();

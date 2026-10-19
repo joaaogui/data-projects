@@ -1,5 +1,6 @@
 import { resolveEnabledHiddenCities } from "@/lib/city-config";
 import { logger } from "@/lib/logger";
+import { withNeighborhoodResearch } from "@/lib/neighborhood-research";
 import { coerceWeights, toDetailsDTO } from "@/lib/property-query";
 import { getScoredProperties } from "@/lib/server-scoring";
 import { NextResponse } from "next/server";
@@ -25,10 +26,12 @@ export async function POST(request: Request) {
       signal: request.signal,
     });
     set.byKey ??= new Map(set.properties.map((p) => [`${p.provider}:${p.id}`, p]));
-    const items = keys
-      .map((k) => set.byKey!.get(k))
-      .filter((p) => p !== undefined)
-      .map(toDetailsDTO);
+    const items = withNeighborhoodResearch(
+      keys
+        .map((k) => set.byKey!.get(k))
+        .filter((p) => p !== undefined)
+        .map(toDetailsDTO),
+    );
     return NextResponse.json(
       { ok: true, datasetHash: set.datasetHash, items },
       { headers: { "Cache-Control": "no-store" } },

@@ -24,6 +24,7 @@ import type {
   NeighborhoodEntry,
   ScoringWeights,
 } from "@/types/housing";
+import type { NeighborhoodResearchSummary } from "@/types/neighborhood-research";
 
 /** Photos shipped with each card; the rest load with the details. */
 export const CARD_PHOTO_COUNT = 3;
@@ -33,7 +34,11 @@ export const DEFAULT_PAGE_SIZE = 30;
  * A ranked property as shipped to the list/map: same shape as `EvaluatedProperty`, with the
  * heavy text (description, amenity lists, long justifications) left empty until details load.
  */
-export type PropertyCardDTO = EvaluatedProperty & { detailsLoaded?: boolean };
+export type PropertyCardDTO = EvaluatedProperty & {
+  detailsLoaded?: boolean;
+  /** Set server-side (lib/neighborhood-research) when the listing's neighbourhood has a research dossier. */
+  neighborhoodResearch?: NeighborhoodResearchSummary;
+};
 
 export interface NeighborhoodOption {
   name: string;

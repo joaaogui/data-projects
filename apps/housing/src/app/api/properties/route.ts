@@ -1,5 +1,6 @@
 import { normalizeEnabledHiddenCities } from "@/lib/city-config";
 import { logger } from "@/lib/logger";
+import { withNeighborhoodResearch } from "@/lib/neighborhood-research";
 import { parseExplorerFiltersObject } from "@/lib/property-filters";
 import {
   coerceWeights,
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
     });
     const tScored = performance.now();
     const response = runPropertyQuery(set, req);
+    response.items = withNeighborhoodResearch(response.items);
     if (req.includeMeta) response.meta = await getDatasetMeta();
     const tDone = performance.now();
     response.timings = {

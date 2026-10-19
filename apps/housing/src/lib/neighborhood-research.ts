@@ -1,0 +1,63 @@
+import "server-only";
+
+import researchFile from "@/data/neighborhood-research.json";
+import { normalizeNeighborhoodKey } from "@/lib/scoring-engine";
+import type { CityHubCode } from "@/types/housing";
+import type {
+  NeighborhoodDossier,
+  NeighborhoodResearchFile,
+  NeighborhoodResearchSummary,
+} from "@/types/neighborhood-research";
+
+const DOSSIERS = new Map<string, NeighborhoodDossier>(
+  Object.values((researchFile as unknown as NeighborhoodResearchFile).dossiers).map((d) => [d.key.toLowerCase(), d]),
+);
+const SUMMARIES = new Map<string, NeighborhoodResearchSummary>();
+
+function lookupKey(cityCode: string, neighborhood: string): string {
+  return `${cityCode}:${normalizeNeighborhoodKey(neighborhood, cityCode as CityHubCode)}`.toLowerCase();
+}
+
+/** Accepts the canonical key or a listing-style alias ("CP:Jardim Guanabara", "RJ:Botafogo"). */
+export function getNeighborhoodDossier(key: string): NeighborhoodDossier | null {
+  const sep = key.indexOf(":");
+  if (sep <= 0) return null;
+  return DOSSIERS.get(lookupKey(key.slice(0, sep).trim(), key.slice(sep + 1))) ?? null;
+}
+
+export function summarizeDossier(d: NeighborhoodDossier): NeighborhoodResearchSummary {
+  const robbery = d.crime.series.find((s) => s.kind === "robbery");
+  const density = d.numbers.find((n) => n.metric === "density");
+  const marista = d.rubric?.total ?? d.maristaJudgement?.score ?? null;
+  return {
+    key: d.key,
+    marista,
+    maristaSource: d.rubric ? "rubric" : d.maristaJudgement ? "judgement" : null,
+    robberyRatio: robbery?.ratioToCity ?? null,
+    densityPerKm2: density?.unit === "hab/km²" ? density.value : null,
+    highlight: d.highlights[0] ?? null,
+    redFlag: d.redFlags[0] ?? null,
+  };
+}
+
+export function getNeighborhoodSummary(cityCode: string, neighborhood: string): NeighborhoodResearchSummary | null {
+  const key = lookupKey(cityCode, neighborhood);
+  const cached = SUMMARIES.get(key);
+  if (cached) return cached;
+  const dossier = DOSSIERS.get(key);
+  if (!dossier) return null;
+  const summary = summarizeDossier(dossier);
+  SUMMARIES.set(key, summary);
+  return summary;
+}
+
+/** Adds the card-sized research summary to listings whose neighbourhood was researched. */
+export function withNeighborhoodResearch<T extends { cityCode: string; neighborhood: string }>(
+  items: T[],
+): (T & { neighborhoodResearch?: NeighborhoodResearchSummary })[] {
+  return items.map((item) => {
+    if (typeof item.cityCode !== "string" || typeof item.neighborhood !== "string") return item;
+    const summary = getNeighborhoodSummary(item.cityCode, item.neighborhood);
+    return summary ? { ...item, neighborhoodResearch: summary } : item;
+  });
+}

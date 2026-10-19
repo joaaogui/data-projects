@@ -86,6 +86,13 @@ export const loginSchema = z.object({
   next: z.string().max(500).optional(),
 });
 
+/** `<cityCode>:<bairro>` as used by the scoring engine, e.g. "CP:Jd. Guanabara". */
+export const neighborhoodResearchKeySchema = z
+  .string()
+  .trim()
+  .max(140)
+  .regex(/^[A-Z]{2,3}:[\p{L}\p{N} .'()/-]{1,120}$/u, "chave de bairro inválida");
+
 export const photosQuerySchema = z.object({
   provider: z.string().trim().min(1).max(40).regex(/^[a-z]+$/),
   id: z.string().trim().min(1).max(80).regex(/^[\w.-]+$/),
