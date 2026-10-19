@@ -366,7 +366,7 @@ function buildGeneralAnswer(params: {
     sections.push(`### 🖥️ Top da sua tela (filtros atuais)\n${contextSummary}`);
   } else if (pool.length > 0) {
     sections.push(
-      `### 🏆 Top apartamentos elegíveis — ${scope}\n${pool.slice(0, 5).map(formatListingLine).join("\n")}`,
+      `### 🏆 Top apartamentos elegíveis — ${scope}\n${pool.slice(0, 5).map((p, idx) => formatListingLine(p, idx)).join("\n")}`,
     );
   } else {
     sections.push(
@@ -566,8 +566,9 @@ export function buildInstantGroundedAnswer(params: {
   // Air conditioning (photo audit can flag false AC)
   if (asksAirConditioning) {
     const acLabel = prop?.cardTags.acLabel ?? snapshot.acLabel ?? null;
-    const acSentence = /[^.!?\n]*\b(split|ar[- ]?condicionado)\b[^.!?\n]*/i
-      .exec(fullDesc)?.[0]
+    const acSentence = fullDesc
+      .split(/[.!?\n]/)
+      .find((segment) => /\b(?:split|ar[- ]?condicionado)\b/i.test(segment))
       ?.trim()
       .slice(0, 220);
     const acWarnings = visualWarnings.filter((w) =>

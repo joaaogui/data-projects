@@ -88,7 +88,7 @@ export function computeGoldenRows(input: GoldenInput): Record<string, GoldenRow[
     const { ranked } = computeDynamicNeighborhoods(input.neighborhoods, set.weights);
     out[set.id] = scorePrecomputedListings(precomputed, ranked, set.weights, {
       includeBsbBenchmark: set.includeBsbBenchmark,
-    }).map(toRow);
+    }).map((p, index) => toRow(p, index));
   }
   return out;
 }

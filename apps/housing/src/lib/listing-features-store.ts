@@ -20,7 +20,7 @@ const state = processScoped<ListingFeaturesState>("listing-features", () => ({
 }));
 
 export function hashContent(...parts: Array<string | Buffer>): string {
-  const h = createHash("sha1");
+  const h = createHash("sha256");
   for (const part of parts) {
     h.update(part);
     h.update("\u0000");

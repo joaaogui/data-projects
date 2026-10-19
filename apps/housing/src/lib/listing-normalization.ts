@@ -50,10 +50,10 @@ export function cleanListingText(text: string | null | undefined): string | null
   if (!text) return text ?? null;
   if (!/[<&]/.test(text)) return text;
   return text
-    .replace(/<\s*br\s*\/?\s*>|<\/\s*(?:p|div|li|h[1-6])\s*>/gi, "\n")
+    .replace(/<\s*br(?:\s*\/)?\s*>|<\/\s*(?:p|div|li|h[1-6])\s*>/gi, "\n")
     .replace(/<\/?[a-z][a-z0-9]*\b[^<>]*>/gi, "")
     .replace(/&#(\d{1,5});/g, (_, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]{1,4});/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&#x([0-9a-f]{1,4});/gi, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 16)))
     .replace(/&([a-z])(acute|grave|circ|tilde|cedil|uml);/gi, (m, letter: string, mark: string) =>
       COMBINING_MARKS[mark.toLowerCase()] ? `${letter}${COMBINING_MARKS[mark.toLowerCase()]}`.normalize("NFC") : m,
     )
@@ -74,7 +74,7 @@ export function extractDescriptionRent(text: string | null | undefined): number 
   if (!text) return null;
   let best: number | null = null;
   const re =
-    /\baluguel\s*(?:mensal\s*)?(?::|=|-|é|de)?\s*(?:de\s+)?R\$\s*(\d{1,3}(?:\.\d{3})+|\d{3,6})(?:,\d{1,2})?/gi;
+    /\baluguel(?:\s*mensal)?(?:\s*(?::|=|-|é|de))?(?:\s*de(?=\s))?\s*R\$\s*(\d{1,3}(?:\.\d{3})+|\d{3,6})(?:,\d{1,2})?/gi;
   for (const m of text.matchAll(re)) {
     const idx = m.index ?? 0;
     const before = text.slice(Math.max(0, idx - 25), idx);

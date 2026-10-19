@@ -317,6 +317,7 @@ export const qaChangeListeners = new Set<() => void>();
 export async function saveQaItems(items: PropertyQuestionItem[]): Promise<void> {
   qaStoreWriteVersion += 1;
   inFlightQaLoad = null;
+  const previousItems = memQaItems;
   memQaItems = [...items];
   lastQaDbLoadMs = Date.now();
   for (const listener of qaChangeListeners) listener();
@@ -327,9 +328,18 @@ export async function saveQaItems(items: PropertyQuestionItem[]): Promise<void> 
     await rename(partial, TMP_QA_FILE);
     return;
   }
-  await db.execute(sql`
-    INSERT INTO housing.property_qa (id, items, updated_at)
-    VALUES (${DEFAULT_QA_ROW_ID}, ${JSON.stringify(items)}::jsonb, now())
-    ON CONFLICT (id) DO UPDATE SET items = EXCLUDED.items, updated_at = now()
-  `);
+  try {
+    await db.execute(sql`
+      INSERT INTO housing.property_qa (id, items, updated_at)
+      VALUES (${DEFAULT_QA_ROW_ID}, ${JSON.stringify(items)}::jsonb, now())
+      ON CONFLICT (id) DO UPDATE SET items = EXCLUDED.items, updated_at = now()
+    `);
+  } catch (err) {
+    // The caller reports the failure, so readers must not keep seeing the unsaved items:
+    // restore the last known copy and expire it so the next read goes back to the database.
+    memQaItems = previousItems;
+    lastQaDbLoadMs = 0;
+    for (const listener of qaChangeListeners) listener();
+    throw err;
+  }
 }

@@ -122,12 +122,12 @@ export function buildQueryKey(
   return JSON.stringify({
     f: req.filters,
     w: buildWeightsKey(req.weights),
-    fav: req.filters.onlyFavorites ? [...req.favorites].sort() : [],
+    fav: req.filters.onlyFavorites ? [...req.favorites].sort((a, b) => a.localeCompare(b)) : [],
   });
 }
 
 export function buildWeightsKey(weights: ScoringWeights): string {
-  const keys = Object.keys(weights).sort() as Array<keyof ScoringWeights>;
+  const keys = Object.keys(weights).sort((a, b) => a.localeCompare(b)) as Array<keyof ScoringWeights>;
   return JSON.stringify(keys.map((k) => [k, weights[k]]));
 }
 

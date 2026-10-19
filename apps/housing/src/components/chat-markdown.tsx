@@ -9,17 +9,25 @@ export { normalizeChatMarkdown, toPlainPreview };
 
 
 const components: Components = {
-  h1: ({ node: _node, ...props }) => (
-    <h3 className="mt-3 mb-1.5 text-sm font-bold text-foreground first:mt-0" {...props} />
+  h1: ({ node: _node, children, ...props }) => (
+    <h3 className="mt-3 mb-1.5 text-sm font-bold text-foreground first:mt-0" {...props}>
+      {children}
+    </h3>
   ),
-  h2: ({ node: _node, ...props }) => (
-    <h3 className="mt-3 mb-1.5 text-sm font-bold text-foreground first:mt-0" {...props} />
+  h2: ({ node: _node, children, ...props }) => (
+    <h3 className="mt-3 mb-1.5 text-sm font-bold text-foreground first:mt-0" {...props}>
+      {children}
+    </h3>
   ),
-  h3: ({ node: _node, ...props }) => (
-    <h3 className="mt-3 mb-1.5 text-[13px] font-bold text-foreground first:mt-0" {...props} />
+  h3: ({ node: _node, children, ...props }) => (
+    <h3 className="mt-3 mb-1.5 text-[13px] font-bold text-foreground first:mt-0" {...props}>
+      {children}
+    </h3>
   ),
-  h4: ({ node: _node, ...props }) => (
-    <h4 className="mt-3 mb-1 text-xs font-bold text-foreground first:mt-0" {...props} />
+  h4: ({ node: _node, children, ...props }) => (
+    <h4 className="mt-3 mb-1 text-xs font-bold text-foreground first:mt-0" {...props}>
+      {children}
+    </h4>
   ),
   p: ({ node: _node, ...props }) => <p className="my-1.5 first:mt-0 last:mb-0" {...props} />,
   ul: ({ node: _node, ...props }) => (
