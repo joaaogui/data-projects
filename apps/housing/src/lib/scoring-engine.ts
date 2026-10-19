@@ -39,7 +39,7 @@ function keywordRe(keywords: readonly string[]): RegExp {
 }
 
 const KW_ANDAR_PAVIMENTO_RE = keywordRe(["andar", "pavimento"]);
-const KW_DUPLEX_TRIPLEX_RE = keywordRe(["duplex", "triplex", "direito duplo"]);
+const KW_DUPLEX_TRIPLEX_RE = keywordRe(["duplex", "triplex"]);
 const KW_LTIMO_ANDAR_ANDAR_TOPO_RE = keywordRe(["ltimo andar", "andar topo"]);
 const KW_JANELA_PAREDE_RE = keywordRe(["janela", "parede", "buraco", "caixa"]);
 const KW_PONTO_INFRA_RE = keywordRe([
@@ -199,9 +199,9 @@ export function sanitizeAndMigrateWeights(
     }
     if (result.sweetSpotMinM2 === 48) result.sweetSpotMinM2 = 50;
     if (result.sweetSpotMaxM2 === 68) result.sweetSpotMaxM2 = 72;
-  }
-  if (result.minAreaM2 === 40 || result.minAreaM2 === 45) {
-    result.minAreaM2 = 35;
+    if (result.minAreaM2 === 40 || result.minAreaM2 === 45) {
+      result.minAreaM2 = 35;
+    }
   }
 
   if (result.maxAreaM2 < result.minAreaM2) {
@@ -236,7 +236,7 @@ export const BUILTIN_PRESETS: {
     id: "perfeito",
     name: "✨ Perfeito (AC · Andar Alto · ≤ R$ 4.500 · ≤ 25 min · Seguro)",
     description:
-      "Assinala os filtros ideais (Ar-condicionado, Andar Alto/Cobertura, pacote ≤ R$ 4.500, até 25 min do escritório, Não/Semi-mobiliado e Sem problemas de segurança) com pesos calibrados para segurança máxima e conforto.",
+      "Assinala os filtros ideais (Ar-condicionado, Andar Alto/Cobertura, pacote ≤ R$ 4.500, até 25 min do escritório, Não mobiliado e Sem problemas de segurança) com pesos calibrados para segurança máxima e conforto.",
     weights: {
       ...DEFAULT_WEIGHTS,
       safetyCarWeight: 3.5,
@@ -262,7 +262,7 @@ export const BUILTIN_PRESETS: {
     id: "anti-velharia-max",
     name: "Foco Anti-Velharia Máximo",
     description:
-      "Dobra o peso do Score de Modernidade (1.1x) e exige mínimo de 72/100 (apenas prédios novos ou 100% reformados), mantendo rigor em segurança.",
+      "Aumenta o peso do Score de Modernidade (1.1x) para favorecer prédios novos ou reformados, mantendo rigor em segurança.",
     weights: {
       ...DEFAULT_WEIGHTS,
       buildingStockWeight: 2.0,
@@ -739,17 +739,6 @@ export function normalizeNeighborhoodKey(
   return trimmed;
 }
 
-const SINGLE_EXIT_BOTTLENECK_NEIGHBORHOODS = new Set<string>([
-  "bh:buritis",
-  "rj:icaraí",
-  "rj:icarai",
-  "rj:santa rosa",
-  "rj:ingá",
-  "rj:inga",
-  "rj:são domingos",
-  "rj:sao domingos",
-]);
-
 const SLOPED_HILLSIDE_NEIGHBORHOODS = new Set<string>([
   "bh:sion",
   "bh:santo antônio",
@@ -797,7 +786,7 @@ const ORDINAL_FLOOR_MAP: Record<string, number> = {
 };
 
 const CONDO_OR_GARAGE_FLOOR_CONTEXT =
-  /(?<![a-zA-ZÀ-ÿ0-9_])(garagem|vagas?|estacionamento|box|lazer|piscina|academia|fitness|gin[aá]stica|quadra|sal[aã]o|festas|jogos|churrasqueira|gourmet|sky\s*lounge|sky\s*gourmet|lounge|rooftop|cobertura|terra[cç]o|coworking|office|trabalho|lavanderia|portaria|hall|recep[cç][aã]o|pilotis|lojas?|com[eé]rcio|padaria|mercearia|mercado|restaurante|cafeteria|galeteria|[aá]reas?\s+comuns?|brinquedoteca|brinquedos|playground|biciclet[aá]rio|lances?\s+de\s+escada|de\s+escada|elevadores?\s+por|unidades?\s+por|apartamentos?\s+por|aptos?\s+por|por\s+andar|por\s+pavimento|dropbox|chaves)(?![a-zA-ZÀ-ÿ0-9_])/i;
+  /(?<![a-zA-ZÀ-ÿ0-9_])(garagem|vagas?|estacionamento|box(?!\s+(?:blindex|de\s+vidro|d[oe]\s+banheiro|no\s+banheiro))|lazer|piscina|academia|fitness|gin[aá]stica|quadra|sal[aã]o|festas|jogos|churrasqueira|gourmet|sky\s*lounge|sky\s*gourmet|lounge|rooftop|cobertura|terra[cç]o|coworking|office|trabalho|lavanderia|portaria|hall(?!\s+privativo)|recep[cç][aã]o|pilotis|lojas?|com[eé]rcio|padaria|mercearia|mercado|restaurante|cafeteria|galeteria|[aá]reas?\s+comuns?|brinquedoteca|brinquedos|playground|biciclet[aá]rio|lances?\s+de\s+escada|de\s+escada|elevadores?\s+por|unidades?\s+por|apartamentos?\s+por|aptos?\s+por|por\s+andar|por\s+pavimento|dropbox|chaves)(?![a-zA-ZÀ-ÿ0-9_])/i;
 
 /**
  * Determines whether free-text description explicitly states the apartment unit itself
@@ -856,6 +845,18 @@ export function isExplicitUnitGroundFloor(rawText: string): boolean {
   return false;
 }
 
+function hasUnitLevelMention(rawText: string, levelRe: RegExp): boolean {
+  for (const m of rawText.matchAll(levelRe)) {
+    const idx = m.index ?? 0;
+    const before = rawText.slice(Math.max(0, idx - 55), idx);
+    const after = rawText.slice(idx + m[0].length, idx + m[0].length + 45);
+    const clauseBefore = before.split(/[.,;!\n|]/).pop() ?? before;
+    const clauseAfter = after.split(/[.,;!\n|]/)[0] ?? after;
+    if (!CONDO_OR_GARAGE_FLOOR_CONTEXT.test(`${clauseBefore} ${m[0]} ${clauseAfter}`)) return true;
+  }
+  return false;
+}
+
 /**
  * Extracts explicit apartment floor numbers (1 to 45) from description text while ignoring
  * duplex internal floor breakdowns ("1º andar: sala, 2º andar: quartos"), condominium
@@ -867,7 +868,7 @@ export function extractExplicitFloorFromText(rawText: string): number | null {
 
   // 1. Prioritize explicit physical height equivalences ("no 1º andar (equivalente ao 4º andar)")
   const equivMatch = rawText.match(
-    /\b(?:equivalente|corresponde)\s+a(?:o)?\s+(\d{1,2})\b/i,
+    /\b(?:equivalente|corresponde)\s+a(?:o)?\s+(\d{1,2})[ \t]{0,3}[º°ªo]?[ \t]{0,3}(?:andar|pavimento)\b/i,
   );
   if (equivMatch?.[1]) {
     const n = Number(equivMatch[1]);
@@ -880,11 +881,12 @@ export function extractExplicitFloorFromText(rawText: string): number | null {
   }
 
   // 2. Reject duplex internal floor breakdowns ("1º andar: sala... 2º andar: suíte")
+  // Mentions of common areas ("salão no 1º andar", "portaria no térreo") are not unit levels.
+  const hasFirstFloorMention = hasUnitLevelMention(rawText, /\b(?:1[º°ªo]?|primeiro)\s*(?:andar|pavimento)\b/gi);
   const hasDuplexBreakdown =
-    (/\b(?:1[º°ªo]?|primeiro)\s*(?:andar|pavimento)\b/i.test(rawText) &&
-      /\b(?:2[º°ªo]?|segundo)\s*(?:andar|pavimento)\b/i.test(rawText)) ||
-    (/\b(?:1[º°ªo]?|primeiro)\s*(?:andar|pavimento)\b/i.test(rawText) &&
-      /\bt[eé]rreo\b/i.test(rawText)) ||
+    (hasFirstFloorMention &&
+      hasUnitLevelMention(rawText, /\b(?:2[º°ªo]?|segundo)\s*(?:andar|pavimento)\b/gi)) ||
+    (hasFirstFloorMention && hasUnitLevelMention(rawText, /\bt[eé]rreo\b/gi)) ||
     /\b(?:1[º°ªo]?|2[º°ªo]?|primeiro|segundo)\s*(?:andar|pavimento)\s*:/i.test(
       rawText,
     );
@@ -990,7 +992,7 @@ function detectUnitPenthouseOrDuplex(
     lowerText.includes("cobertura") && /\bcobertura\b/i.test(stripCommonAreaCobertura(rawText));
   const isDuplex =
     KW_DUPLEX_TRIPLEX_RE.test(lowerText) &&
-    /(?<![a-zA-ZÀ-ÿ0-9_])(duplex|triplex|loft duplex|p[eé][- ]direito duplo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+    /(?<![a-zA-ZÀ-ÿ0-9_])(duplex|triplex|loft duplex)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
       rawText.replace(
         /\b(?:geladeira|refrigerador|arm[aá]rio|guarda[- ]?roupa|edif[ií]cio york)\s+duplex\b/gi,
         " ",
@@ -1041,10 +1043,20 @@ function detectUnitTopFloor(
   return (
     (KW_LTIMO_ANDAR_ANDAR_TOPO_RE.test(lowerText) &&
       /(?<![a-zA-ZÀ-ÿ0-9_])([uú]ltimo andar|andar topo)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
-        rawText.replace(
-          /\b(?:sal[aã]o|sal[oõ]es|festas?|lazer|piscina|academia|rooftop|terra[cç]o|churrasqueira|gourmet)[^.;,\n]{0,35}(?<![a-zA-ZÀ-ÿ0-9_])(?:[uú]ltimo andar|andar topo)(?![a-zA-ZÀ-ÿ0-9_])/gi,
-          " ",
-        ),
+        rawText
+          .replace(
+            /\b(?:sal[aã]o|sal[oõ]es|festas?|lazer|piscina|academia|rooftop|terra[cç]o|churrasqueira|gourmet|lavanderia|coworking|sauna|solarium)[^.;,\n]{0,35}(?<![a-zA-ZÀ-ÿ0-9_])(?:[uú]ltimo andar|andar topo)(?![a-zA-ZÀ-ÿ0-9_])/gi,
+            " ",
+          )
+          .replace(/\belevador(?:es)?[^.;,\n]{0,25}\bat[eé]\s+o\s+[uú]ltimo andar\b/gi, " ")
+          .replace(
+            /(?<![a-zA-ZÀ-ÿ0-9_])(?:[uú]ltimo andar|andar topo)(?:\s*[:\-–]\s*|\s+(?:fica(?:m)?|h[aá]|tem|est[aá]o?)\s+(?:(?:a|o|as|os|uma?)\s+)?)(?:sal[aã]o|sal[oõ]es|lazer|piscina|academia|rooftop|terra[cç]o|lavanderia|churrasqueira|gourmet|coworking|sauna|solarium)\b/gi,
+            " ",
+          )
+          .replace(
+            /(?<![a-zA-ZÀ-ÿ0-9_])(?:[uú]ltimo andar|andar topo)\s+(?:do|da)\s+(?:pr[eé]dio|edif[ií]cio|condom[ií]nio|torre)\s+(?:fica(?:m)?|h[aá]|tem|est[aá]o?)\b/gi,
+            " ",
+          ),
       )) ||
     (effectiveFloor !== null &&
       totalFloors !== null &&
@@ -2821,10 +2833,45 @@ export function parseCommuteMinutes(
   if (hit) return hit;
 
   const raw = cacheKey.trim();
+  const res = withPeakCommute(parseMainCommuteMinutes(raw), raw);
+  commuteMinutesCache.set(cacheKey, res);
+  return res;
+}
+
+/** Rush-hour time stated in parentheses ("25 min (pico 55 min)", "(no pico 1h10)", "(55 min no pico)"). */
+function parsePeakCommuteMinutes(raw: string): number | null {
+  let peak: number | null = null;
+  for (const m of raw.matchAll(/\(([^)]*)\)/g)) {
+    const inner = m[1] ?? "";
+    if (!/\bpico\b/i.test(inner)) continue;
+    const hour = inner.match(/\bpico\b[^\d)]{0,15}(\d{1,2})[ \t]{0,2}h(?:oras?)?[ \t]{0,2}(\d{1,2})?/i);
+    const min =
+      inner.match(/\bpico\b[^\d)]{0,15}(\d{1,3})(?!\d)(?![ \t]{0,2}h)/i) ??
+      inner.match(/\b(\d{1,3})[ \t]{0,3}min(?:utos?)?[ \t]+(?:(?:no|em|de|do)[ \t]+)?(?:hor[aá]rio[ \t]+(?:de[ \t]+)?)?pico\b/i);
+    const value = hour
+      ? Number(hour[1]) * 60 + (hour[2] ? Number(hour[2]) : 0)
+      : min
+        ? Number(min[1])
+        : null;
+    if (value !== null && Number.isFinite(value) && value > 0) peak = Math.max(peak ?? 0, value);
+  }
+  return peak;
+}
+
+function withPeakCommute(
+  res: { minutes: number | null; label: string },
+  raw: string,
+): { minutes: number | null; label: string } {
+  if (res.minutes === null) return res;
+  const peak = parsePeakCommuteMinutes(raw);
+  if (peak === null || peak <= res.minutes) return res;
+  return { minutes: peak, label: `${res.label} (pico ${peak} min)` };
+}
+
+/** Ranges ("40–60 min", "1h a 1h30") count as their worst case. */
+function parseMainCommuteMinutes(raw: string): { minutes: number | null; label: string } {
   if (/benchmark|[aá]guas claras|\bbsb\b/i.test(raw) && !/\b\d{1,3}[ \t]{0,3}min/i.test(raw)) {
-    const res = { minutes: null, label: "Ref. BSB" };
-    commuteMinutesCache.set(cacheKey, res);
-    return res;
+    return { minutes: null, label: "Ref. BSB" };
   }
 
   const withoutParens = stripParentheticalClauses(raw);
@@ -2847,12 +2894,7 @@ export function parseCommuteMinutes(
     const total1 = h1 * 60 + m1;
     const total2 = h2 * 60 + m2;
     if (Number.isFinite(total1) && Number.isFinite(total2)) {
-      const res = {
-        minutes: Math.round((total1 + total2) / 2),
-        label: `${total1}–${total2} min`,
-      };
-      commuteMinutesCache.set(cacheKey, res);
-      return res;
+      return { minutes: Math.max(total1, total2), label: `${total1}–${total2} min` };
     }
   }
 
@@ -2865,12 +2907,7 @@ export function parseCommuteMinutes(
     const m = hourSingleMatch[2] ? Number(hourSingleMatch[2]) : 0;
     const total = h * 60 + m;
     if (Number.isFinite(total) && total > 0) {
-      const res = {
-        minutes: total,
-        label: `${total} min`,
-      };
-      commuteMinutesCache.set(cacheKey, res);
-      return res;
+      return { minutes: total, label: `${total} min` };
     }
   }
 
@@ -2879,12 +2916,7 @@ export function parseCommuteMinutes(
     const a = Number(rangeMatch[1]);
     const b = Number(rangeMatch[2]);
     if (Number.isFinite(a) && Number.isFinite(b)) {
-      const res = {
-        minutes: Math.round((a + b) / 2),
-        label: `${a}–${b} min`,
-      };
-      commuteMinutesCache.set(cacheKey, res);
-      return res;
+      return { minutes: Math.max(a, b), label: `${a}–${b} min` };
     }
   }
 
@@ -2892,18 +2924,11 @@ export function parseCommuteMinutes(
   if (singleMatch) {
     const m = Number(singleMatch[1]);
     if (Number.isFinite(m)) {
-      const res = {
-        minutes: m,
-        label: `${m} min`,
-      };
-      commuteMinutesCache.set(cacheKey, res);
-      return res;
+      return { minutes: m, label: `${m} min` };
     }
   }
 
-  const res = { minutes: null, label: cleaned || "Ref. BSB" };
-  commuteMinutesCache.set(cacheKey, res);
-  return res;
+  return { minutes: null, label: cleaned || "Ref. BSB" };
 }
 
 /**
@@ -3420,17 +3445,9 @@ function buildShortJustification(params: {
     );
   }
 
-  // 1. Hard eligibility exclusions
+  // 1. Hard eligibility exclusions: must list exactly the checks behind `eligible` in scorePrecomputedListings
   if (!eligible) {
     const filterReasons: string[] = [];
-    const effectiveMinMod = weights.minModernityScore;
-    if (
-      staticMeta.photoAudit?.hardExcludeDated ||
-      staticMeta.photoAudit?.hasMaintenanceIssue ||
-      staticMeta.effectiveModernityScore < effectiveMinMod
-    ) {
-      filterReasons.push("acabamento original sem reforma registrada");
-    }
     if (nuances.hasNoElevator) {
       filterReasons.push("acesso por escadas sem elevador");
     }
@@ -3444,7 +3461,7 @@ function buildShortJustification(params: {
       filterReasons.push("planta abaixo da metragem mínima");
     }
     const parsedCommuteReason = parseCommuteMinutes(
-      catalogNb?.commuteTime ?? nbCommute,
+      staticMeta.cpFarCommute?.commuteText ?? catalogNb?.commuteTime ?? nbCommute,
       staticMeta.isDeepWestBarra,
     );
     if (
@@ -3458,10 +3475,6 @@ function buildShortJustification(params: {
     if (filterReasons.length > 0) {
       primaryDrawbacks.push(
         `retido pelos filtros (${formatListPt(filterReasons)})`,
-      );
-    } else if (furnitureTier !== "FULLY_FURNISHED") {
-      primaryDrawbacks.push(
-        "retido pelos filtros (critérios ativos do calibrador)",
       );
     }
   }
@@ -3515,10 +3528,6 @@ function buildShortJustification(params: {
   if (furnitureTier === "FULLY_FURNISHED") {
     primaryDrawbacks.push(
       "já mobiliado com cama/sofá (exige negociar retirada ou adaptar sua mudança de Brasília)",
-    );
-  } else if (furnitureTier === "SEMI_FURNISHED") {
-    primaryDrawbacks.push(
-      "semi-mobiliado com eletrodomésticos (verificar se conflita com seus eletros de Brasília)",
     );
   }
 
@@ -3672,10 +3681,7 @@ function buildNarrativeJustification(params: {
   // 3. Brasília relocation logistics, floorplan & budget trade-off
   let moveClause =
     "Para a mudança de Brasília, a configuração livre de mobília solta permite acomodar seus próprios móveis e eletrodomésticos sem atrito";
-  if (furnitureTier === "SEMI_FURNISHED") {
-    moveClause =
-      "Para a mudança de Brasília, a unidade é semi-mobiliada com eletrodomésticos de cozinha (sem cama ou sofá), exigindo apenas alinhar eventual sobreposição de eletros";
-  } else if (furnitureTier === "FULLY_FURNISHED") {
+  if (furnitureTier === "FULLY_FURNISHED") {
     moveClause =
       "Para a mudança de Brasília, a presença de mobília pronta exige negociar a retirada de itens pelo proprietário ou adaptar o frete dos seus móveis";
   }
@@ -3798,38 +3804,6 @@ export const PHOTO_DETECTED_FURNISHED_KEYS = new Set<string>([
   "quintoandar:893592624",
 ]);
 
-export const FULL_FURNITURE_COMMODITY_ITEMS = new Set<string>([
-  "cama de casal",
-  "cama de solteiro",
-  "cama",
-  "cama box",
-  "sofá",
-  "sofá-cama",
-  "poltrona",
-  "mesas e cadeiras de jantar",
-  "mesa com cadeiras",
-  "televisão",
-  "smart tv",
-]);
-
-export const SEMI_FURNISHED_APPLIANCE_ITEMS = new Set<string>([
-  "geladeira",
-  "refrigerador",
-  "frigobar",
-  "microondas",
-  "micro-ondas",
-  "máquina de lavar",
-  "lava e seca",
-  "lava-louças",
-  "lava louças",
-  "utensílios de cozinha",
-]);
-
-export const FURNISHED_COMMODITY_ITEMS = new Set<string>([
-  ...FULL_FURNITURE_COMMODITY_ITEMS,
-  ...SEMI_FURNISHED_APPLIANCE_ITEMS,
-]);
-
 const FURNITURE_REMOVAL_NEGOTIABLE_REGEX =
   /\b(retirad[oa]s?\s+(?:de\s+|da\s+)?mob[ií]lia|poss[ií]vel\s+retirar\s+(?:a\s+)?mob[ií]lia|pode\s+retirar\s+(?:a\s+|os\s+)?(?:mob[ií]lia|m[oó]veis)|propriet[aá]ri[oa]\s+retira\s+(?:a\s+|os\s+)?(?:mob[ií]lia|m[oó]veis)|op[cç][aã]o\s+(?:de\s+)?alugar\s+sem\s+mob[ií]lia|com\s+ou\s+sem\s+mob[ií]lia|negocia\s+retirada\s+de\s+m[oó]veis|m[oó]veis\s+podem\s+ser\s+retirados)\b/i;
 
@@ -3845,20 +3819,18 @@ export function canNegotiateFurnitureRemoval(
 }
 
 /**
- * Classifies a property into a 3-tier furniture scale tailored for the user's
+ * Classifies a property into a 2-tier furniture scale tailored for the user's
  * Brasília relocation (bringing Queen bed, sofa, large fridge, washing machine,
  * and countertop dishwasher):
- * - "UNFURNISHED": No loose furniture (only built-in cabinets / marcenaria / box blindex)
- * - "SEMI_FURNISHED": Kitchen/laundry appliances or explicit "semi-mobiliado" WITHOUT bed or sofa
- * - "FULLY_FURNISHED": Has bed, sofa, living/bedroom furniture set, apart-hotel, or full furnished flag
+ * - "UNFURNISHED": No loose furniture (only built-in cabinets / marcenaria / box blindex);
+ *   "semi-mobiliado" (appliances without bed or sofa) also lands here
+ * - "FULLY_FURNISHED": Fridge + sofa + bed, unit-level "todo/100% mobiliado" wording, or a portal furnished flag
  */
 export const PHOTO_VERIFIED_UNFURNISHED_KEYS = new Set<string>([
   "quintoandar:895702014",
   "quintoandar:895752152",
   "quintoandar:895694297",
 ]);
-
-export const PHOTO_VERIFIED_SEMI_OR_CABINETRY_KEYS = new Set<string>([]);
 
 const APART_HOTEL_BRAND_REGEX =
   /\b(monet|max savassi|savassi hotel|radisson|mercure|ibis|trypp?|golden tulip|caesar business|manhattan flat|liberty palace|transamerica)\b/i;
@@ -3916,8 +3888,20 @@ const SEMI_FURNISHED_GLOBAL_REGEX = new RegExp(SEMI_FURNISHED_REGEX.source, "gi"
 const KW_FURNITURE_TEXT_RE = keywordRe(["mob", "moveis", "móveis", "arm", "porteira"]);
 // Wording that already proves the full set (bed + sofa + fridge) without listing the items.
 const COMPLETE_FURNITURE_TEXT_REGEX =
-  /(?<![a-zA-ZÀ-ÿ0-9_])(?:100\s*%\s*mobiliad[oa]|tod[oa]\s+mobiliad[oa]|totalmente\s+mobiliad[oa]|completamente\s+mobiliad[oa]|mobiliad[oa]\s+(?:completo|completa|por\s+completo)|mob[ií]lia\s+completa|mobili[aá]rio\s+complet[oa]|j[aá]\s+(?:est[aá]|vem)\s+com\s+(?:todos\s+)?os\s+m[oó]veis)(?![a-zA-ZÀ-ÿ0-9_])/i;
+  /(?<![a-zA-ZÀ-ÿ0-9_])(?:100\s*%\s*mobiliad[oa]|tod[oa]\s+mobiliad[oa]|totalmente\s+mobiliad[oa]|completamente\s+mobiliad[oa]|mobiliad[oa]\s+(?:completo|completa|por\s+completo)|mob[ií]lia\s+completa|mobili[aá]rio\s+complet[oa]|j[aá]\s+(?:est[aá]|vem)\s+com\s+(?:todos\s+)?os\s+m[oó]veis)(?![a-zA-ZÀ-ÿ0-9_])/gi;
+// "cozinha toda mobiliada", "banheiro todo mobiliado": the phrase describes one room, not the unit.
+const ROOM_NOUN_REGEX =
+  /(?<![a-zA-ZÀ-ÿ0-9_])(?:cozinhas?|banheiros?|lavabos?|quartos?|salas?|su[ií]tes?|dormit[oó]rios?|varandas?|sacadas?|lavanderias?|closets?|escrit[oó]rios?|arm[aá]rios?|[aá]rea\s+de\s+servi[cç]o)(?![a-zA-ZÀ-ÿ0-9_])/i;
 const FURNISHED_URL_SLUG_REGEX = /(?<![a-z])(?<!semi-|semi|nao-|não-|sem-)mobiliad[oa]s?(?![a-z])/i;
+
+function hasUnitLevelCompleteFurnitureText(text: string): boolean {
+  for (const m of text.matchAll(COMPLETE_FURNITURE_TEXT_REGEX)) {
+    const clauseBefore = text.slice(0, m.index ?? 0).split(/[.,;!\n]/).pop() ?? "";
+    const lastWords = clauseBefore.trim().split(/\s+/).slice(-3).join(" ");
+    if (!ROOM_NOUN_REGEX.test(lastWords)) return true;
+  }
+  return false;
+}
 
 /**
  * What the owner's own text says about furniture; null when silent or contradictory ("com ou sem mobília").
@@ -3952,10 +3936,6 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
     return tier;
   }
   if (PHOTO_DETECTED_FURNISHED_KEYS.has(propKey)) {
-    return "FULLY_FURNISHED";
-  }
-
-  if (isApartHotelListing(prop)) {
     return "FULLY_FURNISHED";
   }
 
@@ -4025,7 +4005,7 @@ export function classifyFurnitureTier(prop: SlimPropertyRecord): FurnitureTier {
 
   const tier: FurnitureTier =
     (hasGeladeira && hasSofa && hasCama) ||
-    COMPLETE_FURNITURE_TEXT_REGEX.test(descText) ||
+    hasUnitLevelCompleteFurnitureText(descText) ||
     (hasPortalFurnishedFlag && !hasUnfurnishedOrSemiText) ||
     (prop.furnished === true && describeFurnitureInText(prop.description) === "furnished")
       ? "FULLY_FURNISHED"
@@ -4084,7 +4064,6 @@ export interface CpFarCommute {
 }
 
 // Starts at the MODERN_OR_RENOVATED tier floor so entering the tier adds no step: +0.5 pt per point, full +8 at 94.
-const BARE_SHELL_UNFURNISHED_BONUS_CAP = 10;
 const MODERNITY_RAMP_START = 78;
 const MODERNITY_RAMP_MAX_BONUS = 8;
 const TEXT_ONLY_MODERNITY_CAP = 80;
@@ -4170,7 +4149,7 @@ const UNCONFIRMED_RENOVATION_REFUND: Partial<Record<PositiveSignalKey, number>> 
   CONSTRUCTION_RECENT: 6,
   CONSTRUCTION_2010S: 4,
 };
-// Unaudited listings left at exactly the scraper base have no modernity evidence at all.
+// Unaudited listings at exactly the scraper base with no positive scraper signal have no modernity evidence at all.
 const NO_EVIDENCE_MODERNITY = 55;
 
 // Concrete evidence of a modern unit gives back part of the AC/finish/leisure refund, never above the ceiling.
@@ -4538,7 +4517,11 @@ function calibrateRuntimeModernity(
     );
     score = Math.min(CONCRETE_MODERNITY_CEILING, score + bonus);
   }
-  if (score === SCRAPER_MODERNITY_BASE) score = NO_EVIDENCE_MODERNITY;
+  // A unit that lands on 60 only after refunds (e.g. a SPLIT_AC 68 -> 60) had evidence and keeps it.
+  const hasScraperModernitySignal =
+    leisureRefund > 0 ||
+    positiveSignalKeysOf(prop).some((key) => (SCRAPER_SIGNAL_POINTS[key] ?? 0) > 0);
+  if (score === SCRAPER_MODERNITY_BASE && !hasScraperModernitySignal) score = NO_EVIDENCE_MODERNITY;
 
   const clamped = Math.max(0, Math.min(100, score));
   let tier: ModernityTier = prop.modernityTier;
@@ -4574,10 +4557,11 @@ export function extractListingFeatures(prop: SlimPropertyRecord): ListingFeature
   const fullLocationText = buildFullLocationText(prop);
   const { effectiveModernityScore, effectiveModernityTier, checkboxTrustScore } =
     calibrateRuntimeModernity(prop, photoAudit, fullLocationText);
+  // Only the listing's own address counts: descriptions often cite "fácil acesso ao Recreio".
   const isDeepWestBarra =
     prop.cityCode === "RJ" &&
-    /\b(barra ol[ií]mpica|estrada dos bandeirantes|shopping metropolitano|curicica|jacarepagu[aá]|recreio|riocentro|abelardo bueno|salvador allende|ad[ií]lio de oliveira)\b/i.test(
-      fullLocationText,
+    /(?<![a-zA-ZÀ-ÿ0-9_])(barra ol[ií]mpica|estrada dos bandeirantes|shopping metropolitano|curicica|jacarepagu[aá]|recreio|riocentro|abelardo bueno|salvador allende|ad[ií]lio de oliveira)(?![a-zA-ZÀ-ÿ0-9_])/i.test(
+      `${prop.neighborhood ?? ""} | ${prop.street ?? ""}`,
     );
   const furnitureTier = classifyFurnitureTier(prop);
   const hasExplicitUnfurnishedOrCabinetryEvidence =
@@ -4757,12 +4741,9 @@ function buildDetailedJustificationFromContext(
     budgetDesc = `R$ ${totalFmt}/mês acima do teto máximo de R$ ${fmtIntPtBr(weights.budgetHardCap)}`;
   }
   let furnitureDesc = nuances.isBareShell
-    ? "Não mobiliado e sem nenhum armário (bônus limitado: marcenaria por sua conta)"
+    ? "Não mobiliado e sem nenhum armário (marcenaria por sua conta, descontada nas nuances)"
     : "Não mobiliado / só marcenaria fixa (pronto para receber sua mobília de Brasília)";
-  if (furnitureTier === "SEMI_FURNISHED") {
-    furnitureDesc =
-      "Semi-mobiliado — apenas eletros/cozinha sem cama ou sofá (penalidade reduzida)";
-  } else if (furnitureTier === "FULLY_FURNISHED") {
+  if (furnitureTier === "FULLY_FURNISHED") {
     furnitureDesc =
       "Totalmente mobiliado com cama/sofá (requer negociar retirada de mobília solta ou adaptar)";
   }
@@ -5392,16 +5373,12 @@ export function scorePrecomputedListings(
     const budgetPoints =
       Math.round(rawBudgetPts * weights.budgetWeight * 10) / 10;
 
-    // 3-tier Furniture classification & points
+    // 2-tier furniture points (UNFURNISHED / FULLY_FURNISHED); bare shells are penalized in the nuances only
     let furniturePoints = staticMeta.isUnconfirmedNullFurniture
       ? Math.round(weights.unfurnishedBonus * 0.6)
       : weights.unfurnishedBonus;
-    if (furnitureTier === "SEMI_FURNISHED") {
-      furniturePoints = Math.round(weights.furnishedPenalty * 0.35);
-    } else if (furnitureTier === "FULLY_FURNISHED") {
+    if (furnitureTier === "FULLY_FURNISHED") {
       furniturePoints = weights.furnishedPenalty;
-    } else if (nuances.isBareShell) {
-      furniturePoints = Math.min(furniturePoints, BARE_SHELL_UNFURNISHED_BONUS_CAP);
     }
 
     // Area points (calibrated for bringing Brasília furniture: Queen bed, large sofa, fridge, washer, dishwasher)
@@ -5413,7 +5390,8 @@ export function scorePrecomputedListings(
     );
     if (area >= weights.sweetSpotMinM2 && area <= weights.sweetSpotMaxM2) {
       areaPoints = 10;
-    } else if (area > weights.sweetSpotMaxM2 && area <= weights.maxAreaM2) {
+    } else if (area > weights.sweetSpotMaxM2) {
+      // No upper penalty: above maxAreaM2 keeps the same +6 as the sweetSpotMax..maxArea band.
       areaPoints = 6;
     } else if (area >= compactFloorM2 && area < weights.sweetSpotMinM2) {
       areaPoints = 0;
@@ -5434,7 +5412,7 @@ export function scorePrecomputedListings(
       parkingPoints = isRJ ? -8 : -18;
     }
 
-    // City Preference Adjustment (User preference: penalize São Paulo Capital heavily; since SP neighborhoods already carry a -1.5 dynamicScore discount [-9.75 pts], add -10.0 pts so total SP property penalty is ~-19.8 pts; BH, RJ, and CP compete on equal footing)
+    // City Preference Adjustment (User preference: penalize São Paulo Capital heavily; since SP neighborhoods already carry a -1.5 dynamicScore discount [-9.75 pts], add -10.0 pts so total SP property penalty is ~-19.8 pts; Campinas is deprioritized with -20.0 pts; BH and RJ get no city adjustment)
     const cityPreferencePoints = prop.cityCode === "SP" ? -10.0 : prop.cityCode === "CP" ? -20.0 : 0;
 
     const breakdown = {

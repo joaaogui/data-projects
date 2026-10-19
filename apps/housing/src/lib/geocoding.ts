@@ -70,8 +70,6 @@ export const NUBANK_HUBS: Record<CityHubCode, NubankHubLocation> = {
   },
 };
 
-export const ADDITIONAL_NUBANK_HUBS: NubankHubLocation[] = [];
-
 export const ALL_NUBANK_HUB_LOCATIONS: NubankHubLocation[] = [
   ...Object.values(NUBANK_HUBS).filter((h) => h.cityCode !== "BSB"),
 ];
@@ -380,7 +378,7 @@ export interface HospitalNoiseCluster {
   cityCode: CityHubCode;
   /** Accent-free, lower-case neighborhood names. */
   neighborhoods: string[];
-  /** Accent-free, lower-case streets within ~400 m of the hospitals (listings carry no per-unit coordinates). */
+  /** Streets within ~400 m of the hospitals (listings carry no per-unit coordinates); matched via streetMatchKey. */
   streets: string[];
 }
 
@@ -422,13 +420,13 @@ export function findHospitalNoiseCluster(prop: {
   street: string;
 }): HospitalNoiseCluster | null {
   const nb = stripAccentsLower(prop.neighborhood);
-  const street = stripAccentsLower(prop.street);
+  const street = streetMatchKey(prop.street ?? "");
   return (
     HOSPITAL_NOISE_CLUSTERS.find(
       (c) =>
         c.cityCode === prop.cityCode &&
         c.neighborhoods.includes(nb) &&
-        c.streets.includes(street),
+        c.streets.some((s) => streetMatchKey(s) === street),
     ) ?? null
   );
 }
@@ -490,14 +488,24 @@ const STREET_TYPE_ABBREVIATIONS: Record<string, string> = {
   "pc.": "praca",
 };
 const STREET_TITLE_TOKENS = new Set([
-  "doutor", "dr", "dr.", "professor", "prof", "prof.", "dona", "d.", "dom", "padre", "pe.", "coronel", "cel.",
+  "doutor", "doutora", "dr", "dr.", "dra", "dra.", "professor", "professora", "prof", "prof.", "profa", "profa.",
+  "dona", "d.", "dom", "padre", "pe.", "coronel", "cel.",
 ]);
 
-/** Accent-free street key without type abbreviations or titles ("Av. Dr. Heitor Penteado" = "avenida heitor penteado"). */
+/**
+ * Accent-free street key without type abbreviations, titles, apostrophes or house number
+ * ("Av. Dr. Heitor Penteado, 120" = "Avenida Heitor Penteado 120" = "avenida heitor penteado").
+ */
 function streetMatchKey(raw: string): string {
-  const tokens = stripAccentsLower(raw).replace(/,.*$/, "").split(" ").filter(Boolean);
+  const tokens = stripAccentsLower(raw.replace(/['´`’‘]/g, ""))
+    .replace(/,.*$/, "")
+    .split(" ")
+    .filter(Boolean);
   if (tokens.length && STREET_TYPE_ABBREVIATIONS[tokens[0]]) tokens[0] = STREET_TYPE_ABBREVIATIONS[tokens[0]];
-  return tokens.filter((t, i) => i === 0 || !STREET_TITLE_TOKENS.has(t)).join(" ");
+  // Numbers in the first two tokens are part of the name ("Rua 7 de Setembro").
+  const numberAt = tokens.findIndex((t, i) => i >= 2 && /^(?:\d|[-–]$|n[º°o]?\.?$)/.test(t));
+  const nameTokens = numberAt === -1 ? tokens : tokens.slice(0, numberAt);
+  return nameTokens.filter((t, i) => i === 0 || !STREET_TITLE_TOKENS.has(t)).join(" ");
 }
 
 const TAQUARAL_LAGOA_STREET_KEYS = new Set(TAQUARAL_LAGOA_STREETS.map(streetMatchKey));

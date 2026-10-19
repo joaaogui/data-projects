@@ -64,7 +64,9 @@ import {
 import {
   ALL_NUBANK_HUB_LOCATIONS,
   computeDistanceToNubankHubKm,
+  findHospitalNoiseCluster,
   isCoordinateInsideCityBox,
+  isNearTaquaralLagoa,
   NUBANK_HUBS,
   resolveInstantPropertyCoordinate,
 } from "@/lib/geocoding";
@@ -1670,7 +1672,8 @@ describe("Housing Dynamic Scoring Engine", () => {
     expect(classifyFurnitureTier(fullyPhotoDetectedProp)).toBe(
       "FULLY_FURNISHED",
     );
-    expect(classifyFurnitureTier(fullyHotelFlatProp)).toBe("FULLY_FURNISHED");
+    // Apart-hotel alone is not furniture evidence.
+    expect(classifyFurnitureTier(fullyHotelFlatProp)).toBe("UNFURNISHED");
 
     const evaluated = computeDynamicProperties(
       [
@@ -1957,15 +1960,15 @@ describe("Housing Dynamic Scoring Engine", () => {
       label: "5 min",
     });
     expect(parseCommuteMinutes("10-12 min do Nubank")).toEqual({
-      minutes: 11,
+      minutes: 12,
       label: "10–12 min",
     });
     expect(parseCommuteMinutes("12–15 min")).toEqual({
-      minutes: 14,
+      minutes: 15,
       label: "12–15 min",
     });
     expect(parseCommuteMinutes("15 a 20 min")).toEqual({
-      minutes: 18,
+      minutes: 20,
       label: "15–20 min",
     });
     expect(parseCommuteMinutes("60-90 min do Nubank", true)).toEqual({
@@ -2029,14 +2032,14 @@ describe("Housing Dynamic Scoring Engine", () => {
     const byId = new Map(evaluated.map((p) => [p.id, p]));
 
     expect(byId.get("commute-5-santa-efigenia")?.commuteMinutes).toBe(5);
-    expect(byId.get("commute-14-carmo")?.commuteMinutes).toBe(14);
+    expect(byId.get("commute-14-carmo")?.commuteMinutes).toBe(15);
     expect(byId.get("commute-15-lourdes")?.commuteMinutes).toBe(15);
-    expect(byId.get("commute-18-sion")?.commuteMinutes).toBe(18);
-    expect(byId.get("commute-38-taquaral")?.commuteMinutes).toBe(38);
+    expect(byId.get("commute-18-sion")?.commuteMinutes).toBe(20);
+    expect(byId.get("commute-38-taquaral")?.commuteMinutes).toBe(40);
     expect(byId.get("commute-85-barra-olimpica")?.commuteMinutes).toBe(85);
     expect(byId.get("commute-85-barra-olimpica")?.commuteLabel).toBe("75–100 min");
 
-    // Filter maxCommuteMinutes: 15 keeps <= 15 min (5, 14, 15) and excludes 18, 38, 85
+    // Filter maxCommuteMinutes: 15 keeps <= 15 min (5, 15, 15) and excludes 20, 40, 85 (ranges count as their worst case)
     const under15 = filterAndSortProperties(evaluated, {
       ...DEFAULT_EXPLORER_FILTERS,
       maxCommuteMinutes: 15,
@@ -2053,10 +2056,11 @@ describe("Housing Dynamic Scoring Engine", () => {
       maxCommuteMinutes: 90,
       sortBy: "commute_asc",
     });
+    // Carmo (12-15) and Lourdes (15) tie at 15 min; the tie keeps the score order.
     expect(sortedByCommute.map((p) => p.id)).toEqual([
       "commute-5-santa-efigenia",
-      "commute-14-carmo",
       "commute-15-lourdes",
+      "commute-14-carmo",
       "commute-18-sion",
       "commute-38-taquaral",
       "commute-85-barra-olimpica",
@@ -2819,17 +2823,17 @@ describe("Housing Dynamic Scoring Engine", () => {
     }
     expect(byId.get("clause4-negated-gaveta")!.eligible).toBe(true);
 
-    // Verify Clause 5 (Barra 75m > 50 min is retained; Buritis 40m and Taquaral 38m <= 50 min are eligible)
+    // Verify Clause 5 (Barra 60-90 min counts as 90 > 50 min and is retained; Buritis and Taquaral <= 50 min are eligible)
     const c5Barra = byId.get("clause5-barra")!;
     const c5Buritis = byId.get("clause5-buritis")!;
     const c5Taquaral = byId.get("clause5-taquaral")!;
-    expect(c5Barra.commuteMinutes).toBe(75);
-    expect(c5Buritis.commuteMinutes).toBe(40);
-    expect(c5Taquaral.commuteMinutes).toBe(38);
+    expect(c5Barra.commuteMinutes).toBe(90);
+    expect(c5Buritis.commuteMinutes).toBe(45);
+    expect(c5Taquaral.commuteMinutes).toBe(40);
 
     expect(c5Barra.eligible).toBe(false);
     expect(c5Barra.exclusionReason).toContain(
-      "Tempo até o escritório (75 min) acima do limite de 50 min (eliminado)",
+      "Tempo até o escritório (90 min) acima do limite de 50 min (eliminado)",
     );
     expect(c5Buritis.eligible).toBe(true);
     expect(c5Taquaral.eligible).toBe(true);
@@ -4367,7 +4371,7 @@ describe("Round-2 audit rules: duplicates, price/IPTU, lofts, furniture, cobertu
     });
   });
 
-  it("penalizes bare-shell units (no cabinets anywhere) and caps their unfurnished bonus", () => {
+  it("penalizes bare-shell units (no cabinets anywhere) in the nuances only, keeping the full unfurnished bonus", () => {
     const checklist = ["Varanda", "Cozinha americana", "Área de serviço", "Pode ter animais de estimação", "Quartos e corredores com portas amplas"];
     withOverrides({ "quintoandar:shell-audit": { ...modern, noCabinets: true } }, () => {
       const byId = evaluate([
@@ -4380,9 +4384,10 @@ describe("Round-2 audit rules: duplicates, price/IPTU, lofts, furniture, cobertu
       ]);
       const ev = (id: string) => byId.get(id)!;
       expect(ev("shell-nobox").nuanceWarnings.join(" ")).toMatch(/Sem nenhum armário[\s\S]*Banheiro sem box/);
-      expect(ev("shell-nobox").breakdown.furniturePoints).toBe(10);
+      expect(ev("shell-nobox").breakdown.furniturePoints).toBe(DEFAULT_WEIGHTS.unfurnishedBonus);
       expect(ev("shell-box").breakdown.nuancesPoints).toBeCloseTo(ev("shell-nobox").breakdown.nuancesPoints + 2, 1);
-      expect(ev("shell-audit").breakdown.furniturePoints).toBe(10);
+      expect(ev("shell-audit").breakdown.furniturePoints).toBe(DEFAULT_WEIGHTS.unfurnishedBonus);
+      expect(ev("shell-audit").nuanceWarnings.join(" ")).toMatch(/Sem nenhum armário[^|]*-6 pts/);
       for (const id of ["shell-cabinets", "shell-sparse", "shell-zap"]) {
         expect(ev(id).nuanceWarnings.join(" "), id).not.toMatch(/Sem nenhum armário/);
         expect(ev(id).breakdown.furniturePoints, id).toBe(DEFAULT_WEIGHTS.unfurnishedBonus);
@@ -4638,8 +4643,8 @@ describe("Round-3 audit rules: prepared AC, non-free parking wording, text-only 
         expect(mod(id), id).toBeGreaterThan(80);
       }
       expect(mod("cap-audited")).toBe(95);
-      // Back at the scraper base (60) with no modernity evidence left: the no-evidence default is 55.
-      expect(mod("cooktop-only")).toBe(55);
+      // Back at the scraper base (60) only after the cooktop refund: it had a scraper signal, so no 55 reset.
+      expect(mod("cooktop-only")).toBe(60);
       expect(mod("cooktop-forno")).toBe(70);
       expect(mod("cooktop-checklist")).toBe(70);
     });
@@ -5097,5 +5102,211 @@ describe("Top-200 audit rules: furniture flags, AC wording, continuous ramps, ch
     for (const id of ["apto", "tv-flat"]) expect(tags(id), id).not.toContain(SERVICED_FLAT_TAG);
     for (const id of ["studio", "kitnet", "duplex", "flat"]) expect(byId.get(id)!.eligible, id).toBe(true);
     expect(byId.get("flat")!.finalScore).toBe(byId.get("apto")!.finalScore);
+  });
+});
+
+describe("Rules review fixes: retention text, area ceiling, weights migration, furniture, streets, commute, modernity, floors", () => {
+  const rankedNbs = computeDynamicNeighborhoods(SAMPLE_NEIGHBORHOODS, DEFAULT_WEIGHTS).ranked;
+  const unit = (overrides: Partial<SlimPropertyRecord>): SlimPropertyRecord => ({
+    ...SAMPLE_PROPERTIES[0]!,
+    id: "fix-base",
+    neighborhood: "Funcionários",
+    street: "Rua Alagoas",
+    streetNumber: null,
+    title: "Apartamento 1 quarto",
+    description: "Apartamento com 1 vaga.",
+    generatedDescription: null,
+    condition: "USED",
+    constructionYear: null,
+    floor: null,
+    floorRange: null,
+    totalFloors: null,
+    furnished: null,
+    installations: ["Elevador"],
+    amenities: ["Box", "Armários na cozinha"],
+    comfortCommodities: [],
+    practicalityCommodities: [],
+    photoCaptions: [],
+    positiveSignals: [],
+    negativeSignals: [],
+    modernityScore: 70,
+    modernityTier: "WELL_MAINTAINED",
+    ...overrides,
+  });
+  const zap = (overrides: Partial<SlimPropertyRecord>) => unit({ provider: "zapimoveis", ...overrides });
+  const evaluate = (props: SlimPropertyRecord[]) =>
+    new Map(computeDynamicProperties(props, rankedNbs, DEFAULT_WEIGHTS).map((p) => [p.id, p]));
+
+  it("lists only the real eligibility checks as retention reasons, never dated finishes", () => {
+    const byId = evaluate([
+      unit({
+        id: "small-dated",
+        areaM2: 30,
+        modernityScore: 30,
+        modernityTier: "DATED",
+        description: "Apartamento com acabamento original, piso de taco e 1 vaga.",
+      }),
+      unit({ id: "eligible-dated", areaM2: 50, modernityScore: 30, modernityTier: "DATED", description: "Apartamento original com piso de taco." }),
+    ]);
+    const small = byId.get("small-dated")!;
+    expect(small.eligible).toBe(false);
+    expect(small.shortJustification).toMatch(/retido pelos filtros \(planta abaixo da metragem mínima\)/i);
+    expect(small.shortJustification).not.toContain("acabamento original sem reforma registrada");
+    expect(byId.get("eligible-dated")!.eligible).toBe(true);
+    expect(byId.get("eligible-dated")!.shortJustification).not.toMatch(/retido pelos filtros/i);
+  });
+
+  it("gives units above maxAreaM2 the same +6 as the sweetSpotMax..maxArea band", () => {
+    const byId = evaluate([
+      unit({ id: "a-80", areaM2: 80 }),
+      unit({ id: "a-95", areaM2: DEFAULT_WEIGHTS.maxAreaM2 }),
+      unit({ id: "a-130", areaM2: 130 }),
+      unit({ id: "a-30", areaM2: 30 }),
+    ]);
+    for (const id of ["a-80", "a-95", "a-130"]) expect(byId.get(id)!.breakdown.areaPoints, id).toBe(6);
+    expect(byId.get("a-30")!.breakdown.areaPoints).toBe(-18);
+  });
+
+  it("only resets minAreaM2 40/45 to 35 when migrating legacy (v1) preferences", () => {
+    for (const minAreaM2 of [40, 45]) {
+      expect(sanitizeAndMigrateWeights({ ...DEFAULT_WEIGHTS, minAreaM2 }, 2).minAreaM2).toBe(minAreaM2);
+      expect(sanitizeAndMigrateWeights({ ...DEFAULT_WEIGHTS, minAreaM2, schemaVersion: 2 }).minAreaM2).toBe(minAreaM2);
+      expect(sanitizeAndMigrateWeights({ ...DEFAULT_WEIGHTS, minAreaM2 }, 1).minAreaM2).toBe(35);
+    }
+  });
+
+  it("scores 'semi-mobiliado' units as plain unfurnished (there is no semi tier)", () => {
+    const byId = evaluate([
+      zap({ id: "semi", furnished: false, description: "Apartamento semi mobiliado, com geladeira e fogão, armários na cozinha." }),
+      zap({ id: "plain", furnished: false, description: "Apartamento com armários na cozinha." }),
+    ]);
+    const semi = byId.get("semi")!;
+    expect(semi.furnitureTier).toBe("UNFURNISHED");
+    expect(semi.breakdown.furniturePoints).toBe(byId.get("plain")!.breakdown.furniturePoints);
+    expect(semi.shortJustification).not.toMatch(/semi-mobiliad/i);
+  });
+
+  it("does not furnish the whole unit from room-scoped phrases or from apart-hotel signals alone", () => {
+    const roomScoped = [
+      zap({ id: "cozinha-toda", description: "Cozinha toda mobiliada e armários nos quartos." }),
+      zap({ id: "cozinha-mobiliada", description: "Apartamento de 1 quarto com cozinha mobiliada e área de serviço." }),
+      zap({ id: "banheiro-todo", description: "Banheiro todo mobiliado com gabinete e espelheira." }),
+      zap({ id: "armarios-toda", description: "Armários planejados na cozinha toda mobiliada." }),
+      zap({ id: "cozinha-mobiliario", description: "Cozinha com mobiliário completo e cooktop." }),
+      zap({
+        id: "apart-hotel",
+        condominiumName: "Moema Top Life",
+        rent: 2000,
+        condoFee: 1470,
+        description: "Flat com serviço de camareira e recepção 24h.",
+      }),
+    ];
+    const unitLevel = [
+      zap({ id: "apto-todo", description: "Apartamento todo mobiliado, pronto para morar." }),
+      zap({ id: "imovel-100", description: "Imóvel 100% mobiliado no Funcionários." }),
+      zap({ id: "unidade-toda", description: "Unidade toda mobiliada com vista livre." }),
+      zap({ id: "quartos-totalmente", description: "Apartamento com 2 quartos, totalmente mobiliado." }),
+      zap({ id: "mobiliado-completo", description: "Studio mobiliado completo perto da Savassi." }),
+      zap({
+        id: "apart-hotel-furnished",
+        condominiumName: "Moema Top Life",
+        rent: 2000,
+        condoFee: 1470,
+        description: "Flat com camareira. Sala com sofá, cozinha com geladeira e quarto com cama de casal.",
+      }),
+    ];
+    for (const p of roomScoped) expect(classifyFurnitureTier(p), p.id).toBe("UNFURNISHED");
+    for (const p of unitLevel) expect(classifyFurnitureTier(p), p.id).toBe("FULLY_FURNISHED");
+    expect(isApartHotelListing(roomScoped[5]!)).toBe(true);
+  });
+
+  it("matches hospital streets with abbreviations, titles and house numbers, and Taquaral streets with bare numbers and apostrophes", () => {
+    const bh = { cityCode: "BH" as const, neighborhood: "Santa Efigênia" };
+    for (const street of [
+      "Av. Prof. Alfredo Balena, 190",
+      "Avenida Professor Alfredo Balena 190",
+      "AV ALFREDO BALENA",
+      "R. Pe. Marinho 318",
+      "Rua Padre Marinho, 318 - apto 1201",
+    ]) {
+      expect(findHospitalNoiseCluster({ ...bh, street }), street).not.toBeNull();
+    }
+    expect(findHospitalNoiseCluster({ ...bh, street: "Rua Piauí 1200" })).toBeNull();
+
+    const cp = { cityCode: "CP" as const, neighborhood: "Taquaral" };
+    for (const street of [
+      "Rua Pedro Lopes 120",
+      "R. Pedro Lopes, 120",
+      "Rua João Ribas d'Ávila",
+      "Rua João Ribas D´Ávila 55",
+      "Av. Dr. Heitor Penteado nº 1500",
+    ]) {
+      expect(isNearTaquaralLagoa({ ...cp, street }), street).toBe(true);
+    }
+    expect(isNearTaquaralLagoa({ ...cp, street: "Rua Otávio Machado 120" })).toBe(false);
+  });
+
+  it("parses commute ranges as their worst case and honors a rush-hour time in parentheses", () => {
+    expect(parseCommuteMinutes("40-60 min").minutes).toBe(60);
+    expect(parseCommuteMinutes("45–50 min do Nubank").minutes).toBe(50);
+    expect(parseCommuteMinutes("1h a 1h30").minutes).toBe(90);
+    expect(parseCommuteMinutes("25 min (pico 55 min)")).toEqual({ minutes: 55, label: "25 min (pico 55 min)" });
+    expect(parseCommuteMinutes("30 min do Nubank (no pico 45)").minutes).toBe(45);
+    expect(parseCommuteMinutes("35 min (55 min no pico)").minutes).toBe(55);
+    expect(parseCommuteMinutes("20-30 min (pico 1h10)").minutes).toBe(70);
+    expect(parseCommuteMinutes("50 min (pico 40 min)").minutes).toBe(50);
+    expect(parseCommuteMinutes("25 min (via Linha Amarela)").minutes).toBe(25);
+  });
+
+  it("treats a RJ listing as deep-west Barra only when its own neighborhood or street is there", () => {
+    const rj = { cityCode: "RJ" as const, city: "Rio de Janeiro" };
+    const byId = evaluate([
+      unit({ id: "mentions", ...rj, neighborhood: "Botafogo", street: "Rua Voluntários da Pátria", description: "Fácil acesso ao Recreio, à Barra Olímpica e a Jacarepaguá." }),
+      unit({ id: "recreio", ...rj, neighborhood: "Recreio dos Bandeirantes", street: "Avenida das Américas" }),
+      unit({ id: "estrada", ...rj, neighborhood: "Barra da Tijuca", street: "Estrada dos Bandeirantes, 2000" }),
+      unit({ id: "jacarepagua", ...rj, neighborhood: "Jacarepaguá", street: "Rua Ituverava" }),
+    ]);
+    expect(byId.get("mentions")!.commuteMinutes).not.toBe(85);
+    for (const id of ["recreio", "estrada", "jacarepagua"]) expect(byId.get(id)!.commuteMinutes, id).toBe(85);
+  });
+
+  it("resets modernity 60 to 55 only for evidence-free units, not for units that land on 60 after refunds", () => {
+    const byId = evaluate([
+      unit({ id: "no-evidence", modernityScore: 60, modernityTier: "STANDARD" }),
+      unit({ id: "split-refunded", modernityScore: 68, modernityTier: "WELL_MAINTAINED", positiveSignals: ["Ar-condicionado split"], positiveSignalKeys: ["SPLIT_AC"] }),
+    ]);
+    expect(byId.get("no-evidence")!.modernityScore).toBe(55);
+    expect(byId.get("split-refunded")!.modernityScore).toBe(60);
+  });
+
+  it("does not read floors from non-floor equivalences, common-area levels or unit amenities", () => {
+    expect(extractExplicitFloorFromText("Caução equivalente a 3 meses de aluguel.")).toBeNull();
+    expect(extractExplicitFloorFromText("IPTU corresponde a 12 parcelas.")).toBeNull();
+    expect(extractExplicitFloorFromText("Apartamento no 1º andar (equivalente ao 4º andar pela rua de trás).")).toBe(4);
+    expect(extractExplicitFloorFromText("Apartamento no 2º andar. Salão de festas no 1º andar.")).toBe(2);
+    expect(extractExplicitFloorFromText("Apartamento no 1º andar, portaria 24h no térreo.")).toBe(1);
+    expect(extractExplicitFloorFromText("Duplex: 1º andar sala e cozinha; 2º andar suíte com closet.")).toBeNull();
+    expect(extractExplicitFloorFromText("Apartamento no 12º andar com hall privativo.")).toBe(12);
+    expect(extractExplicitFloorFromText("Apartamento no 9º andar com box blindex no banheiro.")).toBe(9);
+    expect(extractExplicitFloorFromText("Vaga de garagem no 1º andar do prédio.")).toBeNull();
+  });
+
+  it("does not treat elevator or common-area 'último andar' mentions as the unit's top floor, nor 'pé-direito duplo' as a duplex", () => {
+    const tower = { floor: null, floorRange: null, totalFloors: 12 };
+    const byId = evaluate([
+      unit({ id: "elevador", ...tower, description: "Prédio com elevador que vai até o último andar." }),
+      unit({ id: "lavanderia", ...tower, description: "Lavanderia coletiva no último andar." }),
+      unit({ id: "lazer-depois", ...tower, description: "No último andar: piscina e academia." }),
+      unit({ id: "lazer-fica", ...tower, description: "No último andar fica o salão de festas." }),
+      unit({ id: "top", ...tower, description: "Apartamento no último andar, com vista livre." }),
+      unit({ id: "pe-direito", description: "Sala com pé-direito duplo e janelas amplas." }),
+      unit({ id: "duplex", description: "Apartamento duplex com 2 suítes." }),
+    ]);
+    for (const id of ["elevador", "lavanderia", "lazer-depois", "lazer-fica"]) {
+      expect(byId.get(id)!.cardTags.highFloorLabel ?? "", id).not.toMatch(/Último andar/);
+    }
+    expect(byId.get("top")!.cardTags.highFloorLabel).toMatch(/Último andar/);
+    expect(byId.get("pe-direito")!.cardTags.warningTags).not.toContain(DUPLEX_LAYOUT_TAG);
+    expect(byId.get("duplex")!.cardTags.warningTags).toContain(DUPLEX_LAYOUT_TAG);
   });
 });
