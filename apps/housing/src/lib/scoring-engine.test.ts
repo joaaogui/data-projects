@@ -17,6 +17,7 @@ import {
   computeDynamicNeighborhoods,
   computeDynamicProperties,
   computeListingAge,
+  computeWeightedNeighborhoodScore,
   DEFAULT_WEIGHTS,
   describeFurnitureInText,
   detectArterialOrBorderBunker,
@@ -33,6 +34,9 @@ import {
   resolveCurrentPublicationIso,
   sanitizeAndMigrateWeights,
   scorePrecomputedListings,
+  TAQUARAL_FAR_FROM_LAGOA_TAG,
+  TAQUARAL_FAR_FROM_LAGOA_URBAN_BREATHING,
+  TAQUARAL_NEAR_LAGOA_TAG,
 } from "./scoring-engine";
 import {
   buildBenchmarkStats,
@@ -4450,6 +4454,45 @@ describe("Round-2 audit rules: duplicates, price/IPTU, lofts, furniture, cobertu
     for (const id of ["quiet-market", "quiet-bars", "quiet-posto"]) {
       expect(byId.get(id)!.nuanceHighlights, id).not.toContain("Rua silenciosa");
     }
+  });
+
+  it("keeps Taquaral's lagoa urban breathing only on streets near the lake; farther or unknown streets breathe like Jd. Guanabara", () => {
+    const cp = { cityCode: "CP" as const, city: "Campinas", neighborhood: "Taquaral" };
+    const byId = evaluate([
+      unit({ id: "taq-near", ...cp, street: "Avenida Doutor Heitor Penteado" }),
+      unit({ id: "taq-far", ...cp, street: "Rua Otávio Machado" }),
+      unit({ id: "taq-unknown", ...cp, street: "Rua não informada" }),
+      unit({ id: "bh-a", street: "Rua Alagoas" }),
+      unit({ id: "bh-b", street: "Rua Otávio Machado" }),
+    ]);
+    const nbPts = (id: string) => byId.get(id)!.breakdown.neighborhoodPoints;
+    const taquaral = rankedNbs.find((n) => n.neighborhood === "Taquaral")!;
+    const farNbScore = computeWeightedNeighborhoodScore(
+      {
+        urbanBreathing: TAQUARAL_FAR_FROM_LAGOA_URBAN_BREATHING,
+        commuteLogistics: taquaral.commuteLogisticsScore,
+        buildingStock: taquaral.buildingStockFitScore,
+        budgetFit: taquaral.budgetFitScore,
+        safetyCar: taquaral.safetyCarScore,
+      },
+      DEFAULT_WEIGHTS,
+    );
+
+    expect(TAQUARAL_FAR_FROM_LAGOA_URBAN_BREATHING).toBe(7.2);
+    const toPts = (nbScore: number) => Math.round(nbScore * DEFAULT_WEIGHTS.neighborhoodMultiplier * 10) / 10;
+    expect(nbPts("taq-near")).toBe(toPts(taquaral.dynamicScore));
+    expect(nbPts("taq-far")).toBe(toPts(farNbScore));
+    expect(nbPts("taq-unknown")).toBe(nbPts("taq-far"));
+    expect(nbPts("taq-far")).toBeLessThan(nbPts("taq-near") - 5);
+    expect(byId.get("taq-near")!.cardTags.greenTags).toContain(TAQUARAL_NEAR_LAGOA_TAG);
+    expect(byId.get("taq-near")!.cardTags.warningTags).not.toContain(TAQUARAL_FAR_FROM_LAGOA_TAG);
+    for (const id of ["taq-far", "taq-unknown"]) {
+      expect(byId.get(id)!.cardTags.warningTags, id).toContain(TAQUARAL_FAR_FROM_LAGOA_TAG);
+      expect(byId.get(id)!.nuanceWarnings.join(" "), id).toMatch(/Longe da Lagoa do Taquaral/);
+    }
+    expect(nbPts("bh-a")).toBe(nbPts("bh-b"));
+    expect(byId.get("bh-b")!.cardTags.warningTags).not.toContain(TAQUARAL_FAR_FROM_LAGOA_TAG);
+    expect(computeDynamicNeighborhoods(SAMPLE_NEIGHBORHOODS, DEFAULT_WEIGHTS).ranked).toEqual(rankedNbs);
   });
 
   it("counts 'vaga fixa' as demarcated parking, rewards a guarita without doorman data, and skips individual utilities", () => {

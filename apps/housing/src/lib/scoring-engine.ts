@@ -13,6 +13,8 @@ import type { NegativeSignalKey, PositiveSignalKey } from "@data-projects/housin
 import {
   computeDistanceToNubankHubKm,
   findHospitalNoiseCluster,
+  isNearTaquaralLagoa,
+  isTaquaralNeighborhood,
   resolveNeighborhoodCenter,
 } from "./geocoding";
 import {
@@ -481,6 +483,10 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "BSB:Águas Claras Norte": { cityCode: "BSB", commute: "Benchmark Referência Atual (Águas Claras Norte - DF)", urbanBreathing: 8.6, commuteLogistics: 8.5, buildingStock: 9.3, budgetFit: 9.2, safetyCar: 8.8 },
   "BSB:Águas Claras Sul": { cityCode: "BSB", commute: "Benchmark Referência Atual (Águas Claras Sul - DF)", urbanBreathing: 8.5, commuteLogistics: 8.5, buildingStock: 9.2, budgetFit: 9.2, safetyCar: 8.8 },
 };
+
+/** Taquaral's urban breathing comes from the lagoa park; listings away from it (see isNearTaquaralLagoa) breathe like Jd. Guanabara. */
+export const TAQUARAL_FAR_FROM_LAGOA_URBAN_BREATHING =
+  NEIGHBORHOOD_SAFETY_AND_METRICS["CP:Jd. Guanabara"].urbanBreathing;
 
 const NORMALIZED_NEIGHBORHOOD_METRICS = new Map<
   string,
@@ -1406,6 +1412,8 @@ export const AC_INFRA_ONLY_TAG = "AC não instalado (só infraestrutura)";
 export const FURNITURE_CONFLICT_TAG = "Mobília divergente — confirmar";
 export const PRICE_MISMATCH_TAG = "Preço divergente na descrição";
 export const HOSPITAL_NOISE_TAG = "Perto de hospital (sirenes)";
+export const TAQUARAL_FAR_FROM_LAGOA_TAG = "Longe da Lagoa do Taquaral";
+export const TAQUARAL_NEAR_LAGOA_TAG = "Perto da Lagoa do Taquaral";
 
 
 export const AC_WINDOW_TAG = "Ar de janela (não é split)";
@@ -2447,6 +2455,18 @@ function evaluateApartmentNuancesBoth(
     warningTags.push(HOSPITAL_NOISE_TAG);
   }
 
+  // Points come from the neighborhood score (urban breathing override in scorePrecomputedListings).
+  if (isTaquaralNeighborhood(prop)) {
+    if (isNearTaquaralLagoa(prop)) {
+      greenTags.push(TAQUARAL_NEAR_LAGOA_TAG);
+    } else {
+      warnings.push(
+        `Longe da Lagoa do Taquaral (rua fora do entorno da lagoa, ~450 m+, ou não informada): respiração urbana de Jd. Guanabara (${TAQUARAL_FAR_FROM_LAGOA_URBAN_BREATHING.toFixed(1)})`,
+      );
+      warningTags.push(TAQUARAL_FAR_FROM_LAGOA_TAG);
+    }
+  }
+
   // Layout / usage signals: shown to the user, no points and no retention.
   if (
     (fullDesc.includes("studio") ||
@@ -3329,7 +3349,7 @@ function buildShortJustification(params: {
     nuances.redTags.includes("Via Arterial / Efeito Bunker");
   let urbanContext = `a ${commuteTimeText} do ${officeLabel}`;
   if (!isBunkerCorridor && catalogNb) {
-    if (catalogNb.urbanBreathingScore >= 9.0) {
+    if (catalogNb.urbanBreathingScore >= 9.0 && !staticMeta.isTaquaralFarFromLagoa) {
       urbanContext += " em eixo arborizado de alto respiro urbano";
     } else if (catalogNb.commuteLogisticsScore >= 9.0) {
       urbanContext += " com logística rápida para o presencial";
@@ -4043,6 +4063,8 @@ export interface ListingFeatures {
   isMegaCondoTrue: boolean;
   isMegaCondoFalse: boolean;
   cpFarCommute: CpFarCommute | null;
+  /** Taquaral listing not on a lagoa street: urban breathing drops to Jd. Guanabara's. */
+  isTaquaralFarFromLagoa: boolean;
   conservationDrawbacks: string[];
   /** Nuances with `penalizeMegaCondo` on / off (the only weight they depend on). */
   nuancesPenalize: ApartmentNuancesEvaluation;
@@ -4657,6 +4679,7 @@ export function extractListingFeatures(prop: SlimPropertyRecord): ListingFeature
     isMegaCondoTrue,
     isMegaCondoFalse,
     cpFarCommute: resolveCpFarCommute(prop.cityCode, prop.neighborhood),
+    isTaquaralFarFromLagoa: isTaquaralNeighborhood(prop) && !isNearTaquaralLagoa(prop),
     conservationDrawbacks,
     nuancesPenalize: nuancesTrue,
     nuancesNoPenalize: nuancesFalse,
@@ -5114,13 +5137,16 @@ export function scorePrecomputedListings(
         ? Math.min(baseSafetyCar, microEnv.safetyCarCap)
         : baseSafetyCar;
 
-    const baseUrbanBreathing = catalogNb
+    const catalogUrbanBreathing = catalogNb
       ? calibratedMeta && calibratedMeta.urbanBreathing < 8.0
         ? Math.min(catalogNb.urbanBreathingScore, calibratedMeta.urbanBreathing)
         : catalogNb.urbanBreathingScore
       : calibratedMeta
         ? calibratedMeta.urbanBreathing
         : 6.0;
+    const baseUrbanBreathing = staticMeta.isTaquaralFarFromLagoa
+      ? Math.min(catalogUrbanBreathing, TAQUARAL_FAR_FROM_LAGOA_URBAN_BREATHING)
+      : catalogUrbanBreathing;
     const effectiveUrbanBreathing =
       microEnv.urbanBreathingCap !== null
         ? Math.min(baseUrbanBreathing, microEnv.urbanBreathingCap)
@@ -5138,7 +5164,8 @@ export function scorePrecomputedListings(
       nbCommute = `${catalogNb.commuteTime} (${catalogNb.nubankHub})`;
       if (
         microEnv.safetyCarCap !== null ||
-        microEnv.urbanBreathingCap !== null
+        microEnv.urbanBreathingCap !== null ||
+        staticMeta.isTaquaralFarFromLagoa
       ) {
         nbScore = computeWeightedNeighborhoodScore(
           {

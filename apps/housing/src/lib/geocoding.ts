@@ -433,6 +433,88 @@ export function findHospitalNoiseCluster(prop: {
   );
 }
 
+export const TAQUARAL_NEIGHBORHOODS = ["taquaral", "parque taquaral"];
+
+/**
+ * Accent-free, lower-case Taquaral streets that are mostly by the lagoa, from OpenStreetMap (2026-10-18):
+ * named highways (residential to primary) around relation 17154522 "Lagoa Isaura Teles Alves de Lima"
+ * (Parque Portugal) whose length-weighted median distance to the water edge is <= 450 m, or lake-ring
+ * avenues (min <= 60 m with >= 30% of their length within 300 m). Long streets that only touch the lake
+ * (Azarias de Melo, Barão de Itapura, N. Sra. de Fátima) are excluded. Matching ignores titles (doutor, dona...).
+ */
+export const TAQUARAL_LAGOA_STREETS: string[] = [
+  "avenida doutor heitor penteado",
+  "avenida doutor nestor penteado",
+  "avenida heitor penteado",
+  "avenida martin afonso",
+  "praca joao soligo",
+  "praca jose rezek andery",
+  "rua alexandre herculano",
+  "rua americo de moura",
+  "rua benedito florencio",
+  "rua carlos ceva",
+  "rua coronel joaquim jose de oliveira",
+  "rua dom manoel o venturoso",
+  "rua domingos paulino",
+  "rua dona elidia ana de campos",
+  "rua doutor armando sales de oliveira",
+  "rua eca de queiroz",
+  "rua egas muniz",
+  "rua fernao de magalhaes",
+  "rua firmino costa",
+  "rua francisco duprat coelho",
+  "rua gaspar de lemos",
+  "rua jaime sequier",
+  "rua joao ribas davila",
+  "rua luis marsaiolli",
+  "rua mem de sa",
+  "rua nestor moreira",
+  "rua orestes moraes alves",
+  "rua oscar de moraes",
+  "rua ottmar magenthaler",
+  "rua padre anselmo",
+  "rua pedro lopes",
+  "rua pero vaz de caminha",
+  "rua professor miguel de carvalho",
+  "rua roberto simonsen",
+  "rua vasco fernandes coutinho",
+  "rua vital brasil",
+];
+
+const STREET_TYPE_ABBREVIATIONS: Record<string, string> = {
+  "r.": "rua",
+  r: "rua",
+  "av.": "avenida",
+  av: "avenida",
+  "pca.": "praca",
+  "pc.": "praca",
+};
+const STREET_TITLE_TOKENS = new Set([
+  "doutor", "dr", "dr.", "professor", "prof", "prof.", "dona", "d.", "dom", "padre", "pe.", "coronel", "cel.",
+]);
+
+/** Accent-free street key without type abbreviations or titles ("Av. Dr. Heitor Penteado" = "avenida heitor penteado"). */
+function streetMatchKey(raw: string): string {
+  const tokens = stripAccentsLower(raw).replace(/,.*$/, "").split(" ").filter(Boolean);
+  if (tokens.length && STREET_TYPE_ABBREVIATIONS[tokens[0]]) tokens[0] = STREET_TYPE_ABBREVIATIONS[tokens[0]];
+  return tokens.filter((t, i) => i === 0 || !STREET_TITLE_TOKENS.has(t)).join(" ");
+}
+
+const TAQUARAL_LAGOA_STREET_KEYS = new Set(TAQUARAL_LAGOA_STREETS.map(streetMatchKey));
+
+export function isTaquaralNeighborhood(prop: { cityCode: CityHubCode; neighborhood: string }): boolean {
+  return prop.cityCode === "CP" && TAQUARAL_NEIGHBORHOODS.includes(stripAccentsLower(prop.neighborhood));
+}
+
+/** Taquaral listing on a street that runs mostly by the lagoa; unknown streets count as not near. */
+export function isNearTaquaralLagoa(prop: {
+  cityCode: CityHubCode;
+  neighborhood: string;
+  street: string;
+}): boolean {
+  return isTaquaralNeighborhood(prop) && TAQUARAL_LAGOA_STREET_KEYS.has(streetMatchKey(prop.street ?? ""));
+}
+
 function normalizeTextToken(raw: string): string {
   return raw
     .trim()

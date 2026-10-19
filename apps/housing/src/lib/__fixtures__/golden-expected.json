@@ -45,32 +45,8 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895648124",
-   "rank": 3,
-   "overallRank": 2,
-   "cityRank": 2,
-   "eligible": true,
-   "finalScore": 214.4,
-   "exclusionReason": null,
-   "totalMonthly": 5060,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": "Ar-condicionado",
-   "floorTag": "Andar alto (16º–19º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado",
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Megacondomínio"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "zapimoveis:2910132023",
-   "rank": 4,
+   "rank": 3,
    "overallRank": null,
    "cityRank": 1,
    "eligible": true,
@@ -92,8 +68,8 @@
   },
   {
    "key": "quintoandar:895790971",
-   "rank": 5,
-   "overallRank": 3,
+   "rank": 4,
+   "overallRank": 2,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 210.6,
@@ -114,8 +90,8 @@
   },
   {
    "key": "zapimoveis:2915323159",
-   "rank": 6,
-   "overallRank": 4,
+   "rank": 5,
+   "overallRank": 3,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 210.2,
@@ -136,8 +112,8 @@
   },
   {
    "key": "quintoandar:892981043",
-   "rank": 7,
-   "overallRank": 5,
+   "rank": 6,
+   "overallRank": 4,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 209.4,
@@ -160,32 +136,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895560013",
-   "rank": 8,
-   "overallRank": 6,
-   "cityRank": 3,
-   "eligible": true,
-   "finalScore": 206.5,
-   "exclusionReason": null,
-   "totalMonthly": 4662,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (8º–11º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "netimoveis:945665",
-   "rank": 9,
-   "overallRank": 7,
+   "rank": 7,
+   "overallRank": 5,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 206.2,
@@ -206,8 +159,8 @@
   },
   {
    "key": "vivareal:2897890300",
-   "rank": 10,
-   "overallRank": 8,
+   "rank": 8,
+   "overallRank": 6,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 206.2,
@@ -230,9 +183,35 @@
    "alsoListedOn": []
   },
   {
+   "key": "quintoandar:895648124",
+   "rank": 9,
+   "overallRank": 7,
+   "cityRank": 2,
+   "eligible": true,
+   "finalScore": 205.4,
+   "exclusionReason": null,
+   "totalMonthly": 5060,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": "Ar-condicionado",
+   "floorTag": "Andar alto (16º–19º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado",
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Megacondomínio"
+   ],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "quintoandar:895613516",
-   "rank": 11,
-   "overallRank": 9,
+   "rank": 10,
+   "overallRank": 8,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 202.6,
@@ -253,7 +232,7 @@
   },
   {
    "key": "zapimoveis:2772206523",
-   "rank": 12,
+   "rank": 11,
    "overallRank": null,
    "cityRank": 2,
    "eligible": true,
@@ -275,55 +254,34 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2915407598",
-   "rank": 13,
-   "overallRank": 10,
-   "cityRank": 4,
+   "key": "quintoandar:895560013",
+   "rank": 12,
+   "overallRank": 9,
+   "cityRank": 3,
    "eligible": true,
-   "finalScore": 201.6,
+   "finalScore": 197.5,
    "exclusionReason": null,
-   "totalMonthly": 4168,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": "Ar-condicionado",
-   "floorTag": "Andar baixo (1º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado",
-    "Sol da manhã",
-    "Eixo Caminhável / Respiro Urbano"
-   ],
-   "redTags": [],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2894838518",
-   "rank": 14,
-   "overallRank": 11,
-   "cityRank": 5,
-   "eligible": true,
-   "finalScore": 200.6,
-   "exclusionReason": null,
-   "totalMonthly": 3962,
+   "totalMonthly": 4662,
    "furnitureTier": "UNFURNISHED",
    "modernityTier": "MODERN_OR_RENOVATED",
    "acLabel": null,
-   "floorTag": "Andar alto",
+   "floorTag": "Andar alto (8º–11º andar)",
    "noParking": false,
    "greenTags": [
-    "Vista livre"
+    "Sol da manhã"
    ],
-   "redTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
    "warningTags": [
-    "AC não instalado (só infraestrutura)"
+    "Longe da Lagoa do Taquaral"
    ],
    "alsoListedOn": []
   },
   {
    "key": "quintoandar:895651295",
-   "rank": 15,
-   "overallRank": 12,
+   "rank": 13,
+   "overallRank": 10,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 196.7,
@@ -349,8 +307,8 @@
   },
   {
    "key": "quintoandar:893127481",
-   "rank": 16,
-   "overallRank": 13,
+   "rank": 14,
+   "overallRank": 11,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 195,
@@ -373,8 +331,8 @@
   },
   {
    "key": "zapimoveis:2863444363",
-   "rank": 17,
-   "overallRank": 14,
+   "rank": 15,
+   "overallRank": 12,
    "cityRank": 6,
    "eligible": true,
    "finalScore": 194.6,
@@ -392,6 +350,55 @@
    "redTags": [],
    "warningTags": [
     "Vagas em linha"
+   ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2915407598",
+   "rank": 16,
+   "overallRank": 13,
+   "cityRank": 4,
+   "eligible": true,
+   "finalScore": 192.6,
+   "exclusionReason": null,
+   "totalMonthly": 4168,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": "Ar-condicionado",
+   "floorTag": "Andar baixo (1º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado",
+    "Sol da manhã",
+    "Eixo Caminhável / Respiro Urbano"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2894838518",
+   "rank": 17,
+   "overallRank": 14,
+   "cityRank": 5,
+   "eligible": true,
+   "finalScore": 191.6,
+   "exclusionReason": null,
+   "totalMonthly": 3962,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não instalado (só infraestrutura)",
+    "Longe da Lagoa do Taquaral"
    ],
    "alsoListedOn": []
   },
@@ -611,31 +618,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2860102305",
+   "key": "zapimoveis:2896416016",
    "rank": 27,
    "overallRank": 23,
-   "cityRank": 8,
-   "eligible": true,
-   "finalScore": 177.5,
-   "exclusionReason": null,
-   "totalMonthly": 6483,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": "Ar-condicionado",
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado",
-    "Vista livre"
-   ],
-   "redTags": [],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2896416016",
-   "rank": 28,
-   "overallRank": 24,
    "cityRank": 12,
    "eligible": true,
    "finalScore": 176.3,
@@ -657,8 +642,8 @@
   },
   {
    "key": "quintoandar:895199327",
-   "rank": 29,
-   "overallRank": 25,
+   "rank": 28,
+   "overallRank": 24,
    "cityRank": 13,
    "eligible": true,
    "finalScore": 173.9,
@@ -680,7 +665,7 @@
   },
   {
    "key": "quintoandar:895151272",
-   "rank": 30,
+   "rank": 29,
    "overallRank": null,
    "cityRank": 4,
    "eligible": true,
@@ -703,9 +688,9 @@
   },
   {
    "key": "quintoandar:895748989",
-   "rank": 31,
-   "overallRank": 26,
-   "cityRank": 9,
+   "rank": 30,
+   "overallRank": 25,
+   "cityRank": 8,
    "eligible": true,
    "finalScore": 172.9,
    "exclusionReason": null,
@@ -726,9 +711,9 @@
   },
   {
    "key": "quintoandar:894349167",
-   "rank": 32,
-   "overallRank": 27,
-   "cityRank": 10,
+   "rank": 31,
+   "overallRank": 26,
+   "cityRank": 9,
    "eligible": true,
    "finalScore": 172.6,
    "exclusionReason": null,
@@ -750,8 +735,8 @@
   },
   {
    "key": "zapimoveis:2913622618",
-   "rank": 33,
-   "overallRank": 28,
+   "rank": 32,
+   "overallRank": 27,
    "cityRank": 14,
    "eligible": true,
    "finalScore": 172.6,
@@ -775,8 +760,8 @@
   },
   {
    "key": "quintoandar:895372544",
-   "rank": 34,
-   "overallRank": 29,
+   "rank": 33,
+   "overallRank": 28,
    "cityRank": 15,
    "eligible": true,
    "finalScore": 172.2,
@@ -799,8 +784,8 @@
   },
   {
    "key": "zapimoveis:2896936974",
-   "rank": 35,
-   "overallRank": 30,
+   "rank": 34,
+   "overallRank": 29,
    "cityRank": 16,
    "eligible": true,
    "finalScore": 170.7,
@@ -820,9 +805,9 @@
   },
   {
    "key": "quintoandar:895020185",
-   "rank": 36,
-   "overallRank": 31,
-   "cityRank": 11,
+   "rank": 35,
+   "overallRank": 30,
+   "cityRank": 10,
    "eligible": true,
    "finalScore": 169.2,
    "exclusionReason": null,
@@ -839,6 +824,30 @@
     "Totalmente mobiliado"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2860102305",
+   "rank": 36,
+   "overallRank": 31,
+   "cityRank": 11,
+   "eligible": true,
+   "finalScore": 168.5,
+   "exclusionReason": null,
+   "totalMonthly": 6483,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": "Ar-condicionado",
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado",
+    "Vista livre"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -888,32 +897,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2917433879",
+   "key": "quintoandar:893333011",
    "rank": 39,
    "overallRank": 33,
-   "cityRank": 12,
-   "eligible": true,
-   "finalScore": 163.7,
-   "exclusionReason": null,
-   "totalMonthly": 6313,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [
-    "Torre única / Reservado"
-   ],
-   "redTags": [],
-   "warningTags": [
-    "AC não instalado (só infraestrutura)"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:893333011",
-   "rank": 40,
-   "overallRank": 34,
    "cityRank": 6,
    "eligible": true,
    "finalScore": 162.5,
@@ -936,32 +922,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2915392443",
-   "rank": 41,
-   "overallRank": 35,
-   "cityRank": 13,
-   "eligible": true,
-   "finalScore": 162.5,
-   "exclusionReason": null,
-   "totalMonthly": 6324,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar médio (5º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Eixo Caminhável / Respiro Urbano"
-   ],
-   "redTags": [],
-   "warningTags": [
-    "AC não instalado (só infraestrutura)"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "vivareal:2888174381",
-   "rank": 42,
-   "overallRank": 36,
+   "rank": 40,
+   "overallRank": 34,
    "cityRank": 17,
    "eligible": true,
    "finalScore": 162.2,
@@ -987,7 +950,7 @@
   },
   {
    "key": "quintoandar:893942416",
-   "rank": 43,
+   "rank": 41,
    "overallRank": null,
    "cityRank": 6,
    "eligible": true,
@@ -1011,7 +974,7 @@
   },
   {
    "key": "quintoandar:894481887",
-   "rank": 44,
+   "rank": 42,
    "overallRank": null,
    "cityRank": 7,
    "eligible": true,
@@ -1034,8 +997,8 @@
   },
   {
    "key": "quintoandar:895618788",
-   "rank": 45,
-   "overallRank": 37,
+   "rank": 43,
+   "overallRank": 35,
    "cityRank": 7,
    "eligible": true,
    "finalScore": 156,
@@ -1058,8 +1021,32 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2917433879",
+   "rank": 44,
+   "overallRank": 36,
+   "cityRank": 12,
+   "eligible": true,
+   "finalScore": 154.7,
+   "exclusionReason": null,
+   "totalMonthly": 6313,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [
+    "Torre única / Reservado"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não instalado (só infraestrutura)",
+    "Longe da Lagoa do Taquaral"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2894633320",
-   "rank": 46,
+   "rank": 45,
    "overallRank": null,
    "cityRank": 8,
    "eligible": true,
@@ -1082,8 +1069,8 @@
   },
   {
    "key": "quintoandar:895696163",
-   "rank": 47,
-   "overallRank": 38,
+   "rank": 46,
+   "overallRank": 37,
    "cityRank": 18,
    "eligible": true,
    "finalScore": 153.7,
@@ -1103,6 +1090,30 @@
     "Totalmente mobiliado"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2915392443",
+   "rank": 47,
+   "overallRank": 38,
+   "cityRank": 13,
+   "eligible": true,
+   "finalScore": 153.5,
+   "exclusionReason": null,
+   "totalMonthly": 6324,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar médio (5º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Eixo Caminhável / Respiro Urbano"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não instalado (só infraestrutura)",
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -1527,30 +1538,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2916532466",
+   "key": "zapimoveis:2906460713",
    "rank": 66,
    "overallRank": 52,
-   "cityRank": 17,
-   "eligible": true,
-   "finalScore": 117,
-   "exclusionReason": null,
-   "totalMonthly": 5196,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2906460713",
-   "rank": 67,
-   "overallRank": 53,
    "cityRank": 26,
    "eligible": true,
    "finalScore": 115.6,
@@ -1573,9 +1563,9 @@
   },
   {
    "key": "quintoandar:101367684",
-   "rank": 68,
-   "overallRank": 54,
-   "cityRank": 18,
+   "rank": 67,
+   "overallRank": 53,
+   "cityRank": 17,
    "eligible": true,
    "finalScore": 114.2,
    "exclusionReason": null,
@@ -1594,8 +1584,8 @@
   },
   {
    "key": "quintoandar:895412768",
-   "rank": 69,
-   "overallRank": 55,
+   "rank": 68,
+   "overallRank": 54,
    "cityRank": 11,
    "eligible": true,
    "finalScore": 114.2,
@@ -1622,8 +1612,8 @@
   },
   {
    "key": "zapimoveis:2915780889",
-   "rank": 70,
-   "overallRank": 56,
+   "rank": 69,
+   "overallRank": 55,
    "cityRank": 27,
    "eligible": true,
    "finalScore": 113.9,
@@ -1647,8 +1637,8 @@
   },
   {
    "key": "zapimoveis:2909681482",
-   "rank": 71,
-   "overallRank": 57,
+   "rank": 70,
+   "overallRank": 56,
    "cityRank": 28,
    "eligible": true,
    "finalScore": 112.7,
@@ -1670,9 +1660,9 @@
   },
   {
    "key": "zapimoveis:2870378197",
-   "rank": 72,
-   "overallRank": 58,
-   "cityRank": 19,
+   "rank": 71,
+   "overallRank": 57,
+   "cityRank": 18,
    "eligible": true,
    "finalScore": 112.4,
    "exclusionReason": null,
@@ -1695,8 +1685,8 @@
   },
   {
    "key": "zapimoveis:2916153879",
-   "rank": 73,
-   "overallRank": 59,
+   "rank": 72,
+   "overallRank": 58,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 111.7,
@@ -1716,8 +1706,8 @@
   },
   {
    "key": "zapimoveis:2869993530",
-   "rank": 74,
-   "overallRank": 60,
+   "rank": 73,
+   "overallRank": 59,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 111.4,
@@ -1740,8 +1730,8 @@
   },
   {
    "key": "zapimoveis:2906497144",
-   "rank": 75,
-   "overallRank": 61,
+   "rank": 74,
+   "overallRank": 60,
    "cityRank": 29,
    "eligible": true,
    "finalScore": 111.1,
@@ -1763,8 +1753,8 @@
   },
   {
    "key": "zapimoveis:2917527250",
-   "rank": 76,
-   "overallRank": 62,
+   "rank": 75,
+   "overallRank": 61,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 109.6,
@@ -1786,8 +1776,8 @@
   },
   {
    "key": "zapimoveis:2912062729",
-   "rank": 77,
-   "overallRank": 63,
+   "rank": 76,
+   "overallRank": 62,
    "cityRank": 30,
    "eligible": true,
    "finalScore": 108.9,
@@ -1809,8 +1799,8 @@
   },
   {
    "key": "quintoandar:893240454",
-   "rank": 78,
-   "overallRank": 64,
+   "rank": 77,
+   "overallRank": 63,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 108,
@@ -1830,6 +1820,29 @@
     "Megacondomínio"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2916532466",
+   "rank": 78,
+   "overallRank": 64,
+   "cityRank": 19,
+   "eligible": true,
+   "finalScore": 108,
+   "exclusionReason": null,
+   "totalMonthly": 5196,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -3140,32 +3153,8 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2913643725",
-   "rank": 134,
-   "overallRank": null,
-   "cityRank": null,
-   "eligible": false,
-   "finalScore": 191.4,
-   "exclusionReason": "Vaga presa, gaveta ou rotativa (eliminado)",
-   "totalMonthly": 4153,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (13º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Vaga presa / gaveta"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "netimoveis:1200904",
-   "rank": 135,
+   "rank": 134,
    "overallRank": null,
    "cityRank": null,
    "eligible": false,
@@ -3185,6 +3174,32 @@
     "Vaga presa / gaveta"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2913643725",
+   "rank": 135,
+   "overallRank": null,
+   "cityRank": null,
+   "eligible": false,
+   "finalScore": 182.4,
+   "exclusionReason": "Vaga presa, gaveta ou rotativa (eliminado)",
+   "totalMonthly": 4153,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto (13º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
+   ],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Vaga presa / gaveta"
+   ],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -4283,32 +4298,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2915407598",
+   "key": "netimoveis:945665",
    "rank": 5,
    "overallRank": 4,
-   "cityRank": 2,
-   "eligible": true,
-   "finalScore": 205.1,
-   "exclusionReason": null,
-   "totalMonthly": 4168,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": "Ar-condicionado",
-   "floorTag": "Andar baixo (1º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado",
-    "Sol da manhã",
-    "Eixo Caminhável / Respiro Urbano"
-   ],
-   "redTags": [],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "netimoveis:945665",
-   "rank": 6,
-   "overallRank": 5,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 204.2,
@@ -4329,8 +4321,8 @@
   },
   {
    "key": "vivareal:2897890300",
-   "rank": 7,
-   "overallRank": 6,
+   "rank": 6,
+   "overallRank": 5,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 204.2,
@@ -4353,79 +4345,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2894838518",
-   "rank": 8,
-   "overallRank": 7,
-   "cityRank": 3,
-   "eligible": true,
-   "finalScore": 202.1,
-   "exclusionReason": null,
-   "totalMonthly": 3962,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto",
-   "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
-   "redTags": [],
-   "warningTags": [
-    "AC não instalado (só infraestrutura)"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:895560013",
-   "rank": 9,
-   "overallRank": 8,
-   "cityRank": 4,
-   "eligible": true,
-   "finalScore": 202,
-   "exclusionReason": null,
-   "totalMonthly": 4662,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (8º–11º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:895648124",
-   "rank": 10,
-   "overallRank": 9,
-   "cityRank": 5,
-   "eligible": true,
-   "finalScore": 201.9,
-   "exclusionReason": null,
-   "totalMonthly": 5060,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": "Ar-condicionado",
-   "floorTag": "Andar alto (16º–19º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado",
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Megacondomínio"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "zapimoveis:2772206523",
-   "rank": 11,
-   "overallRank": 10,
+   "rank": 7,
+   "overallRank": 6,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 198,
@@ -4447,8 +4369,8 @@
   },
   {
    "key": "quintoandar:895790971",
-   "rank": 12,
-   "overallRank": 11,
+   "rank": 8,
+   "overallRank": 7,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 197.9,
@@ -4469,8 +4391,8 @@
   },
   {
    "key": "quintoandar:895613516",
-   "rank": 13,
-   "overallRank": 12,
+   "rank": 9,
+   "overallRank": 8,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 197.9,
@@ -4491,8 +4413,8 @@
   },
   {
    "key": "quintoandar:893127481",
-   "rank": 14,
-   "overallRank": 13,
+   "rank": 10,
+   "overallRank": 9,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 197.3,
@@ -4515,8 +4437,8 @@
   },
   {
    "key": "quintoandar:892981043",
-   "rank": 15,
-   "overallRank": 14,
+   "rank": 11,
+   "overallRank": 10,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 197,
@@ -4539,9 +4461,34 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2915407598",
+   "rank": 12,
+   "overallRank": 11,
+   "cityRank": 2,
+   "eligible": true,
+   "finalScore": 196.9,
+   "exclusionReason": null,
+   "totalMonthly": 4168,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": "Ar-condicionado",
+   "floorTag": "Andar baixo (1º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado",
+    "Sol da manhã",
+    "Eixo Caminhável / Respiro Urbano"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "quintoandar:895651295",
-   "rank": 16,
-   "overallRank": 15,
+   "rank": 13,
+   "overallRank": 12,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 194.7,
@@ -4567,9 +4514,9 @@
   },
   {
    "key": "zapimoveis:2914707936",
-   "rank": 17,
-   "overallRank": 16,
-   "cityRank": 6,
+   "rank": 14,
+   "overallRank": 13,
+   "cityRank": 3,
    "eligible": true,
    "finalScore": 194,
    "exclusionReason": null,
@@ -4591,6 +4538,81 @@
    "alsoListedOn": [
     "quintoandar:131005747"
    ]
+  },
+  {
+   "key": "zapimoveis:2894838518",
+   "rank": 15,
+   "overallRank": 14,
+   "cityRank": 4,
+   "eligible": true,
+   "finalScore": 193.9,
+   "exclusionReason": null,
+   "totalMonthly": 3962,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não instalado (só infraestrutura)",
+    "Longe da Lagoa do Taquaral"
+   ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:895560013",
+   "rank": 16,
+   "overallRank": 15,
+   "cityRank": 5,
+   "eligible": true,
+   "finalScore": 193.8,
+   "exclusionReason": null,
+   "totalMonthly": 4662,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto (8º–11º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:895648124",
+   "rank": 17,
+   "overallRank": 16,
+   "cityRank": 6,
+   "eligible": true,
+   "finalScore": 193.7,
+   "exclusionReason": null,
+   "totalMonthly": 5060,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": "Ar-condicionado",
+   "floorTag": "Andar alto (16º–19º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado",
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Megacondomínio"
+   ],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
+   "alsoListedOn": []
   },
   {
    "key": "zapimoveis:2863444363",
@@ -4780,31 +4802,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2860102305",
+   "key": "zapimoveis:2917803743",
    "rank": 26,
    "overallRank": 25,
-   "cityRank": 9,
-   "eligible": true,
-   "finalScore": 173,
-   "exclusionReason": null,
-   "totalMonthly": 6483,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": "Ar-condicionado",
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado",
-    "Vista livre"
-   ],
-   "redTags": [],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2917803743",
-   "rank": 27,
-   "overallRank": 26,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 170.1,
@@ -4824,8 +4824,8 @@
   },
   {
    "key": "zapimoveis:2903789730",
-   "rank": 28,
-   "overallRank": 27,
+   "rank": 27,
+   "overallRank": 26,
    "cityRank": 10,
    "eligible": true,
    "finalScore": 170,
@@ -4849,9 +4849,9 @@
   },
   {
    "key": "quintoandar:894349167",
-   "rank": 29,
-   "overallRank": 28,
-   "cityRank": 10,
+   "rank": 28,
+   "overallRank": 27,
+   "cityRank": 9,
    "eligible": true,
    "finalScore": 168.5,
    "exclusionReason": null,
@@ -4873,8 +4873,8 @@
   },
   {
    "key": "quintoandar:895346767",
-   "rank": 30,
-   "overallRank": 29,
+   "rank": 29,
+   "overallRank": 28,
    "cityRank": 11,
    "eligible": true,
    "finalScore": 166.7,
@@ -4896,8 +4896,8 @@
   },
   {
    "key": "zapimoveis:2904939900",
-   "rank": 31,
-   "overallRank": 30,
+   "rank": 30,
+   "overallRank": 29,
    "cityRank": 12,
    "eligible": true,
    "finalScore": 165.7,
@@ -4919,8 +4919,8 @@
   },
   {
    "key": "quintoandar:893942416",
-   "rank": 32,
-   "overallRank": 31,
+   "rank": 31,
+   "overallRank": 30,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 165.4,
@@ -4943,8 +4943,8 @@
   },
   {
    "key": "zapimoveis:2896416016",
-   "rank": 33,
-   "overallRank": 32,
+   "rank": 32,
+   "overallRank": 31,
    "cityRank": 13,
    "eligible": true,
    "finalScore": 165.3,
@@ -4962,6 +4962,30 @@
     "Totalmente mobiliado"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2860102305",
+   "rank": 33,
+   "overallRank": 32,
+   "cityRank": 10,
+   "eligible": true,
+   "finalScore": 164.8,
+   "exclusionReason": null,
+   "totalMonthly": 6483,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": "Ar-condicionado",
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado",
+    "Vista livre"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -5059,32 +5083,9 @@
    ]
   },
   {
-   "key": "zapimoveis:2917433879",
+   "key": "zapimoveis:2894633320",
    "rank": 38,
    "overallRank": 37,
-   "cityRank": 11,
-   "eligible": true,
-   "finalScore": 159.2,
-   "exclusionReason": null,
-   "totalMonthly": 6313,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [
-    "Torre única / Reservado"
-   ],
-   "redTags": [],
-   "warningTags": [
-    "AC não instalado (só infraestrutura)"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2894633320",
-   "rank": 39,
-   "overallRank": 38,
    "cityRank": 8,
    "eligible": true,
    "finalScore": 158.4,
@@ -5105,33 +5106,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2915392443",
-   "rank": 40,
-   "overallRank": 39,
-   "cityRank": 12,
-   "eligible": true,
-   "finalScore": 158,
-   "exclusionReason": null,
-   "totalMonthly": 6324,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar médio (5º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Eixo Caminhável / Respiro Urbano"
-   ],
-   "redTags": [],
-   "warningTags": [
-    "AC não instalado (só infraestrutura)"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "quintoandar:895020185",
-   "rank": 41,
-   "overallRank": 40,
-   "cityRank": 13,
+   "rank": 39,
+   "overallRank": 38,
+   "cityRank": 11,
    "eligible": true,
    "finalScore": 156.3,
    "exclusionReason": null,
@@ -5152,9 +5130,9 @@
   },
   {
    "key": "quintoandar:121838313",
-   "rank": 42,
-   "overallRank": 41,
-   "cityRank": 14,
+   "rank": 40,
+   "overallRank": 39,
+   "cityRank": 12,
    "eligible": true,
    "finalScore": 155.2,
    "exclusionReason": null,
@@ -5177,8 +5155,8 @@
   },
   {
    "key": "zapimoveis:2913622618",
-   "rank": 43,
-   "overallRank": 42,
+   "rank": 41,
+   "overallRank": 40,
    "cityRank": 16,
    "eligible": true,
    "finalScore": 153.8,
@@ -5202,8 +5180,8 @@
   },
   {
    "key": "quintoandar:895457307",
-   "rank": 44,
-   "overallRank": 43,
+   "rank": 42,
+   "overallRank": 41,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 152.8,
@@ -5227,8 +5205,8 @@
   },
   {
    "key": "quintoandar:895372544",
-   "rank": 45,
-   "overallRank": 44,
+   "rank": 43,
+   "overallRank": 42,
    "cityRank": 17,
    "eligible": true,
    "finalScore": 151.5,
@@ -5250,9 +5228,33 @@
    "alsoListedOn": []
   },
   {
+   "key": "zapimoveis:2917433879",
+   "rank": 44,
+   "overallRank": 43,
+   "cityRank": 13,
+   "eligible": true,
+   "finalScore": 151,
+   "exclusionReason": null,
+   "totalMonthly": 6313,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [
+    "Torre única / Reservado"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não instalado (só infraestrutura)",
+    "Longe da Lagoa do Taquaral"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "quintoandar:895696163",
-   "rank": 46,
-   "overallRank": 45,
+   "rank": 45,
+   "overallRank": 44,
    "cityRank": 18,
    "eligible": true,
    "finalScore": 150.8,
@@ -5272,6 +5274,30 @@
     "Totalmente mobiliado"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2915392443",
+   "rank": 46,
+   "overallRank": 45,
+   "cityRank": 14,
+   "eligible": true,
+   "finalScore": 149.8,
+   "exclusionReason": null,
+   "totalMonthly": 6324,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar médio (5º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Eixo Caminhável / Respiro Urbano"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não instalado (só infraestrutura)",
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -5974,30 +6000,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2916532466",
+   "key": "zapimoveis:2876293020",
    "rank": 77,
    "overallRank": 76,
-   "cityRank": 20,
-   "eligible": true,
-   "finalScore": 104.5,
-   "exclusionReason": null,
-   "totalMonthly": 5196,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2876293020",
-   "rank": 78,
-   "overallRank": 77,
    "cityRank": 32,
    "eligible": true,
    "finalScore": 104.2,
@@ -6020,8 +6025,8 @@
   },
   {
    "key": "zapimoveis:2904667213",
-   "rank": 79,
-   "overallRank": 78,
+   "rank": 78,
+   "overallRank": 77,
    "cityRank": 11,
    "eligible": true,
    "finalScore": 102.4,
@@ -6041,8 +6046,8 @@
   },
   {
    "key": "quintoandar:895412768",
-   "rank": 80,
-   "overallRank": 79,
+   "rank": 79,
+   "overallRank": 78,
    "cityRank": 12,
    "eligible": true,
    "finalScore": 101.5,
@@ -6069,8 +6074,8 @@
   },
   {
    "key": "quintoandar:121484164",
-   "rank": 81,
-   "overallRank": 80,
+   "rank": 80,
+   "overallRank": 79,
    "cityRank": 13,
    "eligible": true,
    "finalScore": 100.6,
@@ -6092,8 +6097,8 @@
   },
   {
    "key": "zapimoveis:2905024509",
-   "rank": 82,
-   "overallRank": 81,
+   "rank": 81,
+   "overallRank": 80,
    "cityRank": 33,
    "eligible": true,
    "finalScore": 99.1,
@@ -6115,7 +6120,7 @@
   },
   {
    "key": "zapimoveis:2916128735",
-   "rank": 83,
+   "rank": 82,
    "overallRank": null,
    "cityRank": null,
    "eligible": true,
@@ -6136,8 +6141,8 @@
   },
   {
    "key": "vivareal:2898578258",
-   "rank": 84,
-   "overallRank": 82,
+   "rank": 83,
+   "overallRank": 81,
    "cityRank": 14,
    "eligible": true,
    "finalScore": 97.4,
@@ -6159,8 +6164,8 @@
   },
   {
    "key": "quintoandar:124387941",
-   "rank": 85,
-   "overallRank": 83,
+   "rank": 84,
+   "overallRank": 82,
    "cityRank": 34,
    "eligible": true,
    "finalScore": 96.6,
@@ -6176,6 +6181,29 @@
     "Sem ar-condicionado"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2916532466",
+   "rank": 85,
+   "overallRank": 83,
+   "cityRank": 20,
+   "eligible": true,
+   "finalScore": 96.3,
+   "exclusionReason": null,
+   "totalMonthly": 5196,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -7334,32 +7362,8 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2913643725",
-   "rank": 134,
-   "overallRank": null,
-   "cityRank": null,
-   "eligible": false,
-   "finalScore": 194.9,
-   "exclusionReason": "Vaga presa, gaveta ou rotativa (eliminado)",
-   "totalMonthly": 4153,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (13º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Vista livre"
-   ],
-   "redTags": [
-    "Sem ar-condicionado",
-    "Vaga presa / gaveta"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
    "key": "netimoveis:1200904",
-   "rank": 135,
+   "rank": 134,
    "overallRank": null,
    "cityRank": null,
    "eligible": false,
@@ -7379,6 +7383,32 @@
     "Vaga presa / gaveta"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2913643725",
+   "rank": 135,
+   "overallRank": null,
+   "cityRank": null,
+   "eligible": false,
+   "finalScore": 186.7,
+   "exclusionReason": "Vaga presa, gaveta ou rotativa (eliminado)",
+   "totalMonthly": 4153,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto (13º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
+   ],
+   "redTags": [
+    "Sem ar-condicionado",
+    "Vaga presa / gaveta"
+   ],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -8389,34 +8419,10 @@
  ],
  "custom-nomega-area45-noparking": [
   {
-   "key": "quintoandar:895648124",
+   "key": "zapimoveis:2909939228",
    "rank": 1,
    "overallRank": 1,
    "cityRank": 1,
-   "eligible": true,
-   "finalScore": 218.4,
-   "exclusionReason": null,
-   "totalMonthly": 5060,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": "Ar-condicionado",
-   "floorTag": "Andar alto (16º–19º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado",
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Megacondomínio"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2909939228",
-   "rank": 2,
-   "overallRank": 2,
-   "cityRank": 2,
    "eligible": true,
    "finalScore": 215.9,
    "exclusionReason": null,
@@ -8436,7 +8442,7 @@
   },
   {
    "key": "quintoandar:895642331",
-   "rank": 3,
+   "rank": 2,
    "overallRank": null,
    "cityRank": null,
    "eligible": true,
@@ -8458,7 +8464,7 @@
   },
   {
    "key": "zapimoveis:2910132023",
-   "rank": 4,
+   "rank": 3,
    "overallRank": null,
    "cityRank": 1,
    "eligible": true,
@@ -8480,8 +8486,8 @@
   },
   {
    "key": "quintoandar:895790971",
-   "rank": 5,
-   "overallRank": 3,
+   "rank": 4,
+   "overallRank": 2,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 210.6,
@@ -8502,8 +8508,8 @@
   },
   {
    "key": "zapimoveis:2915323159",
-   "rank": 6,
-   "overallRank": 4,
+   "rank": 5,
+   "overallRank": 3,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 210.2,
@@ -8520,6 +8526,32 @@
    ],
    "redTags": [],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "quintoandar:895648124",
+   "rank": 6,
+   "overallRank": 4,
+   "cityRank": 2,
+   "eligible": true,
+   "finalScore": 209.4,
+   "exclusionReason": null,
+   "totalMonthly": 5060,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": "Ar-condicionado",
+   "floorTag": "Andar alto (16º–19º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado",
+    "Sol da manhã"
+   ],
+   "redTags": [
+    "Megacondomínio"
+   ],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -8548,32 +8580,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "quintoandar:895560013",
+   "key": "netimoveis:945665",
    "rank": 8,
    "overallRank": 6,
-   "cityRank": 3,
-   "eligible": true,
-   "finalScore": 206.5,
-   "exclusionReason": null,
-   "totalMonthly": 4662,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": "Andar alto (8º–11º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Sol da manhã"
-   ],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "netimoveis:945665",
-   "rank": 9,
-   "overallRank": 7,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 206.2,
@@ -8594,8 +8603,8 @@
   },
   {
    "key": "vivareal:2897890300",
-   "rank": 10,
-   "overallRank": 8,
+   "rank": 9,
+   "overallRank": 7,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 206.2,
@@ -8619,8 +8628,8 @@
   },
   {
    "key": "quintoandar:895613516",
-   "rank": 11,
-   "overallRank": 9,
+   "rank": 10,
+   "overallRank": 8,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 202.6,
@@ -8641,7 +8650,7 @@
   },
   {
    "key": "zapimoveis:2772206523",
-   "rank": 12,
+   "rank": 11,
    "overallRank": null,
    "cityRank": 2,
    "eligible": true,
@@ -8663,55 +8672,34 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2915407598",
-   "rank": 13,
-   "overallRank": 10,
-   "cityRank": 4,
+   "key": "quintoandar:895560013",
+   "rank": 12,
+   "overallRank": 9,
+   "cityRank": 3,
    "eligible": true,
-   "finalScore": 201.6,
+   "finalScore": 197.5,
    "exclusionReason": null,
-   "totalMonthly": 4168,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": "Ar-condicionado",
-   "floorTag": "Andar baixo (1º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado",
-    "Sol da manhã",
-    "Eixo Caminhável / Respiro Urbano"
-   ],
-   "redTags": [],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2894838518",
-   "rank": 14,
-   "overallRank": 11,
-   "cityRank": 5,
-   "eligible": true,
-   "finalScore": 200.6,
-   "exclusionReason": null,
-   "totalMonthly": 3962,
+   "totalMonthly": 4662,
    "furnitureTier": "UNFURNISHED",
    "modernityTier": "MODERN_OR_RENOVATED",
    "acLabel": null,
-   "floorTag": "Andar alto",
+   "floorTag": "Andar alto (8º–11º andar)",
    "noParking": false,
    "greenTags": [
-    "Vista livre"
+    "Sol da manhã"
    ],
-   "redTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
    "warningTags": [
-    "AC não instalado (só infraestrutura)"
+    "Longe da Lagoa do Taquaral"
    ],
    "alsoListedOn": []
   },
   {
    "key": "quintoandar:895651295",
-   "rank": 15,
-   "overallRank": 12,
+   "rank": 13,
+   "overallRank": 10,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 196.7,
@@ -8737,8 +8725,8 @@
   },
   {
    "key": "zapimoveis:2863444363",
-   "rank": 16,
-   "overallRank": 13,
+   "rank": 14,
+   "overallRank": 11,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 194.6,
@@ -8756,6 +8744,55 @@
    "redTags": [],
    "warningTags": [
     "Vagas em linha"
+   ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2915407598",
+   "rank": 15,
+   "overallRank": 12,
+   "cityRank": 4,
+   "eligible": true,
+   "finalScore": 192.6,
+   "exclusionReason": null,
+   "totalMonthly": 4168,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": "Ar-condicionado",
+   "floorTag": "Andar baixo (1º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado",
+    "Sol da manhã",
+    "Eixo Caminhável / Respiro Urbano"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2894838518",
+   "rank": 16,
+   "overallRank": 13,
+   "cityRank": 5,
+   "eligible": true,
+   "finalScore": 191.6,
+   "exclusionReason": null,
+   "totalMonthly": 3962,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": "Andar alto",
+   "noParking": false,
+   "greenTags": [
+    "Vista livre"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não instalado (só infraestrutura)",
+    "Longe da Lagoa do Taquaral"
    ],
    "alsoListedOn": []
   },
@@ -8975,32 +9012,10 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2860102305",
+   "key": "quintoandar:894349167",
    "rank": 26,
    "overallRank": 22,
    "cityRank": 8,
-   "eligible": true,
-   "finalScore": 177.5,
-   "exclusionReason": null,
-   "totalMonthly": 6483,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "WELL_MAINTAINED",
-   "acLabel": "Ar-condicionado",
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [
-    "Ar-condicionado",
-    "Vista livre"
-   ],
-   "redTags": [],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:894349167",
-   "rank": 27,
-   "overallRank": 23,
-   "cityRank": 9,
    "eligible": true,
    "finalScore": 176.6,
    "exclusionReason": null,
@@ -9022,8 +9037,8 @@
   },
   {
    "key": "zapimoveis:2896416016",
-   "rank": 28,
-   "overallRank": 24,
+   "rank": 27,
+   "overallRank": 23,
    "cityRank": 11,
    "eligible": true,
    "finalScore": 176.3,
@@ -9045,8 +9060,8 @@
   },
   {
    "key": "quintoandar:895199327",
-   "rank": 29,
-   "overallRank": 25,
+   "rank": 28,
+   "overallRank": 24,
    "cityRank": 12,
    "eligible": true,
    "finalScore": 173.9,
@@ -9068,7 +9083,7 @@
   },
   {
    "key": "quintoandar:895717428",
-   "rank": 30,
+   "rank": 29,
    "overallRank": null,
    "cityRank": 4,
    "eligible": true,
@@ -9093,7 +9108,7 @@
   },
   {
    "key": "quintoandar:895151272",
-   "rank": 31,
+   "rank": 30,
    "overallRank": null,
    "cityRank": 5,
    "eligible": true,
@@ -9116,9 +9131,9 @@
   },
   {
    "key": "quintoandar:895748989",
-   "rank": 32,
-   "overallRank": 26,
-   "cityRank": 10,
+   "rank": 31,
+   "overallRank": 25,
+   "cityRank": 9,
    "eligible": true,
    "finalScore": 172.9,
    "exclusionReason": null,
@@ -9139,8 +9154,8 @@
   },
   {
    "key": "zapimoveis:2913622618",
-   "rank": 33,
-   "overallRank": 27,
+   "rank": 32,
+   "overallRank": 26,
    "cityRank": 13,
    "eligible": true,
    "finalScore": 172.6,
@@ -9164,8 +9179,8 @@
   },
   {
    "key": "quintoandar:895372544",
-   "rank": 34,
-   "overallRank": 28,
+   "rank": 33,
+   "overallRank": 27,
    "cityRank": 14,
    "eligible": true,
    "finalScore": 172.2,
@@ -9188,8 +9203,8 @@
   },
   {
    "key": "zapimoveis:2896936974",
-   "rank": 35,
-   "overallRank": 29,
+   "rank": 34,
+   "overallRank": 28,
    "cityRank": 15,
    "eligible": true,
    "finalScore": 170.7,
@@ -9209,9 +9224,9 @@
   },
   {
    "key": "quintoandar:895020185",
-   "rank": 36,
-   "overallRank": 30,
-   "cityRank": 11,
+   "rank": 35,
+   "overallRank": 29,
+   "cityRank": 10,
    "eligible": true,
    "finalScore": 169.2,
    "exclusionReason": null,
@@ -9228,6 +9243,30 @@
     "Totalmente mobiliado"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2860102305",
+   "rank": 36,
+   "overallRank": 30,
+   "cityRank": 11,
+   "eligible": true,
+   "finalScore": 168.5,
+   "exclusionReason": null,
+   "totalMonthly": 6483,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "WELL_MAINTAINED",
+   "acLabel": "Ar-condicionado",
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [
+    "Ar-condicionado",
+    "Vista livre"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -9301,32 +9340,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2917433879",
+   "key": "quintoandar:893333011",
    "rank": 40,
    "overallRank": 31,
-   "cityRank": 12,
-   "eligible": true,
-   "finalScore": 163.7,
-   "exclusionReason": null,
-   "totalMonthly": 6313,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "MODERN_OR_RENOVATED",
-   "acLabel": null,
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [
-    "Torre única / Reservado"
-   ],
-   "redTags": [],
-   "warningTags": [
-    "AC não instalado (só infraestrutura)"
-   ],
-   "alsoListedOn": []
-  },
-  {
-   "key": "quintoandar:893333011",
-   "rank": 41,
-   "overallRank": 32,
    "cityRank": 5,
    "eligible": true,
    "finalScore": 162.5,
@@ -9349,32 +9365,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2915392443",
-   "rank": 42,
-   "overallRank": 33,
-   "cityRank": 13,
-   "eligible": true,
-   "finalScore": 162.5,
-   "exclusionReason": null,
-   "totalMonthly": 6324,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": "Andar médio (5º andar)",
-   "noParking": false,
-   "greenTags": [
-    "Eixo Caminhável / Respiro Urbano"
-   ],
-   "redTags": [],
-   "warningTags": [
-    "AC não instalado (só infraestrutura)"
-   ],
-   "alsoListedOn": []
-  },
-  {
    "key": "vivareal:2888174381",
-   "rank": 43,
-   "overallRank": 34,
+   "rank": 41,
+   "overallRank": 32,
    "cityRank": 16,
    "eligible": true,
    "finalScore": 162.2,
@@ -9399,8 +9392,32 @@
    ]
   },
   {
+   "key": "zapimoveis:2917433879",
+   "rank": 42,
+   "overallRank": 33,
+   "cityRank": 12,
+   "eligible": true,
+   "finalScore": 154.7,
+   "exclusionReason": null,
+   "totalMonthly": 6313,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "MODERN_OR_RENOVATED",
+   "acLabel": null,
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [
+    "Torre única / Reservado"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não instalado (só infraestrutura)",
+    "Longe da Lagoa do Taquaral"
+   ],
+   "alsoListedOn": []
+  },
+  {
    "key": "zapimoveis:2894633320",
-   "rank": 44,
+   "rank": 43,
    "overallRank": null,
    "cityRank": 9,
    "eligible": true,
@@ -9423,8 +9440,8 @@
   },
   {
    "key": "quintoandar:895696163",
-   "rank": 45,
-   "overallRank": 35,
+   "rank": 44,
+   "overallRank": 34,
    "cityRank": 17,
    "eligible": true,
    "finalScore": 153.7,
@@ -9444,6 +9461,30 @@
     "Totalmente mobiliado"
    ],
    "warningTags": [],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2915392443",
+   "rank": 45,
+   "overallRank": 35,
+   "cityRank": 13,
+   "eligible": true,
+   "finalScore": 153.5,
+   "exclusionReason": null,
+   "totalMonthly": 6324,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": "Andar médio (5º andar)",
+   "noParking": false,
+   "greenTags": [
+    "Eixo Caminhável / Respiro Urbano"
+   ],
+   "redTags": [],
+   "warningTags": [
+    "AC não instalado (só infraestrutura)",
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
@@ -9861,30 +9902,9 @@
    "alsoListedOn": []
   },
   {
-   "key": "zapimoveis:2916532466",
+   "key": "zapimoveis:2906460713",
    "rank": 64,
    "overallRank": 48,
-   "cityRank": 17,
-   "eligible": true,
-   "finalScore": 117,
-   "exclusionReason": null,
-   "totalMonthly": 5196,
-   "furnitureTier": "UNFURNISHED",
-   "modernityTier": "STANDARD",
-   "acLabel": null,
-   "floorTag": null,
-   "noParking": false,
-   "greenTags": [],
-   "redTags": [
-    "Sem ar-condicionado"
-   ],
-   "warningTags": [],
-   "alsoListedOn": []
-  },
-  {
-   "key": "zapimoveis:2906460713",
-   "rank": 65,
-   "overallRank": 49,
    "cityRank": 25,
    "eligible": true,
    "finalScore": 115.6,
@@ -9907,9 +9927,9 @@
   },
   {
    "key": "quintoandar:101367684",
-   "rank": 66,
-   "overallRank": 50,
-   "cityRank": 18,
+   "rank": 65,
+   "overallRank": 49,
+   "cityRank": 17,
    "eligible": true,
    "finalScore": 114.2,
    "exclusionReason": null,
@@ -9928,8 +9948,8 @@
   },
   {
    "key": "quintoandar:895412768",
-   "rank": 67,
-   "overallRank": 51,
+   "rank": 66,
+   "overallRank": 50,
    "cityRank": 8,
    "eligible": true,
    "finalScore": 114.2,
@@ -9956,8 +9976,8 @@
   },
   {
    "key": "zapimoveis:2915780889",
-   "rank": 68,
-   "overallRank": 52,
+   "rank": 67,
+   "overallRank": 51,
    "cityRank": 26,
    "eligible": true,
    "finalScore": 113.9,
@@ -9981,8 +10001,8 @@
   },
   {
    "key": "zapimoveis:2909681482",
-   "rank": 69,
-   "overallRank": 53,
+   "rank": 68,
+   "overallRank": 52,
    "cityRank": 27,
    "eligible": true,
    "finalScore": 112.7,
@@ -10004,9 +10024,9 @@
   },
   {
    "key": "zapimoveis:2870378197",
-   "rank": 70,
-   "overallRank": 54,
-   "cityRank": 19,
+   "rank": 69,
+   "overallRank": 53,
+   "cityRank": 18,
    "eligible": true,
    "finalScore": 112.4,
    "exclusionReason": null,
@@ -10029,8 +10049,8 @@
   },
   {
    "key": "quintoandar:893240454",
-   "rank": 71,
-   "overallRank": 55,
+   "rank": 70,
+   "overallRank": 54,
    "cityRank": 1,
    "eligible": true,
    "finalScore": 112,
@@ -10054,8 +10074,8 @@
   },
   {
    "key": "zapimoveis:2916153879",
-   "rank": 72,
-   "overallRank": 56,
+   "rank": 71,
+   "overallRank": 55,
    "cityRank": 2,
    "eligible": true,
    "finalScore": 111.7,
@@ -10075,8 +10095,8 @@
   },
   {
    "key": "zapimoveis:2869993530",
-   "rank": 73,
-   "overallRank": 57,
+   "rank": 72,
+   "overallRank": 56,
    "cityRank": 3,
    "eligible": true,
    "finalScore": 111.4,
@@ -10099,8 +10119,8 @@
   },
   {
    "key": "zapimoveis:2906497144",
-   "rank": 74,
-   "overallRank": 58,
+   "rank": 73,
+   "overallRank": 57,
    "cityRank": 28,
    "eligible": true,
    "finalScore": 111.1,
@@ -10122,8 +10142,8 @@
   },
   {
    "key": "zapimoveis:2917527250",
-   "rank": 75,
-   "overallRank": 59,
+   "rank": 74,
+   "overallRank": 58,
    "cityRank": 4,
    "eligible": true,
    "finalScore": 109.6,
@@ -10145,8 +10165,8 @@
   },
   {
    "key": "zapimoveis:2912062729",
-   "rank": 76,
-   "overallRank": 60,
+   "rank": 75,
+   "overallRank": 59,
    "cityRank": 29,
    "eligible": true,
    "finalScore": 108.9,
@@ -10163,6 +10183,29 @@
    ],
    "warningTags": [
     "Vagas em linha"
+   ],
+   "alsoListedOn": []
+  },
+  {
+   "key": "zapimoveis:2916532466",
+   "rank": 76,
+   "overallRank": 60,
+   "cityRank": 19,
+   "eligible": true,
+   "finalScore": 108,
+   "exclusionReason": null,
+   "totalMonthly": 5196,
+   "furnitureTier": "UNFURNISHED",
+   "modernityTier": "STANDARD",
+   "acLabel": null,
+   "floorTag": null,
+   "noParking": false,
+   "greenTags": [],
+   "redTags": [
+    "Sem ar-condicionado"
+   ],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
    ],
    "alsoListedOn": []
   },
@@ -11230,7 +11273,7 @@
    "overallRank": null,
    "cityRank": null,
    "eligible": false,
-   "finalScore": 191.4,
+   "finalScore": 182.4,
    "exclusionReason": "Vaga presa, gaveta ou rotativa (eliminado)",
    "totalMonthly": 4153,
    "furnitureTier": "UNFURNISHED",
@@ -11245,7 +11288,9 @@
     "Sem ar-condicionado",
     "Vaga presa / gaveta"
    ],
-   "warningTags": [],
+   "warningTags": [
+    "Longe da Lagoa do Taquaral"
+   ],
    "alsoListedOn": []
   },
   {
