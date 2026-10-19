@@ -141,6 +141,13 @@ async function getUploadsPlaylistId(channelId: string): Promise<string> {
   return uploadsPlaylistId;
 }
 
+/** The channel that uploaded a video, or null if YouTube doesn't know it. */
+export async function getVideoChannelId(videoId: string): Promise<string | null> {
+  const url = `${API_URL}/videos?part=snippet&id=${encodeURIComponent(videoId)}&key=${getApiKey()}`;
+  const data = await fetchJson<{ items?: Array<{ snippet?: { channelId?: string } }> }>(url);
+  return data.items?.[0]?.snippet?.channelId ?? null;
+}
+
 export async function searchChannel(query: string): Promise<ChannelInfo> {
   const apiKey = getApiKey();
   const url = `${API_URL}/search?part=snippet&q=${encodeURIComponent(query)}&type=channel&key=${apiKey}`;

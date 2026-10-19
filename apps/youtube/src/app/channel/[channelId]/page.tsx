@@ -126,7 +126,10 @@ function ChannelPageContent() {
     router.replace(`?${query}`, { scroll: false });
   }, [searchParams, router]);
 
-  const [timelineVideoId, setTimelineVideoId] = useState<string | null>(null);
+  // `?tab=timeline&v=ID` (from the /watch link redirect) opens that video in the timeline.
+  const [timelineVideoId, setTimelineVideoId] = useState<string | null>(() =>
+    searchParams.get("v")
+  );
 
   const handleOpenTimeline = useCallback((videoId: string) => {
     setTimelineVideoId(videoId);

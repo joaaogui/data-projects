@@ -16,6 +16,8 @@ Search for any YouTube channel by name or URL and land on a 5-tab dashboard:
 
 **Timeline** -- a chronological view of all uploads. Visualizes publishing frequency and performance trends over time, making it easy to spot bursts of activity, shifts in content strategy, or periods where engagement changed.
 
+*Jump from a YouTube link:* in any video URL, change `youtube.com` to `youtube.joaog.space` (`www.youtube.com/watch?v=ID` → `youtube.joaog.space/watch?v=ID`). `youtu.be/ID` → `youtube.joaog.space/ID`, and `/shorts/ID`, `/live/ID` and `/embed/ID` work the same way. You land on the channel's Timeline with that video opened (`/channel/<id>?tab=timeline&v=ID`). Videos that aren't synced yet are looked up through the YouTube API, and the channel page offers to sync them.
+
 **Sagas** -- groups of related videos organized into narrative arcs. Sagas are sourced from three places: YouTube playlists (auto-imported), AI detection (analyzing titles, descriptions, and timestamps for patterns), or manual curation (dragging videos between groups). Each saga card shows its date range, video count, and an AI-generated summary. Uncategorized videos are listed separately so you can assign them to existing sagas or create new ones. All corrections are tracked in a saga corrections table for admin review.
 
 **Discover** -- AI-generated insights that go beyond raw numbers:
