@@ -216,17 +216,30 @@ function toEvidence(v: unknown): ResearchEvidence | null {
   return text ? { text: clip(scrubAuthor(text), TEXT_MAX.evidence), url: isUrl(url) ? url : null } : null;
 }
 
+const CITY_CODES: Record<string, string> = {
+  "belo horizonte": "BH",
+  campinas: "CP",
+  "rio de janeiro": "RJ",
+  "são paulo": "SP",
+  goiânia: "GO",
+};
+
+/** Accepts `[...]` or `{ neighborhoods: [...] }`, with city codes or full city names. */
 export function buildRubricIndex(raw: unknown): Map<string, ResearchRubric> {
   const index = new Map<string, ResearchRubric>();
-  for (const entry of asArr(raw).map(asRec)) {
-    const city = str(entry.city);
+  const entries = Array.isArray(raw) ? raw : asArr(asRec(raw).neighborhoods);
+  for (const entry of entries.map(asRec)) {
+    const cityRaw = str(entry.city);
+    const city = CITY_CODES[cityRaw.toLowerCase()] ?? cityRaw;
     const nb = str(entry.neighborhood);
     const total = num(entry.total_0_10);
     if (!city || !nb || total === null) continue;
-    const criteria = Object.entries(asRec(entry.criteria)).map(([name, c]) => {
+    const criteria = Object.entries(asRec(entry.criteria)).map(([id, c]) => {
       const cr = asRec(c);
+      const basis = str(cr.basis);
       return {
-        name,
+        name: str(cr.name) || id,
+        ...(basis ? { basis } : {}),
         score: num(cr.score),
         evidence: asArr(cr.evidence)
           .map(toEvidence)

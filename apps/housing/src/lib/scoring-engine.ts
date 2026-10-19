@@ -342,12 +342,12 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "RJ:Jardim Oceanico": { cityCode: "RJ", commute: "60-90 min do Nubank", urbanBreathing: 9.4, commuteLogistics: 2.5, buildingStock: 8.8, budgetFit: 7.5, safetyCar: 8.0 },
   "RJ:Barra da Tijuca": { cityCode: "RJ", commute: "60-90 min do Nubank", urbanBreathing: 9.4, commuteLogistics: 2.5, buildingStock: 8.8, budgetFit: 7.5, safetyCar: 8.0 },
   // Moderate-good Zona Sul / Niterói (safetyCar: 7.0–8.3)
-  "RJ:Laranjeiras": { cityCode: "RJ", commute: "15-20 min do Nubank", urbanBreathing: 8.8, commuteLogistics: 8.5, buildingStock: 7.5, budgetFit: 7.8, safetyCar: 8.3 },
-  "RJ:Humaitá": { cityCode: "RJ", commute: "20 min do Nubank via Túnel Rebouças", urbanBreathing: 8.5, commuteLogistics: 8.2, buildingStock: 7.2, budgetFit: 7.0, safetyCar: 8.2 },
-  "RJ:Flamengo": { cityCode: "RJ", commute: "15 min do Nubank (Porto Maravilha)", urbanBreathing: 9.6, commuteLogistics: 9.2, buildingStock: 6.8, budgetFit: 6.8, safetyCar: 8.1 },
-  "RJ:Botafogo": { cityCode: "RJ", commute: "10-15 min do Nubank (Porto Maravilha)", urbanBreathing: 8.2, commuteLogistics: 9.0, buildingStock: 7.6, budgetFit: 7.2, safetyCar: 8.0 },
-  "RJ:Botafogo (Orla)": { cityCode: "RJ", commute: "10-15 min do Nubank (Porto Maravilha)", urbanBreathing: 8.2, commuteLogistics: 9.0, buildingStock: 7.6, budgetFit: 7.2, safetyCar: 8.0 },
-  "RJ:Leme": { cityCode: "RJ", commute: "20-25 min do Nubank", urbanBreathing: 9.0, commuteLogistics: 8.0, buildingStock: 5.5, budgetFit: 6.2, safetyCar: 7.8 },
+  "RJ:Laranjeiras": { cityCode: "RJ", commute: "15-20 min do Nubank", urbanBreathing: 6.1, commuteLogistics: 8.5, buildingStock: 7.5, budgetFit: 7.8, safetyCar: 8.3 },
+  "RJ:Humaitá": { cityCode: "RJ", commute: "20 min do Nubank via Túnel Rebouças", urbanBreathing: 7.3, commuteLogistics: 8.2, buildingStock: 7.2, budgetFit: 7.0, safetyCar: 8.2 },
+  "RJ:Flamengo": { cityCode: "RJ", commute: "15 min do Nubank (Porto Maravilha)", urbanBreathing: 7.5, commuteLogistics: 9.2, buildingStock: 6.8, budgetFit: 6.8, safetyCar: 8.1 },
+  "RJ:Botafogo": { cityCode: "RJ", commute: "10-15 min do Nubank (Porto Maravilha)", urbanBreathing: 7.6, commuteLogistics: 9.0, buildingStock: 7.6, budgetFit: 7.2, safetyCar: 8.0 },
+  "RJ:Botafogo (Orla)": { cityCode: "RJ", commute: "10-15 min do Nubank (Porto Maravilha)", urbanBreathing: 7.6, commuteLogistics: 9.0, buildingStock: 7.6, budgetFit: 7.2, safetyCar: 8.0 },
+  "RJ:Leme": { cityCode: "RJ", commute: "20-25 min do Nubank", urbanBreathing: 7.4, commuteLogistics: 8.0, buildingStock: 5.5, budgetFit: 6.2, safetyCar: 7.8 },
   "RJ:Ingá": { cityCode: "RJ", commute: "30-40 min do Nubank via Ponte", urbanBreathing: 8.0, commuteLogistics: 6.0, buildingStock: 7.8, budgetFit: 8.2, safetyCar: 7.8 },
   "RJ:Santa Rosa": { cityCode: "RJ", commute: "35-45 min do Nubank via Ponte", urbanBreathing: 7.8, commuteLogistics: 5.6, buildingStock: 8.2, budgetFit: 8.4, safetyCar: 7.6 },
   "RJ:São Domingos": { cityCode: "RJ", commute: "30-35 min do Nubank via Ponte", urbanBreathing: 7.8, commuteLogistics: 6.0, buildingStock: 7.5, budgetFit: 8.0, safetyCar: 7.6 },
@@ -379,16 +379,16 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "RJ:Estácio": { cityCode: "RJ", commute: "10-15 min do Nubank", urbanBreathing: 5.2, commuteLogistics: 8.8, buildingStock: 6.0, budgetFit: 8.5, safetyCar: 3.5 },
 
   // === BH (Belo Horizonte & Nova Lima) ===
-  // Truly safe Zona Sul / Nova Lima (safetyCar: 8.3–9.6)
-  "BH:Lourdes": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 9.6, commuteLogistics: 9.3, buildingStock: 9.5, budgetFit: 9.0, safetyCar: 9.6 },
-  "BH:Funcionários": { cityCode: "BH", commute: "10 min do Nubank", urbanBreathing: 9.5, commuteLogistics: 9.8, buildingStock: 8.8, budgetFit: 9.2, safetyCar: 9.1 },
+  // Truly safe Zona Sul / Nova Lima (safetyCar: 8.0–9.6)
+  "BH:Lourdes": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 7.6, commuteLogistics: 9.3, buildingStock: 9.5, budgetFit: 9.0, safetyCar: 9.6 },
+  "BH:Funcionários": { cityCode: "BH", commute: "10 min do Nubank", urbanBreathing: 8.5, commuteLogistics: 9.8, buildingStock: 8.8, budgetFit: 9.2, safetyCar: 8.3 },
   // Belvedere / Vale do Sereno / Vila da Serra share the BR-356 / N. Sra. do Carmo peak bottleneck (like Buritis' single exit).
   "BH:Belvedere": { cityCode: "BH", commute: "25-45 min do Nubank (gargalo BR-356 no pico)", urbanBreathing: 8.8, commuteLogistics: 5.6, buildingStock: 6.0, budgetFit: 5.5, safetyCar: 9.0 },
   "BH:Vale do Sereno": { cityCode: "BH", commute: "30-50 min do Nubank (gargalo BR-356 no pico)", urbanBreathing: 9.2, commuteLogistics: 5.0, buildingStock: 8.8, budgetFit: 7.6, safetyCar: 9.0 },
-  "BH:Santo Agostinho": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.8, buildingStock: 8.6, budgetFit: 8.4, safetyCar: 8.9 },
+  "BH:Santo Agostinho": { cityCode: "BH", commute: "15 min do Nubank", urbanBreathing: 7.6, commuteLogistics: 8.8, buildingStock: 8.6, budgetFit: 8.4, safetyCar: 8.9 },
   "BH:Anchieta": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.5, buildingStock: 8.2, budgetFit: 8.0, safetyCar: 8.9 },
-  "BH:Savassi": { cityCode: "BH", commute: "10-12 min do Nubank", urbanBreathing: 8.9, commuteLogistics: 9.5, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.8 },
-  "BH:Sion": { cityCode: "BH", commute: "15-20 min do Nubank", urbanBreathing: 8.7, commuteLogistics: 8.4, buildingStock: 8.0, budgetFit: 9.2, safetyCar: 8.8 },
+  "BH:Savassi": { cityCode: "BH", commute: "10-12 min do Nubank", urbanBreathing: 8.3, commuteLogistics: 9.5, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.0 },
+  "BH:Sion": { cityCode: "BH", commute: "15-20 min do Nubank", urbanBreathing: 6.2, commuteLogistics: 8.4, buildingStock: 8.0, budgetFit: 9.2, safetyCar: 8.8 },
   "BH:Carmo": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.8, commuteLogistics: 8.8, buildingStock: 8.6, budgetFit: 8.8, safetyCar: 8.8 },
   "BH:Santo Antônio": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.6, commuteLogistics: 8.8, buildingStock: 8.5, budgetFit: 8.8, safetyCar: 8.7 },
   "BH:Cruzeiro": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 8.4, commuteLogistics: 8.5, buildingStock: 8.0, budgetFit: 8.2, safetyCar: 8.7 },
@@ -413,24 +413,24 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "BH:Lagoinha": { cityCode: "BH", commute: "12-15 min do Nubank", urbanBreathing: 5.0, commuteLogistics: 8.6, buildingStock: 5.8, budgetFit: 8.6, safetyCar: 4.2 },
 
   // === CP (Campinas) ===
-  "CP:Nova Campinas": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 8.2, commuteLogistics: 8.2, buildingStock: 6.5, budgetFit: 6.2, safetyCar: 9.1 },
+  "CP:Nova Campinas": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 6.1, commuteLogistics: 8.2, buildingStock: 6.5, budgetFit: 6.2, safetyCar: 9.1 },
   "CP:Gramado": { cityCode: "CP", commute: "25-30 min do Nubank (Viracopos)", urbanBreathing: 8.8, commuteLogistics: 7.4, buildingStock: 7.8, budgetFit: 7.0, safetyCar: 9.0 },
   "CP:Cambuí": { cityCode: "CP", commute: "25-30 min do Nubank (Viracopos)", urbanBreathing: 4.5, commuteLogistics: 7.8, buildingStock: 8.8, budgetFit: 6.5, safetyCar: 8.7 },
-  "CP:Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 9.6, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
-  "CP:Parque Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 9.6, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
+  "CP:Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 6.3, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
+  "CP:Parque Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 6.3, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
   "CP:Mansões Santo Antônio": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 8.0, commuteLogistics: 7.2, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.6 },
   "CP:Jd. Guanabara": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 5.0, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
   "CP:Jardim Guanabara": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 5.0, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
   "CP:Guanabara": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 5.0, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
   "CP:Chácara Primavera": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 8.2, commuteLogistics: 7.4, buildingStock: 8.4, budgetFit: 8.4, safetyCar: 8.5 },
   "CP:Chácara da Barra": { cityCode: "CP", commute: "25-30 min do Nubank (Viracopos)", urbanBreathing: 8.2, commuteLogistics: 7.6, buildingStock: 8.2, budgetFit: 8.2, safetyCar: 8.5 },
-  "CP:Jd. Chapadão": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 7.8, commuteLogistics: 6.5, buildingStock: 6.5, budgetFit: 7.8, safetyCar: 8.5 },
-  "CP:Jardim Chapadão": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 7.8, commuteLogistics: 6.5, buildingStock: 6.5, budgetFit: 7.8, safetyCar: 8.5 },
+  "CP:Jd. Chapadão": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 6.5, commuteLogistics: 6.5, buildingStock: 6.5, budgetFit: 7.8, safetyCar: 8.5 },
+  "CP:Jardim Chapadão": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 6.5, commuteLogistics: 6.5, buildingStock: 6.5, budgetFit: 7.8, safetyCar: 8.5 },
   "CP:Castelo": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 7.8, commuteLogistics: 6.5, buildingStock: 6.8, budgetFit: 8.0, safetyCar: 8.4 },
   "CP:Parque Prado": { cityCode: "CP", commute: "15 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 9.4, buildingStock: 7.5, budgetFit: 8.5, safetyCar: 8.5 },
   "CP:Vila Itapura": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.0, buildingStock: 7.8, budgetFit: 8.2, safetyCar: 8.0 },
   "CP:Jardim Proença": { cityCode: "CP", commute: "15-20 min do Nubank (Viracopos)", urbanBreathing: 7.6, commuteLogistics: 8.8, buildingStock: 7.6, budgetFit: 8.2, safetyCar: 8.0 },
-  "CP:Bosque": { cityCode: "CP", commute: "15-20 min do Nubank (Viracopos)", urbanBreathing: 7.4, commuteLogistics: 8.8, buildingStock: 8.2, budgetFit: 8.5, safetyCar: 8.5 },
+  "CP:Bosque": { cityCode: "CP", commute: "15-20 min do Nubank (Viracopos)", urbanBreathing: 6.3, commuteLogistics: 8.8, buildingStock: 8.2, budgetFit: 8.5, safetyCar: 8.5 },
   "CP:Botafogo": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 6.4, commuteLogistics: 8.0, buildingStock: 7.2, budgetFit: 8.6, safetyCar: 6.8 },
   "CP:Centro": { cityCode: "CP", commute: "20-25 min do Nubank (Viracopos)", urbanBreathing: 5.5, commuteLogistics: 8.2, buildingStock: 6.5, budgetFit: 8.8, safetyCar: 5.5 },
 
@@ -438,15 +438,15 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "SP:Vila Nova Conceição": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 9.2, commuteLogistics: 7.8, buildingStock: 6.5, budgetFit: 4.5, safetyCar: 8.9 },
   "SP:Jardim América": { cityCode: "SP", commute: "10-20 min do Nubank (Pinheiros)", urbanBreathing: 9.0, commuteLogistics: 8.8, buildingStock: 6.8, budgetFit: 5.2, safetyCar: 8.8 },
   "SP:Jardim America": { cityCode: "SP", commute: "10-20 min do Nubank (Pinheiros)", urbanBreathing: 9.0, commuteLogistics: 8.8, buildingStock: 6.8, budgetFit: 5.2, safetyCar: 8.8 },
-  "SP:Moema": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 8.8, commuteLogistics: 7.8, buildingStock: 8.2, budgetFit: 7.8, safetyCar: 8.7 },
+  "SP:Moema": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 9.2, commuteLogistics: 7.8, buildingStock: 8.2, budgetFit: 7.8, safetyCar: 8.7 },
   "SP:Indianópolis": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 8.8, commuteLogistics: 7.8, buildingStock: 8.2, budgetFit: 7.8, safetyCar: 8.7 },
   "SP:Vila Uberabinha": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 8.5, commuteLogistics: 7.8, buildingStock: 8.2, budgetFit: 8.0, safetyCar: 8.6 },
-  "SP:Jardim Paulista": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 8.0, commuteLogistics: 8.5, buildingStock: 7.0, budgetFit: 6.8, safetyCar: 8.6 },
+  "SP:Jardim Paulista": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 7.5, commuteLogistics: 8.5, buildingStock: 7.0, budgetFit: 6.8, safetyCar: 8.6 },
   "SP:Jardins": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 8.0, commuteLogistics: 8.5, buildingStock: 7.0, budgetFit: 6.8, safetyCar: 8.6 },
   "SP:Paraíso": { cityCode: "SP", commute: "25-35 min do Nubank (Pinheiros)", urbanBreathing: 7.6, commuteLogistics: 7.4, buildingStock: 7.8, budgetFit: 7.0, safetyCar: 8.4 },
-  "SP:Alto de Pinheiros": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 9.2, commuteLogistics: 8.5, buildingStock: 5.5, budgetFit: 5.0, safetyCar: 8.4 },
+  "SP:Alto de Pinheiros": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 7.5, commuteLogistics: 8.5, buildingStock: 5.5, budgetFit: 5.0, safetyCar: 8.4 },
   "SP:Itaim Bibi": { cityCode: "SP", commute: "15-25 min do Nubank (Pinheiros)", urbanBreathing: 6.8, commuteLogistics: 8.4, buildingStock: 7.0, budgetFit: 4.8, safetyCar: 8.3 },
-  "SP:Vila Mariana": { cityCode: "SP", commute: "30-40 min do Nubank (Pinheiros)", urbanBreathing: 6.2, commuteLogistics: 5.8, buildingStock: 7.5, budgetFit: 7.2, safetyCar: 8.3 },
+  "SP:Vila Mariana": { cityCode: "SP", commute: "30-40 min do Nubank (Pinheiros)", urbanBreathing: 7.5, commuteLogistics: 5.8, buildingStock: 7.5, budgetFit: 7.2, safetyCar: 8.3 },
   "SP:Vila Clementino": { cityCode: "SP", commute: "25-35 min do Nubank (Pinheiros)", urbanBreathing: 6.8, commuteLogistics: 6.5, buildingStock: 7.6, budgetFit: 7.4, safetyCar: 8.3 },
   "SP:Chácara Klabin": { cityCode: "SP", commute: "30-40 min do Nubank (Pinheiros)", urbanBreathing: 7.2, commuteLogistics: 5.8, buildingStock: 8.0, budgetFit: 7.2, safetyCar: 8.4 },
   "SP:Vila Olímpia": { cityCode: "SP", commute: "20-30 min do Nubank (Pinheiros)", urbanBreathing: 6.8, commuteLogistics: 8.0, buildingStock: 7.8, budgetFit: 5.8, safetyCar: 8.2 },
@@ -460,7 +460,7 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "SP:Brooklin": { cityCode: "SP", commute: "25-40 min do Nubank (Pinheiros)", urbanBreathing: 7.5, commuteLogistics: 6.8, buildingStock: 7.8, budgetFit: 5.8, safetyCar: 8.0 },
   "SP:Brooklin Paulista": { cityCode: "SP", commute: "25-40 min do Nubank (Pinheiros)", urbanBreathing: 7.5, commuteLogistics: 6.8, buildingStock: 7.8, budgetFit: 5.8, safetyCar: 8.0 },
   "SP:Brooklin Novo": { cityCode: "SP", commute: "25-40 min do Nubank (Pinheiros)", urbanBreathing: 7.5, commuteLogistics: 6.8, buildingStock: 7.8, budgetFit: 5.8, safetyCar: 8.0 },
-  "SP:Sumaré": { cityCode: "SP", commute: "10-20 min do Nubank (Pinheiros)", urbanBreathing: 8.0, commuteLogistics: 8.5, buildingStock: 6.0, budgetFit: 6.5, safetyCar: 7.8 },
+  "SP:Sumaré": { cityCode: "SP", commute: "10-20 min do Nubank (Pinheiros)", urbanBreathing: 6.0, commuteLogistics: 8.5, buildingStock: 6.0, budgetFit: 6.5, safetyCar: 7.8 },
   "SP:Sumarezinho": { cityCode: "SP", commute: "10-20 min do Nubank (Pinheiros)", urbanBreathing: 7.6, commuteLogistics: 8.6, buildingStock: 6.5, budgetFit: 6.8, safetyCar: 7.8 },
   "SP:Pinheiros": { cityCode: "SP", commute: "5-15 min do Nubank (Capote Valente)", urbanBreathing: 6.2, commuteLogistics: 9.8, buildingStock: 7.2, budgetFit: 5.2, safetyCar: 7.6 },
   "SP:Vila Madalena": { cityCode: "SP", commute: "10-15 min do Nubank (Pinheiros)", urbanBreathing: 7.4, commuteLogistics: 9.0, buildingStock: 6.8, budgetFit: 5.8, safetyCar: 7.5 },
@@ -561,7 +561,10 @@ export function computeWeightedNeighborhoodScore(
   let urbanBreathingDelta = 0;
   if (scores.urbanBreathing >= 9.0) {
     urbanBreathingDelta = 0.45 * breathingScale;
-  } else if (scores.urbanBreathing < 7.5) {
+  } else if (scores.urbanBreathing >= 7.5) {
+    urbanBreathingDelta =
+      ((scores.urbanBreathing - 7.5) / 1.5) * 0.45 * breathingScale;
+  } else {
     urbanBreathingDelta =
       -(7.5 - scores.urbanBreathing) * 0.75 * breathingScale;
   }
@@ -613,10 +616,9 @@ export function computeDynamicNeighborhoods(
       calibrated && calibrated.urbanBreathing < 8.0
         ? Math.min(n.urbanBreathingScore, calibrated.urbanBreathing)
         : n.urbanBreathingScore;
-    const effectiveCommuteLogistics =
-      calibrated && calibrated.urbanBreathing < 8.0
-        ? Math.min(n.commuteLogisticsScore, calibrated.commuteLogistics)
-        : n.commuteLogisticsScore;
+    const effectiveCommuteLogistics = calibrated
+      ? Math.min(n.commuteLogisticsScore, calibrated.commuteLogistics)
+      : n.commuteLogisticsScore;
 
     const rawDynamicScore = computeWeightedNeighborhoodScore(
       {

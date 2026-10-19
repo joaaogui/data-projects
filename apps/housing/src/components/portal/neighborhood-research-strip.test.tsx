@@ -94,9 +94,18 @@ describe("researchStripNumbers", () => {
   it("formats Marista, robbery ratio and density in pt-BR", () => {
     expect(researchStripNumbers(SUMMARY).map((n) => n.text)).toEqual([
       "Marista 7,4/10",
-      "Roubo 1,2× média",
+      "Roubo 1,2×/morador",
       "14 mil hab/km²",
     ]);
+  });
+
+  it("flags the per-resident robbery ratio only for commercial bairros", () => {
+    const robbery = (key: string) =>
+      researchStripNumbers({ ...SUMMARY, key }).find((n) => n.id === "robbery")!.text;
+    expect(robbery("BH:Funcionários")).toBe("Roubo 1,2×/morador");
+    expect(robbery("BH:Savassi")).toBe("Roubo 1,2×/morador");
+    expect(robbery("BH:Santo Agostinho")).toBe("Roubo 1,2× média");
+    expect(robbery("RJ:Flamengo")).toBe("Roubo 1,2× média");
   });
 
   it("marks the researcher's judgement as approximate and skips missing numbers", () => {
@@ -121,7 +130,7 @@ describe("NeighborhoodResearchStrip", () => {
     );
     const strip = screen.getByTestId("neighborhood-research-strip");
     expect(strip.textContent).toContain("Marista 7,4/10");
-    expect(strip.textContent).toContain("Roubo 1,2× média");
+    expect(strip.textContent).toContain("Roubo 1,2×/morador");
     expect(screen.getByText(SUMMARY.highlight!)).toBeTruthy();
     expect(screen.getByText(SUMMARY.redFlag!)).toBeTruthy();
     expect(strip.getAttribute("data-card-stop-expand")).toBe("true");

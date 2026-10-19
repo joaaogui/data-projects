@@ -30,6 +30,13 @@ const CRIME_LABEL: Record<ResearchCrimeSeries["kind"], string> = {
   homicide: "Homicídios / letalidade",
 };
 
+const BASIS_LABEL: Record<string, string> = {
+  measured: "medido",
+  measured_coarse_unit: "medido (unidade maior)",
+  half_measured: "parcialmente medido",
+  judgement: "juízo",
+};
+
 const fmt = (v: number, digits = 1) => v.toLocaleString("pt-BR", { maximumFractionDigits: digits });
 
 function formatNumber(n: ResearchNumber): string {
@@ -156,7 +163,14 @@ function DossierBody({ d }: { d: NeighborhoodDossier }) {
               {d.rubric.criteria.map((c) => (
                 <li key={c.name} className="space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="min-w-0 truncate font-medium">{c.name}</span>
+                    <span className="min-w-0 truncate font-medium">
+                      {c.name}
+                      {c.basis && BASIS_LABEL[c.basis] && (
+                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                          {BASIS_LABEL[c.basis]}
+                        </span>
+                      )}
+                    </span>
                     <span className="shrink-0 font-mono">{c.score === null ? "—" : `${fmt(c.score)}/10`}</span>
                   </div>
                   <ScoreBar score={c.score} />

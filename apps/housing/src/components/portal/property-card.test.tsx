@@ -379,7 +379,7 @@ describe("PropertyCard — neighbourhood research strip", () => {
     rerender(<PropertyCard {...props} />);
     const strip = screen.getByTestId("neighborhood-research-strip");
     expect(strip.textContent).toContain("Marista 6,8/10");
-    expect(strip.textContent).toContain("Roubo 2,0× média");
+    expect(strip.textContent).toContain("Roubo 2,0×/morador");
     expect(strip.textContent).toContain("14 mil hab/km²");
     fireEvent.click(strip);
     expect(props.setExpandedId).not.toHaveBeenCalled();

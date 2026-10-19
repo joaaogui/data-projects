@@ -99,6 +99,25 @@ describe("buildResearchFile", () => {
     expect(d.maristaJudgement).toEqual({ score: 4, why: "juízo" });
   });
 
+  it("reads the wrapped rubric format with full city names and criterion labels", () => {
+    const wrapped = {
+      neighborhoods: [
+        {
+          city: "Campinas",
+          neighborhood: "Jd. Guanabara",
+          total_0_10: 3.1,
+          measured_share: 0.5,
+          criteria: { relevo_plano: { name: "Relevo plano", basis: "measured", score: 6, evidence: [{ text: "Declive", url: url(99) }] } },
+        },
+      ],
+    };
+    const d = buildResearchFile([raw], wrapped).dossiers["CP:Jd. Guanabara"]!;
+    expect(d.rubric?.total).toBe(3.1);
+    expect(d.rubric?.criteria).toEqual([
+      { name: "Relevo plano", basis: "measured", score: 6, evidence: [{ text: "Declive", url: url(99) }] },
+    ]);
+  });
+
   it("leaves the rubric null when there is no rubric file", () => {
     expect(buildResearchFile([raw], []).dossiers["CP:Jd. Guanabara"]!.rubric).toBeNull();
   });

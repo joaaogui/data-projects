@@ -55,7 +55,8 @@ export interface ResearchEvidence {
 export interface ResearchRubric {
   total: number;
   measuredShare: number | null;
-  criteria: { name: string; score: number | null; evidence: ResearchEvidence[] }[];
+  /** `basis`: "measured" | "measured_coarse_unit" | "half_measured" | "judgement". */
+  criteria: { name: string; basis?: string; score: number | null; evidence: ResearchEvidence[] }[];
 }
 
 export interface NeighborhoodDossier {

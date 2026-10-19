@@ -8,6 +8,9 @@ import type { NeighborhoodResearchSummary } from "@/types/neighborhood-research"
 
 const decimal = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+/** Commercial bairros whose robbery rate is per resident, so visitor traffic inflates the ratio. */
+const PER_RESIDENT_COMMERCIAL_KEYS = new Set(["BH:Funcionários", "BH:Savassi", "BH:Lourdes"]);
+
 /** The 2–3 numbers shown on the card, in display order. */
 export function researchStripNumbers(s: NeighborhoodResearchSummary): { id: string; text: string; title: string }[] {
   const out: { id: string; text: string; title: string }[] = [];
@@ -22,10 +25,13 @@ export function researchStripNumbers(s: NeighborhoodResearchSummary): { id: stri
     });
   }
   if (s.robberyRatio !== null) {
+    const perResident = PER_RESIDENT_COMMERCIAL_KEYS.has(s.key);
     out.push({
       id: "robbery",
-      text: `Roubo ${decimal(s.robberyRatio)}× média`,
-      title: "Taxa de roubos da unidade oficial (bairro, DP ou CISP) dividida pela média da cidade",
+      text: `Roubo ${decimal(s.robberyRatio)}×${perResident ? "/morador" : " média"}`,
+      title: perResident
+        ? "Roubos por morador do bairro ÷ média da cidade; em bairro comercial o fluxo de visitantes infla a razão"
+        : "Taxa de roubos da unidade oficial (bairro, DP ou CISP) dividida pela média da cidade",
     });
   }
   if (s.densityPerKm2 !== null) {
