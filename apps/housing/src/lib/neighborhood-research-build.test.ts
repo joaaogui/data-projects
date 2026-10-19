@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import type { NeighborhoodResearchFile } from "@/types/neighborhood-research";
+
 import {
+  attachRationales,
   buildResearchFile,
   cityRatio,
   crimeScope,
@@ -149,5 +152,26 @@ describe("buildResearchFile", () => {
       "BH:Vale do Sereno": "BH:Vila da Serra - Vale do Sereno",
       "RJ:Jd. Oceânico": "RJ:Barra da Tijuca (Jardim Oceânico)",
     });
+  });
+});
+
+describe("attachRationales", () => {
+  const file = {
+    builtAt: "2026-10-19T00:00:00.000Z",
+    dossiers: { "BH:Carmo": {} },
+    aliases: { "BH:Vale do Sereno": "BH:Vila da Serra - Vale do Sereno" },
+  } as unknown as NeighborhoodResearchFile;
+  const text = { shortRationale: " Curto. ", detailedJustification: "Longo." };
+
+  it("keeps rationales whose key is a dossier or an alias, trimmed", () => {
+    expect(attachRationales(file, { "BH:Carmo": text, "BH:Vale do Sereno": text }).rationales).toEqual({
+      "BH:Carmo": { shortRationale: "Curto.", detailedJustification: "Longo." },
+      "BH:Vale do Sereno": { shortRationale: "Curto.", detailedJustification: "Longo." },
+    });
+  });
+
+  it("fails on a key without a dossier or with empty text", () => {
+    expect(() => attachRationales(file, { "BH:Inexistente": text })).toThrow("BH:Inexistente: no dossier");
+    expect(() => attachRationales(file, { "BH:Carmo": { ...text, shortRationale: " " } })).toThrow("empty text");
   });
 });

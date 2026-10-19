@@ -24,7 +24,7 @@ import type {
   NeighborhoodEntry,
   ScoringWeights,
 } from "@/types/housing";
-import type { NeighborhoodResearchSummary } from "@/types/neighborhood-research";
+import type { NeighborhoodRationale, NeighborhoodResearchSummary } from "@/types/neighborhood-research";
 
 /** Photos shipped with each card; the rest load with the details. */
 export const CARD_PHOTO_COUNT = 3;
@@ -88,6 +88,8 @@ export interface DatasetMeta {
   neighborhoodNamesByCity: Partial<Record<CityHubCode, string[]>>;
   /** Research summaries by `<cityCode>:<neighborhood>` (catalog and extra names, plus the reference neighbourhood). */
   neighborhoodResearch?: Record<string, NeighborhoodResearchSummary>;
+  /** Ranking-tab rationale of each reference neighbourhood, by its key. */
+  referenceRationales?: Record<string, NeighborhoodRationale>;
 }
 
 export interface PropertyQueryResponse {

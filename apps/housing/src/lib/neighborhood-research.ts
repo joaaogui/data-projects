@@ -5,6 +5,7 @@ import { normalizeNeighborhoodKey } from "@/lib/scoring-engine";
 import type { CityHubCode } from "@/types/housing";
 import type {
   NeighborhoodDossier,
+  NeighborhoodRationale,
   NeighborhoodResearchFile,
   NeighborhoodResearchSummary,
 } from "@/types/neighborhood-research";
@@ -18,6 +19,9 @@ for (const [alias, key] of Object.entries(FILE.aliases ?? {})) {
   if (dossier && !DOSSIERS.has(alias.toLowerCase())) DOSSIERS.set(alias.toLowerCase(), dossier);
 }
 const SUMMARIES = new Map<string, NeighborhoodResearchSummary>();
+const RATIONALES = new Map<string, NeighborhoodRationale>(
+  Object.entries(FILE.rationales ?? {}).map(([key, r]) => [key.toLowerCase(), r]),
+);
 
 function lookupKey(cityCode: string, neighborhood: string): string {
   return `${cityCode}:${normalizeNeighborhoodKey(neighborhood, cityCode as CityHubCode)}`.toLowerCase();
@@ -56,6 +60,11 @@ export function getNeighborhoodSummary(cityCode: string, neighborhood: string): 
   const summary = summarizeDossier(dossier);
   SUMMARIES.set(key, summary);
   return summary;
+}
+
+/** Ranking-tab rationale of a researched non-catalog row (extra or reference), by its own row key. */
+export function getNeighborhoodRationale(cityCode: string, neighborhood: string): NeighborhoodRationale | null {
+  return RATIONALES.get(lookupKey(cityCode, neighborhood)) ?? null;
 }
 
 /** Adds the card-sized research summary to listings whose neighbourhood was researched. */

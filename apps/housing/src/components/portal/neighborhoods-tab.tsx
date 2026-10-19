@@ -4,6 +4,14 @@ import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { CITY_BADGE_INFO } from "@/components/portal/constants";
+import {
+  commuteUpperBound,
+  nextSort,
+  sortItems,
+  type SortDir,
+  type SortState,
+  type SortValue,
+} from "@/components/portal/neighborhood-sort";
 import { NeighborhoodResearchPanel } from "@/components/portal/neighborhood-research-panel";
 import { decimal, formatDensity } from "@/components/portal/neighborhood-research-strip";
 import type { PortalController } from "@/components/portal/use-portal-controller";
@@ -70,14 +78,56 @@ const COMMUTE_NEUTRAL_TEXT = "neutro";
 
 export const TOP_NEIGHBORHOODS_LIMIT = 20;
 
-const EXTRA_TITLE = "Fora do catálogo original, com dossiê e rubrica de pesquisa; notas da tabela de calibração do motor; não afeta as notas dos imóveis";
-const EXTRA_RATIONALE = "Bairro fora do catálogo, com dossiê de pesquisa — notas da tabela de calibração do motor.";
+const EXTRA_TITLE = "Bairro pesquisado fora da lista original";
 
 const REFERENCE_BY_KEY = new Map(REFERENCE_NEIGHBORHOODS.map((r) => [r.key, r]));
 
 type ListItem =
   | { kind: "catalog"; n: ComputedNeighborhood; rank: number }
   | { kind: "reference"; ref: ReferenceNeighborhoodRow; info: ReferenceNeighborhood; rank: number };
+
+/** Every desktop column, in table order; the mobile "Ordenar por" select offers the same list. */
+const SORT_COLUMNS: { key: string; label: string; defaultDir: SortDir; align?: "right"; title?: (w: ScoringWeights) => string }[] = [
+  { key: "rank", label: "Pos. Dinâmica", defaultDir: "asc" },
+  { key: "city", label: "Cidade", defaultDir: "asc" },
+  { key: "name", label: "Bairro", defaultDir: "asc" },
+  { key: "score", label: "Nota Dinâmica", defaultDir: "desc", align: "right" },
+  ...SUB_SCORES.map((s) => ({
+    key: s.id,
+    label: s.label,
+    defaultDir: "desc" as const,
+    align: "right" as const,
+    title: (w: ScoringWeights) => weightTitle(s.label, w, s.weightKey),
+  })),
+  ...RESEARCH_HEADERS.map((h) => ({ key: h.id, label: h.label, defaultDir: "desc" as const, align: "right" as const, title: () => h.title })),
+  { key: "commuteTime", label: "Tempo Nubank", defaultDir: "asc" },
+  { key: "rationale", label: "Justificativa Detalhada", defaultDir: "asc" },
+];
+const COLUMN_BY_KEY = new Map(SORT_COLUMNS.map((c) => [c.key, c]));
+const DEFAULT_SORT: SortState = { key: "score", dir: "desc" };
+
+const textOrNull = (s: string) => (s.trim() ? s : null);
+
+function researchValue(s: NeighborhoodResearchSummary | undefined, key: string): SortValue {
+  if (key === "marista") return s?.marista ?? null;
+  if (key === "density") return s?.densityPerKm2 ?? null;
+  return s?.apartmentsShare ?? null;
+}
+
+/** The value a row sorts by; references have no commute ("neutro") and sort last on both commute columns. */
+function sortValue(item: ListItem, key: string, research: (key: string) => NeighborhoodResearchSummary | undefined): SortValue {
+  const row = item.kind === "catalog" ? item.n : item.ref;
+  const rowKey = item.kind === "catalog" ? `${item.n.cityCode}:${item.n.neighborhood}` : item.ref.key;
+  const sub = SUB_SCORES.find((s) => s.id === key);
+  if (key === "rank") return item.rank;
+  if (key === "score") return row.dynamicScore;
+  if (key === "name") return row.neighborhood;
+  if (key === "city") return item.kind === "catalog" ? CITY_BADGE_INFO[item.n.cityCode].ufLabel : item.info.ufLabel;
+  if (sub) return item.kind === "reference" && sub.id === "commute" ? null : sub.value(row);
+  if (RESEARCH_HEADERS.some((h) => h.id === key)) return researchValue(research(rowKey), key);
+  if (key === "commuteTime") return item.kind === "catalog" ? commuteUpperBound(item.n.commuteTime) : null;
+  return textOrNull(row.shortRationale || (item.kind === "reference" ? item.info.subtitle : ""));
+}
 
 export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
   const {
@@ -94,7 +144,9 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
   } = ctl;
   const [researchOpenKey, setResearchOpenKey] = useState<string | null>(null);
   const [showMoreMetrics, setShowMoreMetrics] = useState(false);
+  const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   const closeResearch = useCallback(() => setResearchOpenKey(null), []);
+  const sortBy = (key: string) => setSort((s) => nextSort(s, key, COLUMN_BY_KEY.get(key)?.defaultDir ?? "desc"));
 
   if (activeTab !== "neighborhoods") return null;
 
@@ -113,6 +165,8 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
     items.push(it);
   }
   if (catalogShown === 0) items = [];
+  // Sorting reorders the rows shown; each row keeps its score rank number.
+  items = sortItems(items, sort, (it, key) => sortValue(it, key, (k) => neighborhoodResearch[k]), (it) => it.rank);
   // Catalog rows compare their base position with their catalog-only dynamic rank, so extras don't inflate the diff.
   const catalogRank = new Map(
     dynamicNeighborhoods.map((n) => [`${n.cityCode}:${n.neighborhood}`, n.dynamicOverallRank]),
@@ -135,7 +189,34 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
     <section className="space-y-4">
       {/* Mobile / Compact Neighborhood Cards (< md) */}
       <div className="space-y-3 md:hidden">
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <label className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            Ordenar por
+            <select
+              data-testid="neighborhood-sort-select"
+              value={sort.key}
+              onChange={(e) => {
+                const key = e.target.value;
+                setSort({ key, dir: COLUMN_BY_KEY.get(key)?.defaultDir ?? "desc" });
+              }}
+              className="min-h-11 min-w-0 max-w-[11rem] rounded-lg border bg-background px-2 text-xs font-semibold text-foreground"
+            >
+              {SORT_COLUMNS.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            data-testid="neighborhood-sort-direction"
+            aria-label={sort.dir === "asc" ? "Ordem crescente" : "Ordem decrescente"}
+            onClick={() => setSort((s) => ({ ...s, dir: s.dir === "asc" ? "desc" : "asc" }))}
+            className="min-h-11 min-w-11 rounded-lg border px-3 text-xs font-semibold text-muted-foreground hover:bg-secondary"
+          >
+            <span aria-hidden="true">{sort.dir === "asc" ? "▲" : "▼"}</span>
+          </button>
           <button
             type="button"
             aria-pressed={showMoreMetrics}
@@ -177,6 +258,9 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">{info.subtitle}</p>
+                <div className="space-y-1 text-xs leading-relaxed">
+                  <RationaleText short={ref.shortRationale} detailed={ref.detailedJustification} />
+                </div>
                 <div className="grid grid-cols-5 gap-1 rounded-lg bg-background/60 p-2 text-center">
                   {SUB_SCORES.map((s) => (
                     <div key={s.id} title={s.id === "commute" ? commuteNeutralTitle(ref, info) : undefined}>
@@ -249,16 +333,9 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                 <span className="font-mono text-[11px] text-muted-foreground mr-1.5">
                   [{n.commuteTime}]
                 </span>
-                {n.isExtra ? <span className="font-normal text-muted-foreground">{EXTRA_RATIONALE}</span> : n.shortRationale}
+                {n.shortRationale}
               </p>
-              {!n.isExtra && (
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {n.detailedJustification.replace(
-                    /^Nota\s+[\d.]+\/10\s*\([^)]*\):\s*/i,
-                    "",
-                  )}
-                </p>
-              )}
+              <p className="text-xs leading-relaxed text-muted-foreground">{stripNotePrefix(n.detailedJustification)}</p>
             </article>
           );
         })}
@@ -270,26 +347,28 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
           <table className="w-full text-left text-xs">
             <thead className="border-b bg-muted/50 text-[11px] font-bold uppercase text-muted-foreground">
               <tr>
-                <th className="px-3 py-3">Pos. Dinâmica</th>
-                <th className="px-3 py-3">Cidade</th>
-                <th className="px-3 py-3">Bairro</th>
-                <th className="px-3 py-3 text-right">Nota Dinâmica</th>
-                {SUB_SCORES.map((s) => (
-                  <th
-                    key={s.id}
-                    className="px-3 py-3 text-right whitespace-nowrap"
-                    title={weightTitle(s.label, weights, s.weightKey)}
-                  >
-                    {s.label}
-                  </th>
-                ))}
-                {RESEARCH_HEADERS.map((h) => (
-                  <th key={h.id} className="px-3 py-3 text-right whitespace-nowrap" title={h.title}>
-                    {h.label}
-                  </th>
-                ))}
-                <th className="px-3 py-3">Tempo Nubank</th>
-                <th className="px-3 py-3">Justificativa Detalhada</th>
+                {SORT_COLUMNS.map((c) => {
+                  const active = sort.key === c.key;
+                  return (
+                    <th
+                      key={c.key}
+                      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+                      title={c.title?.(weights)}
+                      className={`px-3 py-3 whitespace-nowrap ${c.align === "right" ? "text-right" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => sortBy(c.key)}
+                        className="inline-flex items-center gap-1 font-bold uppercase hover:text-foreground"
+                      >
+                        {c.label}
+                        <span aria-hidden="true" className="w-2 text-[9px]">
+                          {active ? (sort.dir === "asc" ? "▲" : "▼") : ""}
+                        </span>
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -348,7 +427,10 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                         </td>
                       ))}
                       <td className="px-3 py-3 whitespace-nowrap">{info.commuteLabel}</td>
-                      <td className="px-3 py-3">{info.subtitle}</td>
+                      <td className="px-3 py-3 min-w-[340px] max-w-xl leading-relaxed space-y-1.5">
+                        <p>{info.subtitle}</p>
+                        <RationaleText short={ref.shortRationale} detailed={ref.detailedJustification} />
+                      </td>
                     </tr>
                   );
                 }
@@ -410,21 +492,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                       {n.commuteTime}
                     </td>
                     <td className="px-3 py-3 min-w-[340px] max-w-xl leading-relaxed text-muted-foreground space-y-1.5">
-                      {n.isExtra ? (
-                        <p>{EXTRA_RATIONALE}</p>
-                      ) : (
-                        <>
-                          <p className="font-medium text-foreground">
-                            {n.shortRationale}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {n.detailedJustification.replace(
-                              /^Nota\s+[\d.]+\/10\s*\([^)]*\):\s*/i,
-                              "",
-                            )}
-                          </p>
-                        </>
-                      )}
+                      <RationaleText short={n.shortRationale} detailed={n.detailedJustification} />
                       <details className="group rounded-lg border bg-background/60 p-2.5 text-[11px]">
                         <summary className="cursor-pointer font-semibold text-muted-foreground hover:text-foreground">
                           Ver memória de cálculo e notas quebradas
@@ -451,6 +519,19 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
           document.body,
         )}
     </section>
+  );
+}
+
+const stripNotePrefix = (text: string) => text.replace(/^Nota\s+[\d.]+\/10\s*\([^)]*\):\s*/i, "");
+
+/** Justification text: the one-line rationale, then the detailed one without its "Nota X/10 (...):" prefix. */
+function RationaleText({ short, detailed }: { short: string; detailed: string }) {
+  if (!short && !detailed) return null;
+  return (
+    <>
+      <p className="font-medium text-foreground">{short}</p>
+      <p className="text-xs text-muted-foreground">{stripNotePrefix(detailed)}</p>
+    </>
   );
 }
 

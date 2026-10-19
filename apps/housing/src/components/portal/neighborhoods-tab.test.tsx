@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { NeighborhoodsTab } from "./neighborhoods-tab";
@@ -156,7 +156,13 @@ describe("NeighborhoodsTab top 20", () => {
       dynamicOverallRank: i + 1,
       overallPosition: i < 10 ? i + 1 : 30 + i,
       dynamicScore: Math.round((9.5 - i * 0.1) * 100) / 100,
-      ...(i >= 10 ? { isExtra: true as const, shortRationale: "", detailedJustification: "" } : {}),
+      ...(i >= 10
+        ? {
+            isExtra: true as const,
+            shortRationale: `Resumo do extra ${i + 1}.`,
+            detailedJustification: `Dossiê do extra ${i + 1}.`,
+          }
+        : {}),
     }),
   );
 
@@ -181,17 +187,31 @@ describe("NeighborhoodsTab top 20", () => {
     expect(document.querySelectorAll("tbody tr")).toHaveLength(10);
   });
 
-  it("marks extra rows with a badge, no rank diff and the calibration note", () => {
+  it("marks extra rows with a plain-words badge and no rank diff, and shows their rationale like catalog rows", () => {
     render(<NeighborhoodsTab ctl={buildCtl({ neighborhoodRanking: ranking })} />);
     const rows = [...document.querySelectorAll("tbody tr")];
     expect(rows[0]!.querySelector('[data-testid="extra-neighborhood-badge"]')).toBeNull();
     const extra = rows[10]!;
-    expect(extra.querySelector('[data-testid="extra-neighborhood-badge"]')?.textContent).toBe("extra");
+    const badge = extra.querySelector('[data-testid="extra-neighborhood-badge"]')!;
+    expect(badge.textContent).toBe("extra");
+    expect(badge.getAttribute("title")).toBe("Bairro pesquisado fora da lista original");
     expect(extra.textContent).toContain("#11");
     expect(extra.textContent).not.toMatch(/\([+-]\d+\)/);
-    expect(extra.textContent).toContain("Bairro fora do catálogo");
-    // Mobile cards carry the badge too: 10 extras in the top 20
+    expect(extra.textContent).toContain("Resumo do extra 11.");
+    expect(extra.textContent).toContain("Dossiê do extra 11.");
+    // Same markup as a catalog row: bold one-liner, then the detailed text, then the calculation details
+    const cell = extra.querySelector("td:last-child")!;
+    expect(cell.querySelector("p.font-medium")?.textContent).toBe("Resumo do extra 11.");
+    expect(cell.querySelector("details")).not.toBeNull();
+    // Mobile cards carry the badge and the rationale too: 10 extras in the top 20
     expect(document.querySelectorAll("article [data-testid='extra-neighborhood-badge']")).toHaveLength(10);
+    expect(screen.getAllByText("Dossiê do extra 11.")).toHaveLength(2);
+  });
+
+  it("never shows the old out-of-catalog note", () => {
+    render(<NeighborhoodsTab ctl={buildCtl({ neighborhoodRanking: ranking, referenceNeighborhoods: [REF] })} />);
+    expect(document.body.textContent).not.toContain("Bairro fora do catálogo");
+    expect(document.body.textContent).not.toContain("calibração do motor");
   });
 
   it("computes catalog rank diffs against the catalog-only ranking, not the combined one", () => {
@@ -220,6 +240,8 @@ const REF: ReferenceNeighborhoodRow = {
   buildingStockFitScore: 9.5,
   budgetFitScore: 8.5,
   safetyCarScore: 8.5,
+  shortRationale: "A régua de tudo.",
+  detailedJustification: "Plano e de torres espaçadas.",
 };
 
 function summary(overrides: Partial<NeighborhoodResearchSummary>): NeighborhoodResearchSummary {
@@ -299,7 +321,32 @@ describe("NeighborhoodsTab reference row", () => {
     }
   });
 
-  const AGUAS: ReferenceNeighborhoodRow = { ...REF, key: "BSB:Águas Claras", neighborhood: "Águas Claras", dynamicScore: 9.0 };
+  it("shows the reference's rationale under its subtitle in the table and the card", () => {
+    render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF] })} />);
+    const row = screen.getByTestId("reference-neighborhood-row");
+    const card = screen.getByTestId("reference-neighborhood-card");
+    for (const el of [row, card]) {
+      expect(el.textContent).toContain("A régua de tudo.");
+      expect(el.textContent).toContain("Plano e de torres espaçadas.");
+    }
+  });
+
+  const AGUAS: ReferenceNeighborhoodRow = {
+    ...REF,
+    key: "BSB:Águas Claras",
+    neighborhood: "Águas Claras",
+    dynamicScore: 9.0,
+    shortRationale: "Plano, de torres, com metrô.",
+    detailedJustification: "Rua viva até tarde.",
+  };
+
+  it("shows each reference's own rationale", () => {
+    render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF, AGUAS] })} />);
+    const [marista, aguas] = screen.getAllByTestId("reference-neighborhood-row");
+    expect(marista!.textContent).toContain("A régua de tudo.");
+    expect(aguas!.textContent).toContain("Plano, de torres, com metrô.");
+    expect(aguas!.textContent).not.toContain("A régua de tudo.");
+  });
 
   it("ranks both references at their score positions, each with its own badge and subtitle", () => {
     render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF, AGUAS] })} />);
@@ -387,5 +434,128 @@ describe("NeighborhoodsTab metric columns", () => {
     expect(firstCard().textContent).toContain("Densid.");
     expect(firstCard().textContent).toContain("14 mil");
     expect(screen.getByRole("button", { name: "Menos métricas" }).getAttribute("aria-pressed")).toBe("true");
+  });
+});
+
+describe("NeighborhoodsTab sorting", () => {
+  // Score ranks: Funcionários #1 (9.61), Setor Marista #2 (9.3), Pinheiros #3 (9.0), Botafogo #4 (8.0)
+  const FUNC = makeNeighborhood({ commuteTime: "9-25 min", urbanBreathingScore: 9.5, commuteLogisticsScore: 9.8 });
+  const PIN = makeNeighborhood({
+    cityCode: "SP",
+    neighborhood: "Pinheiros",
+    dynamicScore: 9.0,
+    commuteTime: "15 min",
+    urbanBreathingScore: 7.0,
+    commuteLogisticsScore: 8.5,
+  });
+  const BOT = makeNeighborhood({
+    cityCode: "RJ",
+    neighborhood: "Botafogo",
+    dynamicScore: 8.0,
+    commuteTime: "10-15 min",
+    urbanBreathingScore: 8.0,
+    commuteLogisticsScore: 9.0,
+  });
+  const ctl = () =>
+    buildCtl({
+      neighborhoodRanking: [FUNC, PIN, BOT],
+      referenceNeighborhoods: [REF],
+      neighborhoodResearch: {
+        "BH:Funcionários": summary({}),
+        "RJ:Botafogo": summary({ key: "RJ:Botafogo", marista: 7.2 }),
+        "GO:Setor Marista": summary({ key: "GO:Setor Marista", marista: 8.03 }),
+      },
+    });
+  const tableNames = () =>
+    [...document.querySelectorAll("tbody tr")].map((tr) => tr.querySelector("td:nth-child(3)")!.textContent!.replace("extra", ""));
+  const tableRanks = () => [...document.querySelectorAll("tbody tr")].map((tr) => tr.textContent!.match(/#\d+/)?.[0]);
+  const header = (label: string) => screen.getByRole("columnheader", { name: label });
+  const clickHeader = (label: string) => fireEvent.click(within(header(label)).getByRole("button"));
+
+  it("defaults to score descending, with aria-sort and ▼ on that header only", () => {
+    render(<NeighborhoodsTab ctl={ctl()} />);
+    expect(tableNames()).toEqual(["Funcionários", "Setor Marista", "Pinheiros", "Botafogo"]);
+    expect(header("Nota Dinâmica").getAttribute("aria-sort")).toBe("descending");
+    expect(header("Nota Dinâmica").textContent).toContain("▼");
+    const others = screen.getAllByRole("columnheader").filter((th) => th !== header("Nota Dinâmica"));
+    expect(others.every((th) => th.getAttribute("aria-sort") === "none")).toBe(true);
+  });
+
+  it("makes every column header a sort button", () => {
+    render(<NeighborhoodsTab ctl={ctl()} />);
+    const headers = screen.getAllByRole("columnheader");
+    expect(headers).toHaveLength(14);
+    for (const th of headers) expect(within(th).getByRole("button")).toBeTruthy();
+  });
+
+  it("sorts text columns ascending first, toggles on a second click and keeps the score rank numbers", () => {
+    render(<NeighborhoodsTab ctl={ctl()} />);
+    clickHeader("Bairro");
+    expect(tableNames()).toEqual(["Botafogo", "Funcionários", "Pinheiros", "Setor Marista"]);
+    expect(tableRanks()).toEqual(["#4", "#1", "#3", "#2"]);
+    expect(header("Bairro").getAttribute("aria-sort")).toBe("ascending");
+    expect(header("Bairro").textContent).toContain("▲");
+    expect(header("Nota Dinâmica").getAttribute("aria-sort")).toBe("none");
+    clickHeader("Bairro");
+    expect(tableNames()).toEqual(["Setor Marista", "Pinheiros", "Funcionários", "Botafogo"]);
+    expect(header("Bairro").getAttribute("aria-sort")).toBe("descending");
+  });
+
+  it("sorts by city badge, the reference included", () => {
+    render(<NeighborhoodsTab ctl={ctl()} />);
+    clickHeader("Cidade");
+    // BH, GO, RJ, SP
+    expect(tableNames()).toEqual(["Funcionários", "Setor Marista", "Botafogo", "Pinheiros"]);
+  });
+
+  it("sorts numeric columns descending first and the reference like any row", () => {
+    render(<NeighborhoodsTab ctl={ctl()} />);
+    clickHeader("Vida urbana");
+    expect(tableNames()).toEqual(["Funcionários", "Setor Marista", "Botafogo", "Pinheiros"]);
+    clickHeader("Vida urbana");
+    expect(tableNames()).toEqual(["Pinheiros", "Botafogo", "Setor Marista", "Funcionários"]);
+  });
+
+  it("puts rows without a value last in both directions", () => {
+    render(<NeighborhoodsTab ctl={ctl()} />);
+    clickHeader("Marista");
+    expect(tableNames()).toEqual(["Setor Marista", "Botafogo", "Funcionários", "Pinheiros"]);
+    clickHeader("Marista");
+    expect(tableNames()).toEqual(["Funcionários", "Botafogo", "Setor Marista", "Pinheiros"]);
+    // The reference's commute is "neutro": last on the commute sub-score both ways
+    clickHeader("Deslocamento");
+    expect(tableNames()).toEqual(["Funcionários", "Botafogo", "Pinheiros", "Setor Marista"]);
+    clickHeader("Deslocamento");
+    expect(tableNames()).toEqual(["Pinheiros", "Botafogo", "Funcionários", "Setor Marista"]);
+  });
+
+  it("sorts Tempo Nubank by the upper bound of 'A-B min', ties by score rank, references last", () => {
+    render(<NeighborhoodsTab ctl={ctl()} />);
+    clickHeader("Tempo Nubank");
+    // 15 (Pinheiros, #3) = 15 (Botafogo, #4) < 25 (Funcionários); the reference has no commute
+    expect(tableNames()).toEqual(["Pinheiros", "Botafogo", "Funcionários", "Setor Marista"]);
+    clickHeader("Tempo Nubank");
+    expect(tableNames()).toEqual(["Funcionários", "Pinheiros", "Botafogo", "Setor Marista"]);
+  });
+
+  it("sorts the mobile cards from the 'Ordenar por' select and its direction button", () => {
+    render(<NeighborhoodsTab ctl={ctl()} />);
+    const select = screen.getByLabelText("Ordenar por") as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(
+      screen.getAllByRole("columnheader").map((th) => within(th).getByRole("button").textContent!.replace(/[▲▼]/g, "")),
+    );
+    expect(select.value).toBe("score");
+    const cardNames = () =>
+      [...document.querySelectorAll("article")].map((a) =>
+        a.getAttribute("data-testid") === "reference-neighborhood-card" ? "Setor Marista" : a.querySelector("button.text-primary")!.textContent,
+      );
+    fireEvent.change(select, { target: { value: "name" } });
+    expect(cardNames()).toEqual(["Botafogo", "Funcionários", "Pinheiros", "Setor Marista"]);
+    expect(header("Bairro").getAttribute("aria-sort")).toBe("ascending");
+    const direction = screen.getByTestId("neighborhood-sort-direction");
+    expect(direction.getAttribute("aria-label")).toBe("Ordem crescente");
+    fireEvent.click(direction);
+    expect(cardNames()).toEqual(["Setor Marista", "Pinheiros", "Funcionários", "Botafogo"]);
+    expect(direction.getAttribute("aria-label")).toBe("Ordem decrescente");
   });
 });

@@ -1446,8 +1446,8 @@ export function usePortalController({
     [meta.neighborhoods, meta.extraNeighborhoods, weights, enabledHiddenCities],
   );
   const referenceNeighborhoods = useMemo(
-    () => computeReferenceNeighborhoods(dynamicNeighborhoods, weights),
-    [dynamicNeighborhoods, weights],
+    () => computeReferenceNeighborhoods(dynamicNeighborhoods, weights, meta.referenceRationales),
+    [dynamicNeighborhoods, weights, meta.referenceRationales],
   );
   const neighborhoodResearch = meta.neighborhoodResearch ?? EMPTY_NEIGHBORHOOD_RESEARCH;
 

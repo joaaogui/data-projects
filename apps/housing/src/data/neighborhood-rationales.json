@@ -1,0 +1,134 @@
+{
+  "BH:Carmo": {
+    "shortRationale": "Plano para os padrões de BH, de torres e silencioso, com a Savassi a pé. Falta parque e vida própria à noite.",
+    "detailedJustification": "Bairro pequeno (0,31 km²) de torres (96% apartamentos) entre Savassi, Sion e Anchieta, com declive mediano nas ruas de ~4%. A Savassi a pé soma 170 bares, restaurantes e cafés a 1 km, mas a noite do próprio Carmo é parada e não há parque de 2 ha a 1 km. Crimes violentos caíram 76% desde 2018, embora os roubos por morador fiquem acima da média de BH numa base pequena; a parte alta da Nossa Senhora do Carmo encosta no Morro do Papagaio."
+  },
+  "BH:Cruzeiro": {
+    "shortRationale": "Rua de bares na Pium-í, Mercado Distrital vivo à noite e parque dentro do bairro, a 10–25 min do Belvedere. Cobra em ladeiras e roubos.",
+    "detailedJustification": "Torres (95% apartamentos) com a Rua Pium-í e o Mercado Distrital somando 112 bares, restaurantes e cafés a 1 km e eventos a semana toda. O Parque Amílcar Vianna Martins fica no bairro e o Parque das Mangabeiras no limite de 1 km. Até o escritório no Belvedere são 10–25 min de carro sem cruzar o trevo. Contra: ladeiras (declive mediano de 6,7%), densidade de 13,6 mil hab/km² e roubos por morador acima da média de BH, apesar da queda de 65% desde 2018."
+  },
+  "BH:Vale do Sereno": {
+    "shortRationale": "Torres novas e densidade baixa colados ao Belvedere, com roubo raro em Nova Lima. O preço é o relevo muito íngreme e tudo de carro.",
+    "detailedJustification": "Recorte de Nova Lima colado ao Belvedere: ~5,5 mil hab/km² e 99% apartamentos em torres do boom pós-2000, com roubo raro no município (≈25/100 mil contra ≈191 em BH). Do novo escritório são ~2,5 km, ~5 min de carro sem trânsito, mas atravessando o trevo congestionado. Contra: relevo muito íngreme (desnível de 139 m em 800 m), dependência de carro com a MG-030 sem passarela e esgoto de condomínios nas trilhas do Vale do Sereno (set/2026)."
+  },
+  "BH:Vila da Serra": {
+    "shortRationale": "Torres novas, polo de restaurantes na Alameda Oscar Niemeyer e o Belvedere ao lado. Ladeiras fortes e trânsito na divisa pesam.",
+    "detailedJustification": "Bairro de Nova Lima colado ao Belvedere, verticalizado nos anos 2000: ~5,5 mil hab/km² e 99% apartamentos, com bares e restaurantes na Alameda Oscar Niemeyer e no Passeio da Vila. Roubo é raro no município (≈25/100 mil contra ≈191 em BH). Do novo escritório são ~2,5 km, ~5 min sem trânsito, cruzando o trevo congestionado; o Viaduto Ferradura, contratado em 2026, deve aliviar o trevo do BH Shopping. Contra: relevo muito íngreme, dependência de carro e trânsito pesado na divisa (~15 mil veículos/dia)."
+  },
+  "BH:Anchieta": {
+    "shortRationale": "Roubos abaixo da média de BH, comércio próprio na Francisco Deslandes e 9–20 min do Belvedere. Denso, com ladeiras e obras por toda parte.",
+    "detailedJustification": "Torres (94% apartamentos) com restaurantes e comércio na Francisco Deslandes e na Pium-í, e moradores que andam a pé à noite. Roubos ≈155/100 mil, abaixo da média de BH, e queda de 63% desde 2018. O escritório no Belvedere fica a 9–20 min de carro e o Parque das Mangabeiras a 1,25 km. Contra: 16,6 mil hab/km² (mais que o Cambuí), ladeiras nas partes altas, obras em todo quarteirão e alagamento da Francisco Deslandes em chuva forte."
+  },
+  "BH:São Pedro": {
+    "shortRationale": "Vida de rua na Major Lopes, Savassi a pé e densidade menor que os vizinhos. Roubos acima da média e nenhum parque perto.",
+    "detailedJustification": "Torres mais novas que a média da Centro-Sul, com 10,6 mil hab/km², menos que Santo Antônio, Lourdes e Savassi. A Major Lopes e a Savassi somam 162 bares, restaurantes e cafés a 1 km, e um morador relata voltar a pé tarde da noite sem problemas. O Belvedere fica a ~4 km de carro. Contra: relevo ondulado, nenhum parque de 2 ha a 1 km, barulho de bares e obras, roubos por morador acima da média de BH e tráfico na Praça Venâncio Machado (2026)."
+  },
+  "BH:Santo Antônio": {
+    "shortRationale": "Bares de bairro com mesa na calçada e parque a menos de 1 km, ao lado da Savassi. Mas é denso e tem ladeiras extremas.",
+    "detailedJustification": "Polo de bares e restaurantes de bairro (Amarelim, Patorroco), torres novas sendo lançadas e o Parque Eduardo Couri (8 ha) a ~780 m, com Savassi e Pátio Savassi ao lado. Crimes violentos caíram 75% desde 2018 e os roubos estão na média de BH. Contra: 15,7 mil hab/km² (mais que o Cambuí), declive mediano de ~8% nas ruas, com carros que não sobem na chuva, segurança percebida dividida (46% no QuintoAndar) e divisa com o Morro do Papagaio."
+  },
+  "BH:Cidade Jardim": {
+    "shortRationale": "Respiro raro em BH: baixa densidade e arborização protegida por lei. Bairro de casas e ladeiras, quieto à noite e com rota pelo trevo.",
+    "detailedJustification": "Bairro-jardim tombado como ADE, com 3,0 mil hab/km² e arborização intensa, comércio tradicional na Conde de Linhares e crimes violentos 64% menores que em 2018. Contra: ladeiras (declive mediano de 7,3%), nenhum parque de 2 ha a 1 km, pouco movimento à noite e uma lei que desestimula torres novas. A rota ao Belvedere cruza o Trevo do BH Shopping (10–35 min) e as escolas da Prudente de Morais formam filas de 350 m."
+  },
+  "BH:Vila Paris": {
+    "shortRationale": "Pequeno e arborizado, com a Barragem Santa Lúcia a 300 m e quase sem roubos registrados. Muito íngreme e sem comércio de rua.",
+    "detailedJustification": "Ruas arborizadas, a Mata do Mosteiro e o Parque da Barragem Santa Lúcia (8,4 ha) a ~300 m, com 11,2 mil hab/km² em prédios (92% apartamentos). A SEJUSP registrou só 1 roubo em 12 meses, provável subcontagem. Contra: declive mediano de 7,3% nas ruas, apenas 19 bares, restaurantes e cafés a 1 km, arrombamentos de casas em fev/2026 e a rota ao Belvedere pelo Trevo do BH Shopping (9–30 min)."
+  },
+  "BH:Santa Efigênia": {
+    "shortRationale": "Plano, com metrô e aluguel médio de ~R$ 3 mil. Mas é o 2º bairro de BH em roubos e agora fica a 12–30 min do escritório.",
+    "detailedJustification": "Plano (declive mediano de 3,3% nas ruas), com 7,2 mil hab/km², estações de metrô Santa Efigênia e Santa Tereza e aluguel médio de ~R$ 3 mil. Contra: 95 roubos em 12 meses, 2º de 314 bairros, inflados pela área hospitalar e pelo Boulevard Shopping; sirenes e trânsito constantes, prédios antigos, pouco movimento depois das 22h e alagamentos. Com o escritório no Belvedere, o carro leva 12–30 min."
+  },
+  "BH:Gutierrez": {
+    "shortRationale": "Torres residenciais, comércio de bairro e roubos abaixo da média de BH. Íngreme e quase sem vida de rua depois das 20h.",
+    "detailedJustification": "Bairro da Regional Oeste com 96% dos domicílios em apartamento, comércio e escolas, Clube Barroca e roubos ≈148/100 mil, abaixo da média de BH e 65% menores que em 2018. Contra: declive mediano de ~8% nas ruas, bairro que esvazia depois das 20h, furtos em alta em jan/2025 e roubos a pedestres na Av. Amazonas. A parte alta encosta no Morro das Pedras e só 55% das avaliações no QuintoAndar o consideram seguro."
+  },
+  "BH:Belvedere": {
+    "shortRationale": "O novo escritório fica no bairro, a ~8 min a pé. Torres com folga e clima ameno, mas feito para carro e com onda de roubos.",
+    "detailedJustification": "Futuro escritório do Nubank em BH (Av. Paulo Camilo Pena), a ~0,6 km, ~8 min a pé. Densidade baixa para um bairro de torres (2,7 mil hab/km²), ruas largas, clima mais ameno que a Centro-Sul, Lagoa Seca e BH Shopping. Contra: quase nada a pé e rua vazia à noite, roubos ≈371/100 mil (o dobro da média de BH) com ondas de assalto em 2026, trânsito e obras no Trevo do Belvedere e condomínio médio de R$ 3.418/mês."
+  },
+  "BH:Serra": {
+    "shortRationale": "Ruas arborizadas e torres de alto padrão perto da Afonso Pena, aluguel mais em conta. Ladeiras, noite deserta e segurança fraca.",
+    "detailedJustification": "Ruas arborizadas (100% das avaliações no QuintoAndar), 89% apartamentos e aluguel médio de ~R$ 3 mil, abaixo de Anchieta e Cruzeiro, a 12–30 min do Belvedere. Contra: 1º de BH em furtos com invasão de residência em 2024, roubos acima da média, vizinho do Aglomerado da Serra, maior favela de MG, quase sem áreas planas, deserto à noite e sem parque de 2 ha a 1 km."
+  },
+  "BH:Luxemburgo": {
+    "shortRationale": "Sossegado, de torres e com roubos na metade da média de BH, pertinho da Savassi. Mas é dos mais íngremes da cidade e tudo exige carro.",
+    "detailedJustification": "Torres (95% apartamentos), ruas arborizadas, comércio prático na Guaicuí e roubos ≈104/100 mil, cerca de metade da média de BH. Contra: declive mediano de 8% nas ruas, entre os mais inclinados de BH, moradores que dizem não dar para fazer nada a pé, nenhum parque de 2 ha a 1 km e furtos de carro e a lojas em 2026. A rota ao Belvedere cruza o Trevo do BH Shopping: 8–30 min."
+  },
+  "BH:Santa Lúcia": {
+    "shortRationale": "Baixa densidade e 6–25 min do Belvedere, perto da Barragem Santa Lúcia. Muito íngreme e encostado no Morro do Papagaio.",
+    "detailedJustification": "Tem o respiro buscado (3,9 mil hab/km², 69% apartamentos) e o Parque da Barragem Santa Lúcia a ~1,3 km, a 6–25 min de carro do escritório, com crimes violentos 51% menores que em 2018. Contra: relevo muito íngreme (desnível de 171 m), apenas 10 bares e restaurantes a 1 km, rua parada à noite, roubos acima da média e divisa com o Morro do Papagaio, com tiros contra a PM em ago/2026."
+  },
+  "BH:Mangabeiras": {
+    "shortRationale": "Verde e silêncio colados ao Parque das Mangabeiras e à Serra do Curral. Bairro de casas, ladeiras e nada a pé.",
+    "detailedJustification": "Parque das Mangabeiras (236 ha) e Serra do Curral a ~250 m, trânsito interno manso e a Praça do Papa reaberta em ago/2026; 11–25 min de carro até o Belvedere. Contra: 91% dos domicílios são casas, ladeiras com desnível de 286 m em 800 m, só 1 bar, restaurante ou café a 1 km, ruas vazias à noite e invasões de casa com reféns em jan e set/2026."
+  },
+  "RJ:Arpoador": {
+    "shortRationale": "Praia, metrô a 8 min a pé e bares na porta, com roubo de rua abaixo da média. O oposto do respiro: denso, lotado e caro.",
+    "detailedJustification": "Metrô General Osório a 8 min a pé, ~40 min porta a porta até o escritório, 139 bares, restaurantes e cafés a 1 km e praia própria para banho. A CISP 13 tem roubo de rua 43% abaixo da média da capital e zero mortes violentas em 12 meses. Contra: 33 mil hab/km² em prédios antigos, furtos 2,2× a média, arrastões na saída da praia e o Cantagalo na encosta, além do aluguel anunciado mais caro dos candidatos do Rio (R$ 154/m²)."
+  },
+  "RJ:Jd. Oceânico": {
+    "shortRationale": "Plano, praia a 500 m e polo de bares na Olegário Maciel, com metrô na porta. Mas são ~53 min até o escritório e roubo acima da média.",
+    "detailedJustification": "Ruas planas (declive mediano de 0,7%), prédios baixos de 3 andares, 8,8 mil hab/km², praia a ~500 m e bares na Av. Olegário Maciel; metrô Jardim Oceânico até a Carioca em 30 min. Contra: porta a porta até o Nubank ≈ 53 min de metrô e 50–80 min de carro no pico; roubo a transeunte na CISP 16 bem acima da capital, Força Municipal enviada ao entorno do terminal e guerra de facções em Rio das Pedras e Muzema."
+  },
+  "RJ:Grajaú": {
+    "shortRationale": "Plano, muito arborizado e calmo, com 55 ha de mata a 360 m e aluguel barato. Sem metrô, sem vida de rua e com tiroteios por perto.",
+    "detailedJustification": "Ruas planas (declive mediano de 2%) e muito arborizadas, 5,8 mil hab/km², o Parque Estadual do Grajaú (55 ha) a ~360 m e o aluguel anunciado mais barato dos pesquisados no Rio (R$ 32/m²). Contra: sem metrô, com ida ao escritório estimada em 45–55 min; só 16 pontos de comida e bebida a 1 km; ruas escuras e desertas à noite, roubo a transeunte +21% na CISP 20 e confrontos no Andaraí e no Macacos ouvidos no bairro."
+  },
+  "RJ:Tijuca (Pç Uruguai)": {
+    "shortRationale": "Plano, comércio farto e ~29 min de metrô até o escritório, com aluguel na metade da Lagoa. Denso e líder em tiroteios no Rio em 2026.",
+    "detailedJustification": "Eixo Saens Peña–Uruguai plano (declive mediano de 1,3%), com quatro estações da Linha 1, 105 pontos de comida e bebida a 1 km e aluguel anunciado de R$ 45/m². Contra: bairro com mais tiroteios do Rio em 2026, roubo de rua na CISP 19 47% acima da média da capital, 14,4 mil hab/km², prédios antigos e nenhum parque de 2 ha a 1 km."
+  },
+  "RJ:Lagoa": {
+    "shortRationale": "Plano, com a Lagoa e a ciclovia na porta e o Parque Lage a 400 m. Quase sem comércio, vazio à noite e com trânsito pesado.",
+    "detailedJustification": "Ruas planas (declive mediano de 2%), 96% apartamentos com densidade baixa, a Lagoa Rodrigo de Freitas (232 ha) com ciclovia em volta, Parque Lage a 0,4 km e roubo de rua 23% abaixo da média da capital na CISP 15. Contra: só 28 pontos de comida e bebida a 1 km, sem metrô na Fonte da Saudade, trânsito pesado nas avenidas da Lagoa, roubo a residência com a 2ª maior taxa da cidade, roubos na ciclovia e o aluguel anunciado mais caro dos quatro candidatos do Rio (R$ 94/m²)."
+  },
+  "RJ:Jardim Botânico": {
+    "shortRationale": "Lagoa, Jardim Botânico e floresta a menos de 600 m, com polo gastronômico na Pacheco Leão. Sem metrô e com trânsito caótico.",
+    "detailedJustification": "Lagoa a 439 m, Jardim Botânico a 416 m, Parque Nacional da Tijuca a 529 m, ruas arborizadas, densidade moderada (7,1 mil hab/km²) e restaurantes com mesinha na calçada na Rua Pacheco Leão. Roubo de rua na CISP 15 23% abaixo da média da capital. Contra: sem metrô, trânsito caótico na Rua Jardim Botânico, roubo a residência com a 2ª maior taxa da cidade, roubos armados de rua em 2026, alagamentos e aluguel anunciado de R$ 80/m²."
+  },
+  "RJ:Urca": {
+    "shortRationale": "Mar, morro e ruas calmas com pouquíssimos roubos a pedestre. Mas não tem metrô nem mercado, e as ruas alagam.",
+    "detailedJustification": "Baixa densidade (5,7 mil hab/km² nos setores habitados), Pista Cláudio Coutinho, Praia Vermelha e Praia da Urca a pé, só 9 roubos a pedestre no 1º semestre de 2025 (Botafogo teve 275) e ônibus 107 direto à Candelária em ~32 min. Contra: sem metrô e com mercado pequeno e caro, ruas que alagam com pouca chuva, Mureta lotada no fim de semana, roubo a transeunte +50% em 2025 e quase nenhuma torre moderna, só casas e prédios baixos antigos."
+  },
+  "SP:Vila Nova Conceição": {
+    "shortRationale": "Torres com recuo em ruas muito arborizadas e o Ibirapuera a 5 min a pé. Sem metrô, caríssimo e com roubos acima da capital.",
+    "detailedJustification": "Parque Ibirapuera a ~460 m, árvores em 96% das quadras, 92% apartamentos com 9 mil hab/km² e restaurantes e cafés a pé na Afonso Braz, Jacques Félix e João Lourenço. Contra: o 15º DP teve 1.974 roubos por 100 mil em 2025 (2,3× a capital), com invasões de residências; não há metrô no bairro, as bordas têm corredor de ônibus barulhento e o aluguel está entre os mais caros da cidade."
+  },
+  "SP:Perdizes": {
+    "shortRationale": "Arborizado, de torres, com comércio completo e metrô novo da Linha 6. As ladeiras são a queixa nº 1 e o distrito é denso.",
+    "detailedJustification": "Estação Perdizes da Linha 6 aberta em jul/2026, Parque da Água Branca (13,5 ha) a ~800 m, árvores em 77% das quadras e roubos 19,7% menores em 2026. Contra: ladeiras fortes (moradores dizem que não se anda sem carro), 16 mil hab/km², o 23º DP com 2.162 roubos por 100 mil (2,5× a capital), sobretudo de celular por motos, e ruído de motos de entrega e de eventos do Allianz Parque."
+  },
+  "SP:Pompeia": {
+    "shortRationale": "Mais cafés e restaurantes a pé entre os candidatos de SP, com Sesc e agora metrô. Denso, sem parque e barulhento.",
+    "detailedJustification": "73 pontos de comida e bebida a 1 km, cafés e restaurantes na Clélia, Coriolano e Av. Pompeia, o Sesc Pompeia e a estação Sesc-Pompeia da Linha 6 desde jul/2026; roubos em queda nos dois DPs. Contra: shows e jogos do Allianz Parque trazem ruído e ruas fechadas, a parte baixa alaga com frequência, há relatos de assaltos por motociclistas, nenhum parque de 2 ha a 1 km e o distrito tem 16 mil hab/km²."
+  },
+  "SP:Chácara Klabin": {
+    "shortRationale": "Torres modernas em ruas largas e arborizadas, com metrô dentro do bairro. Mas a rua morre à noite e não há parque grande a pé.",
+    "detailedJustification": "Estação Chácara Klabin (Linhas 2 e 5) no bairro, ruas largas e arborizadas com praças, torres de alto padrão recentes e o 6º DP com 625 roubos por 100 mil em 2025, abaixo da capital e em queda de 20,5% em 2026. Contra: quase sem bares e restaurantes, ruas desertas à noite, relatos de assaltos noturnos, nenhum parque de 2 ha a 1 km (Aclimação a ~1,7 km) e ladeiras entre as partes alta e baixa."
+  },
+  "CP:Parque Prado": {
+    "shortRationale": "Bosque dos Guarantãs na porta, ciclovia no canteiro e ~16 min sem trânsito até Viracopos. O miolo de torres é bem denso.",
+    "detailedJustification": "Bairro planejado de torres (100% apartamentos) com o Bosque dos Guarantãs (8,7 ha, lago e pista) a ~60 m, ciclovia de 2,6 km no canteiro central e ~15 km, ~16 min sem trânsito até a Bresco Viracopos. Roubos no 5º DP 32% abaixo da média por DP em 2025. Contra: 18,7 mil hab/km² (mais que o Cambuí), ladeiras pelo SRTM, gastronomia concentrada no shopping e vizinho Jd. Nova Europa com casos de violência."
+  },
+  "CP:Chácara Primavera": {
+    "shortRationale": "O mais plano dos bairros de Campinas pesquisados e com fama de tranquilo. Longe de Viracopos, denso e quase sem comércio a pé.",
+    "detailedJustification": "Ruas planas (declive mediano de 2%), moradores que o descrevem como tranquilo e seguro, zero homicídio no 4º DP em 2025–26 e a Lagoa do Taquaral a 1,3 km. Contra: 21 km, ~25 min sem trânsito até Viracopos; 17,6 mil hab/km²; só 10 pontos de comida a 1 km; transporte público fraco e o 4º DP liderando Campinas em furtos e furtos de veículo."
+  },
+  "CP:Chácara da Barra": {
+    "shortRationale": "Um quarto da densidade do Cambuí, ruas arborizadas e o Iguatemi ao lado. Bairro de casas e prédios antigos, parado à noite.",
+    "detailedJustification": "Baixa densidade (4,4 mil hab/km²), ruas arborizadas entre a Norte-Sul e o Iguatemi, zero homicídio no 4º DP em 2025–26 e a Lagoa do Taquaral a 1,5 km; ~20 min sem trânsito até Viracopos. Contra: só 39% apartamentos, prédios dos anos 70–80 com condomínio caro, 8 pontos de comida a 1 km, avenida abandonada à noite e furtos em alta no 4º DP, líder de Campinas."
+  },
+  "CP:Mansões Santo Antônio": {
+    "shortRationale": "Torres recentes e fama de bairro tranquilo perto do Dom Pedro. Muito denso, de ladeiras, sem parque e longe do escritório.",
+    "detailedJustification": "Verticalizado desde ~2002, com 95% apartamentos, Shopping Parque Dom Pedro a ~1,1 km, moradores que caminham à noite até as 22h e zero homicídio no 4º DP em 2025–26. Contra: 27 mil hab/km² (1,7× o Cambuí), declive mediano de 7,3% nas ruas, nenhum parque de 2 ha a 1 km, furtos em alta no 4º DP e ~31 km, ~27 min sem trânsito até a Bresco."
+  },
+  "GO:Setor Marista": {
+    "shortRationale": "A régua de tudo: plano, de torres espaçadas, com Parque Areião colado e polo gastronômico. O aluguel é o mais caro de Goiânia.",
+    "detailedJustification": "Plano (declive mediano ≈2,5%), 87% apartamentos com densidade moderada (≈5,1 mil hab/km²), IDHM de 0,953, Parque Areião colado e Vaca Brava e Buritis a menos de 1 km, polo gastronômico nas ruas 1136, 1134, 146 e Av. 136 e a pista de corrida da Ricardo Paranhos. Contra: aluguel de R$ 67/m², o mais caro da cidade, ruído de bares, furtos noticiados em 2025–26 e trânsito pesado nas arteriais; não há dado oficial de crime por bairro."
+  },
+  "BSB:Águas Claras": {
+    "shortRationale": "Plano, de torres, com metrô, parque grande e rua viva até tarde, e roubo a pedestre abaixo do DF. Denso, alto e barulhento.",
+    "detailedJustification": "Ruas planas (declive mediano de 2,7%), 99% apartamentos, 4 estações de metrô, Parque Ecológico a ~0,5 km da estação, bares e comércio no térreo e roubo a pedestre ≈43% da taxa do DF; aluguel de R$ 54/m², abaixo do Marista. Contra: 14 mil hab/km², a maior densidade do DF, torres de até 40 andares, ruído de motos e bares até 5h, roubo a pedestre +62% em 2025 e aluguel com a maior alta do DF."
+  }
+}

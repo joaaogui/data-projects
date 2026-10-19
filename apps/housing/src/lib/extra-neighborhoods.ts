@@ -7,6 +7,7 @@ import {
   type NeighborhoodSafetyMetrics,
 } from "@/lib/scoring-engine";
 import type { CityHubCode, NeighborhoodEntry } from "@/types/housing";
+import type { NeighborhoodRationale } from "@/types/neighborhood-research";
 
 const CITY_NAMES: Record<CityHubCode, string> = {
   BH: "Belo Horizonte",
@@ -38,6 +39,7 @@ export function buildExtraNeighborhoods(
   catalog: readonly NeighborhoodEntry[],
   listings: readonly { cityCode: CityHubCode; neighborhood: string; isActive?: boolean }[],
   isResearched: (cityCode: CityHubCode, neighborhood: string) => boolean,
+  rationaleFor: (cityCode: CityHubCode, neighborhood: string) => NeighborhoodRationale | null = () => null,
 ): NeighborhoodEntry[] {
   const withListings = new Set<string>();
   for (const p of listings) {
@@ -72,6 +74,7 @@ export function buildExtraNeighborhoods(
       budgetFit: m.budgetFit,
       safetyCar: m.safetyCar,
     };
+    const rationale = rationaleFor(m.cityCode, name);
     extras.push({
       cityCode: m.cityCode,
       cityName: sameCity?.cityName ?? CITY_NAMES[m.cityCode],
@@ -88,8 +91,8 @@ export function buildExtraNeighborhoods(
       buildingStockFitScore: m.buildingStock,
       budgetFitScore: m.budgetFit,
       safetyCarScore: m.safetyCar,
-      shortRationale: "",
-      detailedJustification: "",
+      shortRationale: rationale?.shortRationale ?? "",
+      detailedJustification: rationale?.detailedJustification ?? "",
       pros: [],
       cons: [],
       isExtra: true,

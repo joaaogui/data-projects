@@ -12,6 +12,7 @@ import { getPrecomputedListings, hashContent } from "@/lib/listing-features-stor
 import { logger } from "@/lib/logger";
 import {
   getNeighborhoodDossier,
+  getNeighborhoodRationale,
   getNeighborhoodSummary,
   summarizeDossier,
 } from "@/lib/neighborhood-research";
@@ -27,7 +28,7 @@ import {
   type PrecomputedListing,
 } from "@/lib/scoring-engine";
 import type { CityHubCode, ScoringWeights } from "@/types/housing";
-import type { NeighborhoodResearchSummary } from "@/types/neighborhood-research";
+import type { NeighborhoodRationale, NeighborhoodResearchSummary } from "@/types/neighborhood-research";
 
 const MAX_SCORED_SETS = 6;
 
@@ -154,7 +155,14 @@ export async function getDatasetMeta(): Promise<DatasetMeta> {
     (city, name) =>
       !REFERENCE_NEIGHBORHOODS.some((ref) => ref.key === `${city}:${name}`) &&
       getNeighborhoodSummary(city, name)?.maristaSource === "rubric",
+    getNeighborhoodRationale,
   );
+  const referenceRationales: Record<string, NeighborhoodRationale> = {};
+  for (const ref of REFERENCE_NEIGHBORHOODS) {
+    const sep = ref.key.indexOf(":");
+    const rationale = getNeighborhoodRationale(ref.key.slice(0, sep), ref.key.slice(sep + 1));
+    if (rationale) referenceRationales[ref.key] = rationale;
+  }
   const neighborhoodResearch: Record<string, NeighborhoodResearchSummary> = {};
   for (const n of [...served.neighborhoods, ...extraNeighborhoods]) {
     const summary = getNeighborhoodSummary(n.cityCode, n.neighborhood);
@@ -175,6 +183,7 @@ export async function getDatasetMeta(): Promise<DatasetMeta> {
       Object.entries(namesByCity).map(([city, names]) => [city, [...names]]),
     ),
     neighborhoodResearch,
+    referenceRationales,
   };
   state.metaCache = { servedHash: served.servedHash, meta };
   return meta;

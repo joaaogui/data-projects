@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import rationalesSource from "@/data/neighborhood-rationales.json";
 import researchFile from "@/data/neighborhood-research.json";
 import snapshot from "@/data/seed-snapshot.json";
 import { filterVisibleCities } from "@/lib/city-config";
@@ -115,6 +116,43 @@ describe("buildExtraNeighborhoods", () => {
     );
     expect(unresearched.length).toBeGreaterThan(0);
     for (const n of unresearched) expect(EXTRAS.map(keyOf)).not.toContain(keyOf(n));
+  });
+});
+
+describe("ranking-tab rationales (src/data/neighborhood-rationales.json)", () => {
+  const RATIONALES = RESEARCH.rationales ?? {};
+  const rationaleFor = (city: CityHubCode, name: string) => RATIONALES[`${city}:${name}`] ?? null;
+  // A listing in every table neighbourhood: each researched row that live data could turn into an extra
+  const everyTableRow = Object.entries(NEIGHBORHOOD_SAFETY_AND_METRICS).map(([key, m]) => ({
+    cityCode: m.cityCode,
+    neighborhood: key.slice(key.indexOf(":") + 1),
+  }));
+  const possibleExtras = buildExtraNeighborhoods(CATALOG, everyTableRow, hasRubric, rationaleFor);
+
+  it("has a rationale for every researched extra that can reach the ranking, hidden cities included, and both references", () => {
+    expect(possibleExtras.length).toBeGreaterThanOrEqual(EXTRAS.length);
+    const missing = [
+      ...possibleExtras.map((n) => `${n.cityCode}:${n.neighborhood}`),
+      "GO:Setor Marista",
+      "BSB:Águas Claras",
+    ].filter((key) => !RATIONALES[key]);
+    expect(missing).toEqual([]);
+    for (const n of possibleExtras) {
+      expect(n.shortRationale).not.toBe("");
+      expect(n.detailedJustification).not.toBe("");
+    }
+  });
+
+  it("keeps the one-liner short and drops hardcoded ranks that would go stale", () => {
+    for (const [key, r] of Object.entries(RATIONALES)) {
+      expect(r.shortRationale.length, key).toBeLessThanOrEqual(160);
+      expect(r.shortRationale, key).not.toMatch(/\n/);
+      expect(`${r.shortRationale} ${r.detailedJustification}`, key).not.toMatch(/Nota\s+[\d.,]+\/10|#\d+/);
+    }
+  });
+
+  it("is compiled into neighborhood-research.json as written (rebuild after editing the source)", () => {
+    expect(RATIONALES).toEqual(rationalesSource);
   });
 });
 

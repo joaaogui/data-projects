@@ -96,9 +96,17 @@ export interface NeighborhoodResearchSummary {
   redFlag: string | null;
 }
 
+/** Ranking-tab text for a researched row outside the catalog, written from its dossier (src/data/neighborhood-rationales.json). */
+export interface NeighborhoodRationale {
+  shortRationale: string;
+  detailedJustification: string;
+}
+
 export interface NeighborhoodResearchFile {
   builtAt: string;
   dossiers: Record<string, NeighborhoodDossier>;
   /** Engine keys covered by a combined dossier (e.g. "BH:Vale do Sereno" → "BH:Vila da Serra - Vale do Sereno"). */
   aliases?: Record<string, string>;
+  /** By ranking-row key (extras and references); every key resolves to a dossier directly or via `aliases`. */
+  rationales?: Record<string, NeighborhoodRationale>;
 }

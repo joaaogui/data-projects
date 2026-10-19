@@ -4,7 +4,7 @@
  *   TSX_DISABLE_CACHE=1 pnpm exec tsx --conditions=react-server scripts/build-neighborhood-research.ts [--in <dir>] [--rubric <file>]
  *
  * Run from apps/housing. Defaults read ~/.cursor/Empty/.tmp/nb-research/out/*.json and, when present,
- * ../rubric-scores.json. Keys follow the engine's neighbourhood keys (`<cityCode>:<normalizeNeighborhoodKey>`).
+ * ../rubric-scores.json; the ranking-tab rationales come from the checked-in src/data/neighborhood-rationales.json. Keys follow the engine's neighbourhood keys (`<cityCode>:<normalizeNeighborhoodKey>`).
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -15,6 +15,7 @@ import { normalizeNeighborhoodKey, resolveNeighborhoodSafetyAndMetrics } from ".
 import type { CityHubCode } from "../src/types/housing";
 import type {
   NeighborhoodDossier,
+  NeighborhoodRationale,
   NeighborhoodResearchFile,
   ResearchCrimeSeries,
   ResearchEvidence,
@@ -359,6 +360,23 @@ export function buildResearchFile(
   return out;
 }
 
+/**
+ * Adds the hand-written ranking-tab rationales (src/data/neighborhood-rationales.json). Throws when a key has no
+ * dossier (directly or via an alias) or a text is empty, so a stale or mistyped key fails the build.
+ */
+export function attachRationales(file: NeighborhoodResearchFile, raw: unknown): NeighborhoodResearchFile {
+  const rationales: Record<string, NeighborhoodRationale> = {};
+  for (const [key, value] of Object.entries(asRec(raw))) {
+    if (!file.dossiers[key] && !file.aliases?.[key]) throw new Error(`rationale ${key}: no dossier`);
+    const entry = asRec(value);
+    const shortRationale = str(entry.shortRationale);
+    const detailedJustification = str(entry.detailedJustification);
+    if (!shortRationale || !detailedJustification) throw new Error(`rationale ${key}: empty text`);
+    rationales[key] = { shortRationale, detailedJustification };
+  }
+  return { ...file, rationales };
+}
+
 function argValue(flag: string): string | null {
   const idx = process.argv.indexOf(flag);
   return idx !== -1 ? (process.argv[idx + 1] ?? null) : null;
@@ -371,7 +389,11 @@ function main() {
   const files = readdirSync(inDir).filter((f) => f.endsWith(".json")).sort((a, b) => a.localeCompare(b));
   const dossiers = files.map((f) => JSON.parse(readFileSync(join(inDir, f), "utf8")) as unknown);
   const rubricRaw = existsSync(rubricPath) ? (JSON.parse(readFileSync(rubricPath, "utf8")) as unknown) : [];
-  const built = buildResearchFile(dossiers, rubricRaw);
+  const rationalesPath = join(process.cwd(), "src/data/neighborhood-rationales.json");
+  const built = attachRationales(
+    buildResearchFile(dossiers, rubricRaw),
+    JSON.parse(readFileSync(rationalesPath, "utf8")) as unknown,
+  );
   const outPath = join(process.cwd(), "src/data/neighborhood-research.json");
   const json = `${JSON.stringify(built)}\n`;
   writeFileSync(outPath, json);

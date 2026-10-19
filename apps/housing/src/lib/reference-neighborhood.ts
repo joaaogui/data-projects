@@ -1,6 +1,7 @@
 import { computeWeightedNeighborhoodScore } from "@/lib/scoring-engine";
 import { rubricToUrbanBreathing } from "@/lib/urban-breathing";
 import type { ComputedNeighborhood, ScoringWeights } from "@/types/housing";
+import type { NeighborhoodRationale } from "@/types/neighborhood-research";
 
 export interface ReferenceNeighborhood {
   key: string;
@@ -77,6 +78,8 @@ export interface ReferenceNeighborhoodRow {
   buildingStockFitScore: number;
   budgetFitScore: number;
   safetyCarScore: number;
+  shortRationale: string;
+  detailedJustification: string;
 }
 
 function median(values: number[]): number {
@@ -89,6 +92,7 @@ function median(values: number[]): number {
 export function computeReferenceNeighborhoods(
   ranked: readonly ComputedNeighborhood[],
   weights: ScoringWeights,
+  rationales: Readonly<Record<string, NeighborhoodRationale>> = {},
 ): ReferenceNeighborhoodRow[] {
   if (ranked.length === 0) return [];
   const commuteLogistics = median(ranked.map((n) => n.commuteLogisticsScore));
@@ -106,6 +110,8 @@ export function computeReferenceNeighborhoods(
       buildingStockFitScore: buildingStock,
       budgetFitScore: budgetFit,
       safetyCarScore: safetyCar,
+      shortRationale: rationales[ref.key]?.shortRationale ?? "",
+      detailedJustification: rationales[ref.key]?.detailedJustification ?? "",
     };
   });
 }
