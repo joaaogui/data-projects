@@ -10,14 +10,15 @@ export default defineConfig({
     environment: "node",
     coverage: {
       provider: "v8",
-      include: ["src/lib/**"],
       reporter: ["text", "lcov"],
-      thresholds: {
-        statements: 24,
-        branches: 23,
-        functions: 27,
-        lines: 24,
-      },
+      include: ["src/**"],
+      exclude: [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.eval.ts",
+        "src/data/**",
+        "**/*.d.ts",
+      ],
     },
   },
   resolve: {

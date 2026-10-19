@@ -9,6 +9,18 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      include: ["src/**"],
+      exclude: [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.eval.ts",
+        "src/data/**",
+        "**/*.d.ts",
+      ],
+    },
   },
   resolve: {
     alias: {

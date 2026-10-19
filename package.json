@@ -9,7 +9,8 @@
     "typecheck": "turbo typecheck",
     "clean": "turbo clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "test:unit": "pnpm --filter @data-projects/shared --filter @data-projects/ui --filter brawl-account-coach --filter clash-deck-advisor --filter housing --filter imdb-best-season --filter lastfm-habits --filter spotify-popularity --filter youtube-analyzer run test"
+    "test:unit": "pnpm --filter @data-projects/shared --filter @data-projects/ui --filter brawl-account-coach --filter clash-deck-advisor --filter housing --filter imdb-best-season --filter lastfm-habits --filter spotify-popularity --filter youtube-analyzer run test",
+    "test:coverage": "pnpm --filter @data-projects/shared --filter @data-projects/ui --filter brawl-account-coach --filter clash-deck-advisor --filter housing --filter imdb-best-season --filter lastfm-habits --filter spotify-popularity --filter youtube-analyzer run test:coverage"
   },
   "devDependencies": {
     "prettier": "catalog:",
