@@ -419,9 +419,9 @@ export const NEIGHBORHOOD_SAFETY_AND_METRICS: Record<
   "CP:Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 9.6, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
   "CP:Parque Taquaral": { cityCode: "CP", commute: "35-40 min do Nubank (Viracopos)", urbanBreathing: 9.6, commuteLogistics: 7.5, buildingStock: 9.2, budgetFit: 9.4, safetyCar: 8.6 },
   "CP:Mansões Santo Antônio": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 8.0, commuteLogistics: 7.2, buildingStock: 8.6, budgetFit: 8.6, safetyCar: 8.6 },
-  "CP:Jd. Guanabara": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
-  "CP:Jardim Guanabara": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
-  "CP:Guanabara": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 7.2, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
+  "CP:Jd. Guanabara": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 5.0, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
+  "CP:Jardim Guanabara": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 5.0, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
+  "CP:Guanabara": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 5.0, commuteLogistics: 8.4, buildingStock: 8.6, budgetFit: 9.0, safetyCar: 8.5 },
   "CP:Chácara Primavera": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 8.2, commuteLogistics: 7.4, buildingStock: 8.4, budgetFit: 8.4, safetyCar: 8.5 },
   "CP:Chácara da Barra": { cityCode: "CP", commute: "25-30 min do Nubank (Viracopos)", urbanBreathing: 8.2, commuteLogistics: 7.6, buildingStock: 8.2, budgetFit: 8.2, safetyCar: 8.5 },
   "CP:Jd. Chapadão": { cityCode: "CP", commute: "30-35 min do Nubank (Viracopos)", urbanBreathing: 7.8, commuteLogistics: 6.5, buildingStock: 6.5, budgetFit: 7.8, safetyCar: 8.5 },
@@ -5435,7 +5435,7 @@ export function scorePrecomputedListings(
     }
 
     // City Preference Adjustment (User preference: penalize São Paulo Capital heavily; since SP neighborhoods already carry a -1.5 dynamicScore discount [-9.75 pts], add -10.0 pts so total SP property penalty is ~-19.8 pts; BH, RJ, and CP compete on equal footing)
-    const cityPreferencePoints = prop.cityCode === "SP" ? -10.0 : 0;
+    const cityPreferencePoints = prop.cityCode === "SP" ? -10.0 : prop.cityCode === "CP" ? -20.0 : 0;
 
     const breakdown = {
       neighborhoodPoints: Math.round(neighborhoodPoints * 10) / 10,

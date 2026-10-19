@@ -2384,9 +2384,9 @@ describe("Housing Dynamic Scoring Engine", () => {
     const bosqueNb = nbs.find((n) => n.neighborhood === "Bosque")!;
     const guanabaraNb = nbs.find((n) => n.neighborhood === "Jd. Guanabara")!;
 
-    // Recalibrated CP:Bosque (7.4) and CP:Jd. Guanabara (7.2) stay below 8.0 and score well below Taquaral (9.8)
+    // CP:Bosque (7.4) and CP:Jd. Guanabara (5.0, lowered after the user's visit) stay below 8.0 and score well below Taquaral (9.8)
     expect(bosqueNb.urbanBreathingScore).toBe(7.4);
-    expect(guanabaraNb.urbanBreathingScore).toBe(7.2);
+    expect(guanabaraNb.urbanBreathingScore).toBe(5.0);
     expect(taquaralNb.dynamicScore - bosqueNb.dynamicScore).toBeGreaterThan(1.0);
     expect(taquaralNb.dynamicScore - guanabaraNb.dynamicScore).toBeGreaterThan(1.0);
 
@@ -3621,7 +3621,6 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
       ["BH", "Sion"],
       ["CP", "Taquaral"],
       ["CP", "Bosque"],
-      ["CP", "Jd. Guanabara"],
       ["RJ", "Flamengo"],
       ["RJ", "Laranjeiras"],
       ["RJ", "Botafogo (Orla)"],
@@ -4478,7 +4477,7 @@ describe("Round-2 audit rules: duplicates, price/IPTU, lofts, furniture, cobertu
       DEFAULT_WEIGHTS,
     );
 
-    expect(TAQUARAL_FAR_FROM_LAGOA_URBAN_BREATHING).toBe(7.2);
+    expect(TAQUARAL_FAR_FROM_LAGOA_URBAN_BREATHING).toBe(5.0);
     const toPts = (nbScore: number) => Math.round(nbScore * DEFAULT_WEIGHTS.neighborhoodMultiplier * 10) / 10;
     expect(nbPts("taq-near")).toBe(toPts(taquaral.dynamicScore));
     expect(nbPts("taq-far")).toBe(toPts(farNbScore));
