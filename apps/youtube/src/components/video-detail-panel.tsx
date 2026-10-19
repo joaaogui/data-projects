@@ -2,7 +2,7 @@
 
 import { useChannel } from "@/hooks/use-channel-context";
 import { useVideoDescription } from "@/hooks/use-video-detail";
-import { formatCompact } from "@/lib/format";
+import { formatCompact, hqThumbnail } from "@/lib/format";
 import { formatDuration } from "@/lib/scoring";
 import type { ScoreComponents, VideoData } from "@/types/youtube";
 import { Button } from "@data-projects/ui";
@@ -181,7 +181,7 @@ export function VideoDetailPanel({
             <div className="sm:w-[300px] shrink-0">
               <div className="relative aspect-video w-full">
                 <Image
-                  src={video.thumbnail.replace("default", "hqdefault")}
+                  src={hqThumbnail(video.thumbnail)}
                   alt={video.title}
                   fill
                   sizes="(min-width: 640px) 300px, 100vw"

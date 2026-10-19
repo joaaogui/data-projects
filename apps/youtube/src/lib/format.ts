@@ -7,6 +7,15 @@ export { formatCompact, formatNumber, getAgeLabel };
  * the accent, everything below it fades through the greyscale ramp. This keeps
  * a table of scores scannable without turning it into a rainbow.
  */
+/**
+ * Larger thumbnail from a YouTube thumbnail URL. Catalog thumbnails can be
+ * `default`, `mqdefault`, `hqdefault` or `sddefault`; a plain
+ * `replace("default", "hqdefault")` turns `mqdefault` into the 404 `mqhqdefault`.
+ */
+export function hqThumbnail(url: string): string {
+  return url.replace(/(?:mq|hq|sd)?default(?=\.)/, "hqdefault");
+}
+
 export function getEngagementColor(rate: number): string {
   if (rate >= 60) return "text-data";
   if (rate >= 40) return "text-foreground";

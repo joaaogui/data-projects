@@ -433,7 +433,7 @@ function ChannelPageContent() {
                     />
                   )}
                   {activeTab === "videos" && <VideosTable data={videos} onOpenTimeline={handleOpenTimeline} />}
-                  {activeTab === "timeline" && <TimelineView videos={videos} initialVideoId={timelineVideoId} />}
+                  {activeTab === "timeline" && <TimelineView channelId={channelId} videos={videos} initialVideoId={timelineVideoId} />}
                   {activeTab === "sagas" && <SagasView channelId={channelId} videos={videos} />}
                   {activeTab === "discover" && <DiscoverView channelId={channelId} videos={videos} />}
                 </ErrorBoundary>

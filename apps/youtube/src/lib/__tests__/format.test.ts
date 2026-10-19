@@ -4,7 +4,23 @@ import {
   getScoreBorderClass,
   getEngagementColor,
   getEfficiencyColor,
+  hqThumbnail,
 } from "@/lib/format";
+
+describe("hqThumbnail", () => {
+  it.each(["default", "mqdefault", "hqdefault", "sddefault"])(
+    "upgrades %s.jpg to hqdefault.jpg",
+    (name) => {
+      expect(hqThumbnail(`https://i.ytimg.com/vi/abc123DEF45/${name}.jpg`)).toBe(
+        "https://i.ytimg.com/vi/abc123DEF45/hqdefault.jpg"
+      );
+    }
+  );
+
+  it("leaves a URL without a thumbnail name alone", () => {
+    expect(hqThumbnail("https://example.invalid/pic.png")).toBe("https://example.invalid/pic.png");
+  });
+});
 
 describe("getScoreColorClass", () => {
   it("returns the accent for score >= 70", () => {
