@@ -1,0 +1,232 @@
+{
+  "snapshot": "2026-10-16T23:31:59.413628+00:00",
+  "benchmark": {
+    "capturedAt": "2026-10-16T23:31:59.413628+00:00",
+    "measurementAt": "2026-10-16T23:33:41.863Z",
+    "environment": {
+      "node": "v26.9.0",
+      "arch": "arm64",
+      "cpu": "Apple M4 Pro"
+    },
+    "rows": 5133,
+    "firstScoringMs": 820.18,
+    "warmScoring": {
+      "n": 15,
+      "minMs": 613.85,
+      "medianMs": 626.59,
+      "p95Ms": 686.16,
+      "maxMs": 686.16
+    },
+    "parseSnapshot": {
+      "n": 15,
+      "minMs": 41.8,
+      "medianMs": 42.54,
+      "p95Ms": 50.12,
+      "maxMs": 50.12
+    },
+    "parsePhotoCache": {
+      "n": 15,
+      "minMs": 7.67,
+      "medianMs": 7.81,
+      "p95Ms": 9.52,
+      "maxMs": 9.52
+    },
+    "stringifySnapshot": {
+      "n": 15,
+      "minMs": 27.02,
+      "medianMs": 27.4,
+      "p95Ms": 31.79,
+      "maxMs": 31.79
+    },
+    "photoEnrichment": {
+      "n": 15,
+      "minMs": 1.09,
+      "medianMs": 1.24,
+      "p95Ms": 2.75,
+      "maxMs": 2.75
+    },
+    "sizes": {
+      "snapshot": {
+        "rawBytes": 21563286,
+        "gzipBytes": 3252575
+      },
+      "photoCache": {
+        "rawBytes": 5068759,
+        "gzipBytes": 644610
+      },
+      "illustrativeSummaries": {
+        "rawBytes": 7096506,
+        "gzipBytes": 723572
+      }
+    },
+    "topFieldsByUncompressedValueBytes": [
+      [
+        "samplePhotos",
+        7759582
+      ],
+      [
+        "placesNearby",
+        2358582
+      ],
+      [
+        "description",
+        1849251
+      ],
+      [
+        "generatedDescription",
+        1557023
+      ],
+      [
+        "amenities",
+        814328
+      ],
+      [
+        "url",
+        549073
+      ],
+      [
+        "photoCaptions",
+        525056
+      ],
+      [
+        "installations",
+        355424
+      ],
+      [
+        "title",
+        327788
+      ],
+      [
+        "positiveSignals",
+        308437
+      ]
+    ],
+    "assumptions": [
+      "Local Node microbenchmark; excludes React rendering, DOM, network and database.",
+      "Initial scoring excludes JSON parse and TypeScript compilation.",
+      "Summary projection is illustrative and does not preserve all existing detail/filter functionality; requires normalized evidence index and lazy detail endpoint."
+    ]
+  },
+  "searchPrototype": {
+    "rows": 5133,
+    "indexBuildMs": 37.39,
+    "queries": [
+      {
+        "query": "varanda",
+        "results": 1398,
+        "equivalent": true,
+        "current": {
+          "medianMs": 16.15,
+          "p95Ms": 19.26
+        },
+        "indexed": {
+          "medianMs": 2.82,
+          "p95Ms": 3.84
+        }
+      },
+      {
+        "query": "academia",
+        "results": 1787,
+        "equivalent": true,
+        "current": {
+          "medianMs": 16.59,
+          "p95Ms": 16.95
+        },
+        "indexed": {
+          "medianMs": 4.87,
+          "p95Ms": 6.07
+        }
+      },
+      {
+        "query": "zz-no-match-synthetic",
+        "results": 0,
+        "equivalent": true,
+        "current": {
+          "medianMs": 14.9,
+          "p95Ms": 15.84
+        },
+        "indexed": {
+          "medianMs": 3.08,
+          "p95Ms": 4.27
+        }
+      }
+    ],
+    "note": "Temporary prototype replaces only repeated search-string construction with a WeakMap. Exact exported filter function otherwise unchanged; UI imports stubbed and no React rendering or effects run. Index invalidation and app integration not implemented."
+  },
+  "cpuProfile": {
+    "sampleCount": 4156,
+    "topSelfSamples": [
+      {
+        "name": "(anonymous)",
+        "samples": 1197,
+        "percent": 28.8
+      },
+      {
+        "name": "evaluateApartmentNuances",
+        "samples": 592,
+        "percent": 14.2
+      },
+      {
+        "name": "extractNonRedundantHighlights",
+        "samples": 590,
+        "percent": 14.2
+      },
+      {
+        "name": "classifyFurnitureTier",
+        "samples": 347,
+        "percent": 8.3
+      },
+      {
+        "name": "detectUnitPenthouseOrDuplex",
+        "samples": 294,
+        "percent": 7.1
+      },
+      {
+        "name": "normText",
+        "samples": 220,
+        "percent": 5.3
+      },
+      {
+        "name": "extractExplicitFloorFromText",
+        "samples": 218,
+        "percent": 5.2
+      },
+      {
+        "name": "evaluateStreetMicroEnvironment",
+        "samples": 213,
+        "percent": 5.1
+      },
+      {
+        "name": "detectUnitTopFloor",
+        "samples": 178,
+        "percent": 4.3
+      },
+      {
+        "name": "(garbage collector)",
+        "samples": 67,
+        "percent": 1.6
+      },
+      {
+        "name": "buildShortJustification",
+        "samples": 41,
+        "percent": 1
+      },
+      {
+        "name": "isExplicitUnitGroundFloor",
+        "samples": 37,
+        "percent": 0.9
+      },
+      {
+        "name": "buildNarrativeJustification",
+        "samples": 31,
+        "percent": 0.7
+      },
+      {
+        "name": "computeDynamicProperties",
+        "samples": 28,
+        "percent": 0.7
+      }
+    ],
+    "note": "Local V8 sampled self time, including runtime/GC; not browser render profiling. Regex function names describe expressions, not data."
+  }
+}
