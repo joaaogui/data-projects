@@ -1,11 +1,16 @@
+import { findStoryThreads } from "./story-threads";
 import type { Saga, SagaSource, VideoData } from "@/types/youtube";
 
-/** Where a series came from: a saga (playlist / AI / manual) or detected from titles. */
-export type SeriesKind = SagaSource | "title";
+/**
+ * Where a series came from: a saga (playlist / AI / manual), numbered titles
+ * ("Part 2", "#5"), or a story inferred from nearby videos sharing distinctive
+ * title words.
+ */
+export type SeriesKind = SagaSource | "title" | "story";
 
 /** A run of videos that continue one another, oldest first. */
 export interface Series {
-  /** Saga id, or `title:<normalized stem>` for title-detected series. */
+  /** Saga id, `title:<normalized stem>` for title-detected series, `story:<first videoId>` for stories. */
   id: string;
   name: string;
   kind: SeriesKind;
@@ -115,8 +120,8 @@ function toSeries(
 }
 
 /**
- * Groups `videos` into series. Sagas win over title detection; a video joins
- * at most one series. See the unit tests for the exact rules.
+ * Groups `videos` into series. Sagas win over title detection, which wins over
+ * story threads; a video joins at most one series. See the unit tests for the exact rules.
  */
 export function buildSeriesIndex(
   videos: readonly VideoData[],
@@ -165,6 +170,11 @@ export function buildSeriesIndex(
     const ids = chosen.map((m) => m.id);
     const first = chosen.reduce((a, b) => (at.get(b.id)! < at.get(a.id)! ? b : a));
     add(toSeries(`title:${stem}`, first.parsed.display, "title", ids, at, published));
+  }
+
+  const dated = sorted.map((v) => ({ videoId: v.videoId, title: v.title, time: time(v.publishedAt) }));
+  for (const thread of findStoryThreads(dated, claimed)) {
+    add(toSeries(`story:${thread.videoIds[0]}`, thread.name, "story", thread.videoIds, at, published));
   }
 
   series.sort(

@@ -1,20 +1,13 @@
 "use client";
 
-import type { SeriesIndex } from "@/lib/series";
 import type { VideoData } from "@/types/youtube";
 import { createContext, use } from "react";
 
-/**
- * Stable lookups and actions shared by rows, the series strip and the chain.
- * Expansion/highlight state is deliberately NOT here (it is passed as props) so
- * toggling one row does not re-render every consumer.
- */
+/** Stable lookups and actions shared by the detail panel and the episode strip. */
 export interface TimelineNav {
-  seriesIndex: SeriesIndex;
   videoById: ReadonlyMap<string, VideoData>;
-  /** Reveal (batch + year), scroll to, expand and briefly highlight a video in Timeline mode. */
+  /** Select a video and scroll the map to it. */
   reveal: (videoId: string) => void;
-  toggle: (videoId: string) => void;
 }
 
 export const TimelineNavContext = createContext<TimelineNav | null>(null);

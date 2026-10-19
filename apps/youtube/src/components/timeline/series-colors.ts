@@ -32,7 +32,8 @@ export function seriesColor(seriesId: string): string {
 
 export const SERIES_KIND_LABEL: Record<SeriesKind, string> = {
   playlist: "Playlist",
-  "ai-detected": "AI detected",
+  "ai-detected": "AI",
   manual: "Manual",
-  title: "From titles",
+  title: "Numbered",
+  story: "Story",
 };

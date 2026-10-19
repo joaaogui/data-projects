@@ -10,7 +10,10 @@ import type { ReactNode } from "react";
 import { DEFAULT_WEIGHTS } from "../metric-icon";
 import { ScoreRing } from "../score-ring";
 
-/** Inline detail for one video; `children` (e.g. the series strip) renders below it. */
+/**
+ * Detail for one video; `children` (e.g. the series strip) renders below it.
+ * Breakpoints are container queries: render it inside an `@container`.
+ */
 export function ExpandedDetail({
   video,
   children,
@@ -22,13 +25,13 @@ export function ExpandedDetail({
 
   return (
     <div className="border-t border-border bg-muted/20">
-      <div className="flex flex-col gap-5 p-4 sm:flex-row sm:p-5">
-        <div className="relative aspect-video w-full shrink-0 sm:w-72">
+      <div className="flex flex-col gap-4 p-4 @lg:flex-row">
+        <div className="relative aspect-video w-full shrink-0 @lg:w-56">
           <Image
             src={hqThumbnail(video.thumbnail)}
             alt={video.title}
             fill
-            sizes="(min-width: 640px) 288px, 100vw"
+            sizes="(min-width: 1280px) 384px, (min-width: 640px) 224px, 100vw"
             className="rounded-md object-cover"
           />
           <span className="absolute bottom-2 right-2 rounded bg-black/80 px-1.5 py-0.5 text-xs font-medium tabular-nums text-white">
