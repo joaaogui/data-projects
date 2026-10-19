@@ -87,7 +87,7 @@ function ScoreAlertCard({ item }: Readonly<{ item: ScoreAlertFeedItem }>) {
       className="group block rounded-xl border border-border bg-card/60 p-4 hover:bg-muted/30 hover:border-primary/20 transition-all duration-200"
     >
       <div className="flex items-start gap-3">
-        <div className={`rounded-lg p-2 shrink-0 ${isUp ? "bg-muted" : "bg-muted"}`}>
+        <div className="rounded-lg p-2 shrink-0 bg-muted">
           {isUp ? (
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           ) : (
@@ -103,7 +103,7 @@ function ScoreAlertCard({ item }: Readonly<{ item: ScoreAlertFeedItem }>) {
           </div>
           <p className="text-xs text-muted-foreground">
             Last 5 videos averaging{" "}
-            <span className={`font-semibold ${isUp ? "text-muted-foreground" : "text-muted-foreground"}`}>
+            <span className="font-semibold text-muted-foreground">
               {item.recentAvg}
             </span>
             {" "}vs channel baseline of {item.avgScore} ({isUp ? "+" : "-"}{item.delta} points)

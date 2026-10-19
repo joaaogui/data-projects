@@ -239,10 +239,29 @@ export function createAiModel(
  * raw model output. Returns an empty string when no JSON object is present.
  */
 export function extractJsonObject(text: string): string {
-  const cleaned = text
-    .replace(/```(?:json)?\s*/gi, "")
-    .replace(/```\s*$/g, "")
-    .trim();
-  const match = /\{[\s\S]*\}/.exec(cleaned);
-  return match ? match[0] : "";
+  // Remove every ``` / ```json fence in one scan. This matches the former
+  // global fence replace (which already removed any trailing fence, making
+  // the separate end-anchored replace unreachable).
+  let cleaned = "";
+  let cursor = 0;
+  while (cursor < text.length) {
+    const fence = text.indexOf("```", cursor);
+    if (fence === -1) {
+      cleaned += text.slice(cursor);
+      break;
+    }
+    cleaned += text.slice(cursor, fence);
+    let next = fence + 3;
+    if (text.slice(next, next + 4).toLowerCase() === "json") {
+      next += 4;
+    }
+    while (next < text.length && /\s/.test(text[next])) {
+      next += 1;
+    }
+    cursor = next;
+  }
+  cleaned = cleaned.trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  return start !== -1 && end > start ? cleaned.slice(start, end + 1) : "";
 }

@@ -17,6 +17,7 @@ import {
 import { createTaggedLogger } from "@data-projects/shared/logger";
 import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { generateText } from "ai";
+import { shuffleArray } from "@/lib/utils";
 import { eq } from "drizzle-orm";
 
 const log = createTaggedLogger("discover-rabbit-hole");
@@ -130,7 +131,7 @@ export const POST = withErrorHandling("discover-rabbit-hole", async (request, { 
       .map((r) => [r.videoId, r.excerpt!]),
   );
 
-  const sampled = descRows.sort(() => Math.random() - 0.5).slice(0, 25);
+  const sampled = shuffleArray(descRows).slice(0, 25);
   const contextLines = sampled.map((r) => {
     const excerpt = excerptMap.get(r.id);
     const desc = r.description?.slice(0, 300) ?? "";

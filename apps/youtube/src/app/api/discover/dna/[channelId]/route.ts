@@ -17,6 +17,7 @@ import {
 import { createTaggedLogger } from "@data-projects/shared/logger";
 import { withErrorHandling } from "@data-projects/shared/route-handler";
 import { generateText } from "ai";
+import { shuffleArray } from "@/lib/utils";
 import { eq } from "drizzle-orm";
 
 const log = createTaggedLogger("discover-dna");
@@ -84,7 +85,7 @@ export const POST = withErrorHandling("discover-dna", async (request, { params }
   }
 
   const sampled = withText.length > 30
-    ? withText.sort(() => Math.random() - 0.5).slice(0, 30)
+    ? shuffleArray(withText).slice(0, 30)
     : withText;
 
   const excerpts = sampled.map((r) => {

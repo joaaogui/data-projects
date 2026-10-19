@@ -16,6 +16,7 @@ vi.mock("node:child_process", () => ({
 vi.mock("../utils", () => ({
   sleep: vi.fn().mockResolvedValue(undefined),
   runWorkerPool: vi.fn().mockResolvedValue(undefined),
+  secureRandomInt: vi.fn(() => 0),
 }));
 
 import { YouTubeTranscriptApi } from "youtube-transcript-api-js";
@@ -24,6 +25,7 @@ import {
   fetchFullTranscriptWithStatus,
   fetchTranscriptBatch,
   fetchTranscriptExcerpt,
+  stripHtmlTags,
 } from "../transcript";
 import { runWorkerPool } from "../utils";
 
@@ -210,6 +212,59 @@ describe("transcript", () => {
       });
       expect(result).toBeInstanceOf(Map);
       expect(result.size).toBe(0);
+    });
+  });
+
+  describe("stripHtmlTags", () => {
+    it("strips normal tags", () => {
+      expect(stripHtmlTags("<p>Hello</p>")).toBe("Hello");
+      expect(stripHtmlTags("<b>bold</b> text")).toBe("bold text");
+      expect(stripHtmlTags("<p><b>hi</b></p>")).toBe("hi");
+      expect(stripHtmlTags("a<br>b")).toBe("ab");
+    });
+
+    it("keeps '<>' verbatim (it requires at least one char inside)", () => {
+      expect(stripHtmlTags("<>")).toBe("<>");
+      expect(stripHtmlTags("a <> b")).toBe("a <> b");
+      expect(stripHtmlTags("<>x<>")).toBe("<>x<>");
+    });
+
+    it("keeps an unclosed tag verbatim", () => {
+      expect(stripHtmlTags("<div")).toBe("<div");
+      expect(stripHtmlTags("hello <div")).toBe("hello <div");
+      expect(stripHtmlTags("text <span")).toBe("text <span");
+      expect(stripHtmlTags("<")).toBe("<");
+    });
+
+    it("handles repeated '<' characters", () => {
+      expect(stripHtmlTags("<<<<")).toBe("<<<<");
+      expect(stripHtmlTags("a << b")).toBe("a << b");
+      expect(stripHtmlTags("<<< >")).toBe("");
+      expect(stripHtmlTags("a << b >>")).toBe("a >");
+    });
+
+    it("strips tags with attributes", () => {
+      expect(
+        stripHtmlTags('<a href="https://example.com">link</a>')
+      ).toBe("link");
+      expect(
+        stripHtmlTags('<div class="x" data-id="1">content</div>')
+      ).toBe("content");
+      expect(
+        stripHtmlTags('<span style="color:red">red</span>')
+      ).toBe("red");
+    });
+
+    it("leaves text without tags unchanged", () => {
+      expect(stripHtmlTags("plain text")).toBe("plain text");
+      expect(stripHtmlTags("no tags here! 123")).toBe("no tags here! 123");
+      expect(stripHtmlTags("")).toBe("");
+      expect(stripHtmlTags(">")).toBe(">");
+    });
+
+    it("strips a tag-like span bounded by the first '>'", () => {
+      expect(stripHtmlTags("< >")).toBe("");
+      expect(stripHtmlTags("1 < 2 > 0")).toBe("1  0");
     });
   });
 });

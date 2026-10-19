@@ -1,4 +1,5 @@
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit"
+import { cleanTrackName } from "@/lib/track-clean"
 import {
   corsHeaders,
   mergeHeaders,
@@ -55,11 +56,7 @@ export async function GET(request: Request) {
     }
 
                                            
-    const cleanTrack = track
-      .replace(/\s*\(.*?\)/g, "") // Remove parentheses content
-      .replace(/\s*\[.*?\]/g, "") // Remove brackets content
-      .replace(/\s*-\s*remaster.*$/gi, "") // Remove remaster suffix
-      .trim()
+    const cleanTrack = cleanTrackName(track)
 
                                                  
     const cleanArtist = artist.split(/[,&]/)[0].trim()

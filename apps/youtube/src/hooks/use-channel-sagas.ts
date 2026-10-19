@@ -71,21 +71,21 @@ export function useChannelSagas(channelId: string | null, videos: VideoData[] | 
 
   const startAnalysis = useCallback(() => {
     if (!channelId || !videos || videos.length === 0) return;
-    syncSagas({ mode: "full" });
+    void syncSagas({ mode: "full" });
   }, [channelId, videos, syncSagas]);
 
   const resetAndReanalyze = useCallback(() => {
     if (!channelId || !videos || videos.length === 0) return;
-    syncSagas({ mode: "reset" });
+    void syncSagas({ mode: "reset" });
   }, [channelId, videos, syncSagas]);
 
   const startIncrementalAnalysis = useCallback(() => {
     if (!channelId || !videos || videos.length === 0) return;
-    syncSagas({ mode: "incremental" });
+    void syncSagas({ mode: "incremental" });
   }, [channelId, videos, syncSagas]);
 
   const stopAnalysis = useCallback(() => {
-    cancelSync("sagas");
+    void cancelSync("sagas");
   }, [cancelSync]);
 
   return {

@@ -1,6 +1,6 @@
 import type { Saga, VideoData } from "@/types/youtube";
 import { formatDuration } from "./scoring";
-import { median } from "./utils";
+import { median, shuffleArray } from "./utils";
 
 function buildSagaMap(sagas: Saga[]): Map<string, string> {
   const sagaMap = new Map<string, string>();
@@ -132,6 +132,6 @@ export function generateSuggestions(videos: VideoData[], sagas?: Saga[]): string
     );
   }
 
-  const shuffled = pool.toSorted(() => Math.random() - 0.5);
+  const shuffled = shuffleArray(pool);
   return shuffled.slice(0, 4);
 }

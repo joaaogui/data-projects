@@ -176,7 +176,7 @@ function findAdjacentSaga(
   return undefined;
 }
 
-const DATE_SUFFIX_RE = /\s*\([A-Z][a-z]{2}\s+\d{4}\)/g;
+const DATE_SUFFIX_RE = /(?<!\s)\s*\([A-Z][a-z]{2}\s+\d{4}\)/g;
 
 function stripDateSuffix(name: string): string {
   return name.replaceAll(DATE_SUFFIX_RE, "").trim();

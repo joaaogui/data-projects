@@ -43,7 +43,7 @@ Unit tests (`pnpm --filter clash-deck-advisor run test`) cover the local engines
 pnpm --filter clash-deck-advisor run eval
 ```
 
-It loads `.env.local`, runs the full engine against the live Clash Royale API and real models in both modes, and asserts, among other things: 8 unique owned cards, no special-slot legality violations, a score no worse than the current deck, structural soundness (win condition, air defense, spell coverage, average elixir in range), changes consistent with the two decks, a recognisable deck in `improve` mode (at most 3 swaps), no card below the level gate, and non-trivial coaching text. A human-readable report is written to `/tmp/clash-eval-report.txt`. Because it is live, it needs real API/AI keys and can take up to the 180-second test budget.
+It loads `.env.local`, runs the full engine against the live Clash Royale API and real models in both modes, and asserts, among other things: 8 unique owned cards, no special-slot legality violations, a score no worse than the current deck, structural soundness (win condition, air defense, spell coverage, average elixir in range), changes consistent with the two decks, a recognisable deck in `improve` mode (at most 3 swaps), no card below the level gate, and non-trivial coaching text. A human-readable report (`clash-eval-report.txt`) is written to a freshly created `clash-eval-*` directory under the operating system's temporary directory. Because it is live, it needs real API/AI keys and can take up to the 180-second test budget.
 
 ## Running locally
 

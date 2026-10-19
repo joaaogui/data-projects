@@ -298,7 +298,7 @@ export function VideoDetailPanel({
             <div>
               <button
                 onClick={() => {
-                  if (!transcriptExpanded) loadTranscript();
+                  if (!transcriptExpanded) void loadTranscript();
                   setTranscriptExpanded((e) => !e);
                 }}
                 className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"

@@ -1,4 +1,6 @@
-import { writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -61,7 +63,11 @@ beforeAll(async () => {
 
   // Vitest hides console output on a passing run, so the report is written
   // where it can always be read after the fact.
-  writeFileSync("/tmp/clash-eval-report.txt", report.join("\n"));
+  const reportDir = mkdtempSync(path.join(os.tmpdir(), "clash-eval-"));
+  writeFileSync(
+    path.join(reportDir, "clash-eval-report.txt"),
+    report.join("\n"),
+  );
 }, 180_000);
 
 describe("live analysis context", () => {
@@ -133,8 +139,12 @@ describe.each(["improve", "best"] as const)("%s mode", (mode) => {
     const added = improvedDeck.filter((name) => !originalDeck.includes(name));
 
     expect(changes).toHaveLength(removed.length);
-    expect(changes.map((change) => change.out).sort()).toEqual(removed.sort());
-    expect(changes.map((change) => change.in).sort()).toEqual(added.sort());
+    expect(
+      changes.map((change) => change.out).sort((a, b) => a.localeCompare(b)),
+    ).toEqual(removed.sort((a, b) => a.localeCompare(b)));
+    expect(
+      changes.map((change) => change.in).sort((a, b) => a.localeCompare(b)),
+    ).toEqual(added.sort((a, b) => a.localeCompare(b)));
     expect(verdict).toBe(removed.length > 0 ? "improve" : "keep");
   });
 
@@ -185,8 +195,14 @@ describe("improve mode specifically", () => {
   });
 
   it("starts from the player's actual current deck", () => {
-    expect(results.get("improve")!.analysis.originalDeck.sort()).toEqual(
-      context.player.currentDeck.map((card) => card.name).sort(),
+    expect(
+      results
+        .get("improve")!
+        .analysis.originalDeck.sort((a, b) => a.localeCompare(b)),
+    ).toEqual(
+      context.player.currentDeck
+        .map((card) => card.name)
+        .sort((a, b) => a.localeCompare(b)),
     );
   });
 });

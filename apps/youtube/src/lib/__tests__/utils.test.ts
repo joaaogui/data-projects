@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { runWorkerPool, WorkerPoolError } from "@/lib/utils";
+import { runWorkerPool, secureRandomInt, shuffleArray, WorkerPoolError } from "@/lib/utils";
 
 describe("runWorkerPool", () => {
   it("processes all items", async () => {
@@ -66,6 +66,25 @@ describe("runWorkerPool", () => {
       expect(poolErr.errors).toHaveLength(2);
       expect(poolErr.message).toContain("2/3");
     }
+  });
+
+  it("secureRandomInt stays within [0, maxExclusive)", () => {
+    for (let i = 0; i < 200; i++) {
+      const v = secureRandomInt(7);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(7);
+      expect(Number.isInteger(v)).toBe(true);
+    }
+    expect(secureRandomInt(1)).toBe(0);
+    expect(() => secureRandomInt(0)).toThrow(RangeError);
+  });
+
+  it("shuffleArray returns a permutation without mutating the input", () => {
+    const input = [1, 2, 3, 4, 5, 6, 7, 8];
+    const shuffled = shuffleArray(input);
+    expect(shuffled.toSorted((a, b) => a - b)).toEqual(input);
+    expect(input).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(shuffleArray([])).toEqual([]);
   });
 
   it("continues processing remaining items after a failure", async () => {

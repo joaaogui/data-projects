@@ -1,6 +1,7 @@
 "use client";
 
 import { formatCompact, getScoreColorClass } from "@/lib/format";
+import { secureRandomInt } from "@/lib/utils";
 import type { VideoData } from "@/types/youtube";
 import { Heart, Shuffle } from "lucide-react";
 import Image from "next/image";
@@ -99,7 +100,8 @@ export function SimilarVideos({
 
   const pickRandom = useCallback(() => {
     const topVideos = [...videos].sort((a, b) => b.score - a.score).slice(0, 20);
-    const random = topVideos[Math.floor(Math.random() * topVideos.length)];
+    if (topVideos.length === 0) return;
+    const random = topVideos[secureRandomInt(topVideos.length)];
     setSelectedId(random.videoId);
   }, [videos]);
 

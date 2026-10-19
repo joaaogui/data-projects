@@ -12,7 +12,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { YouTubeTranscriptApi } from "youtube-transcript-api-js";
 import { createTaggedLogger } from "@data-projects/shared/logger";
-import { runWorkerPool, sleep, WorkerPoolError } from "./utils";
+import { runWorkerPool, secureRandomInt, sleep, WorkerPoolError } from "./utils";
 
 const log = createTaggedLogger("transcript");
 
@@ -48,7 +48,7 @@ async function waitForCooldown() {
   const now = Date.now();
   if (globalCooldownUntil > now) {
     const remaining = globalCooldownUntil - now;
-    const jitter = Math.floor(Math.random() * TRANSCRIPT_COOLDOWN_JITTER_MS);
+    const jitter = secureRandomInt(TRANSCRIPT_COOLDOWN_JITTER_MS);
     await sleep(remaining + jitter);
   }
 }
@@ -61,7 +61,37 @@ function triggerCooldown(durationMs: number) {
 }
 
 const VTT_SKIP = /^(WEBVTT|Kind:|Language:|NOTE|\d{2}:\d{2}|align:)/;
-const HTML_TAG = /<[^>]+>/g;
+
+/**
+ * Removes substrings matching `<[^>]+>` (a "<", at least one non-">" char,
+ * then ">") in a single left-to-right scan. Equivalent to replacing that
+ * global regex with "", but linear-time: the scan only ever looks for the
+ * first ">" after a "<", and if none remains the rest cannot match.
+ */
+export function stripHtmlTags(text: string): string {
+  let result = "";
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] !== "<") {
+      result += text[i];
+      i++;
+      continue;
+    }
+    const close = text.indexOf(">", i + 1);
+    if (close === -1) {
+      result += text.slice(i);
+      break;
+    }
+    if (close === i + 1) {
+      // "<>" is not matched by the regex (it requires at least one char).
+      result += text[i];
+      i++;
+      continue;
+    }
+    i = close + 1;
+  }
+  return result;
+}
 
 function parseVttToText(vtt: string): string {
   const textLines: string[] = [];
@@ -71,7 +101,7 @@ function parseVttToText(vtt: string): string {
     const line = raw.trim();
     if (!line || VTT_SKIP.test(line)) continue;
 
-    const clean = line.replaceAll(HTML_TAG, "").trim();
+    const clean = stripHtmlTags(line).trim();
     if (!clean || clean === prev) continue;
     prev = clean;
     textLines.push(clean);

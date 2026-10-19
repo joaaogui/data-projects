@@ -13,7 +13,7 @@ function tokensEqual(provided: string, expected: string): boolean {
 function extractBearerToken(request: Request): string | null {
   const header = request.headers.get("authorization");
   if (!header) return null;
-  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  const match = /^Bearer\s+(\S[^\r\n\u2028\u2029]*)$/i.exec(header.trim());
   return match?.[1]?.trim() || null;
 }
 

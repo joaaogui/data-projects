@@ -4,6 +4,7 @@ import { getModel } from "@/lib/ai-providers";
 import { auth } from "@/lib/auth";
 import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
 import { withErrorHandling } from "@data-projects/shared/route-handler";
+import { stripSurroundingQuotes } from "@/lib/quote-strip";
 import { validateChannelId } from "@/lib/validation";
 import { rateLimitExceededResponse } from "@data-projects/shared";
 import { generateText } from "ai";
@@ -85,7 +86,7 @@ export const POST = withErrorHandling("transcripts-search-ai:POST", async (reque
     temperature: 0,
   });
 
-  const regex = text.trim().replaceAll(/^[`"']+|[`"']+$/g, "");
+  const regex = stripSurroundingQuotes(text.trim());
 
   try {
     new RegExp(regex, "gi");

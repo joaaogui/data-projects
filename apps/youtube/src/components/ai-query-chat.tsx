@@ -136,7 +136,7 @@ export function AIDrawer({ videos, onHighlight }: Readonly<AIDrawerProps>) {
     (q: string) => {
       if (!q.trim() || isLoading) return;
       onHighlight?.(new Set());
-      sendMessage({ text: q.trim() });
+      void sendMessage({ text: q.trim() });
       setInput("");
     },
     [isLoading, onHighlight, sendMessage, setInput],

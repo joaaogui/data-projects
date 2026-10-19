@@ -265,12 +265,14 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
   const fireFirstInteraction = useCallback((action: string) => {
     if (firstInteractionFired.current) return;
     firstInteractionFired.current = true;
-    import("@/lib/analytics").then(({ capture: c }) =>
-      c("first_meaningful_interaction", {
-        action,
-        timeFromPageLoadMs: Math.round(performance.now() - mountTime.current),
-      })
-    );
+    void import("@/lib/analytics")
+      .then(({ capture: c }) =>
+        c("first_meaningful_interaction", {
+          action,
+          timeFromPageLoadMs: Math.round(performance.now() - mountTime.current),
+        }),
+      )
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {

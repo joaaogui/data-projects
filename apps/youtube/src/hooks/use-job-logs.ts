@@ -36,7 +36,7 @@ export function useJobLogs(jobId: string | null, isActive: boolean) {
     if (!jobId) return;
 
     setLoading(true);
-    fetchLogs(jobId).finally(() => setLoading(false));
+    void fetchLogs(jobId).finally(() => setLoading(false));
 
     if (isActive) {
       pollRef.current = setInterval(() => fetchLogs(jobId), POLL_INTERVAL_MS);

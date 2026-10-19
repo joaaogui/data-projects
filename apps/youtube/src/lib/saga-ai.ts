@@ -23,17 +23,43 @@ const AD_PATTERNS = [
   /ganha(?:r|dor)/i,
   /(?:particip[ae]|compre?) (?:agora|j[aá]|hoje)/i,
   /\bR\$\s*\d/,
-  /\d+\.?\d*\s*(?:mil|reais)\b/i,
   /\bmoto(?:cicleta)?\s+(?:start|honda|pop)\b/i,
   /\bcorolla\b/i,
   /\biphone\b/i,
   /\bgolfe?\b/i,
 ];
 
+function isDigitDotChar(ch: string): boolean {
+  return (ch >= "0" && ch <= "9") || ch === ".";
+}
+
+/**
+ * Linear-time equivalent of testing for a digit/dot token followed by
+ * optional whitespace and the word "mil" or "reais": for each whole-word
+ * occurrence of those words, walk backwards over whitespace, then over
+ * [0-9.] characters, and report whether that token contains a digit.
+ * Each occurrence is scanned once, with no regex backtracking.
+ */
+export function hasMoneyAmount(value: string): boolean {
+  for (const match of value.matchAll(/(?:mil|reais)\b/gi)) {
+    let cursor = match.index ?? 0;
+    while (cursor > 0 && /\s/.test(value[cursor - 1])) cursor--;
+    const tokenEnd = cursor;
+    while (cursor > 0 && isDigitDotChar(value[cursor - 1])) cursor--;
+    for (let i = cursor; i < tokenEnd; i++) {
+      const ch = value[i];
+      if (ch >= "0" && ch <= "9") return true;
+    }
+  }
+  return false;
+}
+
 function stripAdContent(text: string): string {
   const sentences = text.split(/(?<=[.!?])\s+|(?<=\n)/);
   const cleaned = sentences.filter((s) => {
-    const matchCount = AD_PATTERNS.reduce((n, p) => n + (p.test(s) ? 1 : 0), 0);
+    const matchCount =
+      AD_PATTERNS.reduce((n, p) => n + (p.test(s) ? 1 : 0), 0) +
+      (hasMoneyAmount(s) ? 1 : 0);
     return matchCount < 2;
   });
   return cleaned.join(" ").trim();
