@@ -85,8 +85,8 @@ const KW_FERRO_MADEIRA_RE = keywordRe(["ferro", "madeira", "janela", "parede", "
 
 
 export const DEFAULT_WEIGHTS: ScoringWeights = {
-  urbanBreathingWeight: 3.0,
-  commuteLogisticsWeight: 1.0,
+  urbanBreathingWeight: 3.5,
+  commuteLogisticsWeight: 2.0,
   safetyCarWeight: 3.0,
   neighborhoodMultiplier: 6.5,
   modernityMultiplier: 0.85,
@@ -243,8 +243,6 @@ export const BUILTIN_PRESETS: {
     weights: {
       ...DEFAULT_WEIGHTS,
       safetyCarWeight: 3.5,
-      urbanBreathingWeight: 3.0,
-      commuteLogisticsWeight: 1.8,
       budgetIdeal: 4200,
       budgetMax: 4500,
       budgetHardCap: 5000,
@@ -256,7 +254,7 @@ export const BUILTIN_PRESETS: {
     id: "balanced-original",
     name: "Equilíbrio Original (Padrão)",
     description:
-      "Pesos calibrados: Segurança (3.0x) e Vida urbana (3.0x) como fatores dominantes, Deslocamento (1.0x).",
+      "Pesos calibrados: Vida urbana (3.5x) e Segurança (3.0x) como fatores dominantes, Deslocamento (2.0x).",
     weights: DEFAULT_WEIGHTS,
   },
   {

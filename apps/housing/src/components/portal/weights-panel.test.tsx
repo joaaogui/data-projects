@@ -156,11 +156,11 @@ describe("WeightsPanel", () => {
     });
     expect(ctl.updateWeight).toHaveBeenCalledWith("urbanBreathingWeight", 2);
     fireEvent.change(screen.getByLabelText(/Logística & Tempo/), {
-      target: { value: "2" },
+      target: { value: "3" },
     });
     expect(ctl.updateWeight).toHaveBeenCalledWith(
       "commuteLogisticsWeight",
-      2,
+      3,
     );
     expect(screen.queryByLabelText(/Oferta de Prédios Bons/)).toBeNull();
     expect(screen.queryByLabelText(/Poder de Compra/)).toBeNull();

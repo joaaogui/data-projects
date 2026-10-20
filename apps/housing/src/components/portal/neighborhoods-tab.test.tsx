@@ -403,7 +403,7 @@ describe("NeighborhoodsTab metric columns", () => {
       "Segurança (0–10) · peso atual 1,5×",
     );
     expect(screen.getByRole("columnheader", { name: "Vida urbana" }).getAttribute("title")).toBe(
-      "Vida urbana (0–10): nota pelos 9 critérios — densidade com prédios altos, relevo plano, gastronomia de rua, vida noturna, parque a até 1 km, arborização, segurança à noite, prédios modernos e calma. · peso atual 3,0×",
+      "Vida urbana (0–10): nota pelos 9 critérios — densidade com prédios altos, relevo plano, gastronomia de rua, vida noturna, parque a até 1 km, arborização, segurança à noite, prédios modernos e calma. · peso atual 3,5×",
     );
     const funcionarios = document.querySelector("tbody tr")!;
     const cells = [...funcionarios.querySelectorAll("td")].map((td) => td.textContent);

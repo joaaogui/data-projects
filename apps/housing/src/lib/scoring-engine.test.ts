@@ -2396,7 +2396,7 @@ describe("Housing Dynamic Scoring Engine", () => {
     );
 
     // 1. Default weights reflect new calibration
-    expect(DEFAULT_WEIGHTS.urbanBreathingWeight).toBe(3.0);
+    expect(DEFAULT_WEIGHTS.urbanBreathingWeight).toBe(3.5);
     expect(DEFAULT_WEIGHTS.modernityMultiplier).toBe(0.85);
 
     const taquaralNb = nbs.find((n) => n.neighborhood === "Taquaral")!;
@@ -2404,11 +2404,11 @@ describe("Housing Dynamic Scoring Engine", () => {
     const guanabaraNb = nbs.find((n) => n.neighborhood === "Jd. Guanabara")!;
 
     // Calibration caps: CP:Bosque 6.2, CP:Jd. Guanabara 5.0 and Taquaral 6.2 (rubric); with equal urban breathing,
-    // Taquaral's safe-bubble street safety (8.6 vs 8.2) narrowly outweighs Bosque's shorter commute
+    // Bosque's shorter commute (2x weight) outweighs Taquaral's safe-bubble street safety (8.6 vs 8.2)
     expect(taquaralNb.urbanBreathingScore).toBe(6.2);
     expect(bosqueNb.urbanBreathingScore).toBe(6.2);
     expect(guanabaraNb.urbanBreathingScore).toBe(5.0);
-    expect(taquaralNb.dynamicScore - bosqueNb.dynamicScore).toBeCloseTo(0.08, 2);
+    expect(taquaralNb.dynamicScore - bosqueNb.dynamicScore).toBeCloseTo(-0.21, 2);
     expect(taquaralNb.dynamicScore - guanabaraNb.dynamicScore).toBeGreaterThan(1.0);
 
     const baseProp: SlimPropertyRecord = {
@@ -3578,10 +3578,10 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
     expect(withPubAt.length).toBe(snapshotRaw.properties.length);
   });
 
-  it("calibrates the Top 20 Bairros ranking with 3/3/1 pillar weights, BH internal order, Laranjeiras/Humaitá in RJ, and SP Capital discount", () => {
+  it("calibrates the Top 20 Bairros ranking with 3.5/2/3 pillar weights, BH internal order, Laranjeiras/Humaitá in RJ, and SP Capital discount", () => {
     expect(DEFAULT_WEIGHTS.safetyCarWeight).toBe(3.0);
-    expect(DEFAULT_WEIGHTS.urbanBreathingWeight).toBe(3.0);
-    expect(DEFAULT_WEIGHTS.commuteLogisticsWeight).toBe(1.0);
+    expect(DEFAULT_WEIGHTS.urbanBreathingWeight).toBe(3.5);
+    expect(DEFAULT_WEIGHTS.commuteLogisticsWeight).toBe(2.0);
     expect(DEFAULT_WEIGHTS).not.toHaveProperty("buildingStockWeight");
     expect(DEFAULT_WEIGHTS).not.toHaveProperty("budgetFitWeight");
 
@@ -3614,15 +3614,15 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
       .filter((n) => n.cityCode === "RJ")
       .map((n) => n.neighborhood);
     expect(rjRanked).toEqual([
-      "Botafogo (Orla)",
       "Flamengo",
+      "Botafogo (Orla)",
       "Humaitá",
       "Leme",
       "Laranjeiras",
     ]);
 
     // 3. SP Capital neighborhoods receive -1.50 discount; Moema (urban breathing 8.8 in the seed) still ranks below the BH top 4.
-    // Without the building stock and budget fit sub-scores it now edges Botafogo (Orla) (7.86 vs 7.80).
+    // With the 2x commute weight it falls behind Flamengo and Botafogo (Orla) (7.78 vs 7.91).
     const rankOf = (city: string, nb: string) =>
       ranked.find((n) => n.cityCode === city && n.neighborhood === nb)!
         .dynamicOverallRank;
@@ -3640,7 +3640,7 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
     ] as const) {
       expect(rankOf(city, nb)).toBeLessThan(spMoema.dynamicOverallRank);
     }
-    expect(spMoema.dynamicOverallRank).toBe(5);
+    expect(spMoema.dynamicOverallRank).toBe(7);
     expect(rankOf("RJ", "Botafogo (Orla)")).toBe(6);
   });
 
@@ -3824,7 +3824,7 @@ describe("Calibration fixes: CP far commute, sale status, modernity ramp, no cit
       DEFAULT_WEIGHTS,
     );
     expect(a!.neighborhoodDynamicScore).toBe(b!.neighborhoodDynamicScore);
-    expect(a!.neighborhoodDynamicScore).toBeCloseTo(5.0, 2);
+    expect(a!.neighborhoodDynamicScore).toBeCloseTo(4.93, 2);
   });
 
   it("dates QuintoAndar relistings by their current publication and keeps the first one as a hint", () => {
@@ -5335,7 +5335,7 @@ describe("computeWeightedNeighborhoodScore urban breathing curve", () => {
   });
 
   it("ramps the bonus from 0 at 7.0 to +0.45 at 8.0, holds it above and takes 1.16 per point below 7.0", () => {
-    const weightedOnly = (ub: number) => (ub * 3 + 8 * 1 + 8.2 * 3) / 7;
+    const weightedOnly = (ub: number) => (ub * 3.5 + 8 * 2 + 8.2 * 3) / 8.5;
     expect(score(7.0)).toBeCloseTo(weightedOnly(7.0), 2);
     expect(score(7.6)).toBeCloseTo(weightedOnly(7.6) + 0.27, 2);
     expect(score(8.0)).toBeCloseTo(weightedOnly(8.0) + 0.45, 2);
@@ -5347,7 +5347,7 @@ describe("computeWeightedNeighborhoodScore urban breathing curve", () => {
     const oldUb = (t: number) => 6 + ((t - 4.4) * 4) / 3.63;
     const oldDelta = (ub: number) =>
       ub >= 9 ? 0.45 : ub >= 7.5 ? ((ub - 7.5) / 1.5) * 0.45 : -(7.5 - ub) * 0.75;
-    const weightedOnly = (ub: number) => (ub * 3 + 8 * 1 + 8.2 * 3) / 7;
+    const weightedOnly = (ub: number) => (ub * 3.5 + 8 * 2 + 8.2 * 3) / 8.5;
     for (const total of [4.4, 5.3, 5.89, 6.47, 7.32, 8.03]) {
       const ub = rubricToUrbanBreathing(total);
       const delta = score(ub) - weightedOnly(ub);

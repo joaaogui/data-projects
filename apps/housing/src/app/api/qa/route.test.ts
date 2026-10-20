@@ -6,8 +6,8 @@ import type {
 
 const { WEIGHTS_FIXTURE } = vi.hoisted(() => ({
   WEIGHTS_FIXTURE: {
-  urbanBreathingWeight: 3.0,
-  commuteLogisticsWeight: 1.0,
+  urbanBreathingWeight: 3.5,
+  commuteLogisticsWeight: 2.0,
   safetyCarWeight: 3.0,
   neighborhoodMultiplier: 6.5,
   modernityMultiplier: 0.85,
