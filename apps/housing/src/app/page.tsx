@@ -52,7 +52,7 @@ export default async function HousingHomePage({
     getDatasetMeta(),
   ]);
   const initialQuery = runPropertyQuery(scored, request);
-  initialQuery.items = withNeighborhoodResearch(initialQuery.items);
+  initialQuery.items = withNeighborhoodResearch(initialQuery.items, scored.ranked);
   return (
     <>
       <HousingPortal

@@ -31,6 +31,7 @@ export async function POST(request: Request) {
         .map((k) => set.byKey!.get(k))
         .filter((p) => p !== undefined)
         .map(toDetailsDTO),
+      set.ranked,
     );
     return NextResponse.json(
       { ok: true, datasetHash: set.datasetHash, items },

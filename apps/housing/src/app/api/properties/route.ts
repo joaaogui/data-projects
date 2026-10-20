@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     });
     const tScored = performance.now();
     const response = runPropertyQuery(set, req);
-    response.items = withNeighborhoodResearch(response.items);
+    response.items = withNeighborhoodResearch(response.items, set.ranked);
     if (req.includeMeta) response.meta = await getDatasetMeta();
     const tDone = performance.now();
     response.timings = {

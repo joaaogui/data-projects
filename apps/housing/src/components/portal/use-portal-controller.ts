@@ -90,6 +90,7 @@ const MAX_DETAILS_CACHE_ENTRIES = 40;
 const EMPTY_BENCHMARK_STATS = buildBenchmarkStats([]);
 const EMPTY_DETAILS_MAP = new Map<string, PropertyCardDTO>();
 const EMPTY_NEIGHBORHOOD_RESEARCH: NonNullable<DatasetMeta["neighborhoodResearch"]> = {};
+const EMPTY_NEIGHBORHOOD_QOL: NonNullable<DatasetMeta["neighborhoodQol"]> = {};
 
 interface ListState {
   key: string;
@@ -1450,6 +1451,7 @@ export function usePortalController({
     [dynamicNeighborhoods, weights, meta.referenceRationales],
   );
   const neighborhoodResearch = meta.neighborhoodResearch ?? EMPTY_NEIGHBORHOOD_RESEARCH;
+  const neighborhoodQol = meta.neighborhoodQol ?? EMPTY_NEIGHBORHOOD_QOL;
 
   const queryFilters = useMemo(
     () =>
@@ -2226,6 +2228,7 @@ export function usePortalController({
     neighborhoodRanking,
     referenceNeighborhoods,
     neighborhoodResearch,
+    neighborhoodQol,
     enableBsbBenchmark,
     enabledHiddenCities,
     expandedId,

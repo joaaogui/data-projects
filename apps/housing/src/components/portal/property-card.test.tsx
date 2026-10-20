@@ -406,12 +406,13 @@ describe("PropertyCard — neighbourhood research strip", () => {
           apartmentsShare: 99,
           highlight: "Praça da Liberdade a pé",
           redFlag: "Roubos ~2× a média",
+          urbanLife: 7,
         },
       }),
     });
     rerender(<PropertyCard {...props} />);
     const strip = screen.getByTestId("neighborhood-research-strip");
-    expect(strip.textContent).toContain("Vida urbana 6,8/10");
+    expect(strip.textContent).toContain("Vida urbana 7.0/10");
     expect(strip.textContent).not.toMatch(/Marista/);
     expect(strip.textContent).toContain("Roubo 2,0×/morador");
     expect(strip.textContent).toContain("14 mil hab/km²");

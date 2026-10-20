@@ -494,7 +494,7 @@ describe("NeighborhoodsTab sorting", () => {
   it("makes every column header a sort button", () => {
     render(<NeighborhoodsTab ctl={ctl()} />);
     const headers = screen.getAllByRole("columnheader");
-    expect(headers).toHaveLength(10);
+    expect(headers).toHaveLength(18);
     for (const th of headers) expect(within(th).getByRole("button")).toBeTruthy();
   });
 

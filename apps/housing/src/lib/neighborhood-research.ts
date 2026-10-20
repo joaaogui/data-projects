@@ -1,13 +1,16 @@
 import "server-only";
 
 import researchFile from "@/data/neighborhood-research.json";
-import { normalizeNeighborhoodKey } from "@/lib/scoring-engine";
-import type { CityHubCode } from "@/types/housing";
+import { qolRow } from "@/lib/neighborhood-qol";
+import { REFERENCE_NEIGHBORHOODS } from "@/lib/reference-neighborhood";
+import { normalizeNeighborhoodKey, resolveNeighborhoodSafetyAndMetrics } from "@/lib/scoring-engine";
+import type { CityHubCode, ComputedNeighborhood } from "@/types/housing";
 import type {
   NeighborhoodDossier,
   NeighborhoodRationale,
   NeighborhoodResearchFile,
   NeighborhoodResearchSummary,
+  QolRow,
 } from "@/types/neighborhood-research";
 
 const FILE = researchFile as unknown as NeighborhoodResearchFile;
@@ -67,13 +70,51 @@ export function getNeighborhoodRationale(cityCode: string, neighborhood: string)
   return RATIONALES.get(lookupKey(cityCode, neighborhood)) ?? null;
 }
 
-/** Adds the card-sized research summary to listings whose neighbourhood was researched. */
+/** Top Bairros quality-of-life cells of a researched neighbourhood (display only), by row key. */
+export function getNeighborhoodQolRow(key: string): QolRow | null {
+  const qol = getNeighborhoodDossier(key)?.qol;
+  return qol ? qolRow(qol) : null;
+}
+
+type UrbanLifeRow = Pick<ComputedNeighborhood, "cityCode" | "neighborhood" | "urbanBreathingScore">;
+
+/**
+ * The Vida urbana the ranking table shows for a listing's neighbourhood: the catalog row's effective value,
+ * else the reference row's, else the engine-table value an extra row uses.
+ */
+function urbanLifeLookup(ranked: readonly UrbanLifeRow[]): (cityCode: string, neighborhood: string) => number | null {
+  const catalog = new Map(ranked.map((n) => [lookupKey(n.cityCode, n.neighborhood), n.urbanBreathingScore]));
+  const references = new Map(
+    REFERENCE_NEIGHBORHOODS.map((r) => {
+      const sep = r.key.indexOf(":");
+      return [lookupKey(r.key.slice(0, sep), r.key.slice(sep + 1)), r.subScores.urbanBreathing];
+    }),
+  );
+  return (cityCode, neighborhood) => {
+    const key = lookupKey(cityCode, neighborhood);
+    return (
+      catalog.get(key) ??
+      references.get(key) ??
+      resolveNeighborhoodSafetyAndMetrics(cityCode as CityHubCode, neighborhood)?.urbanBreathing ??
+      null
+    );
+  };
+}
+
+/**
+ * Adds the card-sized research summary to listings whose neighbourhood was researched; `ranked` (the scored
+ * set's catalog ranking) gives the card the same Vida urbana as the ranking table.
+ */
 export function withNeighborhoodResearch<T extends { cityCode: string; neighborhood: string }>(
   items: T[],
+  ranked?: readonly UrbanLifeRow[],
 ): (T & { neighborhoodResearch?: NeighborhoodResearchSummary })[] {
+  const urbanLife = urbanLifeLookup(ranked ?? []);
   return items.map((item) => {
     if (typeof item.cityCode !== "string" || typeof item.neighborhood !== "string") return item;
     const summary = getNeighborhoodSummary(item.cityCode, item.neighborhood);
-    return summary ? { ...item, neighborhoodResearch: summary } : item;
+    if (!summary) return item;
+    const value = urbanLife(item.cityCode, item.neighborhood);
+    return { ...item, neighborhoodResearch: value === null ? summary : { ...summary, urbanLife: value } };
   });
 }

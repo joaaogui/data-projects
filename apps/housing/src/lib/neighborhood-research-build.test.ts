@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 
+import qolJson from "@/data/neighborhood-qol.json";
+import researchJson from "@/data/neighborhood-research.json";
 import type { NeighborhoodResearchFile } from "@/types/neighborhood-research";
 
 import {
+  attachQol,
   attachRationales,
   buildResearchFile,
   cityRatio,
   crimeScope,
   researchKey,
+  resolveQolKey,
   scrubAuthor,
 } from "../../scripts/build-neighborhood-research";
 
@@ -173,5 +177,92 @@ describe("attachRationales", () => {
   it("fails on a key without a dossier or with empty text", () => {
     expect(() => attachRationales(file, { "BH:Inexistente": text })).toThrow("BH:Inexistente: no dossier");
     expect(() => attachRationales(file, { "BH:Carmo": { ...text, shortRationale: " " } })).toThrow("empty text");
+  });
+});
+
+describe("attachQol", () => {
+  const file = {
+    builtAt: "2026-10-19T00:00:00.000Z",
+    dossiers: {
+      "BH:Carmo": { key: "BH:Carmo" },
+      "BH:Vila da Serra - Vale do Sereno": { key: "BH:Vila da Serra - Vale do Sereno" },
+      "RJ:Tijuca (Pç Uruguai)": { key: "RJ:Tijuca (Pç Uruguai)" },
+    },
+    aliases: { "BH:Vale do Sereno": "BH:Vila da Serra - Vale do Sereno" },
+  } as unknown as NeighborhoodResearchFile;
+  const metric = (value: number | null, extra: Record<string, unknown> = {}) => ({
+    value,
+    unit: "%",
+    year: 2022,
+    scope: "bairro IBGE",
+    source: "IBGE",
+    url: "https://example.com/ibge",
+    note: "x".repeat(400),
+    ...extra,
+  });
+
+  it("resolves dossier keys, aliases and a dossier without its '(…)' suffix", () => {
+    expect(resolveQolKey(file, "BH:Carmo")).toBe("BH:Carmo");
+    expect(resolveQolKey(file, "BH:Vale do Sereno")).toBe("BH:Vila da Serra - Vale do Sereno");
+    expect(resolveQolKey(file, "RJ:Tijuca")).toBe("RJ:Tijuca (Pç Uruguai)");
+    expect(resolveQolKey(file, "BH:Inexistente")).toBeNull();
+  });
+
+  it("merges each neighbourhood's metrics into its dossier, trimmed, and leaves the rest untouched", () => {
+    const out = attachQol(file, {
+      neighborhoods: {
+        "BH:Vale do Sereno": {
+          cityRef: "NOVA_LIMA",
+          sewer_network: metric(99.1, { cityValue: 90.2 }),
+          crime_robbery: metric(null, { reason: "Sem população por DP", ratio: null, count: 119 }),
+          nearest_large_park_m: metric(884, {
+            park: { name: "Estação Ecológica", ha: 227.8, url: "https://osm.org/w/1", accessNote: "visitação restrita" },
+          }),
+          paved_road: null,
+        },
+        "RJ:Tijuca": { cityRef: "RJ", idhm: metric(0.892) },
+      },
+    });
+    const qol = out.dossiers["BH:Vila da Serra - Vale do Sereno"]!.qol!;
+    expect(qol.cityRef).toBe("NOVA_LIMA");
+    expect(qol.metrics.sewer_network).toMatchObject({ value: 99.1, year: "2022", cityValue: 90.2, scope: "bairro IBGE" });
+    expect(qol.metrics.sewer_network!.note!.length).toBeLessThanOrEqual(280);
+    expect(qol.metrics.crime_robbery).toMatchObject({ value: null, reason: "Sem população por DP", ratio: null, count: 119 });
+    expect(qol.metrics.nearest_large_park_m!.park).toEqual({
+      name: "Estação Ecológica",
+      ha: 227.8,
+      url: "https://osm.org/w/1",
+      accessNote: "visitação restrita",
+    });
+    expect(qol.metrics.paved_road).toBeNull();
+    expect(out.dossiers["RJ:Tijuca (Pç Uruguai)"]!.qol!.metrics.idhm!.value).toBe(0.892);
+    expect(out.dossiers["BH:Carmo"]!.qol).toBeUndefined();
+    expect(file.dossiers["BH:Carmo"]!.qol).toBeUndefined();
+  });
+
+  it("fails on a key without a dossier or two keys on one dossier", () => {
+    expect(() => attachQol(file, { neighborhoods: { "BH:Inexistente": { cityRef: "BH" } } })).toThrow(
+      "qol BH:Inexistente: no dossier",
+    );
+    expect(() =>
+      attachQol(file, {
+        neighborhoods: { "BH:Vale do Sereno": { cityRef: "BH" }, "BH:Vila da Serra - Vale do Sereno": { cityRef: "BH" } },
+      }),
+    ).toThrow("already has qol");
+  });
+});
+
+describe("committed research data", () => {
+  it("carries the public quality-of-life metrics on every dossier, from the checked-in source", () => {
+    const research = researchJson as unknown as NeighborhoodResearchFile;
+    const source = qolJson as { neighborhoods: Record<string, unknown> };
+    expect(Object.keys(source.neighborhoods)).toHaveLength(53);
+    for (const qolKey of Object.keys(source.neighborhoods)) {
+      const key = resolveQolKey(research, qolKey);
+      expect(key, qolKey).not.toBeNull();
+      expect(research.dossiers[key!]!.qol, qolKey).toBeDefined();
+    }
+    expect(research.dossiers["BH:Vila da Serra - Vale do Sereno"]!.qol!.cityRef).toBe("NOVA_LIMA");
+    expect(research.dossiers["RJ:Tijuca (Pç Uruguai)"]!.qol!.metrics.idhm!.value).toBe(0.892);
   });
 });

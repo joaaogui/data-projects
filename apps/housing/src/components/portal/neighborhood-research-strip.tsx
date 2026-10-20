@@ -10,6 +10,9 @@ import type { NeighborhoodResearchSummary } from "@/types/neighborhood-research"
 export const decimal = (v: number) =>
   v.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+/** A 0–10 sub-score as the Top Bairros table prints it ("7.0"). */
+export const subScoreText = (v: number) => v.toFixed(1);
+
 /** "14 mil", "5,1 mil" or "850" (hab/km²). */
 export function formatDensity(perKm2: number): string {
   const thousands = perKm2 / 1000;
@@ -24,8 +27,8 @@ const PER_RESIDENT_COMMERCIAL_KEYS = new Set(["BH:Funcionários", "BH:Savassi", 
 /** The 2–3 numbers shown on the card, in display order. */
 export function researchStripNumbers(s: NeighborhoodResearchSummary): { id: string; text: string; title: string }[] {
   const out: { id: string; text: string; title: string }[] = [];
-  if (s.marista !== null && s.maristaSource === "rubric") {
-    out.push({ id: "urban-life", text: `Vida urbana ${decimal(s.marista)}/10`, title: URBAN_LIFE_CRITERIA_TEXT });
+  if (s.urbanLife !== undefined) {
+    out.push({ id: "urban-life", text: `Vida urbana ${subScoreText(s.urbanLife)}/10`, title: URBAN_LIFE_CRITERIA_TEXT });
   }
   if (s.robberyRatio !== null) {
     const perResident = PER_RESIDENT_COMMERCIAL_KEYS.has(s.key);

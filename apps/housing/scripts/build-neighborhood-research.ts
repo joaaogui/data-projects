@@ -4,7 +4,8 @@
  *   TSX_DISABLE_CACHE=1 pnpm exec tsx --conditions=react-server scripts/build-neighborhood-research.ts [--in <dir>] [--rubric <file>]
  *
  * Run from apps/housing. Defaults read ~/.cursor/Empty/.tmp/nb-research/out/*.json and, when present,
- * ../rubric-scores.json; the ranking-tab rationales come from the checked-in src/data/neighborhood-rationales.json. Keys follow the engine's neighbourhood keys (`<cityCode>:<normalizeNeighborhoodKey>`).
+ * ../rubric-scores.json; the ranking-tab rationales come from the checked-in src/data/neighborhood-rationales.json and the
+ * display-only public quality-of-life metrics from src/data/neighborhood-qol.json. Keys follow the engine's neighbourhood keys (`<cityCode>:<normalizeNeighborhoodKey>`).
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -15,8 +16,11 @@ import { normalizeNeighborhoodKey, resolveNeighborhoodSafetyAndMetrics } from ".
 import type { CityHubCode } from "../src/types/housing";
 import type {
   NeighborhoodDossier,
+  NeighborhoodQol,
   NeighborhoodRationale,
   NeighborhoodResearchFile,
+  QolMetric,
+  QolMetricId,
   ResearchCrimeSeries,
   ResearchEvidence,
   ResearchNumber,
@@ -377,6 +381,69 @@ export function attachRationales(file: NeighborhoodResearchFile, raw: unknown): 
   return { ...file, rationales };
 }
 
+const QOL_NOTE_MAX = 280;
+
+/** Dossier key of a qol.json key: the dossier key itself, an alias, or the dossier without its "(…)" suffix ("RJ:Tijuca"). */
+export function resolveQolKey(file: NeighborhoodResearchFile, qolKey: string): string | null {
+  const sep = qolKey.indexOf(":");
+  if (sep <= 0) return null;
+  const key = researchKey(qolKey.slice(0, sep), qolKey.slice(sep + 1));
+  if (file.dossiers[key]) return key;
+  if (file.aliases?.[key]) return file.aliases[key];
+  const bare = Object.keys(file.dossiers).filter((k) => k.replace(/\s*\([^)]*\)\s*$/, "") === key);
+  return bare.length === 1 ? bare[0]! : null;
+}
+
+function toQolMetric(raw: unknown): QolMetric | null {
+  const m = asRec(raw);
+  if (!Object.keys(m).length) return null;
+  const note = clip(str(m.note), QOL_NOTE_MAX);
+  const reason = str(m.reason);
+  const cityValue = num(m.cityValue);
+  const count = num(m.count);
+  const park = asRec(m.park);
+  const accessNote = str(park.accessNote);
+  return {
+    value: num(m.value),
+    unit: str(m.unit),
+    year: String(m.year ?? "").trim(),
+    scope: str(m.scope),
+    source: str(m.source),
+    url: isUrl(str(m.url)) ? str(m.url) : "",
+    ...(note ? { note } : {}),
+    ...(reason ? { reason } : {}),
+    ...(cityValue !== null ? { cityValue } : {}),
+    ...("ratio" in m ? { ratio: num(m.ratio) } : {}),
+    ...(count !== null ? { count } : {}),
+    ...(str(park.name)
+      ? { park: { name: str(park.name), ha: num(park.ha), url: str(park.url), ...(accessNote ? { accessNote } : {}) } }
+      : {}),
+  };
+}
+
+/**
+ * Merges the public quality-of-life metrics (src/data/neighborhood-qol.json) into each dossier. Display only.
+ * Throws when a key matches no dossier or two keys land on the same one.
+ */
+export function attachQol(file: NeighborhoodResearchFile, raw: unknown): NeighborhoodResearchFile {
+  const dossiers = { ...file.dossiers };
+  const seen = new Set<string>();
+  for (const [qolKey, value] of Object.entries(asRec(asRec(raw).neighborhoods))) {
+    const key = resolveQolKey(file, qolKey);
+    if (!key) throw new Error(`qol ${qolKey}: no dossier`);
+    if (seen.has(key)) throw new Error(`qol ${qolKey}: dossier ${key} already has qol`);
+    seen.add(key);
+    const entry = asRec(value);
+    const metrics: NeighborhoodQol["metrics"] = {};
+    for (const [id, m] of Object.entries(entry)) {
+      if (id === "cityRef") continue;
+      metrics[id as QolMetricId] = toQolMetric(m);
+    }
+    dossiers[key] = { ...dossiers[key]!, qol: { cityRef: str(entry.cityRef), metrics } };
+  }
+  return { ...file, dossiers };
+}
+
 function argValue(flag: string): string | null {
   const idx = process.argv.indexOf(flag);
   return idx !== -1 ? (process.argv[idx + 1] ?? null) : null;
@@ -390,9 +457,13 @@ function main() {
   const dossiers = files.map((f) => JSON.parse(readFileSync(join(inDir, f), "utf8")) as unknown);
   const rubricRaw = existsSync(rubricPath) ? (JSON.parse(readFileSync(rubricPath, "utf8")) as unknown) : [];
   const rationalesPath = join(process.cwd(), "src/data/neighborhood-rationales.json");
-  const built = attachRationales(
-    buildResearchFile(dossiers, rubricRaw),
-    JSON.parse(readFileSync(rationalesPath, "utf8")) as unknown,
+  const qolPath = join(process.cwd(), "src/data/neighborhood-qol.json");
+  const built = attachQol(
+    attachRationales(
+      buildResearchFile(dossiers, rubricRaw),
+      JSON.parse(readFileSync(rationalesPath, "utf8")) as unknown,
+    ),
+    JSON.parse(readFileSync(qolPath, "utf8")) as unknown,
   );
   const outPath = join(process.cwd(), "src/data/neighborhood-research.json");
   const json = `${JSON.stringify(built)}\n`;

@@ -13,7 +13,7 @@ import {
   type SortValue,
 } from "@/components/portal/neighborhood-sort";
 import { NeighborhoodResearchPanel } from "@/components/portal/neighborhood-research-panel";
-import { decimal, formatDensity } from "@/components/portal/neighborhood-research-strip";
+import { decimal, formatDensity, subScoreText } from "@/components/portal/neighborhood-research-strip";
 import type { PortalController } from "@/components/portal/use-portal-controller";
 import {
   rankWithReferences,
@@ -23,7 +23,8 @@ import {
 } from "@/lib/reference-neighborhood";
 import { URBAN_LIFE_CRITERIA_TEXT } from "@/lib/urban-breathing";
 import type { ComputedNeighborhood, ScoringWeights } from "@/types/housing";
-import type { NeighborhoodResearchSummary } from "@/types/neighborhood-research";
+import { QOL_COLUMNS } from "@/lib/neighborhood-qol";
+import type { NeighborhoodResearchSummary, QolColumnId, QolRow } from "@/types/neighborhood-research";
 
 type ScoreRow = Pick<
   ComputedNeighborhood,
@@ -60,6 +61,20 @@ const RESEARCH_HEADERS = [
   { id: "density", label: "Densidade", short: "Densid.", title: "Densidade demográfica, hab/km² (IBGE Censo 2022)" },
 ] as const;
 
+const EMPTY_QOL: Record<string, QolRow> = {};
+
+/** Public quality-of-life cells (display only): "—" without data, the scope and caveats on hover. */
+function QolCells({ row }: { row: QolRow | undefined }) {
+  return QOL_COLUMNS.map((c) => {
+    const cell = row?.[c.id];
+    return (
+      <td key={c.id} title={cell?.hint || undefined} className="px-3 py-3 text-right font-mono whitespace-nowrap">
+        {cell?.text ?? "—"}
+      </td>
+    );
+  });
+}
+
 const COMMUTE_NEUTRAL_TEXT = "neutro";
 
 export const TOP_NEIGHBORHOODS_LIMIT = 20;
@@ -86,6 +101,7 @@ const SORT_COLUMNS: { key: string; label: string; defaultDir: SortDir; align?: "
     title: (w: ScoringWeights) => weightTitle(s.label, w, s.weightKey),
   })),
   ...RESEARCH_HEADERS.map((h) => ({ key: h.id, label: h.label, defaultDir: "desc" as const, align: "right" as const, title: () => h.title })),
+  ...QOL_COLUMNS.map((c) => ({ key: c.id, label: c.label, defaultDir: c.defaultDir, align: "right" as const, title: () => c.title })),
   { key: "commuteTime", label: "Tempo Nubank", defaultDir: "asc" },
   { key: "rationale", label: "Justificativa Detalhada", defaultDir: "asc" },
 ];
@@ -94,10 +110,20 @@ const DEFAULT_SORT: SortState = { key: "score", dir: "desc" };
 
 const textOrNull = (s: string) => (s.trim() ? s : null);
 
+const QOL_COLUMN_IDS = new Set<string>(QOL_COLUMNS.map((c) => c.id));
+
+const rowKeyOf = (item: ListItem) => (item.kind === "catalog" ? `${item.n.cityCode}:${item.n.neighborhood}` : item.ref.key);
+
 /** The value a row sorts by; references have no commute ("neutro") and sort last on both commute columns. */
-function sortValue(item: ListItem, key: string, research: (key: string) => NeighborhoodResearchSummary | undefined): SortValue {
+function sortValue(
+  item: ListItem,
+  key: string,
+  research: (key: string) => NeighborhoodResearchSummary | undefined,
+  qol: (key: string) => QolRow | undefined,
+): SortValue {
   const row = item.kind === "catalog" ? item.n : item.ref;
-  const rowKey = item.kind === "catalog" ? `${item.n.cityCode}:${item.n.neighborhood}` : item.ref.key;
+  const rowKey = rowKeyOf(item);
+  if (QOL_COLUMN_IDS.has(key)) return qol(rowKey)?.[key as QolColumnId]?.value ?? null;
   const sub = SUB_SCORES.find((s) => s.id === key);
   if (key === "rank") return item.rank;
   if (key === "score") return row.dynamicScore;
@@ -122,6 +148,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
     setSelectedNeighborhoods,
     weights,
   } = ctl;
+  const neighborhoodQol = ctl.neighborhoodQol ?? EMPTY_QOL;
   const [researchOpenKey, setResearchOpenKey] = useState<string | null>(null);
   const [showMoreMetrics, setShowMoreMetrics] = useState(false);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
@@ -146,7 +173,12 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
   }
   if (catalogShown === 0) items = [];
   // Sorting reorders the rows shown; each row keeps its score rank number.
-  items = sortItems(items, sort, (it, key) => sortValue(it, key, (k) => neighborhoodResearch[k]), (it) => it.rank);
+  items = sortItems(
+    items,
+    sort,
+    (it, key) => sortValue(it, key, (k) => neighborhoodResearch[k], (k) => neighborhoodQol[k]),
+    (it) => it.rank,
+  );
   // Catalog rows compare their base position with their catalog-only dynamic rank, so extras don't inflate the diff.
   const catalogRank = new Map(
     dynamicNeighborhoods.map((n) => [`${n.cityCode}:${n.neighborhood}`, n.dynamicOverallRank]),
@@ -246,12 +278,14 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                     <div key={s.id} title={s.id === "commute" ? commuteNeutralTitle(ref, info) : undefined}>
                       <span className="block text-xs leading-tight text-muted-foreground">{s.short}</span>
                       <strong className="font-mono text-xs">
-                        {s.id === "commute" ? COMMUTE_NEUTRAL_TEXT : s.value(ref).toFixed(1)}
+                        {s.id === "commute" ? COMMUTE_NEUTRAL_TEXT : subScoreText(s.value(ref))}
                       </strong>
                     </div>
                   ))}
                 </div>
-                {showMoreMetrics && <MobileResearchRow cells={researchCells(neighborhoodResearch[ref.key])} />}
+                {showMoreMetrics && (
+                  <MobileResearchRow cells={researchCells(neighborhoodResearch[ref.key])} qol={neighborhoodQol[ref.key]} />
+                )}
               </article>
             );
           }
@@ -303,11 +337,13 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                 {SUB_SCORES.map((s) => (
                   <div key={s.id}>
                     <span className="block text-xs leading-tight text-muted-foreground">{s.short}</span>
-                    <strong className="font-mono text-xs">{s.value(n).toFixed(1)}</strong>
+                    <strong className="font-mono text-xs">{subScoreText(s.value(n))}</strong>
                   </div>
                 ))}
               </div>
-              {showMoreMetrics && <MobileResearchRow cells={researchCells(researchFor(n))} />}
+              {showMoreMetrics && (
+                <MobileResearchRow cells={researchCells(researchFor(n))} qol={neighborhoodQol[rowKeyOf(item)]} />
+              )}
 
               <p className="text-xs font-medium text-foreground">
                 <span className="font-mono text-[11px] text-muted-foreground mr-1.5">
@@ -397,7 +433,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                           </td>
                         ) : (
                           <td key={s.id} className="px-3 py-3 text-right font-mono">
-                            {s.value(ref).toFixed(1)}
+                            {subScoreText(s.value(ref))}
                           </td>
                         ),
                       )}
@@ -406,8 +442,9 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                           {research[h.id]}
                         </td>
                       ))}
+                      <QolCells row={neighborhoodQol[ref.key]} />
                       <td className="px-3 py-3 whitespace-nowrap">{info.commuteLabel}</td>
-                      <td className="px-3 py-3 min-w-[340px] max-w-xl leading-relaxed space-y-1.5">
+                      <td className="px-3 py-3 min-w-[560px] max-w-xl leading-relaxed space-y-1.5">
                         <p>{info.subtitle}</p>
                         <RationaleText short={ref.shortRationale} detailed={ref.detailedJustification} />
                       </td>
@@ -460,7 +497,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                     </td>
                     {SUB_SCORES.map((s) => (
                       <td key={s.id} className="px-3 py-3 text-right font-mono">
-                        {s.value(n).toFixed(1)}
+                        {subScoreText(s.value(n))}
                       </td>
                     ))}
                     {RESEARCH_HEADERS.map((h) => (
@@ -468,10 +505,11 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                         {research[h.id]}
                       </td>
                     ))}
+                    <QolCells row={neighborhoodQol[rowKeyOf(item)]} />
                     <td className="px-3 py-3 whitespace-nowrap font-mono">
                       {n.commuteTime}
                     </td>
-                    <td className="px-3 py-3 min-w-[340px] max-w-xl leading-relaxed text-muted-foreground space-y-1.5">
+                    <td className="px-3 py-3 min-w-[560px] max-w-xl leading-relaxed text-muted-foreground space-y-1.5">
                       <RationaleText short={n.shortRationale} detailed={n.detailedJustification} />
                       <details className="group rounded-lg border bg-background/60 p-2.5 text-[11px]">
                         <summary className="cursor-pointer font-semibold text-muted-foreground hover:text-foreground">
@@ -527,15 +565,24 @@ function ExtraBadge({ className = "" }: { className?: string }) {
   );
 }
 
-function MobileResearchRow({ cells }: { cells: ReturnType<typeof researchCells> }) {
+function MobileResearchRow({ cells, qol }: { cells: ReturnType<typeof researchCells>; qol: QolRow | undefined }) {
   return (
-    <div className="grid grid-cols-1 gap-1 rounded-lg border border-dashed p-2 text-center">
+    <div className="grid grid-cols-3 gap-1 rounded-lg border border-dashed p-2 text-center">
       {RESEARCH_HEADERS.map((h) => (
-        <div key={h.id} title={h.title}>
+        <div key={h.id} title={h.title} className="min-w-0">
           <span className="block text-xs leading-tight text-muted-foreground">{h.short}</span>
           <strong className="font-mono text-xs">{cells[h.id]}</strong>
         </div>
       ))}
+      {QOL_COLUMNS.map((c) => {
+        const cell = qol?.[c.id];
+        return (
+          <div key={c.id} title={cell?.hint || c.title} className="min-w-0" data-testid={`mobile-qol-${c.id}`}>
+            <span className="block truncate text-xs leading-tight text-muted-foreground">{c.short}</span>
+            <strong className="font-mono text-xs whitespace-nowrap">{cell?.text ?? "—"}</strong>
+          </div>
+        );
+      })}
     </div>
   );
 }

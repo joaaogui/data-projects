@@ -12,6 +12,7 @@ import { getPrecomputedListings, hashContent } from "@/lib/listing-features-stor
 import { logger } from "@/lib/logger";
 import {
   getNeighborhoodDossier,
+  getNeighborhoodQolRow,
   getNeighborhoodRationale,
   getNeighborhoodSummary,
   summarizeDossier,
@@ -28,7 +29,7 @@ import {
   type PrecomputedListing,
 } from "@/lib/scoring-engine";
 import type { CityHubCode, ScoringWeights } from "@/types/housing";
-import type { NeighborhoodRationale, NeighborhoodResearchSummary } from "@/types/neighborhood-research";
+import type { NeighborhoodRationale, NeighborhoodResearchSummary, QolRow } from "@/types/neighborhood-research";
 
 const MAX_SCORED_SETS = 6;
 
@@ -164,13 +165,19 @@ export async function getDatasetMeta(): Promise<DatasetMeta> {
     if (rationale) referenceRationales[ref.key] = rationale;
   }
   const neighborhoodResearch: Record<string, NeighborhoodResearchSummary> = {};
+  const neighborhoodQol: Record<string, QolRow> = {};
   for (const n of [...served.neighborhoods, ...extraNeighborhoods]) {
+    const key = `${n.cityCode}:${n.neighborhood}`;
     const summary = getNeighborhoodSummary(n.cityCode, n.neighborhood);
-    if (summary) neighborhoodResearch[`${n.cityCode}:${n.neighborhood}`] = summary;
+    if (summary) neighborhoodResearch[key] = summary;
+    const qol = getNeighborhoodQolRow(key);
+    if (qol) neighborhoodQol[key] = qol;
   }
   for (const ref of REFERENCE_NEIGHBORHOODS) {
     const dossier = getNeighborhoodDossier(ref.key);
     if (dossier) neighborhoodResearch[ref.key] = summarizeDossier(dossier);
+    const qol = getNeighborhoodQolRow(ref.key);
+    if (qol) neighborhoodQol[ref.key] = qol;
   }
   const meta: DatasetMeta = {
     updatedAt: served.updatedAt,
@@ -183,6 +190,7 @@ export async function getDatasetMeta(): Promise<DatasetMeta> {
       Object.entries(namesByCity).map(([city, names]) => [city, [...names]]),
     ),
     neighborhoodResearch,
+    neighborhoodQol,
     referenceRationales,
   };
   state.metaCache = { servedHash: served.servedHash, meta };

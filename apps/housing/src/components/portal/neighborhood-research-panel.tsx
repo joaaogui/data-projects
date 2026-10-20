@@ -3,9 +3,13 @@
 import { ExternalLink, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { formatQolValue, QOL_CITY_NAMES, QOL_PANEL_METRICS } from "@/lib/neighborhood-qol";
 import { URBAN_LIFE_CRITERIA_TEXT } from "@/lib/urban-breathing";
 import type {
   NeighborhoodDossier,
+  NeighborhoodQol,
+  QolMetric,
+  QolMetricId,
   ResearchCrimeSeries,
   ResearchNumber,
   ResearchOpinion,
@@ -88,6 +92,52 @@ function ScoreBar({ score }: { score: number | null }) {
     <span className="relative block h-1.5 w-full overflow-hidden rounded-full bg-secondary" aria-hidden="true">
       <span className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${pct}%` }} />
     </span>
+  );
+}
+
+function qolValueText(id: QolMetricId, m: QolMetric): string {
+  if (m.value === null) return "—";
+  const value = formatQolValue(id, m.value);
+  return m.ratio != null ? `${value} (${fmt(m.ratio, 2)}× a cidade)` : value;
+}
+
+function QolSection({ qol }: { qol: NeighborhoodQol }) {
+  const city = QOL_CITY_NAMES[qol.cityRef] ?? qol.cityRef;
+  return (
+    <Section title="Qualidade de vida (dados públicos)">
+      <p className="text-[11px] text-muted-foreground">
+        Só exibição: nenhum destes números entra nas notas. Comparação com {city}; crime só se compara dentro da mesma cidade.
+      </p>
+      <ul className="space-y-1.5 text-xs" aria-label="Qualidade de vida">
+        {QOL_PANEL_METRICS.map(({ id, label }) => {
+          const m = qol.metrics[id];
+          if (!m) return null;
+          return (
+            <li key={id} className="space-y-0.5" data-testid={`qol-${id}`}>
+              <div className="flex flex-wrap items-baseline gap-x-1.5">
+                <span className="font-semibold">{label}:</span>
+                <span className="font-mono">{qolValueText(id, m)}</span>
+                {m.cityValue !== undefined && (
+                  <span className="font-mono text-muted-foreground">
+                    · {city}: {formatQolValue(id, m.cityValue)}
+                  </span>
+                )}
+                <span className="text-muted-foreground">({[m.scope, m.year].filter(Boolean).join(", ")})</span>
+              </div>
+              {m.park && (
+                <p className="text-[11px]">
+                  {m.park.name}
+                  {m.park.ha !== null ? ` (${fmt(m.park.ha)} ha)` : ""}
+                  {m.park.accessNote && <span className="text-amber-800 dark:text-amber-200"> — {m.park.accessNote}</span>}
+                </p>
+              )}
+              {m.value === null && m.reason && <p className="text-[11px] text-muted-foreground">{m.reason}</p>}
+              {m.url && <SourceLink url={m.url} label={m.source} />}
+            </li>
+          );
+        })}
+      </ul>
+    </Section>
   );
 }
 
@@ -189,6 +239,8 @@ function DossierBody({ d }: { d: NeighborhoodDossier }) {
           <p className="text-xs text-muted-foreground">Sem avaliação.</p>
         )}
       </Section>
+
+      {d.qol && <QolSection qol={d.qol} />}
 
       {(d.highlights.length > 0 || d.redFlags.length > 0) && (
         <Section title="Destaques e alertas">

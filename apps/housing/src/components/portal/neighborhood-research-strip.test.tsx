@@ -3,8 +3,14 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { NeighborhoodResearchStrip, researchStripNumbers } from "./neighborhood-research-strip";
-import type { NeighborhoodDossier, NeighborhoodResearchSummary } from "@/types/neighborhood-research";
+import { NeighborhoodResearchStrip, researchStripNumbers, subScoreText } from "./neighborhood-research-strip";
+import { QOL_PANEL_METRICS } from "@/lib/neighborhood-qol";
+import type {
+  NeighborhoodDossier,
+  NeighborhoodQol,
+  NeighborhoodResearchSummary,
+  QolMetric,
+} from "@/types/neighborhood-research";
 
 const SUMMARY: NeighborhoodResearchSummary = {
   key: "BH:Lourdes",
@@ -15,6 +21,7 @@ const SUMMARY: NeighborhoodResearchSummary = {
   apartmentsShare: 99.1,
   highlight: "Rua Curitiba: bares com mesas na calçada",
   redFlag: "Série de roubos de correntes em 2025-26",
+  urbanLife: 8.2,
 };
 
 const DOSSIER: NeighborhoodDossier = {
@@ -92,9 +99,9 @@ afterEach(() => {
 });
 
 describe("researchStripNumbers", () => {
-  it("formats the Vida urbana rubric total, robbery ratio and density in pt-BR", () => {
+  it("formats the table's Vida urbana, robbery ratio and density", () => {
     expect(researchStripNumbers(SUMMARY).map((n) => n.text)).toEqual([
-      "Vida urbana 7,4/10",
+      "Vida urbana 8.2/10",
       "Roubo 1,2×/morador",
       "14 mil hab/km²",
     ]);
@@ -109,9 +116,10 @@ describe("researchStripNumbers", () => {
     expect(robbery("RJ:Flamengo")).toBe("Roubo 1,2× média");
   });
 
-  it("rounds the rubric total to one decimal and describes it by its criteria", () => {
-    const [urban] = researchStripNumbers({ ...SUMMARY, marista: 6.68 });
-    expect(urban!.text).toBe("Vida urbana 6,7/10");
+  it("shows the ranking table's Vida urbana (engine scale), not the rubric total, described by its criteria", () => {
+    const [urban] = researchStripNumbers({ ...SUMMARY, marista: 5.9, urbanLife: 7 });
+    expect(urban!.text).toBe(`Vida urbana ${subScoreText(7)}/10`);
+    expect(urban!.text).toBe("Vida urbana 7.0/10");
     expect(urban!.title).toBe(
       "Vida urbana (0–10): nota pelos 9 critérios — densidade com prédios altos, relevo plano, gastronomia de rua, vida noturna, parque a até 1 km, arborização, segurança à noite, prédios modernos e calma.",
     );
@@ -122,6 +130,7 @@ describe("researchStripNumbers", () => {
       ...SUMMARY,
       marista: 6.5,
       maristaSource: "judgement",
+      urbanLife: undefined,
       robberyRatio: null,
       densityPerKm2: 1985,
     });
@@ -139,7 +148,7 @@ describe("NeighborhoodResearchStrip", () => {
       </div>,
     );
     const strip = screen.getByTestId("neighborhood-research-strip");
-    expect(strip.textContent).toContain("Vida urbana 7,4/10");
+    expect(strip.textContent).toContain("Vida urbana 8.2/10");
     expect(strip.textContent).toContain("Roubo 1,2×/morador");
     expect(screen.getByText(SUMMARY.highlight!)).toBeTruthy();
     expect(screen.getByText(SUMMARY.redFlag!)).toBeTruthy();
@@ -155,7 +164,15 @@ describe("NeighborhoodResearchStrip", () => {
   it("renders nothing without numbers or chips", () => {
     const { container } = render(
       <NeighborhoodResearchStrip
-        summary={{ ...SUMMARY, marista: null, robberyRatio: null, densityPerKm2: null, highlight: null, redFlag: null }}
+        summary={{
+          ...SUMMARY,
+          marista: null,
+          urbanLife: undefined,
+          robberyRatio: null,
+          densityPerKm2: null,
+          highlight: null,
+          redFlag: null,
+        }}
         neighborhood="Lourdes"
       />,
     );
@@ -211,6 +228,46 @@ describe("NeighborhoodResearchPanel", () => {
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByTestId("neighborhood-research-panel")).toBeNull();
+  });
+
+  it("lists the public quality-of-life metrics with city value, year, scope and source", async () => {
+    const m = (value: number | null, extra: Partial<QolMetric> = {}): QolMetric => ({
+      value,
+      unit: "",
+      year: "2022",
+      scope: "bairro IBGE Lourdes",
+      source: "IBGE Censo 2022",
+      url: "https://example.com/ibge-qol",
+      ...extra,
+    });
+    const metrics: NeighborhoodQol["metrics"] = Object.fromEntries(
+      QOL_PANEL_METRICS.map(({ id }) => [id, m(90, { cityValue: 80 })]),
+    );
+    metrics.idhm = m(0.953, { year: "2010", scope: "UDH Lourdes", cityValue: 0.81, source: "Atlas Brasil", url: "https://example.com/atlas" });
+    metrics.crime_robbery = m(226, { ratio: 1.13, cityValue: 199.7, year: "mar/2025–fev/2026", scope: "bairro (SEJUSP)" });
+    metrics.crime_homicide = m(null, { reason: "Sem dado por bairro", ratio: null });
+    metrics.nearest_large_park_m = m(884, {
+      park: { name: "Estação Ecológica do Cercadinho", ha: 227.8, url: "https://osm.org/w/1", accessNote: "visitação restrita" },
+    });
+    const qol: NeighborhoodQol = { cityRef: "BH", metrics };
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ ok: true, dossier: { ...DOSSIER, qol } }), { status: 200 }));
+    render(<NeighborhoodResearchStrip summary={SUMMARY} neighborhood="Lourdes" />);
+    fireEvent.click(screen.getByTestId("neighborhood-research-strip"));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Qualidade de vida (dados públicos)" })).toBeTruthy());
+    const list = screen.getByRole("list", { name: "Qualidade de vida" });
+    expect(list.querySelectorAll("li")).toHaveLength(13);
+    const idhm = screen.getByTestId("qol-idhm");
+    expect(idhm.textContent).toContain("IDH-M:");
+    expect(idhm.textContent).toContain("0,953");
+    expect(idhm.textContent).toContain("Belo Horizonte: 0,810");
+    expect(idhm.textContent).toContain("(UDH Lourdes, 2010)");
+    expect(idhm.querySelector("a")!.getAttribute("href")).toBe("https://example.com/atlas");
+    expect(screen.getByTestId("qol-crime_robbery").textContent).toMatch(/226,0\/100 mil \(1,13× a cidade\)\s*· Belo Horizonte: 199,7\/100 mil/);
+    expect(screen.getByTestId("qol-crime_homicide").textContent).toContain("Sem dado por bairro");
+    expect(screen.getByTestId("qol-nearest_large_park_m").textContent).toContain("visitação restrita");
+    expect(screen.getByTestId("qol-sidewalk").textContent).toContain("Calçada:");
+    expect(screen.getByTestId("neighborhood-research-panel").textContent).toContain("nenhum destes números entra nas notas");
   });
 
   it("shows the API error", async () => {

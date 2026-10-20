@@ -24,7 +24,7 @@ import type {
   NeighborhoodEntry,
   ScoringWeights,
 } from "@/types/housing";
-import type { NeighborhoodRationale, NeighborhoodResearchSummary } from "@/types/neighborhood-research";
+import type { NeighborhoodRationale, NeighborhoodResearchSummary, QolRow } from "@/types/neighborhood-research";
 
 /** Photos shipped with each card; the rest load with the details. */
 export const CARD_PHOTO_COUNT = 3;
@@ -88,6 +88,8 @@ export interface DatasetMeta {
   neighborhoodNamesByCity: Partial<Record<CityHubCode, string[]>>;
   /** Research summaries by `<cityCode>:<neighborhood>` (catalog and extra names, plus the reference neighbourhood). */
   neighborhoodResearch?: Record<string, NeighborhoodResearchSummary>;
+  /** Top Bairros public quality-of-life cells (display only), same keys as `neighborhoodResearch`. */
+  neighborhoodQol?: Record<string, QolRow>;
   /** Ranking-tab rationale of each reference neighbourhood, by its key. */
   referenceRationales?: Record<string, NeighborhoodRationale>;
 }
