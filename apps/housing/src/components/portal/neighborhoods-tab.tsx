@@ -21,6 +21,7 @@ import {
   type ReferenceNeighborhood,
   type ReferenceNeighborhoodRow,
 } from "@/lib/reference-neighborhood";
+import { URBAN_LIFE_CRITERIA_TEXT } from "@/lib/urban-breathing";
 import type { ComputedNeighborhood, ScoringWeights } from "@/types/housing";
 import type { NeighborhoodResearchSummary } from "@/types/neighborhood-research";
 
@@ -28,12 +29,10 @@ type ScoreRow = Pick<
   ComputedNeighborhood,
   | "urbanBreathingScore"
   | "commuteLogisticsScore"
-  | "buildingStockFitScore"
-  | "budgetFitScore"
   | "safetyCarScore"
 >;
 
-/** The five sub-scores that feed the dynamic score, in the engine's effective (capped) values. */
+/** The three sub-scores that feed the dynamic score, in the engine's effective (capped) values. */
 const SUB_SCORES: {
   id: string;
   label: string;
@@ -43,35 +42,22 @@ const SUB_SCORES: {
 }[] = [
   { id: "urban", label: "Vida urbana", short: "Vida urb.", weightKey: "urbanBreathingWeight", value: (n) => n.urbanBreathingScore },
   { id: "commute", label: "Deslocamento", short: "Desloc.", weightKey: "commuteLogisticsWeight", value: (n) => n.commuteLogisticsScore },
-  { id: "stock", label: "Prédios", short: "Prédios", weightKey: "buildingStockWeight", value: (n) => n.buildingStockFitScore },
-  { id: "budget", label: "Preço", short: "Preço", weightKey: "budgetFitWeight", value: (n) => n.budgetFitScore },
   { id: "safety", label: "Segurança", short: "Segur.", weightKey: "safetyCarWeight", value: (n) => n.safetyCarScore },
 ];
 
 function weightTitle(label: string, weights: ScoringWeights, key: keyof ScoringWeights): string {
   const w = weights[key];
-  return `${label} (0–10) · peso atual ${typeof w === "number" ? decimal(w) : "—"}×`;
+  const weight = `peso atual ${typeof w === "number" ? decimal(w) : "—"}×`;
+  return key === "urbanBreathingWeight" ? `${URBAN_LIFE_CRITERIA_TEXT} · ${weight}` : `${label} (0–10) · ${weight}`;
 }
 
-/** Research columns: Marista rubric, density and apartment share; "—" without research. */
-export function researchCells(s: NeighborhoodResearchSummary | undefined): {
-  marista: string;
-  density: string;
-  apartments: string;
-} {
-  return {
-    marista:
-      s?.marista == null ? "—" : s.maristaSource === "rubric" ? decimal(s.marista) : `≈${decimal(s.marista)}`,
-    density: s?.densityPerKm2 == null ? "—" : formatDensity(s.densityPerKm2),
-    apartments:
-      s?.apartmentsShare == null ? "—" : `${s.apartmentsShare.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%`,
-  };
+/** Research column: density; "—" without research. */
+export function researchCells(s: NeighborhoodResearchSummary | undefined): { density: string } {
+  return { density: s?.densityPerKm2 == null ? "—" : formatDensity(s.densityPerKm2) };
 }
 
 const RESEARCH_HEADERS = [
-  { id: "marista", label: "Marista", short: "Marista", title: "Semelhança com o Setor Marista (rubrica 0–10; ≈ = juízo do pesquisador)" },
   { id: "density", label: "Densidade", short: "Densid.", title: "Densidade demográfica, hab/km² (IBGE Censo 2022)" },
-  { id: "apartments", label: "Aptos", short: "Aptos", title: "Domicílios que são apartamentos (%, IBGE Censo 2022)" },
 ] as const;
 
 const COMMUTE_NEUTRAL_TEXT = "neutro";
@@ -108,12 +94,6 @@ const DEFAULT_SORT: SortState = { key: "score", dir: "desc" };
 
 const textOrNull = (s: string) => (s.trim() ? s : null);
 
-function researchValue(s: NeighborhoodResearchSummary | undefined, key: string): SortValue {
-  if (key === "marista") return s?.marista ?? null;
-  if (key === "density") return s?.densityPerKm2 ?? null;
-  return s?.apartmentsShare ?? null;
-}
-
 /** The value a row sorts by; references have no commute ("neutro") and sort last on both commute columns. */
 function sortValue(item: ListItem, key: string, research: (key: string) => NeighborhoodResearchSummary | undefined): SortValue {
   const row = item.kind === "catalog" ? item.n : item.ref;
@@ -124,7 +104,7 @@ function sortValue(item: ListItem, key: string, research: (key: string) => Neigh
   if (key === "name") return row.neighborhood;
   if (key === "city") return item.kind === "catalog" ? CITY_BADGE_INFO[item.n.cityCode].ufLabel : item.info.ufLabel;
   if (sub) return item.kind === "reference" && sub.id === "commute" ? null : sub.value(row);
-  if (RESEARCH_HEADERS.some((h) => h.id === key)) return researchValue(research(rowKey), key);
+  if (key === "density") return research(rowKey)?.densityPerKm2 ?? null;
   if (key === "commuteTime") return item.kind === "catalog" ? commuteUpperBound(item.n.commuteTime) : null;
   return textOrNull(row.shortRationale || (item.kind === "reference" ? item.info.subtitle : ""));
 }
@@ -261,7 +241,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                 <div className="space-y-1 text-xs leading-relaxed">
                   <RationaleText short={ref.shortRationale} detailed={ref.detailedJustification} />
                 </div>
-                <div className="grid grid-cols-5 gap-1 rounded-lg bg-background/60 p-2 text-center">
+                <div className="grid grid-cols-3 gap-1 rounded-lg bg-background/60 p-2 text-center">
                   {SUB_SCORES.map((s) => (
                     <div key={s.id} title={s.id === "commute" ? commuteNeutralTitle(ref, info) : undefined}>
                       <span className="block text-xs leading-tight text-muted-foreground">{s.short}</span>
@@ -319,7 +299,7 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                 </span>
               </div>
 
-              <div className="grid grid-cols-5 gap-1 rounded-lg bg-muted/50 p-2 text-center">
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/50 p-2 text-center">
                 {SUB_SCORES.map((s) => (
                   <div key={s.id}>
                     <span className="block text-xs leading-tight text-muted-foreground">{s.short}</span>
@@ -549,7 +529,7 @@ function ExtraBadge({ className = "" }: { className?: string }) {
 
 function MobileResearchRow({ cells }: { cells: ReturnType<typeof researchCells> }) {
   return (
-    <div className="grid grid-cols-3 gap-1 rounded-lg border border-dashed p-2 text-center">
+    <div className="grid grid-cols-1 gap-1 rounded-lg border border-dashed p-2 text-center">
       {RESEARCH_HEADERS.map((h) => (
         <div key={h.id} title={h.title}>
           <span className="block text-xs leading-tight text-muted-foreground">{h.short}</span>

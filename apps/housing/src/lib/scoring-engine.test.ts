@@ -245,8 +245,6 @@ describe("Housing Dynamic Scoring Engine", () => {
       ...DEFAULT_WEIGHTS,
       urbanBreathingWeight: 2.5,
       commuteLogisticsWeight: 0,
-      buildingStockWeight: 0,
-      budgetFitWeight: 0,
       safetyCarWeight: 0,
     };
     const { ranked: parkRanked } = computeDynamicNeighborhoods(
@@ -2405,11 +2403,12 @@ describe("Housing Dynamic Scoring Engine", () => {
     const bosqueNb = nbs.find((n) => n.neighborhood === "Bosque")!;
     const guanabaraNb = nbs.find((n) => n.neighborhood === "Jd. Guanabara")!;
 
-    // Calibration caps: CP:Bosque 6.2, CP:Jd. Guanabara 5.0 and Taquaral 6.2 (rubric); Taquaral still leads on stock/budget
+    // Calibration caps: CP:Bosque 6.2, CP:Jd. Guanabara 5.0 and Taquaral 6.2 (rubric); with equal urban breathing,
+    // Taquaral's safe-bubble street safety (8.6 vs 8.2) narrowly outweighs Bosque's shorter commute
     expect(taquaralNb.urbanBreathingScore).toBe(6.2);
     expect(bosqueNb.urbanBreathingScore).toBe(6.2);
     expect(guanabaraNb.urbanBreathingScore).toBe(5.0);
-    expect(taquaralNb.dynamicScore - bosqueNb.dynamicScore).toBeGreaterThan(0.3);
+    expect(taquaralNb.dynamicScore - bosqueNb.dynamicScore).toBeCloseTo(0.08, 2);
     expect(taquaralNb.dynamicScore - guanabaraNb.dynamicScore).toBeGreaterThan(1.0);
 
     const baseProp: SlimPropertyRecord = {
@@ -2622,13 +2621,13 @@ describe("Housing Dynamic Scoring Engine", () => {
       "Eixo Caminhável / Respiro Urbano",
     );
     expect(evalTaqPrime.shortJustification).toContain(
-      "quadra arborizada com vida a pé (estilo Setor Marista)",
+      "quadra arborizada com vida a pé",
     );
     expect(evalBhPrime.cardTags.greenTags).toContain(
       "Eixo Caminhável / Respiro Urbano",
     );
     expect(evalBhPrime.shortJustification).toContain(
-      "quadra arborizada com vida a pé (estilo Setor Marista)",
+      "quadra arborizada com vida a pé",
     );
 
     // Prime Taquaral & Funcionários decisively beat Aquidabã bunker by > 65 pts
@@ -3579,12 +3578,12 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
     expect(withPubAt.length).toBe(snapshotRaw.properties.length);
   });
 
-  it("calibrates the Top 20 Bairros ranking with 30/30/20/10/10 pillar weights, BH internal order, Laranjeiras/Humaitá in RJ, and SP Capital discount", () => {
+  it("calibrates the Top 20 Bairros ranking with 3/3/1 pillar weights, BH internal order, Laranjeiras/Humaitá in RJ, and SP Capital discount", () => {
     expect(DEFAULT_WEIGHTS.safetyCarWeight).toBe(3.0);
     expect(DEFAULT_WEIGHTS.urbanBreathingWeight).toBe(3.0);
-    expect(DEFAULT_WEIGHTS.buildingStockWeight).toBe(2.0);
     expect(DEFAULT_WEIGHTS.commuteLogisticsWeight).toBe(1.0);
-    expect(DEFAULT_WEIGHTS.budgetFitWeight).toBe(1.0);
+    expect(DEFAULT_WEIGHTS).not.toHaveProperty("buildingStockWeight");
+    expect(DEFAULT_WEIGHTS).not.toHaveProperty("budgetFitWeight");
 
     const snapshotRaw = JSON.parse(
       readFileSync(resolve(__dirname, "../data/seed-snapshot.json"), "utf8"),
@@ -3622,7 +3621,8 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
       "Laranjeiras",
     ]);
 
-    // 3. SP Capital neighborhoods receive -1.50 discount; Moema (urban breathing 8.1) still ranks below the BH top 4 and Botafogo (Orla)
+    // 3. SP Capital neighborhoods receive -1.50 discount; Moema (urban breathing 8.8 in the seed) still ranks below the BH top 4.
+    // Without the building stock and budget fit sub-scores it now edges Botafogo (Orla) (7.86 vs 7.80).
     const rankOf = (city: string, nb: string) =>
       ranked.find((n) => n.cityCode === city && n.neighborhood === nb)!
         .dynamicOverallRank;
@@ -3637,10 +3637,11 @@ describe("dataset sanity checks (seed-snapshot.json)", () => {
       ["BH", "Funcionários"],
       ["BH", "Savassi"],
       ["BH", "Santo Agostinho"],
-      ["RJ", "Botafogo (Orla)"],
     ] as const) {
       expect(rankOf(city, nb)).toBeLessThan(spMoema.dynamicOverallRank);
     }
+    expect(spMoema.dynamicOverallRank).toBe(5);
+    expect(rankOf("RJ", "Botafogo (Orla)")).toBe(6);
   });
 
   it("enforces photo-audit overrides (quintoandar:895702014 Parque Prado & quintoandar:895694297), prevents uncorroborated NEW_OR_RENOVATED inflation, and penalizes unrenovated DCE without retaining by modernity", () => {
@@ -3823,7 +3824,7 @@ describe("Calibration fixes: CP far commute, sale status, modernity ramp, no cit
       DEFAULT_WEIGHTS,
     );
     expect(a!.neighborhoodDynamicScore).toBe(b!.neighborhoodDynamicScore);
-    expect(a!.neighborhoodDynamicScore).toBeCloseTo(5.51, 2);
+    expect(a!.neighborhoodDynamicScore).toBeCloseTo(5.0, 2);
   });
 
   it("dates QuintoAndar relistings by their current publication and keeps the first one as a hint", () => {
@@ -4487,8 +4488,6 @@ describe("Round-2 audit rules: duplicates, price/IPTU, lofts, furniture, cobertu
       {
         urbanBreathing: TAQUARAL_FAR_FROM_LAGOA_URBAN_BREATHING,
         commuteLogistics: taquaral.commuteLogisticsScore,
-        buildingStock: taquaral.buildingStockFitScore,
-        budgetFit: taquaral.budgetFitScore,
         safetyCar: taquaral.safetyCarScore,
       },
       DEFAULT_WEIGHTS,
@@ -5326,7 +5325,7 @@ describe("Rules review fixes: retention text, area ceiling, weights migration, f
 describe("computeWeightedNeighborhoodScore urban breathing curve", () => {
   const score = (urbanBreathing: number) =>
     computeWeightedNeighborhoodScore(
-      { urbanBreathing, commuteLogistics: 8.0, buildingStock: 8.0, budgetFit: 8.0, safetyCar: 8.2 },
+      { urbanBreathing, commuteLogistics: 8.0, safetyCar: 8.2 },
       DEFAULT_WEIGHTS,
     );
 
@@ -5336,7 +5335,7 @@ describe("computeWeightedNeighborhoodScore urban breathing curve", () => {
   });
 
   it("ramps the bonus from 0 at 7.0 to +0.45 at 8.0, holds it above and takes 1.16 per point below 7.0", () => {
-    const weightedOnly = (ub: number) => (ub * 3 + 8 * 1 + 8 * 2 + 8 * 1 + 8.2 * 3) / 10;
+    const weightedOnly = (ub: number) => (ub * 3 + 8 * 1 + 8.2 * 3) / 7;
     expect(score(7.0)).toBeCloseTo(weightedOnly(7.0), 2);
     expect(score(7.6)).toBeCloseTo(weightedOnly(7.6) + 0.27, 2);
     expect(score(8.0)).toBeCloseTo(weightedOnly(8.0) + 0.45, 2);
@@ -5348,7 +5347,7 @@ describe("computeWeightedNeighborhoodScore urban breathing curve", () => {
     const oldUb = (t: number) => 6 + ((t - 4.4) * 4) / 3.63;
     const oldDelta = (ub: number) =>
       ub >= 9 ? 0.45 : ub >= 7.5 ? ((ub - 7.5) / 1.5) * 0.45 : -(7.5 - ub) * 0.75;
-    const weightedOnly = (ub: number) => (ub * 3 + 8 * 1 + 8 * 2 + 8 * 1 + 8.2 * 3) / 10;
+    const weightedOnly = (ub: number) => (ub * 3 + 8 * 1 + 8.2 * 3) / 7;
     for (const total of [4.4, 5.3, 5.89, 6.47, 7.32, 8.03]) {
       const ub = rubricToUrbanBreathing(total);
       const delta = score(ub) - weightedOnly(ub);

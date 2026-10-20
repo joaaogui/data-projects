@@ -37,11 +37,11 @@ describe("REFERENCE_NEIGHBORHOODS", () => {
     for (const ref of REFERENCE_NEIGHBORHOODS) expect(dossiers[ref.key]?.rubric?.total).toBeGreaterThan(0);
     expect(REFERENCE_NEIGHBORHOODS[0]).toMatchObject({
       badge: "Referência",
-      subScores: { urbanBreathing: 8.6, buildingStock: 9.5, budgetFit: 8.5, safetyCar: 8.5 },
+      subScores: { urbanBreathing: 8.6, safetyCar: 8.5 },
     });
     expect(REFERENCE_NEIGHBORHOODS[1]).toMatchObject({
       badge: "Onde você mora hoje",
-      subScores: { urbanBreathing: 7.4, buildingStock: 9, budgetFit: 8.5, safetyCar: 8.8 },
+      subScores: { urbanBreathing: 7.4, safetyCar: 8.8 },
       subtitle: "Onde você mora hoje — fora do catálogo, não altera as notas dos imóveis",
     });
   });

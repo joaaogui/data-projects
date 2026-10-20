@@ -151,7 +151,7 @@ describe("WeightsPanel", () => {
   it("fires updateWeight from the neighborhood sub-weight sliders", () => {
     const ctl = buildCtl();
     render(<WeightsPanel ctl={ctl} />);
-    fireEvent.change(screen.getByLabelText(/Respiração Urbana/), {
+    fireEvent.change(screen.getByLabelText(/Vida urbana/), {
       target: { value: "2" },
     });
     expect(ctl.updateWeight).toHaveBeenCalledWith("urbanBreathingWeight", 2);
@@ -162,14 +162,8 @@ describe("WeightsPanel", () => {
       "commuteLogisticsWeight",
       2,
     );
-    fireEvent.change(screen.getByLabelText(/Oferta de Prédios Bons/), {
-      target: { value: "1" },
-    });
-    expect(ctl.updateWeight).toHaveBeenCalledWith("buildingStockWeight", 1);
-    fireEvent.change(screen.getByLabelText(/Poder de Compra/), {
-      target: { value: "1.5" },
-    });
-    expect(ctl.updateWeight).toHaveBeenCalledWith("budgetFitWeight", 1.5);
+    expect(screen.queryByLabelText(/Oferta de Prédios Bons/)).toBeNull();
+    expect(screen.queryByLabelText(/Poder de Compra/)).toBeNull();
     fireEvent.change(screen.getByLabelText(/Segurança Pública/), {
       target: { value: "2.5" },
     });

@@ -70,8 +70,6 @@ export function buildExtraNeighborhoods(
     const scores = {
       urbanBreathing: m.urbanBreathing,
       commuteLogistics: m.commuteLogistics,
-      buildingStock: m.buildingStock,
-      budgetFit: m.budgetFit,
       safetyCar: m.safetyCar,
     };
     const rationale = rationaleFor(m.cityCode, name);

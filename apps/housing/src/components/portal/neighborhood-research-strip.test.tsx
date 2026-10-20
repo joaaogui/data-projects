@@ -92,9 +92,9 @@ afterEach(() => {
 });
 
 describe("researchStripNumbers", () => {
-  it("formats Marista, robbery ratio and density in pt-BR", () => {
+  it("formats the Vida urbana rubric total, robbery ratio and density in pt-BR", () => {
     expect(researchStripNumbers(SUMMARY).map((n) => n.text)).toEqual([
-      "Marista 7,4/10",
+      "Vida urbana 7,4/10",
       "Roubo 1,2×/morador",
       "14 mil hab/km²",
     ]);
@@ -109,15 +109,24 @@ describe("researchStripNumbers", () => {
     expect(robbery("RJ:Flamengo")).toBe("Roubo 1,2× média");
   });
 
-  it("marks the researcher's judgement as approximate and skips missing numbers", () => {
-    const texts = researchStripNumbers({
+  it("rounds the rubric total to one decimal and describes it by its criteria", () => {
+    const [urban] = researchStripNumbers({ ...SUMMARY, marista: 6.68 });
+    expect(urban!.text).toBe("Vida urbana 6,7/10");
+    expect(urban!.title).toBe(
+      "Vida urbana (0–10): nota pelos 9 critérios — densidade com prédios altos, relevo plano, gastronomia de rua, vida noturna, parque a até 1 km, arborização, segurança à noite, prédios modernos e calma.",
+    );
+  });
+
+  it("hides the researcher's own judgement and skips missing numbers", () => {
+    const numbers = researchStripNumbers({
       ...SUMMARY,
       marista: 6.5,
       maristaSource: "judgement",
       robberyRatio: null,
       densityPerKm2: 1985,
-    }).map((n) => n.text);
-    expect(texts).toEqual(["Marista ≈6,5/10", "2 mil hab/km²"]);
+    });
+    expect(numbers.map((n) => n.text)).toEqual(["2 mil hab/km²"]);
+    expect(numbers.some((n) => /marista/i.test(`${n.text} ${n.title}`))).toBe(false);
   });
 });
 
@@ -130,7 +139,7 @@ describe("NeighborhoodResearchStrip", () => {
       </div>,
     );
     const strip = screen.getByTestId("neighborhood-research-strip");
-    expect(strip.textContent).toContain("Marista 7,4/10");
+    expect(strip.textContent).toContain("Vida urbana 7,4/10");
     expect(strip.textContent).toContain("Roubo 1,2×/morador");
     expect(screen.getByText(SUMMARY.highlight!)).toBeTruthy();
     expect(screen.getByText(SUMMARY.redFlag!)).toBeTruthy();
@@ -167,6 +176,9 @@ describe("NeighborhoodResearchPanel", () => {
     expect(panel.textContent).toContain("Unidade oficial dos dados:");
     expect(panel.textContent).toContain("7,4/10");
     expect(panel.textContent).toContain("60% dos critérios medidos");
+    expect(screen.getByRole("heading", { name: "Vida urbana" })).toBeTruthy();
+    expect(panel.textContent).toContain("Vida urbana (0–10): nota pelos 9 critérios");
+    expect(panel.textContent).not.toMatch(/Marista/);
     expect(screen.getByRole("list", { name: "Critérios da rubrica" }).textContent).toContain("Relevo plano—");
     expect(panel.textContent).toContain("“Seguro e com muitos serviços perto”");
     expect(panel.textContent).toContain("08/04/2026");
@@ -186,14 +198,16 @@ describe("NeighborhoodResearchPanel", () => {
     expect(Array.from(panel.querySelectorAll("a")).every((a) => a.getAttribute("target") === "_blank")).toBe(true);
   });
 
-  it("falls back to the researcher's judgement without a rubric, and closes on Escape", async () => {
+  it("does not show the researcher's own judgement without a rubric, and closes on Escape", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ ok: true, dossier: { ...DOSSIER, rubric: null } }), { status: 200 }),
     );
     render(<NeighborhoodResearchStrip summary={SUMMARY} neighborhood="Lourdes" />);
     fireEvent.click(screen.getByTestId("neighborhood-research-strip"));
-    await waitFor(() => expect(screen.getByText(/juízo do pesquisador/)).toBeTruthy());
-    expect(screen.getByTestId("neighborhood-research-panel").textContent).toContain("≈7,5/10");
+    await waitFor(() => expect(screen.getByText("Sem avaliação.")).toBeTruthy());
+    const panel = screen.getByTestId("neighborhood-research-panel");
+    expect(panel.textContent).not.toContain("≈7,5/10");
+    expect(panel.textContent).not.toMatch(/juízo do pesquisador|Marista/);
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByTestId("neighborhood-research-panel")).toBeNull();

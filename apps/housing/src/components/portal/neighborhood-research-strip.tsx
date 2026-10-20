@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 
 import { NeighborhoodResearchPanel } from "@/components/portal/neighborhood-research-panel";
+import { URBAN_LIFE_CRITERIA_TEXT } from "@/lib/urban-breathing";
 import type { NeighborhoodResearchSummary } from "@/types/neighborhood-research";
 
 export const decimal = (v: number) =>
@@ -23,15 +24,8 @@ const PER_RESIDENT_COMMERCIAL_KEYS = new Set(["BH:Funcionários", "BH:Savassi", 
 /** The 2–3 numbers shown on the card, in display order. */
 export function researchStripNumbers(s: NeighborhoodResearchSummary): { id: string; text: string; title: string }[] {
   const out: { id: string; text: string; title: string }[] = [];
-  if (s.marista !== null) {
-    out.push({
-      id: "marista",
-      text: s.maristaSource === "rubric" ? `Marista ${decimal(s.marista)}/10` : `Marista ≈${decimal(s.marista)}/10`,
-      title:
-        s.maristaSource === "rubric"
-          ? "Semelhança com o Setor Marista (rubrica com critérios medidos)"
-          : "Semelhança com o Setor Marista — juízo do pesquisador, não medido",
-    });
+  if (s.marista !== null && s.maristaSource === "rubric") {
+    out.push({ id: "urban-life", text: `Vida urbana ${decimal(s.marista)}/10`, title: URBAN_LIFE_CRITERIA_TEXT });
   }
   if (s.robberyRatio !== null) {
     const perResident = PER_RESIDENT_COMMERCIAL_KEYS.has(s.key);

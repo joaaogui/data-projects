@@ -324,7 +324,7 @@ export function WeightsPanel({ ctl }: { ctl: PortalController }) {
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between font-medium">
                     <label htmlFor="weight-urban-breathing">
-                      Respiração Urbana (Vibe Setor Marista)
+                      Vida urbana (9 critérios do bairro)
                     </label>
                     <span className="font-mono text-primary">
                       {weights.urbanBreathingWeight.toFixed(1)}x
@@ -368,55 +368,6 @@ export function WeightsPanel({ ctl }: { ctl: PortalController }) {
                         "commuteLogisticsWeight",
                         Number(e.target.value),
                       )
-                    }
-                    className="w-full accent-primary"
-                  />
-                </div>
-
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between font-medium">
-                    <label htmlFor="weight-building-stock">
-                      Oferta de Prédios Bons c/ Vaga
-                    </label>
-                    <span className="font-mono text-primary">
-                      {weights.buildingStockWeight.toFixed(1)}x
-                    </span>
-                  </div>
-                  <input
-                    id="weight-building-stock"
-                    type="range"
-                    min={0}
-                    max={3.5}
-                    step={0.1}
-                    value={weights.buildingStockWeight}
-                    onChange={(e) =>
-                      updateWeight(
-                        "buildingStockWeight",
-                        Number(e.target.value),
-                      )
-                    }
-                    className="w-full accent-primary"
-                  />
-                </div>
-
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between font-medium">
-                    <label htmlFor="weight-budget-fit">
-                      Poder de Compra no Orçamento
-                    </label>
-                    <span className="font-mono text-primary">
-                      {weights.budgetFitWeight.toFixed(1)}x
-                    </span>
-                  </div>
-                  <input
-                    id="weight-budget-fit"
-                    type="range"
-                    min={0}
-                    max={3.5}
-                    step={0.1}
-                    value={weights.budgetFitWeight}
-                    onChange={(e) =>
-                      updateWeight("budgetFitWeight", Number(e.target.value))
                     }
                     className="w-full accent-primary"
                   />

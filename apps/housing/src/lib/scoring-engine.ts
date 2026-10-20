@@ -87,8 +87,6 @@ const KW_FERRO_MADEIRA_RE = keywordRe(["ferro", "madeira", "janela", "parede", "
 export const DEFAULT_WEIGHTS: ScoringWeights = {
   urbanBreathingWeight: 3.0,
   commuteLogisticsWeight: 1.0,
-  buildingStockWeight: 2.0,
-  budgetFitWeight: 1.0,
   safetyCarWeight: 3.0,
   neighborhoodMultiplier: 6.5,
   modernityMultiplier: 0.85,
@@ -116,8 +114,6 @@ const WEIGHT_NUMERIC_BOUNDS: Record<
 > = {
   urbanBreathingWeight: { min: 0, max: 5 },
   commuteLogisticsWeight: { min: 0, max: 5 },
-  buildingStockWeight: { min: 0, max: 5 },
-  budgetFitWeight: { min: 0, max: 5 },
   safetyCarWeight: { min: 0, max: 5 },
   neighborhoodMultiplier: { min: 0, max: 15 },
   modernityMultiplier: { min: 0, max: 3 },
@@ -171,8 +167,6 @@ export function sanitizeAndMigrateWeights(
   const result: ScoringWeights = {
     urbanBreathingWeight: sanitizeNum("urbanBreathingWeight"),
     commuteLogisticsWeight: sanitizeNum("commuteLogisticsWeight"),
-    buildingStockWeight: sanitizeNum("buildingStockWeight"),
-    budgetFitWeight: sanitizeNum("budgetFitWeight"),
     safetyCarWeight: sanitizeNum("safetyCarWeight"),
     neighborhoodMultiplier: sanitizeNum("neighborhoodMultiplier"),
     modernityMultiplier: sanitizeNum("modernityMultiplier"),
@@ -251,8 +245,6 @@ export const BUILTIN_PRESETS: {
       safetyCarWeight: 3.5,
       urbanBreathingWeight: 3.0,
       commuteLogisticsWeight: 1.8,
-      buildingStockWeight: 2.2,
-      budgetFitWeight: 1.5,
       budgetIdeal: 4200,
       budgetMax: 4500,
       budgetHardCap: 5000,
@@ -264,7 +256,7 @@ export const BUILTIN_PRESETS: {
     id: "balanced-original",
     name: "Equilíbrio Original (Padrão)",
     description:
-      "Pesos calibrados: Segurança (30%) e Respiração Urbana (30%) como fatores dominantes (3.0x), Estoque Predial (20%, 2.0x), Logística (10%, 1.0x) e Orçamento (10%, 1.0x).",
+      "Pesos calibrados: Segurança (3.0x) e Vida urbana (3.0x) como fatores dominantes, Deslocamento (1.0x).",
     weights: DEFAULT_WEIGHTS,
   },
   {
@@ -274,7 +266,6 @@ export const BUILTIN_PRESETS: {
       "Aumenta o peso do Score de Modernidade (1.1x) para favorecer prédios novos ou reformados, mantendo rigor em segurança.",
     weights: {
       ...DEFAULT_WEIGHTS,
-      buildingStockWeight: 2.0,
       modernityMultiplier: 1.1,
       minModernityScore: 72,
       neighborhoodMultiplier: 5.0,
@@ -311,7 +302,6 @@ export const BUILTIN_PRESETS: {
       "Trava o teto ideal em R$ 3.800 e limite máximo em R$ 4.200, dobrando o prêmio para imóveis econômicos.",
     weights: {
       ...DEFAULT_WEIGHTS,
-      budgetFitWeight: 1.8,
       budgetIdeal: 3800,
       budgetMax: 4200,
       budgetHardCap: 4400,
@@ -528,8 +518,6 @@ export function computeWeightedNeighborhoodScore(
   scores: {
     urbanBreathing: number;
     commuteLogistics: number;
-    buildingStock: number;
-    budgetFit: number;
     safetyCar: number;
   },
   weights: ScoringWeights,
@@ -537,8 +525,6 @@ export function computeWeightedNeighborhoodScore(
   const wSum =
     weights.urbanBreathingWeight +
     weights.commuteLogisticsWeight +
-    weights.buildingStockWeight +
-    weights.budgetFitWeight +
     weights.safetyCarWeight;
 
   if (wSum <= 0) return 7.0;
@@ -546,8 +532,6 @@ export function computeWeightedNeighborhoodScore(
   const weighted =
     (scores.urbanBreathing * weights.urbanBreathingWeight +
       scores.commuteLogistics * weights.commuteLogisticsWeight +
-      scores.buildingStock * weights.buildingStockWeight +
-      scores.budgetFit * weights.budgetFitWeight +
       scores.safetyCar * weights.safetyCarWeight) /
     wSum;
 
@@ -652,8 +636,6 @@ export function computeDynamicNeighborhoods(
       {
         urbanBreathing: effectiveUrbanBreathing,
         commuteLogistics: effectiveCommuteLogistics,
-        buildingStock: n.buildingStockFitScore,
-        budgetFit: n.budgetFitScore,
         safetyCar: effectiveSafetyCar,
       },
       weights,
@@ -679,8 +661,6 @@ export function computeDynamicNeighborhoods(
       `Nota Dinâmica ${dynamicScore.toFixed(2)}/10 (Base original: ${n.baseScore.toFixed(1)}) — ` +
       `Composição ponderada: Respiração Urbana ${effectiveUrbanBreathing.toFixed(1)} (peso ${weights.urbanBreathingWeight.toFixed(1)}x), ` +
       `Logística Nubank ${effectiveCommuteLogistics.toFixed(1)} (peso ${weights.commuteLogisticsWeight.toFixed(1)}x), ` +
-      `Estoque Predial ${n.buildingStockFitScore.toFixed(1)} (peso ${weights.buildingStockWeight.toFixed(1)}x), ` +
-      `Adequação Orçamento ${n.budgetFitScore.toFixed(1)} (peso ${weights.budgetFitWeight.toFixed(1)}x), ` +
       `Segurança & Carro ${effectiveSafetyCar.toFixed(1)} (peso ${weights.safetyCarWeight.toFixed(1)}x).${safetyPenaltyNote}${spDiscountNote} ` +
       n.detailedJustification;
 
@@ -1378,7 +1358,7 @@ export function evaluateStreetMicroEnvironment(
       redTag: null,
       greenTag: "Eixo Caminhável / Respiro Urbano",
       warning: null,
-      highlight: "Eixo caminhável arborizado (estilo Setor Marista)",
+      highlight: "Eixo caminhável arborizado",
       safetyCarCap: null,
       urbanBreathingCap: null,
     };
@@ -3150,7 +3130,7 @@ function extractNonRedundantHighlights(
 
   // 3. Surroundings & Micro-location
   if (nuances.greenTags.includes("Eixo Caminhável / Respiro Urbano")) {
-    addSurrounding("quadra arborizada com vida a pé (estilo Setor Marista)");
+    addSurrounding("quadra arborizada com vida a pé");
   }
 
   if (nuances.nuanceHighlights.includes("Rua silenciosa")) {
@@ -3411,8 +3391,6 @@ function buildShortJustification(params: {
       urbanContext += " com logística rápida para o presencial";
     } else if (safetyCar >= 8.3) {
       urbanContext += " em bolha caminhável segura";
-    } else if (catalogNb.budgetFitScore >= 9.0) {
-      urbanContext += " em região de ótimo custo-benefício";
     }
   } else if (!isBunkerCorridor && safetyCar >= 8.3) {
     urbanContext += " em bolha caminhável segura";
@@ -5183,8 +5161,6 @@ export function scorePrecomputedListings(
           {
             urbanBreathing: effectiveUrbanBreathing,
             commuteLogistics: catalogNb.commuteLogisticsScore,
-            buildingStock: catalogNb.buildingStockFitScore,
-            budgetFit: catalogNb.budgetFitScore,
             safetyCar: nbSafetyCar,
           },
           weights,
@@ -5197,8 +5173,6 @@ export function scorePrecomputedListings(
         {
           urbanBreathing: effectiveUrbanBreathing,
           commuteLogistics: calibratedMeta.commuteLogistics,
-          buildingStock: calibratedMeta.buildingStock,
-          budgetFit: calibratedMeta.budgetFit,
           safetyCar: nbSafetyCar,
         },
         weights,
@@ -5209,8 +5183,6 @@ export function scorePrecomputedListings(
         {
           urbanBreathing: effectiveUrbanBreathing,
           commuteLogistics: 6.5,
-          buildingStock: 6.2,
-          budgetFit: 7.0,
           safetyCar: nbSafetyCar,
         },
         weights,

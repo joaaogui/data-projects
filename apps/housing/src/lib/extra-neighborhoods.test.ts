@@ -177,8 +177,6 @@ describe("ranking tab list (catalog + researched extras, seed snapshot)", () => 
         {
           urbanBreathing: extra.urbanBreathingScore,
           commuteLogistics: extra.commuteLogisticsScore,
-          buildingStock: extra.buildingStockFitScore,
-          budgetFit: extra.budgetFitScore,
           safetyCar: extra.safetyCarScore,
         },
         DEFAULT_WEIGHTS,

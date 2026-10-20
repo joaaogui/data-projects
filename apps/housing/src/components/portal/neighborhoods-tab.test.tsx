@@ -237,10 +237,8 @@ const REF: ReferenceNeighborhoodRow = {
   dynamicScore: 9.3,
   urbanBreathingScore: 8.6,
   commuteLogisticsScore: 7.5,
-  buildingStockFitScore: 9.5,
-  budgetFitScore: 8.5,
   safetyCarScore: 8.5,
-  shortRationale: "A régua de tudo.",
+  shortRationale: "Bairro de referência.",
   detailedJustification: "Plano e de torres espaçadas.",
 };
 
@@ -326,7 +324,7 @@ describe("NeighborhoodsTab reference row", () => {
     const row = screen.getByTestId("reference-neighborhood-row");
     const card = screen.getByTestId("reference-neighborhood-card");
     for (const el of [row, card]) {
-      expect(el.textContent).toContain("A régua de tudo.");
+      expect(el.textContent).toContain("Bairro de referência.");
       expect(el.textContent).toContain("Plano e de torres espaçadas.");
     }
   });
@@ -343,9 +341,9 @@ describe("NeighborhoodsTab reference row", () => {
   it("shows each reference's own rationale", () => {
     render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF, AGUAS] })} />);
     const [marista, aguas] = screen.getAllByTestId("reference-neighborhood-row");
-    expect(marista!.textContent).toContain("A régua de tudo.");
+    expect(marista!.textContent).toContain("Bairro de referência.");
     expect(aguas!.textContent).toContain("Plano, de torres, com metrô.");
-    expect(aguas!.textContent).not.toContain("A régua de tudo.");
+    expect(aguas!.textContent).not.toContain("Bairro de referência.");
   });
 
   it("ranks both references at their score positions, each with its own badge and subtitle", () => {
@@ -393,20 +391,32 @@ describe("NeighborhoodsTab reference row", () => {
 });
 
 describe("NeighborhoodsTab metric columns", () => {
-  it("shows the five sub-scores with the current weights in the header tooltips", () => {
-    render(<NeighborhoodsTab ctl={buildCtl({ weights: { ...DEFAULT_WEIGHTS, budgetFitWeight: 1.5 } })} />);
-    for (const label of ["Vida urbana", "Deslocamento", "Prédios", "Preço", "Segurança"]) {
+  it("shows the three sub-scores with the current weights in the header tooltips", () => {
+    render(<NeighborhoodsTab ctl={buildCtl({ weights: { ...DEFAULT_WEIGHTS, safetyCarWeight: 1.5 } })} />);
+    for (const label of ["Vida urbana", "Deslocamento", "Segurança"]) {
       expect(screen.getByRole("columnheader", { name: label })).toBeTruthy();
     }
-    expect(screen.getByRole("columnheader", { name: "Preço" }).getAttribute("title")).toBe(
-      "Preço (0–10) · peso atual 1,5×",
+    for (const label of ["Prédios", "Preço", "Aptos", "Marista"]) {
+      expect(screen.queryByRole("columnheader", { name: label })).toBeNull();
+    }
+    expect(screen.getByRole("columnheader", { name: "Segurança" }).getAttribute("title")).toBe(
+      "Segurança (0–10) · peso atual 1,5×",
+    );
+    expect(screen.getByRole("columnheader", { name: "Vida urbana" }).getAttribute("title")).toBe(
+      "Vida urbana (0–10): nota pelos 9 critérios — densidade com prédios altos, relevo plano, gastronomia de rua, vida noturna, parque a até 1 km, arborização, segurança à noite, prédios modernos e calma. · peso atual 3,0×",
     );
     const funcionarios = document.querySelector("tbody tr")!;
     const cells = [...funcionarios.querySelectorAll("td")].map((td) => td.textContent);
-    expect(cells.slice(4, 9)).toEqual(["9.5", "9.8", "9.4", "9.5", "9.6"]);
+    expect(cells.slice(4, 7)).toEqual(["9.5", "9.8", "9.6"]);
   });
 
-  it("shows Marista, density and apartments from the research summary, with — otherwise", () => {
+  it("never describes Vida urbana as similarity to Setor Marista", () => {
+    render(<NeighborhoodsTab ctl={buildCtl({ referenceNeighborhoods: [REF] })} />);
+    const titles = screen.getAllByRole("columnheader").map((th) => th.getAttribute("title") ?? "");
+    expect(titles.some((t) => /marista|semelhan/i.test(t))).toBe(false);
+  });
+
+  it("shows density from the research summary, with — otherwise", () => {
     render(
       <NeighborhoodsTab
         ctl={buildCtl({
@@ -419,11 +429,11 @@ describe("NeighborhoodsTab metric columns", () => {
       />,
     );
     const [bh, ref, sp] = [...document.querySelectorAll("tbody tr")].map((tr) =>
-      [...tr.querySelectorAll("td")].map((td) => td.textContent).slice(9, 12),
+      [...tr.querySelectorAll("td")].map((td) => td.textContent).slice(7, 8),
     );
-    expect(bh).toEqual(["6,7", "14 mil", "99%"]);
-    expect(ref).toEqual(["8,0", "5,1 mil", "87%"]);
-    expect(sp).toEqual(["—", "—", "—"]);
+    expect(bh).toEqual(["14 mil"]);
+    expect(ref).toEqual(["5,1 mil"]);
+    expect(sp).toEqual(["—"]);
   });
 
   it("hides the research metrics on mobile cards until 'Mais métricas' is pressed", () => {
@@ -462,8 +472,8 @@ describe("NeighborhoodsTab sorting", () => {
       referenceNeighborhoods: [REF],
       neighborhoodResearch: {
         "BH:Funcionários": summary({}),
-        "RJ:Botafogo": summary({ key: "RJ:Botafogo", marista: 7.2 }),
-        "GO:Setor Marista": summary({ key: "GO:Setor Marista", marista: 8.03 }),
+        "RJ:Botafogo": summary({ key: "RJ:Botafogo", densityPerKm2: 9000 }),
+        "GO:Setor Marista": summary({ key: "GO:Setor Marista", densityPerKm2: 5061 }),
       },
     });
   const tableNames = () =>
@@ -484,7 +494,7 @@ describe("NeighborhoodsTab sorting", () => {
   it("makes every column header a sort button", () => {
     render(<NeighborhoodsTab ctl={ctl()} />);
     const headers = screen.getAllByRole("columnheader");
-    expect(headers).toHaveLength(14);
+    expect(headers).toHaveLength(10);
     for (const th of headers) expect(within(th).getByRole("button")).toBeTruthy();
   });
 
@@ -518,10 +528,10 @@ describe("NeighborhoodsTab sorting", () => {
 
   it("puts rows without a value last in both directions", () => {
     render(<NeighborhoodsTab ctl={ctl()} />);
-    clickHeader("Marista");
-    expect(tableNames()).toEqual(["Setor Marista", "Botafogo", "Funcionários", "Pinheiros"]);
-    clickHeader("Marista");
+    clickHeader("Densidade");
     expect(tableNames()).toEqual(["Funcionários", "Botafogo", "Setor Marista", "Pinheiros"]);
+    clickHeader("Densidade");
+    expect(tableNames()).toEqual(["Setor Marista", "Botafogo", "Funcionários", "Pinheiros"]);
     // The reference's commute is "neutro": last on the commute sub-score both ways
     clickHeader("Deslocamento");
     expect(tableNames()).toEqual(["Funcionários", "Botafogo", "Pinheiros", "Setor Marista"]);

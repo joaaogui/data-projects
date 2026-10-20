@@ -9,7 +9,7 @@ export interface ReferenceNeighborhood {
   cityLabel: string;
   ufLabel: string;
   badge: string;
-  subScores: { urbanBreathing: number; buildingStock: number; budgetFit: number; safetyCar: number };
+  subScores: { urbanBreathing: number; safetyCar: number };
   commuteLabel: string;
   subtitle: string;
 }
@@ -23,8 +23,8 @@ const NEUTRAL_COMMUTE_LABEL = "deslocamento neutro (sem escritório)";
  * them. The ranking tab merges them into its list by score (`rankWithReferences`), numbered like any row.
  *
  * Sources: dossiers .tmp/nb-research/out/<key>.json (in the Empty workspace) and the rubric
- * .tmp/nb-research/rubric-scores.json. Urban breathing is the only sub-score derived from a measured rubric;
- * building stock, budget fit and safety are estimates written from the dossier, not measured scores.
+ * .tmp/nb-research/rubric-scores.json. Urban breathing is derived from a measured rubric; safety is an estimate
+ * written from the dossier, not a measured score.
  */
 export const REFERENCE_NEIGHBORHOODS: readonly ReferenceNeighborhood[] = [
   {
@@ -36,10 +36,6 @@ export const REFERENCE_NEIGHBORHOODS: readonly ReferenceNeighborhood[] = [
     subScores: {
       // Rubric total 8.03 (rubric-scores.json) → 8.6.
       urbanBreathing: rubricToUrbanBreathing(8.03),
-      // Estimate from the dossier, not a measured score: 87.3% of households are apartments (IBGE Censo 2022).
-      buildingStock: 9.5,
-      // Estimate from the dossier, not a measured score: rent ≈ R$ 67/m²/mês.
-      budgetFit: 8.5,
       // Estimate, not a measured score: SSP-GO only publishes state totals, no bairro or city crime series.
       safetyCar: 8.5,
     },
@@ -55,11 +51,6 @@ export const REFERENCE_NEIGHBORHOODS: readonly ReferenceNeighborhood[] = [
     subScores: {
       // Rubric total 6.33 (dossier BSB__Águas Claras.json, rubric block) → 7.4.
       urbanBreathing: rubricToUrbanBreathing(6.33),
-      // Estimate from the dossier, not a measured score: 99.0% of households are apartments (IBGE Censo 2022),
-      // towers built in the 2000s–2010s.
-      buildingStock: 9.0,
-      // Estimate from the dossier, not a measured score: FipeZap asking rent R$ 54,4/m²/mês, below Setor Marista's ≈ R$ 67.
-      budgetFit: 8.5,
       // Estimate from the dossier, not a measured score: SSP-DF 2025 pedestrian robbery at 43% of the DF rate;
       // homicides 1.6/100 mil.
       safetyCar: 8.8,
@@ -75,8 +66,6 @@ export interface ReferenceNeighborhoodRow {
   dynamicScore: number;
   urbanBreathingScore: number;
   commuteLogisticsScore: number;
-  buildingStockFitScore: number;
-  budgetFitScore: number;
   safetyCarScore: number;
   shortRationale: string;
   detailedJustification: string;
@@ -97,18 +86,16 @@ export function computeReferenceNeighborhoods(
   if (ranked.length === 0) return [];
   const commuteLogistics = median(ranked.map((n) => n.commuteLogisticsScore));
   return REFERENCE_NEIGHBORHOODS.map((ref) => {
-    const { urbanBreathing, buildingStock, budgetFit, safetyCar } = ref.subScores;
+    const { urbanBreathing, safetyCar } = ref.subScores;
     return {
       key: ref.key,
       neighborhood: ref.neighborhood,
       dynamicScore: computeWeightedNeighborhoodScore(
-        { urbanBreathing, commuteLogistics, buildingStock, budgetFit, safetyCar },
+        { urbanBreathing, commuteLogistics, safetyCar },
         weights,
       ),
       urbanBreathingScore: urbanBreathing,
       commuteLogisticsScore: commuteLogistics,
-      buildingStockFitScore: buildingStock,
-      budgetFitScore: budgetFit,
       safetyCarScore: safetyCar,
       shortRationale: rationales[ref.key]?.shortRationale ?? "",
       detailedJustification: rationales[ref.key]?.detailedJustification ?? "",

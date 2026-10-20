@@ -3,6 +3,7 @@
 import { ExternalLink, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { URBAN_LIFE_CRITERIA_TEXT } from "@/lib/urban-breathing";
 import type {
   NeighborhoodDossier,
   ResearchCrimeSeries,
@@ -147,9 +148,10 @@ function DossierBody({ d }: { d: NeighborhoodDossier }) {
         </Section>
       )}
 
-      <Section title="Sensação Setor Marista">
+      <Section title="Vida urbana">
         {d.rubric ? (
           <div className="space-y-2 text-xs">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">{URBAN_LIFE_CRITERIA_TEXT}</p>
             <p>
               <span className="font-mono text-base font-bold text-primary">{fmt(d.rubric.total)}/10</span>
               {d.rubric.measuredShare !== null && (
@@ -182,14 +184,6 @@ function DossierBody({ d }: { d: NeighborhoodDossier }) {
                 </li>
               ))}
             </ul>
-          </div>
-        ) : d.maristaJudgement ? (
-          <div className="space-y-1 text-xs">
-            <p>
-              <span className="font-mono text-base font-bold text-primary">≈{fmt(d.maristaJudgement.score)}/10</span>
-              <span className="ml-2 text-muted-foreground">juízo do pesquisador, sem rubrica medida ainda</span>
-            </p>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">{d.maristaJudgement.why}</p>
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">Sem avaliação.</p>

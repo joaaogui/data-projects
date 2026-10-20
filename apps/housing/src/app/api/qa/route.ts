@@ -813,7 +813,7 @@ export function buildInstantGroundedAnswer(params: {
     const commuteText =
       prop?.commuteLabel ?? nbMetrics?.commute ?? "~15-30 min do Nubank";
     const subScoresLine = nbMetrics
-      ? `Respiro Urbano **${nbMetrics.urbanBreathing.toFixed(1)}/10** · Logística Nubank **${nbMetrics.commuteLogistics.toFixed(1)}/10** · Segurança Rua/Carro **${nbMetrics.safetyCar.toFixed(1)}/10** · Estoque Predial **${nbMetrics.buildingStock.toFixed(1)}/10**`
+      ? `Respiro Urbano **${nbMetrics.urbanBreathing.toFixed(1)}/10** · Logística Nubank **${nbMetrics.commuteLogistics.toFixed(1)}/10** · Segurança Rua/Carro **${nbMetrics.safetyCar.toFixed(1)}/10**`
       : null;
     const microLine =
       microEnv?.highlight ??

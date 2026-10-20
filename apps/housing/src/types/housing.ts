@@ -134,8 +134,6 @@ export interface ScoringWeights {
   // Sub-pesos dos Bairros (0.0 a 2.5)
   urbanBreathingWeight: number;
   commuteLogisticsWeight: number;
-  buildingStockWeight: number;
-  budgetFitWeight: number;
   safetyCarWeight: number;
   // Pesos e limites dos Imoveis
   neighborhoodMultiplier: number;

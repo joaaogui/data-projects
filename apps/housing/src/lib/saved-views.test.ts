@@ -74,6 +74,25 @@ describe("preferences schema v3", () => {
     expect(prefs.filters).not.toHaveProperty("savedViews");
   });
 
+  it("loads old weights that still carry the removed Prédios/Preço sub-weights and drops them", () => {
+    const prefs = normalizePreferences({
+      schemaVersion: 3,
+      filters: {
+        schemaVersion: 3,
+        savedViews: [{ id: "v1", name: "BH", filters: { selectedCities: ["BH"] } }],
+      },
+      weights: { urbanBreathingWeight: 3.5, safetyCarWeight: 3.5, buildingStockWeight: 2.2, budgetFitWeight: 1.5 },
+      favorites: [],
+    });
+    expect(prefs.schemaVersion).toBe(PREFERENCES_SCHEMA_VERSION);
+    expect(prefs.savedViews?.map((v) => v.name)).toEqual(["BH"]);
+    expect(prefs.weights).not.toHaveProperty("buildingStockWeight");
+    expect(prefs.weights).not.toHaveProperty("budgetFitWeight");
+    expect(prefs.weights.urbanBreathingWeight).toBe(3.5);
+    expect(prefs.weights.safetyCarWeight).toBe(3.5);
+    expect(prefs.weights).toEqual(sanitizeAndMigrateWeights({ urbanBreathingWeight: 3.5, safetyCarWeight: 3.5 }, 2));
+  });
+
   it("weights migration semantics do not change with the new schema number", () => {
     expect(weightsSchemaVersion(undefined)).toBe(2);
     expect(weightsSchemaVersion(2)).toBe(2);

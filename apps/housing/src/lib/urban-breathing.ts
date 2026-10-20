@@ -1,10 +1,14 @@
+/** What the urban breathing ("Vida urbana") score measures, as shown to the user. */
+export const URBAN_LIFE_CRITERIA_TEXT =
+  "Vida urbana (0–10): nota pelos 9 critérios — densidade com prédios altos, relevo plano, gastronomia de rua, vida noturna, parque a até 1 km, arborização, segurança à noite, prédios modernos e calma.";
+
 /** Rubric total that maps to urban breathing 6.0 (São Paulo Sumaré, the lowest catalog total of round 1). */
 const RUBRIC_FLOOR_TOTAL = 4.4;
 /** Points of rubric between the floor and a perfect 10, spread over the 4 points from 6 to 10. */
 const RUBRIC_SPAN = 10 - RUBRIC_FLOOR_TOTAL;
 
 /**
- * Urban breathing (0–10) of a neighbourhood from its Marista rubric total (0–10, .tmp/nb-research):
+ * Urban breathing (0–10) of a neighbourhood from its 9-criteria rubric total (0–10, .tmp/nb-research):
  * round1(6 + (total − 4.4) × 4 / 5.6). Only a perfect rubric reaches 10, so no reference scores 10 just for
  * being the reference; totals under 4.4 fall below 6.
  */
