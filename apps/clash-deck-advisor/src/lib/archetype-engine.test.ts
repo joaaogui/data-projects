@@ -129,10 +129,14 @@ describe("archetype recommendation", () => {
     expect(gateFailures(pumped).join(" ")).toMatch(/Elixir Collector/);
   });
 
-  it("never suggests swaps in improve mode when currentDeck has fewer than 5 battles (0..4 battles)", () => {
-    expect(MIN_BATTLES_FOR_SWAP).toBe(5);
+  it("never suggests swaps in improve mode when currentDeck has fewer than 20 battles (0..19 battles)", () => {
+    expect(MIN_BATTLES_FOR_SWAP).toBe(20);
 
-    for (const battleCount of [0, 1, 2, 3, 4]) {
+    for (
+      let battleCount = 0;
+      battleCount < MIN_BATTLES_FOR_SWAP;
+      battleCount += 1
+    ) {
       const wins = Math.min(1, battleCount);
       const version = makeDeckVersion(currentProfiles, battleCount, wins);
       const result = recommendArchetype({
@@ -153,7 +157,7 @@ describe("archetype recommendation", () => {
 
       if (battleCount === 0) {
         expect(result.analysis.verdictReason).toBe(
-          "We have 0 recorded battles with this exact 8-card deck. Play 5 matches with it first so recommendations are based on real results with this deck, not guesses.",
+          "We have 0 recorded battles with this exact 8-card deck. Play 20 matches with it first so recommendations are based on real results with this deck, not guesses.",
         );
       } else {
         const remaining = MIN_BATTLES_FOR_SWAP - battleCount;
@@ -167,13 +171,13 @@ describe("archetype recommendation", () => {
     }
   });
 
-  it("improves the current deck without removing its bait core once 5+ battles are recorded", () => {
+  it("improves the current deck without removing its bait core once 20+ battles are recorded", () => {
     const result = recommendArchetype({
       owned,
       current: currentProfiles,
       metaDecks: [],
       losses: [],
-      deckVersions: [makeDeckVersion(currentProfiles, 5, 2)],
+      deckVersions: [makeDeckVersion(currentProfiles, 20, 8)],
       mode: "improve",
     });
     const deck = result.analysis.improvedDeck;
@@ -241,7 +245,7 @@ describe("archetype recommendation", () => {
           opponentDeck: ["Hog Rider", "Musketeer", "Cannon", "The Log"],
         },
       ],
-      deckVersions: [makeDeckVersion(currentProfiles, 5, 2)],
+      deckVersions: [makeDeckVersion(currentProfiles, 20, 8)],
       mode: "improve",
     });
 
@@ -299,7 +303,7 @@ describe("archetype recommendation", () => {
         current: currentProfiles,
         metaDecks,
         losses: [],
-        deckVersions: [makeDeckVersion(currentProfiles, 5, 2)],
+        deckVersions: [makeDeckVersion(currentProfiles, 20, 8)],
         mode: "improve",
       });
 
@@ -356,10 +360,13 @@ describe("archetype recommendation", () => {
     expect(locked.has("P.E.K.K.A")).toBe(false);
   });
 
-  it("boosts swaps that counter recurring threats in lossAutopsy and attaches counterTargets when >= 5 battles are recorded", () => {
-    const lossBattles: Battle[] = [1, 2, 3, 4, 5].map((idx) => ({
+  it("boosts swaps that counter recurring threats in lossAutopsy and attaches counterTargets when >= 20 battles are recorded", () => {
+    const lossBattles: Battle[] = Array.from(
+      { length: MIN_BATTLES_FOR_SWAP },
+      (_, i) => i + 1,
+    ).map((idx) => ({
       type: "PvP",
-      battleTime: `20260919T120${idx}00.000Z`,
+      battleTime: `20260919T12${String(idx).padStart(2, "0")}00.000Z`,
       team: [
         {
           tag: "#VGURQ0QQ2",
@@ -424,7 +431,7 @@ describe("archetype recommendation", () => {
     ).toBe(true);
   });
 
-  it("overrides keep verdict when the current deck is losing (<45% WR over >=5 battles)", () => {
+  it("overrides keep verdict when the current deck is losing (<45% WR over >=20 battles)", () => {
     // Start with the canonical skeleton-barrel-bait 8-card deck so without
     // history feedback it would have 0 swaps ("keep").
     const canonicalBaitNames = [
@@ -449,19 +456,19 @@ describe("archetype recommendation", () => {
     });
     expect(withoutHistory.analysis.verdict).toBe("keep");
 
-    // With 0W-5L battle history on this exact deck, keeping it is penalized (-30)
+    // With 0W-20L battle history on this exact deck, keeping it is penalized (-30)
     // and the advisor recommends a targeted counter swap instead of "keep".
     const failingVersion: DeckVersionSummary = {
       deckKey: deckKeyOf(canonicalBaitNames),
       versionLabel: "v1",
       cards: canonicalBaitNames,
       isCurrentActiveDeck: true,
-      battles: 5,
+      battles: 20,
       wins: 0,
-      losses: 5,
+      losses: 20,
       draws: 0,
       winRate: 0,
-      netTrophies: -150,
+      netTrophies: -600,
       avgCrownDiff: -2,
       firstSeen: "20260919T100000.000Z",
       lastSeen: "20260919T105000.000Z",
@@ -558,7 +565,7 @@ describe("archetype recommendation", () => {
       current: currentProfiles,
       metaDecks: [],
       losses: [],
-      deckVersions: [makeDeckVersion(currentProfiles, 5, 2)],
+      deckVersions: [makeDeckVersion(currentProfiles, 20, 8)],
       changeImpacts: hurtImpacts,
       mode: "improve",
     });
@@ -569,7 +576,7 @@ describe("archetype recommendation", () => {
     );
   });
 
-  it("respects lockedCards and excludedCards from player feedback even before 5 battles", () => {
+  it("respects lockedCards and excludedCards from player feedback even before 20 battles", () => {
     const result = recommendArchetype({
       owned,
       current: currentProfiles,

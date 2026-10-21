@@ -148,7 +148,7 @@ const NON_THREAT_UTILITY_CARDS = new Set([
 export const MIN_BATTLES_FOR_VERDICT = 3;
 
 /** Minimum recorded battles with the exact 8-card current deck before "improve" mode recommends card swaps. */
-export const MIN_BATTLES_FOR_SWAP = 5;
+export const MIN_BATTLES_FOR_SWAP = 20;
 
 export function battleOutcome(
   playerCrowns: number,
