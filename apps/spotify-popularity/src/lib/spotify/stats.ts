@@ -101,18 +101,33 @@ export function enrichCatalogTracks(
   const primaryNameLower = primaryArtist.name.trim().toLowerCase()
   const leadTrackIdsByAlbum = new Set<string>()
   const seenAlbums = new Set<string>()
+  const albumTrackCounts = new Map<string, number>()
+
+  for (const raw of deduplicatedRaw) {
+    const albumKey = raw.album?.id || raw.album?.name?.trim().toLowerCase() || ""
+    if (albumKey) {
+      albumTrackCounts.set(albumKey, (albumTrackCounts.get(albumKey) ?? 0) + 1)
+    }
+  }
 
   for (const raw of deduplicatedRaw) {
     const albumKey = raw.album?.id || raw.album?.name?.trim().toLowerCase() || ""
     if (albumKey && !seenAlbums.has(albumKey)) {
       seenAlbums.add(albumKey)
-      leadTrackIdsByAlbum.add(raw.id)
+      const catalogTrackCount = albumTrackCounts.get(albumKey) ?? 1
+      const declaredTotalTracks = raw.album?.total_tracks ?? 1
+      if (declaredTotalTracks > 1 || catalogTrackCount > 1) {
+        leadTrackIdsByAlbum.add(raw.id)
+      }
     }
   }
 
   return deduplicatedRaw.map((raw, index) => {
     const popularity = raw.popularity ?? 0
     const rawAlbum = raw.album
+    const albumKey = rawAlbum?.id || rawAlbum?.name?.trim().toLowerCase() || ""
+    const catalogTrackCount = albumKey ? (albumTrackCounts.get(albumKey) ?? 1) : 1
+    const totalTracks = Math.max(rawAlbum?.total_tracks ?? 1, catalogTrackCount)
     const releaseDate = rawAlbum?.release_date ?? ""
     const releaseYear = parseReleaseYear(releaseDate)
     const albumType = normalizeAlbumType(rawAlbum?.album_type, rawAlbum?.album_group)
@@ -144,7 +159,7 @@ export function enrichCatalogTracks(
         releaseDate,
         releaseYear,
         albumType,
-        totalTracks: rawAlbum?.total_tracks ?? 1,
+        totalTracks,
         spotifyUrl: albumSpotifyUrl,
       },
       artists: creditedArtists,

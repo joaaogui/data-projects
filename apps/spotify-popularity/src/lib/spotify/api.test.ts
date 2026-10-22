@@ -260,6 +260,8 @@ describe("enrichCatalogTracks & computeCatalogStats", () => {
     expect(enriched[2].isAlbumLeadTrack).toBe(false);
     // Lead track on Discovery is One More Time
     expect(enriched[1].isAlbumLeadTrack).toBe(true);
+    // Lead track on 2-track single is Harder, Better, Faster, Stronger
+    expect(enriched[3].isAlbumLeadTrack).toBe(true);
 
     // Featured artists & collaboration flags
     expect(enriched[0].isCollaboration).toBe(true);
@@ -276,6 +278,51 @@ describe("enrichCatalogTracks & computeCatalogStats", () => {
     expect(enriched[3].explicit).toBe(true);
     expect(enriched[3].album.releaseYear).toBe(2007);
     expect(enriched[3].album.albumType).toBe("single");
+  });
+
+  it("does not mark 1-track singles as isAlbumLeadTrack", () => {
+    const singleTrackCatalog: SpotifyRawTrack[] = [
+      {
+        id: "t-solo-single",
+        name: "Stand-alone Single",
+        popularity: 74,
+        duration_ms: 200_000,
+        explicit: false,
+        track_number: 1,
+        disc_number: 1,
+        artists: [{ id: "artist-1", name: "Daft Punk" }],
+        album: {
+          id: "alb-one-track-single",
+          name: "Stand-alone Single",
+          album_type: "single",
+          total_tracks: 1,
+          release_date: "2020-01-01",
+        },
+      },
+      {
+        id: "t-multi-album",
+        name: "Album Opener",
+        popularity: 70,
+        duration_ms: 210_000,
+        explicit: false,
+        track_number: 1,
+        disc_number: 1,
+        artists: [{ id: "artist-1", name: "Daft Punk" }],
+        album: {
+          id: "alb-lp",
+          name: "Full LP",
+          album_type: "album",
+          total_tracks: 10,
+          release_date: "2021-05-01",
+        },
+      },
+    ];
+
+    const enriched = enrichCatalogTracks(singleTrackCatalog, primaryArtist);
+    expect(enriched[0].id).toBe("t-solo-single");
+    expect(enriched[0].isAlbumLeadTrack).toBe(false);
+    expect(enriched[1].id).toBe("t-multi-album");
+    expect(enriched[1].isAlbumLeadTrack).toBe(true);
   });
 
   it("computes comprehensive catalogStats rollups", () => {

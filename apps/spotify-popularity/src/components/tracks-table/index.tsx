@@ -8,6 +8,9 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   type VisibilityState,
 } from "@data-projects/ui"
 import { cn, formatNumber } from "@data-projects/shared"
@@ -311,15 +314,31 @@ export function TracksTable({
           </div>
           {(
             [
-              { id: "all", label: "All", count: counts.all },
-              { id: "album", label: "Albums", count: counts.albums },
-              { id: "single", label: "Singles", count: counts.singles },
+              {
+                id: "all",
+                label: "All",
+                count: counts.all,
+                tooltip: "Show tracks from all release types",
+              },
+              {
+                id: "album",
+                label: "Albums",
+                count: counts.albums,
+                tooltip: "Filter to full-length studio/live album tracks",
+              },
+              {
+                id: "single",
+                label: "Singles",
+                count: counts.singles,
+                tooltip: "Filter to single and EP releases",
+              },
               ...(counts.compilations > 0
                 ? [
                     {
                       id: "compilation" as const,
                       label: "Compilations",
                       count: counts.compilations,
+                      tooltip: "Filter to compilation and guest-appearance releases",
                     },
                   ]
                 : []),
@@ -327,28 +346,32 @@ export function TracksTable({
           ).map((pill) => {
             const active = releaseType === pill.id
             return (
-              <button
-                key={pill.id}
-                type="button"
-                onClick={() => setReleaseType(pill.id)}
-                aria-pressed={active}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                  active
-                    ? "bg-spotify text-spotify-foreground shadow-sm"
-                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <span>{pill.label}</span>
-                <span
-                  className={cn(
-                    "font-mono text-[11px]",
-                    active ? "opacity-90" : "opacity-70"
-                  )}
-                >
-                  {pill.count}
-                </span>
-              </button>
+              <Tooltip key={pill.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setReleaseType(pill.id)}
+                    aria-pressed={active}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                      active
+                        ? "bg-spotify text-spotify-foreground shadow-sm"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <span>{pill.label}</span>
+                    <span
+                      className={cn(
+                        "font-mono text-[11px]",
+                        active ? "opacity-90" : "opacity-70"
+                      )}
+                    >
+                      {pill.count}
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{pill.tooltip}</TooltipContent>
+              </Tooltip>
             )
           })}
 
@@ -359,65 +382,109 @@ export function TracksTable({
           </div>
           {(
             [
-              { id: "all", label: "All Tracks", count: counts.all },
-              { id: "solo", label: "Solo", count: counts.solo },
-              { id: "collab", label: "Collabs", count: counts.collab },
-              { id: "explicit", label: "Explicit", count: counts.explicit },
-              { id: "lead", label: "Album #1s", count: counts.lead },
+              {
+                id: "all",
+                label: "All Tracks",
+                count: counts.all,
+                tooltip: "Show all tracks in the catalog",
+              },
+              {
+                id: "solo",
+                label: "Solo",
+                count: counts.solo,
+                tooltip: "Tracks credited solely to this artist (no featured collaborators)",
+              },
+              {
+                id: "collab",
+                label: "Collabs",
+                count: counts.collab,
+                tooltip: "Tracks featuring one or more collaborating artists",
+              },
+              {
+                id: "explicit",
+                label: "Explicit",
+                count: counts.explicit,
+                tooltip: "Tracks flagged with explicit lyrics (E)",
+              },
+              {
+                id: "lead",
+                label: "Album #1s",
+                count: counts.lead,
+                tooltip:
+                  "Most popular track (#1) from each multi-track album or EP in the catalog",
+              },
             ] as const
           ).map((pill) => {
             const active = attributeFilter === pill.id
             return (
-              <button
-                key={pill.id}
-                type="button"
-                onClick={() => setAttributeFilter(pill.id)}
-                aria-pressed={active}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                  active
-                    ? "bg-spotify text-spotify-foreground shadow-sm"
-                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <span>{pill.label}</span>
-                <span
-                  className={cn(
-                    "font-mono text-[11px]",
-                    active ? "opacity-90" : "opacity-70"
-                  )}
-                >
-                  {pill.count}
-                </span>
-              </button>
+              <Tooltip key={pill.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setAttributeFilter(pill.id)}
+                    aria-pressed={active}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                      active
+                        ? "bg-spotify text-spotify-foreground shadow-sm"
+                        : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <span>{pill.label}</span>
+                    <span
+                      className={cn(
+                        "font-mono text-[11px]",
+                        active ? "opacity-90" : "opacity-70"
+                      )}
+                    >
+                      {pill.count}
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{pill.tooltip}</TooltipContent>
+              </Tooltip>
             )
           })}
 
           {/* Active Album / Popularity Tier Filter Pills */}
           {selectedAlbumName && (
-            <button
-              type="button"
-              onClick={() => setSelectedAlbumId(null)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-spotify/50 bg-spotify/15 px-2.5 py-1 text-xs font-medium text-spotify hover:bg-spotify/25 transition-colors"
-            >
-              <span className="truncate max-w-[180px]">
-                Release: {selectedAlbumName}
-              </span>
-              <X className="h-3 w-3 shrink-0" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAlbumId(null)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-spotify/50 bg-spotify/15 px-2.5 py-1 text-xs font-medium text-spotify hover:bg-spotify/25 transition-colors"
+                >
+                  <span className="truncate max-w-[180px]">
+                    Release: {selectedAlbumName}
+                  </span>
+                  <X className="h-3 w-3 shrink-0" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Filtered to release &quot;{selectedAlbumName}&quot; — click to clear
+              </TooltipContent>
+            </Tooltip>
           )}
 
           {selectedTierDef && (
-            <button
-              type="button"
-              onClick={() => setSelectedTierId(null)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-spotify/50 bg-spotify/15 px-2.5 py-1 text-xs font-medium text-spotify hover:bg-spotify/25 transition-colors"
-            >
-              <span>
-                Tier: {selectedTierDef.label} ({selectedTierDef.rangeLabel})
-              </span>
-              <X className="h-3 w-3 shrink-0" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTierId(null)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-spotify/50 bg-spotify/15 px-2.5 py-1 text-xs font-medium text-spotify hover:bg-spotify/25 transition-colors"
+                >
+                  <span>
+                    Tier: {selectedTierDef.label} ({selectedTierDef.rangeLabel})
+                  </span>
+                  <X className="h-3 w-3 shrink-0" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Filtered to {selectedTierDef.label} popularity tier ({selectedTierDef.rangeLabel}) — click to clear
+              </TooltipContent>
+            </Tooltip>
           )}
 
           {hasActiveFilters && (

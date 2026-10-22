@@ -1,6 +1,9 @@
 "use client"
 
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   sortableHeader,
   type CellContext,
   type ColumnDef,
@@ -35,6 +38,17 @@ function getAlbumTypeBadge(type: SpotifyTrack["album"]["albumType"]) {
   }
 }
 
+function formatDeltaTooltip(delta: number): string {
+  if (delta > 0) {
+    return `${delta} ${delta === 1 ? "point" : "points"} above artist catalog average (0–100 Spotify Popularity Index)`
+  }
+  if (delta < 0) {
+    const abs = Math.abs(delta)
+    return `${abs} ${abs === 1 ? "point" : "points"} below artist catalog average (0–100 Spotify Popularity Index)`
+  }
+  return "Equal to artist catalog average (0–100 Spotify Popularity Index)"
+}
+
 export function createTrackColumns(
   options: TrackColumnsOptions = {}
 ): ColumnDef<SpotifyTrack>[] {
@@ -49,17 +63,28 @@ export function createTrackColumns(
         const track = row.original
         return (
           <div className="flex flex-col items-start gap-0.5 min-w-[2.75rem]">
-            <span className="font-mono text-sm font-semibold tabular-nums text-muted-foreground">
-              #{track.rank}
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="font-mono text-sm font-semibold tabular-nums text-muted-foreground cursor-default">
+                  #{track.rank}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Catalog rank #{track.rank} by current Spotify popularity
+              </TooltipContent>
+            </Tooltip>
             {track.isAlbumLeadTrack && (
-              <span
-                title={`Highest-popularity track on "${track.album.name}"`}
-                className="inline-flex items-center gap-0.5 rounded bg-spotify/15 px-1 py-0.2 text-[10px] font-medium text-spotify"
-              >
-                <Crown className="h-2.5 w-2.5" />
-                #1
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-0.5 rounded bg-spotify/15 px-1 py-0.2 text-[10px] font-medium text-spotify cursor-default">
+                    <Crown className="h-2.5 w-2.5" />
+                    #1
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {`Most popular track on "${track.album.name}" (#1 of ${track.album.totalTracks} tracks)`}
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         )
@@ -94,26 +119,48 @@ export function createTrackColumns(
                   {track.name}
                 </a>
                 {track.explicit && (
-                  <span
-                    title="Explicit lyrics"
-                    className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-muted text-[10px] font-bold uppercase text-muted-foreground border border-border/60"
-                  >
-                    E
-                  </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        aria-label="Explicit lyrics"
+                        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-muted text-[10px] font-bold uppercase text-muted-foreground border border-border/60 cursor-default"
+                      >
+                        E
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Explicit lyrics</TooltipContent>
+                  </Tooltip>
                 )}
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="font-mono text-[11px]">
-                  {track.discNumber > 1 ? `D${track.discNumber} · ` : ""}Track #
-                  {track.trackNumber}
-                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="font-mono text-[11px] cursor-default">
+                      {track.discNumber > 1 ? `D${track.discNumber} · ` : ""}Track #
+                      {track.trackNumber}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {track.discNumber > 1
+                      ? `Disc ${track.discNumber}, Track ${track.trackNumber} on "${track.album.name}"`
+                      : `Track ${track.trackNumber} of ${track.album.totalTracks} on "${track.album.name}"`}
+                  </TooltipContent>
+                </Tooltip>
                 {featuredNames && (
                   <>
                     <span>·</span>
-                    <span className="truncate max-w-[220px]" title={`feat. ${featuredNames}`}>
-                      feat. <span className="text-foreground/80">{featuredNames}</span>
-                    </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="truncate max-w-[220px] cursor-default">
+                          feat.{" "}
+                          <span className="text-foreground/80">{featuredNames}</span>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Featured artists: {featuredNames}
+                      </TooltipContent>
+                    </Tooltip>
                   </>
                 )}
               </div>
@@ -133,34 +180,45 @@ export function createTrackColumns(
           <div className="flex flex-col gap-0.5 min-w-[150px] max-w-[240px]">
             <div className="flex items-center gap-1.5 min-w-0">
               {onSelectAlbum && album.id ? (
-                <button
-                  type="button"
-                  onClick={() => onSelectAlbum(isSelected ? null : album.id)}
-                  title={
-                    isSelected
-                      ? "Clear release filter"
-                      : `Filter tracks from "${album.name}"`
-                  }
-                  className={cn(
-                    "text-sm font-medium text-left truncate transition-colors hover:text-spotify",
-                    isSelected && "text-spotify underline underline-offset-2"
-                  )}
-                >
-                  {album.name}
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => onSelectAlbum(isSelected ? null : album.id)}
+                      className={cn(
+                        "text-sm font-medium text-left truncate transition-colors hover:text-spotify",
+                        isSelected && "text-spotify underline underline-offset-2"
+                      )}
+                    >
+                      {album.name}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {isSelected
+                      ? `Clear release filter ("${album.name}")`
+                      : `Filter table to tracks from "${album.name}"`}
+                  </TooltipContent>
+                </Tooltip>
               ) : (
                 <span className="text-sm font-medium truncate">{album.name}</span>
               )}
               {album.spotifyUrl && (
-                <a
-                  href={album.spotifyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`Open "${album.name}" on Spotify`}
-                  className="text-muted-foreground/70 hover:text-spotify shrink-0 transition-colors"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <a
+                      href={album.spotifyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Open "${album.name}" on Spotify`}
+                      className="text-muted-foreground/70 hover:text-spotify shrink-0 transition-colors"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {`Open "${album.name}" on Spotify`}
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
             <span className="text-xs text-muted-foreground font-mono">
@@ -175,16 +233,24 @@ export function createTrackColumns(
       accessorFn: (row: SpotifyTrack) => row.album.albumType,
       header: sortableHeader("Type"),
       cell: ({ row }: CellContext<SpotifyTrack, unknown>) => {
-        const badge = getAlbumTypeBadge(row.original.album.albumType)
+        const { album } = row.original
+        const badge = getAlbumTypeBadge(album.albumType)
         return (
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-              badge.className
-            )}
-          >
-            {badge.label}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium cursor-default",
+                  badge.className
+                )}
+              >
+                {badge.label}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {`${badge.label} released ${album.releaseDate || "unknown date"} · ${album.totalTracks} ${album.totalTracks === 1 ? "track" : "tracks"}`}
+            </TooltipContent>
+          </Tooltip>
         )
       },
     },
@@ -216,22 +282,36 @@ export function createTrackColumns(
         const track = row.original
         if (!track.isCollaboration) {
           return (
-            <span className="inline-flex items-center rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
-              Solo
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground cursor-default">
+                  Solo
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Solo release — no featured artists
+              </TooltipContent>
+            </Tooltip>
           )
         }
         const names = track.featuredArtists.map((a) => a.name).join(", ")
         return (
-          <div className="flex flex-col gap-0.5 max-w-[180px]" title={names}>
-            <span className="inline-flex w-fit items-center gap-1 rounded-md bg-spotify/10 border border-spotify/25 px-2 py-0.5 text-xs font-medium text-spotify">
-              <Users className="h-3 w-3" />
-              Collab (+{track.featuredArtists.length})
-            </span>
-            <span className="text-[11px] text-muted-foreground truncate">
-              {names}
-            </span>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex flex-col gap-0.5 max-w-[180px] cursor-default">
+                <span className="inline-flex w-fit items-center gap-1 rounded-md bg-spotify/10 border border-spotify/25 px-2 py-0.5 text-xs font-medium text-spotify">
+                  <Users className="h-3 w-3" />
+                  Collab (+{track.featuredArtists.length})
+                </span>
+                <span className="text-[11px] text-muted-foreground truncate">
+                  {names}
+                </span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              {`Collaboration featuring ${names}`}
+            </TooltipContent>
+          </Tooltip>
         )
       },
     },
@@ -243,26 +323,42 @@ export function createTrackColumns(
         const { popularity, deltaFromArtistAvg } = row.original
         return (
           <div className="flex items-center gap-2.5 min-w-[155px]">
-            <div className="hidden sm:block w-20 h-2 bg-muted rounded-full overflow-hidden shrink-0">
-              <div
-                className="h-full bg-gradient-to-r from-spotify/70 to-spotify rounded-full transition-all duration-500"
-                style={{ width: `${popularity}%` }}
-              />
-            </div>
-            <span className="font-mono font-semibold text-spotify w-7 text-right tabular-nums">
-              {popularity}
-            </span>
-            <span
-              title="Difference vs. artist average track popularity"
-              className={cn(
-                "font-mono text-[11px] px-1.5 py-0.5 rounded tabular-nums",
-                deltaFromArtistAvg > 0
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                  : "bg-muted text-muted-foreground"
-              )}
-            >
-              {formatSigned(deltaFromArtistAvg)}
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2.5 cursor-default">
+                  <div className="hidden sm:block w-20 h-2 bg-muted rounded-full overflow-hidden shrink-0">
+                    <div
+                      className="h-full bg-gradient-to-r from-spotify/70 to-spotify rounded-full transition-all duration-500"
+                      style={{ width: `${popularity}%` }}
+                    />
+                  </div>
+                  <span className="font-mono font-semibold text-spotify w-7 text-right tabular-nums">
+                    {popularity}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                {`Spotify Popularity Index (${popularity}/100) — algorithmically calculated from recent stream volume and momentum`}
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={cn(
+                    "font-mono text-[11px] px-1.5 py-0.5 rounded tabular-nums cursor-default",
+                    deltaFromArtistAvg > 0
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {formatSigned(deltaFromArtistAvg)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                {formatDeltaTooltip(deltaFromArtistAvg)}
+              </TooltipContent>
+            </Tooltip>
           </div>
         )
       },
@@ -273,23 +369,27 @@ export function createTrackColumns(
       header: sortableHeader("Spotify"),
       cell: ({ row }: CellContext<SpotifyTrack, unknown>) => {
         const { spotifyUrl, isrc, name } = row.original
-        const title = isrc
-          ? `Open "${name}" on Spotify (ISRC: ${isrc})`
+        const label = isrc
+          ? `Open "${name}" on Spotify · ISRC: ${isrc}`
           : `Open "${name}" on Spotify`
         return (
-          <a
-            href={spotifyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={title}
-            aria-label={title}
-            className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-card/60 px-2 py-1 text-xs text-muted-foreground hover:border-spotify/50 hover:text-spotify transition-colors"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            <span className="hidden xl:inline font-mono text-[10px]">
-              {isrc ? isrc.slice(-5) : "Open"}
-            </span>
-          </a>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href={spotifyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={label}
+                className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-card/60 px-2 py-1 text-xs text-muted-foreground hover:border-spotify/50 hover:text-spotify transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span className="hidden xl:inline font-mono text-[10px]">
+                  {isrc ? isrc.slice(-5) : "Open"}
+                </span>
+              </a>
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+          </Tooltip>
         )
       },
     },
