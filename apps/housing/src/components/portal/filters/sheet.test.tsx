@@ -188,6 +188,12 @@ describe("FilterSheet — Localização & deslocamento", () => {
     expect(screen.queryByRole("button", { name: /Savassi/ })).toBeNull();
   });
 
+  it("separates the city code from the neighborhood name in multi-city chips", () => {
+    renderSheet(buildCtl());
+    expect(screen.getByRole("button", { name: /^BH Funcionários/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^RJ Botafogo/ })).toBeTruthy();
+  });
+
   it("stores bare neighborhood names when a single city is selected", () => {
     const ctl = buildCtl({ selectedCities: ["BH"] });
     renderSheet(ctl);

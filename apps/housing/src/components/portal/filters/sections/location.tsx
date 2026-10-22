@@ -92,7 +92,11 @@ export function LocationSection({ ctx }: { ctx: SectionContext }) {
                   })
                 }
               >
-                {!singleCity && <span className="font-mono text-[10px] opacity-70">{nb.cityCode}</span>}
+                {!singleCity && (
+                  <>
+                    <span className="font-mono text-[10px] opacity-70">{nb.cityCode}</span>{" "}
+                  </>
+                )}
                 {nb.name}
               </Chip>
             );
