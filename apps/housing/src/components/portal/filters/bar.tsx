@@ -249,9 +249,9 @@ export function FilterBar({ ctl }: { ctl: PortalController }) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setSheetOpen(true)}
-            aria-haspopup="dialog"
+            onClick={() => setSheetOpen((v) => !v)}
             aria-expanded={sheetOpen}
+            aria-controls="filters-inline-panel"
             className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90 sm:h-8"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -284,6 +284,16 @@ export function FilterBar({ ctl }: { ctl: PortalController }) {
             <ViewsMenu ctl={ctl} />
           </div>
         </div>
+
+        {sheetOpen && (
+          <FilterSheet
+            ctl={ctl}
+            variant="inline"
+            id="filters-inline-panel"
+            onClose={closeSheet}
+            header={(draft) => <SheetViews ctl={ctl} draft={draft} />}
+          />
+        )}
 
         {/* Mobile row: presets, sort and view */}
         <div className="flex flex-wrap items-center gap-1.5 sm:hidden">
@@ -340,9 +350,6 @@ export function FilterBar({ ctl }: { ctl: PortalController }) {
           </div>
         )}
       </div>
-      {sheetOpen && (
-        <FilterSheet ctl={ctl} onClose={closeSheet} header={(draft) => <SheetViews ctl={ctl} draft={draft} />} />
-      )}
     </>
   );
 }

@@ -59,29 +59,35 @@ export function FilterSheet({
   ctl,
   onClose,
   header,
+  variant = "overlay",
+  id,
 }: {
   ctl: PortalController;
   onClose: () => void;
   /** Extra row under the title (saved views). */
   header?: (draft: FilterStore) => ReactNode;
+  /** "inline" opens in the page flow right below the filter bar; "overlay" is the drawer/bottom sheet. */
+  variant?: "overlay" | "inline";
+  id?: string;
 }) {
   const [draft] = useState(() => createFilterStore(ctl.filterStore.getState()));
   const { total, counts, loading } = useDraftCount(ctl, draft);
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const inline = variant === "inline";
 
   useEffect(() => {
-    closeRef.current?.focus();
+    if (!inline) closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (!inline) document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = prevOverflow;
+      if (!inline) document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [onClose, inline]);
 
   const { handleToggleHiddenCity, filterStore, applyFilterPatch } = ctl;
   const onToggleHiddenCity = useCallback(
@@ -123,23 +129,9 @@ export function FilterSheet({
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50" data-testid="filter-sheet">
-      <button
-        type="button"
-        aria-label="Fechar filtros"
-        tabIndex={-1}
-        onClick={onClose}
-        className="absolute inset-0 bg-foreground/35 backdrop-blur-[1px]"
-      />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label="Filtros"
-        className="absolute inset-x-0 bottom-0 flex h-[88dvh] flex-col rounded-t-2xl border-t bg-card shadow-2xl sm:inset-x-auto sm:inset-y-0 sm:right-0 sm:h-auto sm:w-[440px] sm:rounded-none sm:border-l sm:border-t-0"
-      >
-        <span aria-hidden="true" className="mx-auto mt-2 h-1 w-10 rounded-full bg-border sm:hidden" />
-        <div className="flex items-center justify-between border-b px-4 py-2.5 sm:px-5">
+  const body = (
+    <>
+      <div className="flex items-center justify-between border-b px-4 py-2.5 sm:px-5">
           <h2 className="text-[15px] font-bold">Filtros</h2>
           <button
             ref={closeRef}
@@ -152,7 +144,13 @@ export function FilterSheet({
           </button>
         </div>
         {header?.(draft)}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-5">
+        <div
+          className={
+            inline
+              ? "grid gap-x-6 px-4 pb-4 sm:px-5 lg:grid-cols-2"
+              : "flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-5"
+          }
+        >
           <PriceSizeSection ctx={ctx} />
           <LocationSection ctx={ctx} />
           <ApartmentSection ctx={ctx} />
@@ -180,6 +178,40 @@ export function FilterSheet({
               : `Ver ${total.toLocaleString("pt-BR")} ${total === 1 ? "imóvel" : "imóveis"}`}
           </button>
         </div>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <section
+        id={id}
+        aria-label="Filtros"
+        data-testid="filter-sheet"
+        className="flex flex-col rounded-lg border bg-card"
+      >
+        {body}
+      </section>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50" data-testid="filter-sheet">
+      <button
+        type="button"
+        aria-label="Fechar filtros"
+        tabIndex={-1}
+        onClick={onClose}
+        className="absolute inset-0 bg-foreground/35 backdrop-blur-[1px]"
+      />
+      <aside
+        id={id}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Filtros"
+        className="absolute inset-x-0 bottom-0 flex h-[88dvh] flex-col rounded-t-2xl border-t bg-card shadow-2xl sm:inset-x-auto sm:inset-y-0 sm:right-0 sm:h-auto sm:w-[440px] sm:rounded-none sm:border-l sm:border-t-0"
+      >
+        <span aria-hidden="true" className="mx-auto mt-2 h-1 w-10 rounded-full bg-border sm:hidden" />
+        {body}
       </aside>
     </div>
   );

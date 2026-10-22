@@ -202,7 +202,7 @@ describe("FilterBar — row 2 (Filtros, pinned requirements, presets)", () => {
     expect(ctl.applyPerfeitoFilterPreset).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the active filter count on Filtros and opens the filter sheet", () => {
+  it("shows the active filter count on Filtros and opens the filters inline below the bar", () => {
     render(<FilterBar ctl={buildCtl({ activeAdvancedFilterCount: 2 })} />);
     const open = screen.getByRole("button", { name: /^Filtros/ });
     expect(open.textContent).toContain("2");
@@ -211,9 +211,16 @@ describe("FilterBar — row 2 (Filtros, pinned requirements, presets)", () => {
 
     fireEvent.click(open);
     expect(open.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("dialog", { name: "Filtros" })).toBeTruthy();
+    const panel = screen.getByRole("region", { name: "Filtros" });
+    expect(screen.getByTestId("filters-bar").contains(panel)).toBe(true);
+    expect(screen.queryByRole("dialog")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
+    expect(screen.queryByTestId("filter-sheet")).toBeNull();
+
+    fireEvent.click(open);
+    expect(screen.getByTestId("filter-sheet")).toBeTruthy();
+    fireEvent.click(open);
     expect(screen.queryByTestId("filter-sheet")).toBeNull();
   });
 });
