@@ -1,19 +1,25 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, AlertCircle } from "lucide-react"
 import { useArtistTracks } from "@/hooks/use-artist-tracks"
+import {
+  computeCatalogStats,
+  type PopularityTierId,
+} from "@/lib/spotify"
 import { Logo } from "@/components/logo"
 import { SearchArtist } from "@/components/search-artist"
 import { ArtistHeader } from "@/components/artist-header"
+import { CatalogInsights } from "@/components/catalog-insights"
 import { TracksTable } from "@/components/tracks-table"
 import { TracksTableLoading } from "@/components/tracks-table/loading"
 import { Button, Skeleton, Navbar } from "@data-projects/ui"
 import { SpotifyAttribution } from "@/components/spotify-attribution"
 
 function SpotifyLogo() {
-  return <Logo showText={false} />;
+  return <Logo showText={false} />
 }
 
 export default function ArtistPage() {
@@ -21,8 +27,17 @@ export default function ArtistPage() {
   const artistName = decodeURIComponent(params.name as string)
   const { data, isLoading, error } = useArtistTracks(artistName)
 
+  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null)
+  const [selectedTierId, setSelectedTierId] =
+    useState<PopularityTierId | null>(null)
+
+  const catalogStats = useMemo(() => {
+    if (!data) return null
+    return data.catalogStats ?? computeCatalogStats(data.tracks)
+  }, [data])
+
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="min-h-screen flex flex-col">
       <Navbar
         homeLink={<Link href="/" />}
         logo={<SpotifyLogo />}
@@ -31,8 +46,10 @@ export default function ArtistPage() {
         themeIconClassName="text-spotify"
       />
 
-
-      <main id="main-content" className="flex-1 min-h-0 container mx-auto px-4 py-6 flex flex-col overflow-hidden">
+      <main
+        id="main-content"
+        className="flex-1 container mx-auto px-4 py-6 flex flex-col"
+      >
         {error && (
           <div
             role="alert"
@@ -58,37 +75,62 @@ export default function ArtistPage() {
 
         {isLoading && (
           <div className="space-y-8 animate-slide-up">
-            <div className="flex flex-col sm:flex-row items-center gap-6 mb-8">
-              <Skeleton className="h-32 w-32 sm:h-40 sm:w-40 rounded-full" />
-              <div className="text-center sm:text-left space-y-3">
-                <Skeleton className="h-4 w-16" />
+            <div className="flex flex-col sm:flex-row items-center gap-6 mb-4">
+              <Skeleton className="h-28 w-28 sm:h-32 sm:w-32 rounded-full" />
+              <div className="text-center sm:text-left space-y-3 flex-1">
+                <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-10 w-64" />
                 <div className="flex gap-2">
-                  <Skeleton className="h-6 w-20 rounded-full" />
                   <Skeleton className="h-6 w-24 rounded-full" />
+                  <Skeleton className="h-6 w-28 rounded-full" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
                 </div>
               </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {[1, 2, 3, 4].map((n) => (
+                <Skeleton key={n} className="h-24 w-full rounded-xl" />
+              ))}
             </div>
             <TracksTableLoading />
           </div>
         )}
 
-        {data && (
-          <div className="flex flex-col flex-1 min-h-0 animate-slide-up">
-            <ArtistHeader artist={data.artist} trackCount={data.tracks.length} />
-            <p className="mb-4 text-sm text-muted-foreground">
+        {data && catalogStats && (
+          <div className="flex flex-col flex-1 animate-slide-up">
+            <ArtistHeader
+              artist={data.artist}
+              catalogStats={catalogStats}
+              trackCount={data.tracks.length}
+            />
+
+            <CatalogInsights
+              catalogStats={catalogStats}
+              selectedAlbumId={selectedAlbumId}
+              onSelectAlbum={setSelectedAlbumId}
+              selectedTierId={selectedTierId}
+              onSelectTier={setSelectedTierId}
+            />
+
+            <p className="mb-3 text-xs sm:text-sm text-muted-foreground">
               Popularity is Spotify&apos;s 0–100 score for how often a track is
-              played relative to others. Freshness: snapshotted when this page
-              loaded (not a live stream).
+              played relative to others. Click any release or popularity tier
+              above to filter the catalog table below.
             </p>
-            <div className="flex-1 min-h-0">
-              <TracksTable tracks={data.tracks} />
+
+            <div className="flex-1">
+              <TracksTable
+                tracks={data.tracks}
+                selectedAlbumId={selectedAlbumId}
+                onSelectAlbum={setSelectedAlbumId}
+                selectedTierId={selectedTierId}
+                onSelectTier={setSelectedTierId}
+              />
             </div>
           </div>
         )}
       </main>
 
-      { }
       <footer className="flex-shrink-0 py-3 text-center border-t border-border/50">
         <SpotifyAttribution />
       </footer>

@@ -1,11 +1,12 @@
 import { apiFetch, ApiError } from "@data-projects/shared"
-import type { SpotifyArtist, SpotifyTrack } from "@/lib/spotify"
+import type { CatalogStats, SpotifyArtist, SpotifyTrack } from "@/lib/spotify"
 
 export { ApiError }
 
 export interface ArtistTracksResponse {
   artist: SpotifyArtist
   tracks: SpotifyTrack[]
+  catalogStats?: CatalogStats
 }
 
 export interface ArtistSuggestion {

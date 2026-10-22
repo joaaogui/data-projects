@@ -4,24 +4,34 @@ export interface SpotifyImage {
   width: number
 }
 
-export interface SpotifyArtist {
+export type SpotifyAlbumType = "album" | "single" | "compilation"
+
+export interface SpotifyRawArtist {
   id: string
   name: string
-  images: SpotifyImage[]
-  popularity: number
-  genres: string[]
+  images?: SpotifyImage[]
+  popularity?: number
+  followers?: {
+    href?: string | null
+    total?: number
+  } | number
+  genres?: string[]
   external_urls?: {
-    spotify: string
+    spotify?: string
   }
 }
 
-export interface SpotifyAlbum {
+export interface SpotifyArtist {
   id: string
   name: string
+  imageUrl: string | null
+  spotifyUrl: string
+  popularity: number
+  followers: number
+  genres: string[]
   images: SpotifyImage[]
-  release_date: string
-  tracks?: {
-    items: SpotifyTrackSimple[]
+  external_urls?: {
+    spotify: string
   }
 }
 
@@ -31,37 +41,168 @@ export interface SpotifyTrackSimple {
   track_number: number
 }
 
+export interface SpotifyRawAlbum {
+  id: string
+  name: string
+  album_type?: string
+  album_group?: string
+  total_tracks?: number
+  images?: SpotifyImage[]
+  release_date?: string
+  external_urls?: {
+    spotify?: string
+  }
+  tracks?: {
+    items: SpotifyTrackSimple[]
+  }
+}
+
+export interface SpotifyRawTrack {
+  id: string
+  name: string
+  popularity?: number
+  album?: SpotifyRawAlbum
+  artists?: SpotifyRawArtist[]
+  duration_ms?: number
+  explicit?: boolean
+  track_number?: number
+  disc_number?: number
+  preview_url?: string | null
+  external_ids?: {
+    isrc?: string
+  }
+  external_urls?: {
+    spotify?: string
+  }
+}
+
+export interface SpotifyTrackArtist {
+  id: string
+  name: string
+  spotifyUrl: string
+}
+
+export interface SpotifyAlbum {
+  id: string
+  name: string
+  imageUrl: string
+  releaseDate: string
+  releaseYear: number | null
+  albumType: SpotifyAlbumType
+  totalTracks: number
+  spotifyUrl: string
+}
+
 export interface SpotifyTrack {
   id: string
   name: string
   popularity: number
+  rank: number
+  deltaFromArtistAvg: number
+  isAlbumLeadTrack: boolean
+  durationMs: number
+  explicit: boolean
+  trackNumber: number
+  discNumber: number
   album: SpotifyAlbum
-  artists: SpotifyArtist[]
-  duration_ms: number
-  preview_url: string | null
-  external_urls: {
-    spotify: string
-  }
+  artists: SpotifyTrackArtist[]
+  featuredArtists: SpotifyTrackArtist[]
+  isCollaboration: boolean
+  isrc: string | null
+  spotifyUrl: string
+  previewUrl: string | null
+}
+
+export type PopularityTierId = "viral" | "hit" | "rotation" | "deep-cut" | "vault"
+
+export interface PopularityTierSummary {
+  id: PopularityTierId
+  label: string
+  rangeLabel: string
+  min: number
+  max: number
+  count: number
+  percentage: number
+  topTrackName: string | null
+}
+
+export interface AlbumSummary {
+  id: string
+  name: string
+  imageUrl: string
+  spotifyUrl: string
+  releaseDate: string
+  releaseYear: number | null
+  albumType: SpotifyAlbumType
+  trackCount: number
+  totalTracks: number
+  avgPopularity: number
+  maxPopularity: number
+  topTrackId: string
+  topTrackName: string
+  totalDurationMs: number
+}
+
+export interface ReleaseYearSummary {
+  year: number
+  trackCount: number
+  releaseCount: number
+  avgPopularity: number
+  maxPopularity: number
+  topTrackName: string
+}
+
+export interface CatalogStats {
+  totalTracks: number
+  totalReleases: number
+  albumCount: number
+  singleCount: number
+  compilationCount: number
+  minYear: number | null
+  maxYear: number | null
+  careerSpan: string
+  totalDurationMs: number
+  avgDurationMs: number
+  avgPopularity: number
+  medianPopularity: number
+  peakTrack: {
+    id: string
+    name: string
+    popularity: number
+    albumName: string
+    releaseYear: number | null
+  } | null
+  explicitCount: number
+  explicitPct: number
+  collaborationCount: number
+  collaborationPct: number
+  soloCount: number
+  soloAvgPopularity: number
+  collabAvgPopularity: number
+  collabPopularityDelta: number | null
+  albums: AlbumSummary[]
+  popularityTiers: PopularityTierSummary[]
+  releaseYears: ReleaseYearSummary[]
 }
 
 export interface SpotifySearchResponse {
   artists: {
-    items: SpotifyArtist[]
+    items: SpotifyRawArtist[]
   }
 }
 
 export interface SpotifyAlbumsResponse {
-  items: SpotifyAlbum[]
+  items: SpotifyRawAlbum[]
   next: string | null
   total: number
 }
 
 export interface SpotifySeveralAlbumsResponse {
-  albums: SpotifyAlbum[]
+  albums: SpotifyRawAlbum[]
 }
 
 export interface SpotifyTracksResponse {
-  tracks: SpotifyTrack[]
+  tracks: Array<SpotifyRawTrack | null>
 }
 
 export interface SpotifyTokenResponse {
@@ -69,4 +210,3 @@ export interface SpotifyTokenResponse {
   token_type: string
   expires_in: number
 }
-

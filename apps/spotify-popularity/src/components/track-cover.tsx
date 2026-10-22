@@ -13,6 +13,7 @@ interface TrackCoverProps {
   imageUrl: string | undefined
   albumName: string
   spotifyUrl: string
+  previewUrl?: string | null
 }
 
 export function TrackCover({
@@ -22,6 +23,7 @@ export function TrackCover({
   imageUrl,
   albumName,
   spotifyUrl,
+  previewUrl: initialPreviewUrl,
 }: Readonly<TrackCoverProps>) {
   const { currentTrackId, isPlaying, toggle } = useAudioPlayer()
   const [shouldFetch, setShouldFetch] = useState(false)
@@ -29,43 +31,37 @@ export function TrackCover({
   const { data, isFetching: isLoading } = useTrackPreview({
     trackName,
     artistName,
-    enabled: shouldFetch,
+    enabled: shouldFetch && !initialPreviewUrl,
   })
 
-  const previewUrl = data?.preview ?? null
-  const previewFetched = shouldFetch && !isLoading
+  const previewUrl = initialPreviewUrl ?? data?.preview ?? null
+  const previewFetched = Boolean(initialPreviewUrl) || (shouldFetch && !isLoading)
 
   const isCurrentTrack = currentTrackId === trackId
   const isThisPlaying = isCurrentTrack && isPlaying
 
-                      
   const handleMouseEnter = () => {
-    if (!shouldFetch) {
+    if (!shouldFetch && !initialPreviewUrl) {
       setShouldFetch(true)
     }
   }
 
   const handleClick = () => {
-                                                 
     if (isCurrentTrack && isPlaying) {
       toggle(trackId, previewUrl!)
       return
     }
 
-                                    
     if (previewUrl) {
       toggle(trackId, previewUrl)
       return
     }
 
-                                    
     if (isLoading) {
       return
     }
 
-                                                                  
     if (shouldFetch) {
-                                                             
       window.open(spotifyUrl, "_blank", "noopener,noreferrer")
     } else {
       setShouldFetch(true)
@@ -73,7 +69,7 @@ export function TrackCover({
   }
 
   if (!imageUrl) {
-    return <div className="h-12 w-12 rounded-md bg-muted" />
+    return <div className="h-11 w-11 shrink-0 rounded-md bg-muted" />
   }
 
   const showExternalIcon = previewFetched && !previewUrl
@@ -86,15 +82,15 @@ export function TrackCover({
 
   const renderIcon = () => {
     if (isLoading) {
-      return <Loader2 className="h-5 w-5 text-white drop-shadow-lg animate-spin" />
+      return <Loader2 className="h-4 w-4 text-white drop-shadow-lg animate-spin" />
     }
     if (isThisPlaying) {
-      return <Pause className="h-5 w-5 text-white drop-shadow-lg" fill="white" />
+      return <Pause className="h-4 w-4 text-white drop-shadow-lg" fill="white" />
     }
     if (showExternalIcon) {
       return <ExternalLink className="h-4 w-4 text-white drop-shadow-lg" />
     }
-    return <Play className="h-5 w-5 text-white drop-shadow-lg ml-0.5" fill="white" />
+    return <Play className="h-4 w-4 text-white drop-shadow-lg ml-0.5" fill="white" />
   }
 
   return (
@@ -102,7 +98,7 @@ export function TrackCover({
       type="button"
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
-      className="group relative h-12 w-12 overflow-hidden rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-spotify focus:ring-offset-2 focus:ring-offset-background"
+      className="group relative h-11 w-11 shrink-0 overflow-hidden rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-spotify focus:ring-offset-2 focus:ring-offset-background"
       aria-label={getAriaLabel()}
     >
       <Image
@@ -112,7 +108,7 @@ export function TrackCover({
         className={`object-cover transition-all duration-200 group-hover:scale-105 group-hover:brightness-50 ${
           isThisPlaying ? "brightness-50" : ""
         }`}
-        sizes="48px"
+        sizes="44px"
       />
       <div
         className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${
