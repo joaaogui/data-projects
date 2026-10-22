@@ -47,6 +47,8 @@ export interface SpotifyRawAlbum {
   album_type?: string
   album_group?: string
   total_tracks?: number
+  popularity?: number
+  label?: string
   images?: SpotifyImage[]
   release_date?: string
   external_urls?: {
@@ -91,6 +93,8 @@ export interface SpotifyAlbum {
   albumType: SpotifyAlbumType
   totalTracks: number
   spotifyUrl: string
+  albumPopularity?: number | null
+  label?: string | null
 }
 
 export interface SpotifyTrack {
@@ -111,6 +115,8 @@ export interface SpotifyTrack {
   isrc: string | null
   spotifyUrl: string
   previewUrl: string | null
+  appearancesCount?: number
+  otherReleases?: string[]
 }
 
 export type PopularityTierId = "viral" | "hit" | "rotation" | "deep-cut" | "vault"
@@ -141,6 +147,29 @@ export interface AlbumSummary {
   topTrackId: string
   topTrackName: string
   totalDurationMs: number
+  albumPopularity?: number | null
+  label?: string | null
+}
+
+export interface CollaboratorTrackSummary {
+  id: string
+  name: string
+  popularity: number
+  rank: number
+  releaseYear: number | null
+}
+
+export interface CollaboratorSummary {
+  id: string
+  name: string
+  spotifyUrl: string
+  trackCount: number
+  avgPopularity: number
+  deltaVsSoloAvg: number
+  topTrackId: string
+  topTrackName: string
+  topTrackPopularity: number
+  tracks: CollaboratorTrackSummary[]
 }
 
 export interface ReleaseYearSummary {
@@ -181,6 +210,7 @@ export interface CatalogStats {
   collabAvgPopularity: number
   collabPopularityDelta: number | null
   albums: AlbumSummary[]
+  collaborators: CollaboratorSummary[]
   popularityTiers: PopularityTierSummary[]
   releaseYears: ReleaseYearSummary[]
 }

@@ -16,9 +16,14 @@ import {
 import { cn, formatNumber } from "@data-projects/shared"
 import {
   POPULARITY_TIER_DEFINITIONS,
+  computeCatalogStats,
   formatRuntimeMs,
   getPopularityTierId,
+  type AlbumSummary,
+  type CatalogStats,
+  type CollaboratorSummary,
   type PopularityTierId,
+  type ReleaseYearSummary,
   type SpotifyAlbumType,
   type SpotifyTrack,
 } from "@/lib/spotify"
@@ -43,6 +48,7 @@ export type ReleaseTypeFilter = "all" | SpotifyAlbumType
 
 interface TracksTableProps {
   tracks: SpotifyTrack[]
+  catalogStats?: CatalogStats | null
   selectedAlbumId?: string | null
   onSelectAlbum?: (albumId: string | null) => void
   selectedTierId?: PopularityTierId | null
@@ -60,6 +66,7 @@ const OPTIONAL_COLUMNS: ReadonlyArray<{ id: string; label: string }> = [
 
 export function TracksTable({
   tracks,
+  catalogStats: providedCatalogStats,
   selectedAlbumId: controlledAlbumId,
   onSelectAlbum: controlledOnSelectAlbum,
   selectedTierId: controlledTierId,
@@ -192,13 +199,102 @@ export function TracksTable({
     }
   }, [filteredTracks])
 
+  const catalogStats = useMemo(
+    () => providedCatalogStats ?? computeCatalogStats(tracks),
+    [providedCatalogStats, tracks]
+  )
+
+  const lookupContext = useMemo(() => {
+    const collaboratorsById = new Map<string, CollaboratorSummary>()
+    for (const collab of catalogStats.collaborators ?? []) {
+      if (collab.id) collaboratorsById.set(collab.id, collab)
+      collaboratorsById.set(collab.name.trim().toLowerCase(), collab)
+    }
+
+    const albumsById = new Map<string, AlbumSummary>()
+    for (const album of catalogStats.albums) {
+      albumsById.set(album.id, album)
+      if (album.name) albumsById.set(album.name, album)
+    }
+
+    const yearsByYear = new Map<number, ReleaseYearSummary>()
+    for (const yr of catalogStats.releaseYears) {
+      yearsByYear.set(yr.year, yr)
+    }
+
+    const sortedByPop = tracks.toSorted((a, b) => b.popularity - a.popularity)
+
+    const albumTracksMap = new Map<string, SpotifyTrack[]>()
+    const yearTracksMap = new Map<number, SpotifyTrack[]>()
+    const soloTracks: SpotifyTrack[] = []
+
+    for (const t of sortedByPop) {
+      const albumKey = t.album.id || t.album.name
+      const list = albumTracksMap.get(albumKey)
+      if (list) list.push(t)
+      else albumTracksMap.set(albumKey, [t])
+
+      if (t.album.releaseYear !== null) {
+        const yList = yearTracksMap.get(t.album.releaseYear)
+        if (yList) yList.push(t)
+        else yearTracksMap.set(t.album.releaseYear, [t])
+      }
+
+      if (!t.isCollaboration) {
+        soloTracks.push(t)
+      }
+    }
+
+    const trackAlbumRankById = new Map<string, { rank: number; count: number }>()
+    for (const list of albumTracksMap.values()) {
+      const count = list.length
+      list.forEach((t, idx) => {
+        trackAlbumRankById.set(t.id, { rank: idx + 1, count })
+      })
+    }
+
+    const trackYearRankById = new Map<string, { rank: number; count: number }>()
+    for (const list of yearTracksMap.values()) {
+      const count = list.length
+      list.forEach((t, idx) => {
+        trackYearRankById.set(t.id, { rank: idx + 1, count })
+      })
+    }
+
+    const trackSoloRankById = new Map<string, { rank: number; count: number }>()
+    const soloCount = soloTracks.length
+    soloTracks.forEach((t, idx) => {
+      trackSoloRankById.set(t.id, { rank: idx + 1, count: soloCount })
+    })
+
+    const sortedByDuration = tracks.toSorted(
+      (a, b) => b.durationMs - a.durationMs
+    )
+    const trackDurationRankById = new Map<string, number>()
+    sortedByDuration.forEach((t, idx) => {
+      trackDurationRankById.set(t.id, idx + 1)
+    })
+
+    return {
+      collaboratorsById,
+      albumsById,
+      yearsByYear,
+      trackAlbumRankById,
+      trackYearRankById,
+      trackSoloRankById,
+      trackDurationRankById,
+    }
+  }, [tracks, catalogStats])
+
   const tableColumns = useMemo(
     () =>
       createTrackColumns({
         onSelectAlbum: setSelectedAlbumId,
         selectedAlbumId,
+        catalogStats,
+        ...lookupContext,
       }),
-    [setSelectedAlbumId, selectedAlbumId]
+    [setSelectedAlbumId, selectedAlbumId, catalogStats, lookupContext]
   )
 
   const hasActiveFilters =

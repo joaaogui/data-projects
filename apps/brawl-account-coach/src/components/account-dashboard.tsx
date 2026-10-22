@@ -468,6 +468,7 @@ export function AccountDashboard() {
           <BattleDiagnosis
             diagnoses={analysis.battleDiagnosis}
             recentTrend={metrics.recentTrend}
+            recentBattles={metrics.recentBattles}
             brawlers={player.brawlers}
           />
 
@@ -475,6 +476,7 @@ export function AccountDashboard() {
             powerDistribution={metrics.powerDistribution}
             rosterCompletion={metrics.rosterCompletion}
             trophyEfficiency={metrics.trophyEfficiency}
+            underPushedBrawlers={metrics.underPushedBrawlers}
             remainingBuilds={remainingBuilds}
             avoidForNow={analysis.avoidForNow}
             brawlers={player.brawlers}

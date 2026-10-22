@@ -8,41 +8,77 @@ import { useEvolution } from "@/hooks/use-stats";
 import type { YearRankEntry } from "@/lib/analytics/evolution";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { cn } from "@data-projects/shared";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@data-projects/ui";
 import { ArrowDown, ArrowUp, Minus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
-function RankMovement({ entry }: Readonly<{ entry: YearRankEntry }>) {
-  if (entry.previousRank === null) {
+function RankMovement({
+  entry,
+  yearTotalPlays,
+}: Readonly<{ entry: YearRankEntry; yearTotalPlays?: number }>) {
+  const shareLabel =
+    yearTotalPlays && yearTotalPlays > 0
+      ? `${formatPercent(entry.plays / yearTotalPlays, 1)} of ${entry.year} plays`
+      : null;
+
+  const badge = (() => {
+    if (entry.previousRank === null) {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-data cursor-default">
+          <Sparkles className="size-3" aria-hidden />
+          new
+        </span>
+      );
+    }
+
+    const delta = entry.previousRank - entry.rank;
+    if (delta === 0) {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-default">
+          <Minus className="size-3" aria-hidden />
+          held
+        </span>
+      );
+    }
+
+    const Icon = delta > 0 ? ArrowUp : ArrowDown;
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-data">
-        <Sparkles className="size-3" aria-hidden />
-        new
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 text-xs tabular-nums cursor-default",
+          delta > 0 ? "text-foreground" : "text-muted-foreground"
+        )}
+      >
+        <Icon className="size-3" aria-hidden />
+        {Math.abs(delta)}
       </span>
     );
-  }
+  })();
 
-  const delta = entry.previousRank - entry.rank;
-  if (delta === 0) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-        <Minus className="size-3" aria-hidden />
-        held
-      </span>
-    );
-  }
+  const rankTransition =
+    entry.previousRank === null
+      ? `No plays in ${entry.year - 1} → #${entry.rank} in ${entry.year}`
+      : `#${entry.previousRank} in ${entry.year - 1} → #${entry.rank} in ${entry.year}`;
 
-  const Icon = delta > 0 ? ArrowUp : ArrowDown;
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 text-xs tabular-nums",
-        delta > 0 ? "text-foreground" : "text-muted-foreground"
-      )}
-    >
-      <Icon className="size-3" aria-hidden />
-      {Math.abs(delta)}
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>{badge}</TooltipTrigger>
+      <TooltipContent className="text-xs space-y-0.5">
+        <div className="font-mono font-medium text-foreground">
+          {rankTransition}
+        </div>
+        {shareLabel && (
+          <div className="font-mono text-[11px] text-muted-foreground">
+            {formatNumber(entry.plays)} plays ({shareLabel})
+          </div>
+        )}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -199,7 +235,10 @@ export default function EvolutionPage() {
                         {formatNumber(entry.plays)}
                       </span>
                       <span className="w-12 shrink-0 text-right">
-                        <RankMovement entry={entry} />
+                        <RankMovement
+                          entry={entry}
+                          yearTotalPlays={yearStats?.plays}
+                        />
                       </span>
                     </li>
                   ))}

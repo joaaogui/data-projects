@@ -272,6 +272,12 @@ describe("enrichCatalogTracks & computeCatalogStats", () => {
     expect(enriched[1].isCollaboration).toBe(false);
     expect(enriched[1].featuredArtists).toEqual([]);
 
+    // Alternate release tracking on deduplication
+    expect(enriched[0].appearancesCount).toBe(2);
+    expect(enriched[0].otherReleases).toEqual(["Get Lucky (Radio Edit)"]);
+    expect(enriched[1].appearancesCount).toBe(1);
+    expect(enriched[1].otherReleases).toEqual([]);
+
     // Explicit, ISRC, releaseYear
     expect(enriched[0].isrc).toBe("USQX91300809");
     expect(enriched[0].album.releaseYear).toBe(2013);
@@ -372,6 +378,17 @@ describe("enrichCatalogTracks & computeCatalogStats", () => {
 
     // Release year rollups
     expect(stats.releaseYears.map((y) => y.year)).toEqual([2001, 2007, 2013]);
+
+    // Collaborator rollups
+    expect(stats.collaborators.map((c) => c.name)).toEqual([
+      "Pharrell Williams",
+      "Nile Rodgers",
+      "Julian Casablancas",
+    ]);
+    expect(stats.collaborators[0].trackCount).toBe(1);
+    expect(stats.collaborators[0].avgPopularity).toBe(88);
+    expect(stats.collaborators[0].deltaVsSoloAvg).toBe(18); // 88 - 70
+    expect(stats.collaborators[0].topTrackName).toBe("Get Lucky");
   });
 
   it("handles empty track lists gracefully", () => {
@@ -432,6 +449,8 @@ describe("getArtistTopTracks", () => {
             {
               id: "alb-1",
               name: "Debut Album",
+              popularity: 71,
+              label: "Test Records",
               tracks: {
                 items: [{ id: "trk-1", name: "Opening Song", track_number: 1 }],
               },
@@ -479,6 +498,8 @@ describe("getArtistTopTracks", () => {
     expect(result.tracks).toHaveLength(1);
     expect(result.tracks[0].rank).toBe(1);
     expect(result.tracks[0].isrc).toBe("USABC2400001");
+    expect(result.tracks[0].album.albumPopularity).toBe(71);
+    expect(result.tracks[0].album.label).toBe("Test Records");
     expect(result.catalogStats.totalTracks).toBe(1);
     expect(result.catalogStats.careerSpan).toBe("2024");
   });

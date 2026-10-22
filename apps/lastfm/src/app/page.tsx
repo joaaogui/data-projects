@@ -6,7 +6,27 @@ import { PageHeader, Section } from "@/components/section";
 import { StatCard } from "@/components/stat-card";
 import { useOverview } from "@/hooks/use-stats";
 import { formatDate, formatNumber, formatRelative } from "@/lib/format";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@data-projects/ui";
 import { Flame } from "lucide-react";
+
+const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "UTC",
+});
+
+function formatExactDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return formatDate(value);
+  return `${dateTimeFormatter.format(date)} UTC`;
+}
 
 export default function OverviewPage() {
   const { data, isLoading, error } = useOverview();
@@ -161,11 +181,19 @@ export default function OverviewPage() {
                 {play.track}
                 <span className="ml-2 text-xs text-muted-foreground">
                   {play.artist}
+                  {play.album ? ` · ${play.album}` : ""}
                 </span>
               </span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {formatRelative(play.playedAt)}
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="shrink-0 text-xs text-muted-foreground cursor-default">
+                    {formatRelative(play.playedAt)}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs font-mono">
+                  {formatExactDateTime(play.playedAt)}
+                </TooltipContent>
+              </Tooltip>
             </li>
           ))}
         </ol>

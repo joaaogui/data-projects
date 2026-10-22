@@ -2,6 +2,7 @@ import { median } from "@data-projects/shared"
 import type {
   AlbumSummary,
   CatalogStats,
+  CollaboratorSummary,
   PopularityTierId,
   PopularityTierSummary,
   ReleaseYearSummary,
@@ -76,16 +77,41 @@ export function enrichCatalogTracks(
   rawTracks: SpotifyRawTrack[],
   primaryArtist: Pick<SpotifyArtist, "id" | "name">
 ): SpotifyTrack[] {
-  const seenNames = new Set<string>()
-  const deduplicatedRaw = rawTracks
+  const validSortedRaw = rawTracks
     .filter((t): t is SpotifyRawTrack => Boolean(t && t.id && t.name))
     .toSorted((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
-    .filter((track) => {
-      const key = track.name.trim().toLowerCase()
-      if (seenNames.has(key)) return false
-      seenNames.add(key)
-      return true
-    })
+
+  const appearancesByKey = new Map<
+    string,
+    { count: number; releaseNames: string[]; primaryReleaseName: string }
+  >()
+  const seenNames = new Set<string>()
+  const deduplicatedRaw = validSortedRaw.filter((track) => {
+    const key = track.name.trim().toLowerCase()
+    const releaseName = track.album?.name?.trim() || "Unknown Release"
+    const existing = appearancesByKey.get(key)
+    if (!existing) {
+      appearancesByKey.set(key, {
+        count: 1,
+        releaseNames: [],
+        primaryReleaseName: releaseName,
+      })
+    } else {
+      existing.count += 1
+      if (
+        releaseName.toLowerCase() !== existing.primaryReleaseName.toLowerCase() &&
+        !existing.releaseNames.some(
+          (r) => r.toLowerCase() === releaseName.toLowerCase()
+        )
+      ) {
+        existing.releaseNames.push(releaseName)
+      }
+    }
+
+    if (seenNames.has(key)) return false
+    seenNames.add(key)
+    return true
+  })
 
   if (deduplicatedRaw.length === 0) {
     return []
@@ -133,6 +159,12 @@ export function enrichCatalogTracks(
     const albumType = normalizeAlbumType(rawAlbum?.album_type, rawAlbum?.album_group)
     const albumImageUrl = rawAlbum?.images?.[0]?.url ?? ""
     const albumSpotifyUrl = rawAlbum?.external_urls?.spotify ?? ""
+    const albumPopularity =
+      typeof rawAlbum?.popularity === "number" ? rawAlbum.popularity : null
+    const label = rawAlbum?.label ?? null
+
+    const nameKey = raw.name.trim().toLowerCase()
+    const appearanceMeta = appearancesByKey.get(nameKey)
 
     const creditedArtists = (raw.artists ?? []).map(normalizeTrackArtist)
     const featuredArtists = creditedArtists.filter(
@@ -161,6 +193,8 @@ export function enrichCatalogTracks(
         albumType,
         totalTracks,
         spotifyUrl: albumSpotifyUrl,
+        albumPopularity,
+        label,
       },
       artists: creditedArtists,
       featuredArtists,
@@ -168,6 +202,8 @@ export function enrichCatalogTracks(
       isrc: raw.external_ids?.isrc ?? null,
       spotifyUrl: raw.external_urls?.spotify ?? "",
       previewUrl: raw.preview_url ?? null,
+      appearancesCount: appearanceMeta?.count ?? 1,
+      otherReleases: appearanceMeta?.releaseNames ?? [],
     }
   })
 }
@@ -207,6 +243,7 @@ export function computeCatalogStats(tracks: SpotifyTrack[]): CatalogStats {
       collabAvgPopularity: 0,
       collabPopularityDelta: null,
       albums: [],
+      collaborators: [],
       popularityTiers: POPULARITY_TIER_DEFINITIONS.map((tier) => ({
         ...tier,
         count: 0,
@@ -295,6 +332,8 @@ export function computeCatalogStats(tracks: SpotifyTrack[]): CatalogStats {
         topTrackId: topTrack.id,
         topTrackName: topTrack.name,
         totalDurationMs: sumDur,
+        albumPopularity: meta.albumPopularity ?? null,
+        label: meta.label ?? null,
       }
     })
     .toSorted(
@@ -302,6 +341,61 @@ export function computeCatalogStats(tracks: SpotifyTrack[]): CatalogStats {
         b.avgPopularity - a.avgPopularity ||
         b.maxPopularity - a.maxPopularity ||
         b.trackCount - a.trackCount
+    )
+
+  // Group by collaborator
+  const collabMap = new Map<
+    string,
+    {
+      artist: SpotifyTrackArtist
+      tracks: SpotifyTrack[]
+    }
+  >()
+
+  for (const track of sortedByPop) {
+    for (const featured of track.featuredArtists) {
+      const key = featured.id || featured.name.trim().toLowerCase()
+      const existing = collabMap.get(key)
+      if (existing) {
+        existing.tracks.push(track)
+      } else {
+        collabMap.set(key, {
+          artist: featured,
+          tracks: [track],
+        })
+      }
+    }
+  }
+
+  const collaborators: CollaboratorSummary[] = Array.from(collabMap.values())
+    .map(({ artist, tracks: artistTracks }) => {
+      const topTrack = artistTracks[0]
+      const sumPop = artistTracks.reduce((sum, t) => sum + t.popularity, 0)
+      const avgPop = Math.round(sumPop / artistTracks.length)
+      return {
+        id: artist.id || artist.name,
+        name: artist.name,
+        spotifyUrl: artist.spotifyUrl,
+        trackCount: artistTracks.length,
+        avgPopularity: avgPop,
+        deltaVsSoloAvg: avgPop - soloAvgPopularity,
+        topTrackId: topTrack.id,
+        topTrackName: topTrack.name,
+        topTrackPopularity: topTrack.popularity,
+        tracks: artistTracks.map((t) => ({
+          id: t.id,
+          name: t.name,
+          popularity: t.popularity,
+          rank: t.rank,
+          releaseYear: t.album.releaseYear,
+        })),
+      }
+    })
+    .toSorted(
+      (a, b) =>
+        b.trackCount - a.trackCount ||
+        b.avgPopularity - a.avgPopularity ||
+        b.topTrackPopularity - a.topTrackPopularity
     )
 
   const albumCount = albums.filter((a) => a.albumType === "album").length
@@ -403,6 +497,7 @@ export function computeCatalogStats(tracks: SpotifyTrack[]): CatalogStats {
     collabAvgPopularity,
     collabPopularityDelta,
     albums,
+    collaborators,
     popularityTiers,
     releaseYears,
   }

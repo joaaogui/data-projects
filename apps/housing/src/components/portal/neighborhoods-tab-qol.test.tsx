@@ -97,7 +97,7 @@ function buildCtl(overrides: Partial<PortalController> = {}): PortalController {
 const header = (label: string) => screen.getByRole("columnheader", { name: label });
 const clickHeader = (label: string) => fireEvent.click(within(header(label)).getByRole("button"));
 const rows = () => [...document.querySelectorAll("tbody tr")];
-const names = () => rows().map((tr) => tr.querySelector("td:nth-child(3)")!.textContent);
+const names = () => rows().map((tr) => tr.querySelector("td:nth-child(3) button")!.textContent);
 const columnIndex = (label: string) => screen.getAllByRole("columnheader").indexOf(header(label));
 const cellOf = (rowIdx: number, label: string) => rows()[rowIdx]!.querySelectorAll("td")[columnIndex(label)]!;
 

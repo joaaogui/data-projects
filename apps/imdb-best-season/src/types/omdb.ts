@@ -68,12 +68,34 @@ export interface Show {
   imdbID: string | null;
   totalSeasons: number | null;
   ratings: Rating[];
+  year?: string;
+  genre?: string;
+  runtime?: string;
+  awards?: string;
+  imdbRating?: string;
+  imdbVotes?: string;
+}
+
+export interface SeasonEpisodeHighlight {
+  episode: number;
+  title: string;
+  rating: number;
 }
 
 export interface RankedSeason {
   seasonNumber: number;
   rating: number;
   episodes: EpisodeRating[];
+  meanRating?: number;
+  imdbMedian?: number | null;
+  tmdbMedian?: number | null;
+  minRating?: number | null;
+  maxRating?: number | null;
+  deltaFromShowMedian?: number;
+  highRatedCount?: number;
+  bestEpisode?: SeasonEpisodeHighlight | null;
+  worstEpisode?: SeasonEpisodeHighlight | null;
+  premiereToFinaleDelta?: number | null;
 }
 
 export interface EpisodeRating {
@@ -83,6 +105,10 @@ export interface EpisodeRating {
   tmdbRating: number | null;
   title: string;
   imdbID?: string;
+  released?: string;
+  overview?: string;
+  runtime?: number | null;
+  tmdbVoteCount?: number | null;
 }
 
 export interface TMDBFindResult {
@@ -105,6 +131,8 @@ export interface TMDBEpisode {
   name: string;
   vote_average: number;
   vote_count: number;
+  overview?: string;
+  runtime?: number | null;
 }
 
 export interface TMDBSeasonResponse {

@@ -128,6 +128,123 @@ export const PropertyCard = memo(function PropertyCard({
     MODERNITY_TIER_BADGES.STANDARD!;
   const providerStyle = getProviderStyle(prop.provider);
 
+  const rankTooltip = `Ranking Geral (todas as praças): #${prop.overallRank ?? "—"} · Ranking em ${prop.city}: #${prop.cityRank ?? "—"} · Ranking em ${prop.neighborhood}: #${prop.neighborhoodRank ?? "—"} (Nota do bairro: ${prop.neighborhoodDynamicScore.toFixed(2)}/10)`;
+
+  const modernityTooltipParts: string[] = [
+    `${tierBadge.label} (${prop.modernityScore}/100)`,
+  ];
+  if (prop.constructionYear) {
+    modernityTooltipParts.push(`Construído em ${prop.constructionYear}`);
+  }
+  if (prop.condition) {
+    modernityTooltipParts.push(prop.condition);
+  }
+  if (prop.doorman) {
+    modernityTooltipParts.push(`Portaria: ${prop.doorman}`);
+  }
+  if (prop.positiveSignals && prop.positiveSignals.length > 0) {
+    modernityTooltipParts.push(
+      `Sinais positivos: ${prop.positiveSignals.join(", ")}`,
+    );
+  }
+  if (prop.negativeSignals && prop.negativeSignals.length > 0) {
+    modernityTooltipParts.push(
+      `Sinais negativos: ${prop.negativeSignals.join(", ")}`,
+    );
+  }
+  const modernityTooltip = modernityTooltipParts.join(" · ");
+
+  const formatSignedPillar = (val: number) =>
+    `${val >= 0 ? "+" : ""}${val.toFixed(2)}`;
+  const scorePillarRows: { label: string; value: number; formatted: string }[] =
+    [
+      {
+        label: "Bairro",
+        value: prop.breakdown.neighborhoodPoints,
+        formatted: formatSignedPillar(prop.breakdown.neighborhoodPoints),
+      },
+      {
+        label: "Modernidade",
+        value: prop.breakdown.modernityPoints,
+        formatted: formatSignedPillar(prop.breakdown.modernityPoints),
+      },
+      {
+        label: "Nuances",
+        value: prop.breakdown.nuancesPoints,
+        formatted: formatSignedPillar(prop.breakdown.nuancesPoints),
+      },
+      {
+        label: "Orçamento",
+        value: prop.breakdown.budgetPoints,
+        formatted: formatSignedPillar(prop.breakdown.budgetPoints),
+      },
+      {
+        label: "Mobília",
+        value: prop.breakdown.furniturePoints,
+        formatted: formatSignedPillar(prop.breakdown.furniturePoints),
+      },
+      {
+        label: "Planta",
+        value: prop.breakdown.areaPoints,
+        formatted: formatSignedPillar(prop.breakdown.areaPoints),
+      },
+      {
+        label: "Garagem",
+        value: prop.breakdown.parkingPoints,
+        formatted: formatSignedPillar(prop.breakdown.parkingPoints),
+      },
+      {
+        label: "Segurança Rua",
+        value: prop.breakdown.safetyPoints,
+        formatted: formatSignedPillar(prop.breakdown.safetyPoints),
+      },
+      {
+        label: "Logística",
+        value: prop.breakdown.commutePoints,
+        formatted: formatSignedPillar(prop.breakdown.commutePoints),
+      },
+      ...(prop.breakdown.cityPreferencePoints !== 0
+        ? [
+            {
+              label: "Ajuste Praça",
+              value: prop.breakdown.cityPreferencePoints,
+              formatted: formatSignedPillar(
+                prop.breakdown.cityPreferencePoints,
+              ),
+            },
+          ]
+        : []),
+    ];
+  const scoreBreakdownTooltipText = scorePillarRows
+    .map((r) => `${r.label}: ${r.formatted}`)
+    .join(" · ");
+
+  const safeAreaM2 = Math.max(1, prop.areaM2);
+  const safeTotalMonthly = Math.max(1, prop.totalMonthly);
+  const totalPerM2 = Math.round(prop.totalMonthly / safeAreaM2);
+  const rentPerM2 = Math.round(prop.rent / safeAreaM2);
+  const condoPct = Math.round((prop.condoFee / safeTotalMonthly) * 100);
+  const condoPerM2 = (prop.condoFee / safeAreaM2).toFixed(1);
+  const priceTooltipLines: string[] = [
+    `Pacote total: R$ ${totalPerM2}/m² (Aluguel: R$ ${rentPerM2}/m²)`,
+    `Condomínio: ${condoPct}% do pacote mensal (R$ ${condoPerM2}/m²)`,
+  ];
+  if (prop.listedRent !== undefined) {
+    priceTooltipLines.push(
+      `Portal anunciava R$ ${prop.listedRent.toLocaleString("pt-BR")}, ajustado para R$ ${prop.rent.toLocaleString("pt-BR")} conforme descrição`,
+    );
+  }
+  if (prop.salePrice) {
+    const salePerM2 = Math.round(prop.salePrice / safeAreaM2).toLocaleString(
+      "pt-BR",
+    );
+    const yieldPct = (((prop.rent * 12) / prop.salePrice) * 100).toFixed(2);
+    priceTooltipLines.push(
+      `Preço de venda: R$ ${prop.salePrice.toLocaleString("pt-BR")} (R$ ${salePerM2}/m² · Yield: ${yieldPct}% a.a.)`,
+    );
+  }
+  const priceTooltipText = priceTooltipLines.join(" · ");
+
   return (
     <article
       key={key}
@@ -185,7 +302,13 @@ export const PropertyCard = memo(function PropertyCard({
                 {CITY_BADGE_INFO[prop.cityCode].ufLabel}
               </span>
               <span className="font-mono text-[11px] text-muted-foreground">
-                #{prop.cityRank ?? "—"} em {prop.cityCode}
+                <span
+                  data-testid="property-rank-badge"
+                  title={rankTooltip}
+                  className="cursor-help underline decoration-muted-foreground/35 decoration-dotted underline-offset-2"
+                >
+                  #{prop.cityRank ?? "—"} em {prop.cityCode}
+                </span>
                 {prop.commuteLabel
                   ? ` · ${prop.commuteLabel} do Nu`
                   : prop.commuteMinutes !== undefined &&
@@ -218,7 +341,9 @@ export const PropertyCard = memo(function PropertyCard({
                 </span>
               )}
               <span
-                className={`inline-flex items-center gap-1 sm:gap-1.5 rounded-md border px-2 sm:px-2.5 py-0.5 text-[11px] sm:text-xs font-medium ${tierBadge.className}`}
+                data-testid="modernity-tier-badge"
+                title={modernityTooltip}
+                className={`inline-flex cursor-help items-center gap-1 sm:gap-1.5 rounded-md border px-2 sm:px-2.5 py-0.5 text-[11px] sm:text-xs font-medium ${tierBadge.className}`}
               >
                 <span
                   aria-hidden="true"
@@ -294,11 +419,78 @@ export const PropertyCard = memo(function PropertyCard({
 
             <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 rounded-lg border bg-muted/40 px-2.5 py-1.5 sm:block sm:max-w-full sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:text-right">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:justify-end">
-                <span className="font-mono text-base sm:text-lg font-bold text-primary">
-                  {prop.finalScore.toFixed(1)} pts
+                <span
+                  tabIndex={0}
+                  data-testid="score-breakdown-badge"
+                  data-card-stop-expand="true"
+                  title={scoreBreakdownTooltipText}
+                  className="group/score relative inline-flex cursor-help items-baseline font-mono text-base sm:text-lg font-bold text-primary underline decoration-primary/35 decoration-dotted underline-offset-4 focus:outline-none"
+                >
+                  <span>{prop.finalScore.toFixed(1)} pts</span>
+                  <span
+                    role="tooltip"
+                    data-testid="score-breakdown-tooltip"
+                    className="pointer-events-none invisible absolute right-0 top-full z-30 mt-1.5 w-56 rounded-lg border bg-popover p-2.5 text-left font-sans text-[11px] font-normal text-popover-foreground opacity-0 shadow-lg transition-opacity group-hover/score:visible group-hover/score:opacity-100 group-focus-within/score:visible group-focus-within/score:opacity-100 group-focus/score:visible group-focus/score:opacity-100"
+                  >
+                    <span className="mb-1 block border-b pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Nota Final ({prop.finalScore.toFixed(1)} pts)
+                    </span>
+                    <span className="grid grid-cols-1 gap-0.5">
+                      {scorePillarRows.map((row) => (
+                        <span
+                          key={row.label}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <span className="text-muted-foreground">
+                            {row.label}
+                          </span>
+                          <span
+                            className={`font-mono font-semibold ${
+                              row.value > 0
+                                ? "text-emerald-700 dark:text-emerald-400"
+                                : row.value < 0
+                                  ? "text-rose-700 dark:text-rose-400"
+                                  : "text-muted-foreground"
+                            }`}
+                          >
+                            {row.formatted}
+                          </span>
+                        </span>
+                      ))}
+                    </span>
+                  </span>
                 </span>
-                <span className="font-mono text-sm sm:text-base font-bold">
-                  R$ {prop.totalMonthly.toLocaleString("pt-BR")}/mês
+                <span
+                  tabIndex={0}
+                  data-testid="monthly-price-badge"
+                  data-card-stop-expand="true"
+                  title={priceTooltipText}
+                  className="group/price relative inline-flex cursor-help flex-wrap items-baseline gap-1.5 font-mono text-sm sm:text-base font-bold focus:outline-none"
+                >
+                  <span>
+                    R$ {prop.totalMonthly.toLocaleString("pt-BR")}/mês
+                  </span>
+                  <span
+                    data-testid="price-per-m2-pill"
+                    title={priceTooltipText}
+                    className="rounded border bg-muted/70 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground"
+                  >
+                    R$ {totalPerM2}/m²
+                  </span>
+                  <span
+                    role="tooltip"
+                    data-testid="price-metrics-tooltip"
+                    className="pointer-events-none invisible absolute right-0 top-full z-30 mt-1.5 w-72 rounded-lg border bg-popover p-2.5 text-left font-sans text-[11px] font-normal text-popover-foreground opacity-0 shadow-lg transition-opacity group-hover/price:visible group-hover/price:opacity-100 group-focus-within/price:visible group-focus-within/price:opacity-100 group-focus/price:visible group-focus/price:opacity-100"
+                  >
+                    {priceTooltipLines.map((line) => (
+                      <span
+                        key={line}
+                        className="block leading-snug text-popover-foreground"
+                      >
+                        {line}
+                      </span>
+                    ))}
+                  </span>
                 </span>
               </div>
               <p className="w-full sm:w-auto text-[10.5px] sm:text-[11px] text-muted-foreground font-mono">
@@ -459,6 +651,15 @@ export const PropertyCard = memo(function PropertyCard({
             </div>
 
             <div className="grid grid-cols-2 gap-1.5 sm:flex sm:items-center sm:gap-2">
+              {prop.alsoListedOn && prop.alsoListedOn.length > 0 && (
+                <span
+                  data-testid="also-listed-on-badge"
+                  title={`Também anunciado em: ${prop.alsoListedOn.join(", ")}`}
+                  className="inline-flex items-center rounded-md border border-dashed border-muted-foreground/40 bg-muted/40 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+                >
+                  Também anunciado em: {prop.alsoListedOn.join(", ")}
+                </span>
+              )}
               <a
                 href={prop.url}
                 target="_blank"

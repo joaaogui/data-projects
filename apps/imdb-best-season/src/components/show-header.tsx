@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { Award, Calendar, Clock, ExternalLink, Star } from "lucide-react";
 import { SearchTitle } from "@/components/search-title";
 import { Navbar } from "@data-projects/ui";
 import type { Show } from "@/types/omdb";
@@ -37,6 +37,13 @@ export function ShowHeader({ searchQuery }: Readonly<ShowHeaderProps>) {
 }
 
 export function ShowInfo({ show }: Readonly<{ show: Show }>) {
+  const genres = show.genre
+    ? show.genre
+        .split(",")
+        .map((g) => g.trim())
+        .filter(Boolean)
+    : [];
+
   return (
     <div data-testid="show-info" className="flex items-start gap-4 sm:gap-6 md:gap-8 animate-fade-in">
       {show.imageUrl && (
@@ -55,7 +62,7 @@ export function ShowInfo({ show }: Readonly<{ show: Show }>) {
         </div>
       )}
       <div className="flex flex-col justify-center text-left min-w-0">
-        <div className="flex items-center gap-2 mb-2 sm:mb-3">
+        <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
           <h1 data-testid="show-title" className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight truncate">
             {show.name}
           </h1>
@@ -72,19 +79,65 @@ export function ShowInfo({ show }: Readonly<{ show: Show }>) {
             </a>
           )}
         </div>
+
+        {(show.year || show.runtime || show.imdbRating || genres.length > 0) && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-2">
+            {show.year && (
+              <span className="inline-flex items-center gap-1 font-mono">
+                <Calendar className="h-3.5 w-3.5 text-gold" />
+                {show.year}
+              </span>
+            )}
+            {show.runtime && (
+              <span className="inline-flex items-center gap-1 font-mono">
+                <Clock className="h-3.5 w-3.5 text-gold" />
+                {show.runtime}
+              </span>
+            )}
+            {show.imdbRating && (
+              <span className="inline-flex items-center gap-1 font-mono text-foreground font-medium">
+                <Star className="h-3.5 w-3.5 text-gold fill-gold" />
+                {show.imdbRating}
+                {show.imdbVotes && (
+                  <span className="text-muted-foreground font-normal">
+                    ({show.imdbVotes} votes)
+                  </span>
+                )}
+              </span>
+            )}
+            {genres.map((genre) => (
+              <span
+                key={genre}
+                className="px-2 py-0.5 rounded-full bg-muted/60 border border-border/50 text-xs text-muted-foreground"
+              >
+                {genre}
+              </span>
+            ))}
+          </div>
+        )}
+
         {show.description && (
           <p data-testid="show-description" className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed line-clamp-3 sm:line-clamp-none">
             {show.description}
           </p>
         )}
+
+        {show.awards && (
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Award className="h-3.5 w-3.5 text-gold shrink-0" />
+            <span className="truncate">{show.awards}</span>
+          </p>
+        )}
+
         {show.totalSeasons && (
-          <p data-testid="show-seasons-count" className="mt-2 sm:mt-4 text-xs sm:text-sm text-muted-foreground">
+          <p data-testid="show-seasons-count" className="mt-2 sm:mt-3 text-xs sm:text-sm text-muted-foreground">
             <span className="font-semibold text-gold">{show.totalSeasons}</span>{" "}
             {show.totalSeasons === 1 ? "season" : "seasons"} ranked by IMDb + TMDB episode medians
           </p>
         )}
+
         {show.ratings && show.ratings.length > 0 && (
-          <div className="flex flex-wrap gap-2 sm:gap-3 mt-3 sm:mt-4">
+          <div className="flex flex-wrap gap-2 sm:gap-3 mt-3">
             {show.ratings.map((rating) => (
               <div
                 key={rating.source}
@@ -100,5 +153,3 @@ export function ShowInfo({ show }: Readonly<{ show: Show }>) {
     </div>
   );
 }
-
-

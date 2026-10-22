@@ -80,7 +80,15 @@ export async function getArtistAlbums(artistId: string): Promise<string[]> {
   return albumIds
 }
 
-export async function getSeveralAlbums(albumIds: string[]): Promise<string[]> {
+export interface AlbumMetadata {
+  popularity?: number | null
+  label?: string | null
+}
+
+export async function getSeveralAlbums(
+  albumIds: string[],
+  albumMetadataById?: Map<string, AlbumMetadata>
+): Promise<string[]> {
   const trackIds: string[] = []
 
   for (let batchIndex = 0; batchIndex < albumIds.length; batchIndex += 20) {
@@ -90,6 +98,12 @@ export async function getSeveralAlbums(albumIds: string[]): Promise<string[]> {
     )
 
     for (const album of data.albums) {
+      if (album?.id && albumMetadataById) {
+        albumMetadataById.set(album.id, {
+          popularity: typeof album.popularity === "number" ? album.popularity : null,
+          label: album.label ?? null,
+        })
+      }
       if (album?.tracks?.items) {
         trackIds.push(...album.tracks.items.map((track) => track.id))
       }
@@ -126,8 +140,23 @@ export async function getArtistTopTracks(artistName: string): Promise<{
   }
 
   const albumIds = await getArtistAlbums(artist.id)
-  const trackIds = await getSeveralAlbums(albumIds)
+  const albumMetadataById = new Map<string, AlbumMetadata>()
+  const trackIds = await getSeveralAlbums(albumIds, albumMetadataById)
   const rawTracks = await getTracks(trackIds)
+
+  for (const track of rawTracks) {
+    if (track.album?.id) {
+      const meta = albumMetadataById.get(track.album.id)
+      if (meta) {
+        if (track.album.popularity === undefined && meta.popularity !== null && meta.popularity !== undefined) {
+          track.album.popularity = meta.popularity
+        }
+        if (track.album.label === undefined && meta.label) {
+          track.album.label = meta.label
+        }
+      }
+    }
+  }
 
   const tracks = enrichCatalogTracks(rawTracks, artist)
   const catalogStats = computeCatalogStats(tracks)

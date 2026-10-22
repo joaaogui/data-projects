@@ -2210,6 +2210,7 @@ export function usePortalController({
     applyPerfeitoFilterPreset,
     applyPreset,
     availableNeighborhoodOptions,
+    neighborhoodOptions: availableNeighborhoodOptions,
     benchmarkPanelCollapsed,
     bsbBenchmarkStats,
     cancelScrapeJob,

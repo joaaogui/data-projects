@@ -26,13 +26,27 @@ import { Info } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
-function LifecycleBadge({ value }: Readonly<{ value: Lifecycle }>) {
+function computeElapsedCalendarMonths(firstPlayed: string, lastPlayed: string): number {
+  const start = new Date(firstPlayed);
+  const end = new Date(lastPlayed);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 1;
+  const months =
+    (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+    (end.getUTCMonth() - start.getUTCMonth()) +
+    1;
+  return Math.max(1, months);
+}
+
+function LifecycleBadge({
+  value,
+  row,
+}: Readonly<{ value: Lifecycle; row?: ArtistLifecycle }>) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span
           className={cn(
-            "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium",
+            "inline-flex rounded-full border px-2 py-0.5 text-xs font-medium cursor-default",
             value === "companion" && "border-data/40 bg-data/10 text-data",
             value === "phase" && "border-foreground/20 bg-foreground/5",
             value === "recent" && "border-foreground/20 bg-foreground/5",
@@ -43,8 +57,16 @@ function LifecycleBadge({ value }: Readonly<{ value: Lifecycle }>) {
           {LIFECYCLE_LABELS[value]}
         </span>
       </TooltipTrigger>
-      <TooltipContent>
-        <p className="max-w-56">{LIFECYCLE_RULES[value]}</p>
+      <TooltipContent className="max-w-xs text-xs space-y-1">
+        {row && (
+          <p className="font-mono text-[11px] text-foreground">
+            {formatNumber(row.plays)} plays across {row.months} active months · Span:{" "}
+            {formatDate(row.firstPlayed)} to {formatDate(row.lastPlayed)} · Peak:{" "}
+            {formatNumber(row.peakPlays)} plays ({formatPercent(row.peakShare, 1)}) in{" "}
+            {formatMonth(row.peakMonth)}
+          </p>
+        )}
+        <p className="text-muted-foreground">{LIFECYCLE_RULES[value]}</p>
       </TooltipContent>
     </Tooltip>
   );
@@ -77,19 +99,53 @@ export default function ArtistsPage() {
       {
         accessorKey: "months",
         header: sortableHeader("Months"),
-        cell: ({ row }) => (
-          <span className="tabular-nums">{row.original.months}</span>
-        ),
+        cell: ({ row }) => {
+          const item = row.original;
+          const elapsedMonths = computeElapsedCalendarMonths(
+            item.firstPlayed,
+            item.lastPlayed
+          );
+          const consistency = Math.min(1, item.months / elapsedMonths);
+          const avgPlaysPerMonth = (item.plays / Math.max(1, item.months)).toFixed(1);
+
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="tabular-nums cursor-default">{item.months}</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs space-y-1">
+                <div className="font-medium text-foreground">
+                  Rotation Consistency: {formatPercent(consistency, 0)} ({item.months} of{" "}
+                  {elapsedMonths} calendar {elapsedMonths === 1 ? "month" : "months"})
+                </div>
+                <div className="font-mono text-[11px] text-muted-foreground">
+                  {avgPlaysPerMonth} avg plays per active month
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          );
+        },
       },
       {
         accessorKey: "peakShare",
         header: sortableHeader("Peak month"),
-        cell: ({ row }) => (
-          <span className="whitespace-nowrap tabular-nums text-muted-foreground">
-            {formatPercent(row.original.peakShare, 0)} in{" "}
-            {formatMonth(row.original.peakMonth)}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="whitespace-nowrap tabular-nums text-muted-foreground cursor-default">
+                  {formatPercent(item.peakShare, 0)} ({formatNumber(item.peakPlays)}) in{" "}
+                  {formatMonth(item.peakMonth)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="text-xs">
+                {formatNumber(item.peakPlays)} of {formatNumber(item.plays)} lifetime plays occurred in{" "}
+                {formatMonth(item.peakMonth)}
+              </TooltipContent>
+            </Tooltip>
+          );
+        },
       },
       {
         accessorKey: "firstPlayed",
@@ -112,7 +168,9 @@ export default function ArtistsPage() {
       {
         accessorKey: "lifecycle",
         header: "Pattern",
-        cell: ({ row }) => <LifecycleBadge value={row.original.lifecycle} />,
+        cell: ({ row }) => (
+          <LifecycleBadge value={row.original.lifecycle} row={row.original} />
+        ),
       },
     ],
     []
@@ -228,9 +286,18 @@ export default function ArtistsPage() {
                 >
                   {item.artist}
                 </Link>
-                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {formatNumber(item.peakPlays)} in {formatMonth(item.peakMonth)}
-                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground cursor-default">
+                      {formatNumber(item.peakPlays)} of {formatNumber(item.plays)} in{" "}
+                      {formatMonth(item.peakMonth)}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="text-xs">
+                    {formatNumber(item.peakPlays)} of {formatNumber(item.plays)} lifetime plays ({formatPercent(item.peakShare, 1)}) occurred in{" "}
+                    {formatMonth(item.peakMonth)}
+                  </TooltipContent>
+                </Tooltip>
               </li>
             ))}
           </ol>
@@ -242,22 +309,43 @@ export default function ArtistsPage() {
           bodyClassName="p-0"
         >
           <ol className="divide-y divide-border/60">
-            {comebacks.slice(0, 10).map((item) => (
-              <li key={item.artist} className="flex items-baseline gap-3 px-5 py-2.5 text-sm">
-                <span className="w-16 shrink-0 font-medium tabular-nums text-data">
-                  {(item.gapDays / 365).toFixed(1)}y gap
-                </span>
-                <Link
-                  href={`/artists/${encodeURIComponent(item.artist)}`}
-                  className="min-w-0 flex-1 truncate hover:text-data"
-                >
-                  {item.artist}
-                </Link>
-                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {formatNumber(item.playsSince)} plays since
-                </span>
-              </li>
-            ))}
+            {comebacks.slice(0, 10).map((item) => {
+              const postReturnShare =
+                item.totalPlays > 0 ? item.playsSince / item.totalPlays : 0;
+              return (
+                <li key={item.artist} className="flex items-baseline gap-3 px-5 py-2.5 text-sm">
+                  <span className="w-16 shrink-0 font-medium tabular-nums text-data">
+                    {(item.gapDays / 365).toFixed(1)}y gap
+                  </span>
+                  <div className="min-w-0 flex-1 truncate">
+                    <Link
+                      href={`/artists/${encodeURIComponent(item.artist)}`}
+                      className="hover:text-data"
+                    >
+                      {item.artist}
+                    </Link>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {formatDate(item.lastBefore)} → {formatDate(item.returnedAt)}
+                    </span>
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground cursor-default">
+                        {formatNumber(item.playsSince)} of {formatNumber(item.totalPlays)} plays since
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-xs space-y-1">
+                      <div className="font-medium text-foreground">
+                        {formatPercent(postReturnShare, 1)} of lifetime plays occurred after returning
+                      </div>
+                      <div className="font-mono text-[11px] text-muted-foreground">
+                        Silence: {formatDate(item.lastBefore)} → {formatDate(item.returnedAt)} ({formatNumber(item.gapDays)} days)
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </li>
+              );
+            })}
           </ol>
         </Section>
       </div>

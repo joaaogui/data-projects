@@ -3,6 +3,7 @@
 import { useChannel } from "@/hooks/use-channel-context";
 import { formatCompact, getAgeLabel, getScoreBorderClass, getScoreColorClass } from "@/lib/format";
 import { recalculateWithWeights } from "@/lib/scoring";
+import { median } from "@/lib/utils";
 import type { VideoData } from "@/types/youtube";
 import {
   Button,
@@ -54,7 +55,9 @@ import {
   ViewsPerDurHeader,
   ViewsPerHourCell,
   ViewsPerHourHeader,
+  VideoCatalogStatsProvider,
   WeightsProvider,
+  type VideoCatalogStats,
 } from "./video-column-cells";
 
 function useIsMobile(breakpoint = 768) {
@@ -354,15 +357,61 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
     });
   }, []);
 
-  const processedData = useMemo(() => {
-    const scored = data.map(video => ({
+  const scoredData = useMemo(() => {
+    return data.map(video => ({
       ...video,
       score: recalculateScore(video, weights),
     }));
+  }, [data, weights]);
 
+  const catalogStats = useMemo<VideoCatalogStats>(() => {
+    const totalVideos = scoredData.length;
+    if (totalVideos === 0) {
+      return {
+        totalVideos: 0,
+        medianViews: 0,
+        avgViews: 0,
+        totalViews: 0,
+        avgDuration: 0,
+        avgScore: 0,
+        avgEngagement: 0,
+        viewRankById: new Map(),
+        scoreRankById: new Map(),
+      };
+    }
+
+    const totalViews = scoredData.reduce((sum, v) => sum + v.views, 0);
+    const totalDuration = scoredData.reduce((sum, v) => sum + v.duration, 0);
+    const totalScore = scoredData.reduce((sum, v) => sum + v.score, 0);
+    const totalEngagement = scoredData.reduce((sum, v) => sum + (v.rates?.engagementRate ?? 0), 0);
+
+    const viewRankById = new Map<string, number>();
+    [...scoredData]
+      .sort((a, b) => b.views - a.views)
+      .forEach((v, idx) => viewRankById.set(v.videoId, idx + 1));
+
+    const scoreRankById = new Map<string, number>();
+    [...scoredData]
+      .sort((a, b) => b.score - a.score)
+      .forEach((v, idx) => scoreRankById.set(v.videoId, idx + 1));
+
+    return {
+      totalVideos,
+      medianViews: median(scoredData.map((v) => v.views)),
+      avgViews: totalViews / totalVideos,
+      totalViews,
+      avgDuration: totalDuration / totalVideos,
+      avgScore: totalScore / totalVideos,
+      avgEngagement: totalEngagement / totalVideos,
+      viewRankById,
+      scoreRankById,
+    };
+  }, [scoredData]);
+
+  const processedData = useMemo(() => {
     const predicate = getFilterPredicate(activeFilters);
-    return predicate ? scored.filter(predicate) : scored;
-  }, [data, weights, activeFilters]);
+    return predicate ? scoredData.filter(predicate) : scoredData;
+  }, [scoredData, activeFilters]);
 
   const handleExportCsv = useCallback(() => {
     const headers = [
@@ -481,6 +530,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
       </div>
 
       <WeightsProvider value={weights}>
+        <VideoCatalogStatsProvider value={catalogStats}>
         <div className="flex-1 min-h-0">
           {isMobile === null ? (
             <div
@@ -549,6 +599,7 @@ export function VideosTable({ data, onOpenTimeline }: Readonly<VideosTableProps>
             />
           )}
         </div>
+        </VideoCatalogStatsProvider>
       </WeightsProvider>
       {selectedVideo && createPortal(
         <VideoDetailPanel

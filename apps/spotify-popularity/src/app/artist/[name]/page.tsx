@@ -226,6 +226,7 @@ export default function ArtistPage() {
               >
                 <TracksTable
                   tracks={data.tracks}
+                  catalogStats={catalogStats}
                   selectedAlbumId={selectedAlbumId}
                   onSelectAlbum={setSelectedAlbumId}
                   selectedTierId={selectedTierId}

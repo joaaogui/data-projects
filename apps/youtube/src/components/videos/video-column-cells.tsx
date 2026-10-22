@@ -1,7 +1,7 @@
 "use client";
 
 import { useChannel } from "@/hooks/use-channel-context";
-import { formatCompact, formatNumber, getAgeLabel, getEfficiencyColor, getEngagementColor, getScoreColorClass } from "@/lib/format";
+import { formatCompact, formatNumber, formatSigned, getAgeLabel, getEfficiencyColor, getEngagementColor, getScoreColorClass } from "@/lib/format";
 import { formatDuration, getScoreLabel } from "@/lib/scoring";
 import type { ScoreComponents, VideoData } from "@/types/youtube";
 import {
@@ -11,6 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@data-projects/ui";
+import dayjs from "dayjs";
 import { FolderOpen, Heart } from "lucide-react";
 import Image from "next/image";
 import { createContext, useContext } from "react";
@@ -40,6 +41,49 @@ export const WeightsProvider = WeightsContext.Provider;
 
 function useWeights() {
   return useContext(WeightsContext);
+}
+
+// ---------------------------------------------------------------------------
+// Channel catalog baseline stats context — provides cross-row comparisons
+// ---------------------------------------------------------------------------
+
+export interface VideoCatalogStats {
+  totalVideos: number;
+  medianViews: number;
+  avgViews: number;
+  totalViews: number;
+  avgDuration: number;
+  avgScore: number;
+  avgEngagement: number;
+  viewRankById: Map<string, number>;
+  scoreRankById: Map<string, number>;
+}
+
+const DEFAULT_CATALOG_STATS: VideoCatalogStats = {
+  totalVideos: 0,
+  medianViews: 0,
+  avgViews: 0,
+  totalViews: 0,
+  avgDuration: 0,
+  avgScore: 0,
+  avgEngagement: 0,
+  viewRankById: new Map(),
+  scoreRankById: new Map(),
+};
+
+export const VideoCatalogStatsContext = createContext<VideoCatalogStats>(DEFAULT_CATALOG_STATS);
+export const VideoCatalogStatsProvider = VideoCatalogStatsContext.Provider;
+
+function useVideoCatalogStats() {
+  return useContext(VideoCatalogStatsContext);
+}
+
+function formatExactHMS(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +260,7 @@ export function LikedCell({ row }: Readonly<{ row: RowCtx }>) {
 }
 
 export function TitleCell({ row }: Readonly<{ row: RowCtx }>) {
+  const topics = row.original.topics?.filter(Boolean) ?? [];
   return (
     <div className="flex items-center gap-3 min-w-[280px] group/title cursor-pointer hover:shadow-md">
       <div className="relative w-20 aspect-video shrink-0">
@@ -227,16 +272,45 @@ export function TitleCell({ row }: Readonly<{ row: RowCtx }>) {
           className="rounded object-cover transition-transform duration-200 group-hover/title:scale-110"
         />
       </div>
-      <span className="line-clamp-2 group-hover/title:text-primary transition-colors cursor-pointer">
-        {row.original.title}
-      </span>
+      <div className="min-w-0 flex-1">
+        <span className="line-clamp-2 group-hover/title:text-primary transition-colors cursor-pointer">
+          {row.original.title}
+        </span>
+        {topics.length > 0 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="mt-1 flex flex-wrap items-center gap-1">
+                {topics.slice(0, 2).map((topic) => (
+                  <span
+                    key={topic}
+                    className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                  >
+                    {topic}
+                  </span>
+                ))}
+                {topics.length > 2 && (
+                  <span className="text-[10px] text-muted-foreground/70">
+                    +{topics.length - 2}
+                  </span>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs">Topics: {topics.join(", ")}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
     </div>
   );
 }
 
 export function ScoreCell({ row }: Readonly<{ row: RowCtx }>) {
   const weights = useWeights();
-  const score = row.original.score;
+  const { totalVideos, avgScore, scoreRankById } = useVideoCatalogStats();
+  const video = row.original;
+  const score = video.score;
+  const scoreRank = scoreRankById.get(video.videoId);
   const label = getScoreLabel(score);
   const bgClass = getScoreColorClass(score) + (score >= 80 ? " relative overflow-hidden" : "");
   return (
@@ -248,13 +322,25 @@ export function ScoreCell({ row }: Readonly<{ row: RowCtx }>) {
           {score >= 80 && <div className="absolute inset-0 animate-shimmer rounded-md" />}
         </div>
       </TooltipTrigger>
-      <TooltipContent side="left" className="min-w-[160px]">
-        <p className="font-semibold mb-2">Score Breakdown</p>
+      <TooltipContent side="left" className="min-w-[180px]">
+        <p className="font-semibold mb-1.5">Score Breakdown</p>
+        {totalVideos > 0 && (
+          <div className="mb-2 pb-2 border-b border-border/60 space-y-0.5 text-xs">
+            {scoreRank !== undefined && (
+              <p className="font-medium tabular-nums">
+                #{scoreRank} of {totalVideos}
+              </p>
+            )}
+            <p className="text-muted-foreground tabular-nums">
+              {formatSigned(Math.round(video.score - avgScore))} vs channel avg {Math.round(avgScore)}
+            </p>
+          </div>
+        )}
         <div className="space-y-1.5">
           {METRIC_TYPES.map((type) => {
             const config = METRIC_CONFIGS[type];
             const componentKey = METRIC_TO_COMPONENT[type];
-            const value = row.original.scoreComponents[componentKey] ?? 0;
+            const value = video.scoreComponents[componentKey] ?? 0;
             const weight = getNormalizedWeight(weights, type);
             return (
               <div key={type} className="flex items-center justify-between gap-3 text-xs">
@@ -270,20 +356,77 @@ export function ScoreCell({ row }: Readonly<{ row: RowCtx }>) {
 }
 
 export function DurationCell({ row }: Readonly<{ row: RowCtx }>) {
-  return <span className="tabular-nums font-medium">{formatDuration(row.original.duration)}</span>;
-}
-
-export function AgeCell({ row }: Readonly<{ row: RowCtx }>) {
-  return <span className="tabular-nums text-muted-foreground">{getAgeLabel(row.original.days)}</span>;
-}
-
-export function ViewsCell({ row }: Readonly<{ row: RowCtx }>) {
+  const { avgDuration } = useVideoCatalogStats();
+  const video = row.original;
+  const deltaSec = Math.round(video.duration - avgDuration);
+  const deltaSign = deltaSec > 0 ? "+" : deltaSec < 0 ? "−" : "";
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="tabular-nums font-medium cursor-help">{formatCompact(row.original.views)}</span>
+        <span className="tabular-nums font-medium cursor-help">{formatDuration(video.duration)}</span>
       </TooltipTrigger>
-      <TooltipContent>{row.original.views.toLocaleString("en-US")} views</TooltipContent>
+      <TooltipContent className="space-y-1">
+        <p className="font-medium tabular-nums">{formatExactHMS(video.duration)}</p>
+        {avgDuration > 0 && (
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {deltaSign}{formatDuration(Math.abs(deltaSec))} vs channel avg ({formatDuration(Math.round(avgDuration))})
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {formatNumber(video.rates?.viewsPerContentMin ?? 0)} views per minute
+        </p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function AgeCell({ row }: Readonly<{ row: RowCtx }>) {
+  const video = row.original;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="tabular-nums text-muted-foreground cursor-help">{getAgeLabel(video.days)}</span>
+      </TooltipTrigger>
+      <TooltipContent className="space-y-1">
+        <p className="font-medium">{dayjs(video.publishedAt).format("ddd, MMM D, YYYY • HH:mm")}</p>
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {video.days} days ago &middot; {formatNumber(video.rates?.viewsPerDay ?? 0)} views/day
+        </p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function ViewsCell({ row }: Readonly<{ row: RowCtx }>) {
+  const { totalVideos, medianViews, totalViews, viewRankById } = useVideoCatalogStats();
+  const video = row.original;
+  const viewRank = viewRankById.get(video.videoId);
+  const percentile = viewRank && totalVideos > 0
+    ? Math.max(1, Math.ceil((viewRank / totalVideos) * 100))
+    : null;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="tabular-nums font-medium cursor-help">{formatCompact(video.views)}</span>
+      </TooltipTrigger>
+      <TooltipContent className="space-y-1">
+        <p className="font-medium tabular-nums">{video.views.toLocaleString("en-US")} views</p>
+        {medianViews > 0 && (
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {(video.views / medianViews).toFixed(1)}× channel median ({formatCompact(medianViews)})
+          </p>
+        )}
+        {viewRank !== undefined && percentile !== null && (
+          <p className="text-xs text-muted-foreground tabular-nums">
+            Ranked #{viewRank} of {totalVideos} (Top {percentile}%)
+          </p>
+        )}
+        {totalViews > 0 && (
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {((video.views / totalViews) * 100).toFixed(2)}% of channel&apos;s total views
+          </p>
+        )}
+      </TooltipContent>
     </Tooltip>
   );
 }

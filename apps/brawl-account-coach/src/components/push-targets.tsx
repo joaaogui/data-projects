@@ -92,10 +92,17 @@ export function PushTargets({
                   onToggleExclude={onToggleExclude}
                 >
                   <div className="flex items-center justify-between gap-4 text-xs font-black">
-                    <span>{formatNumber(target.currentTrophies)}</span>
+                    <span>
+                      {formatNumber(target.currentTrophies)} (Peak{" "}
+                      {formatNumber(brawler.highestTrophies)})
+                    </span>
                     <span className="flex items-center gap-1 text-[#a36f00]">
                       <Trophy aria-hidden="true" className="size-3.5" />
-                      {formatNumber(target.targetTrophies)}
+                      {formatNumber(target.targetTrophies)} (+
+                      {formatNumber(
+                        Math.max(0, target.targetTrophies - target.currentTrophies),
+                      )}
+                      )
                     </span>
                   </div>
                   <div

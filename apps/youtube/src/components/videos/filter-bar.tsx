@@ -34,6 +34,7 @@ export const ESSENTIAL_COLUMNS: VisibilityState = {
   viewsPerContentMin: false,
   likes: false,
   comments: false,
+  engPerMin: false,
 };
 
 export function loadTableModeFromStorage(): TableMode {
@@ -59,6 +60,7 @@ export const DEFAULT_HIDDEN_COLUMNS: VisibilityState = {
   viewsPerContentMin: false,
   likes: false,
   comments: false,
+  engPerMin: false,
 };
 
 export const COLUMN_LABELS: Record<string, string> = {
@@ -73,12 +75,13 @@ export const COLUMN_LABELS: Record<string, string> = {
   viewsPerContentMin: "Views/Dur",
   likes: "Likes",
   comments: "Comments",
+  engPerMin: "Eng/Min",
 };
 
 export const TOGGLEABLE_COLUMNS = [
   "duration", "days", "views", "engagement",
   "viewsPerDay", "viewsPerHour", "viewsPerContentMin",
-  "likes", "comments",
+  "likes", "comments", "engPerMin",
 ];
 
 export function loadWeightsFromStorage(): MetricWeights {

@@ -79,6 +79,10 @@ export default function ArtistDetailPage({
           <BarList
             items={data.topTracks.map((track) => ({
               label: track.track,
+              sublabel: formatPercent(
+                track.plays / Math.max(1, data.plays),
+                1
+              ),
               value: track.plays,
             }))}
           />
@@ -89,6 +93,10 @@ export default function ArtistDetailPage({
             <BarList
               items={data.topAlbums.map((album) => ({
                 label: album.album,
+                sublabel: formatPercent(
+                  album.plays / Math.max(1, data.plays),
+                  1
+                ),
                 value: album.plays,
               }))}
             />

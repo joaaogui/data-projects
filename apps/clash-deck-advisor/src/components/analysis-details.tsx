@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
 
-import type { DeckAnalysis, Matchup } from "@/lib/schemas";
+import type { DeckAnalysis, DeckProblem, Matchup, WeaknessScores } from "@/lib/schemas";
 import type { LevelWarning } from "@/lib/types";
 
 interface AnalysisDetailsProps {
@@ -13,6 +13,24 @@ const RATING: Record<Matchup["rating"], { label: string; className: string }> = 
   even: { label: "Even", className: "bg-[#fff5d6] text-[#76530a]" },
   unfavored: { label: "Unfavored", className: "bg-[#fff0ef] text-[#b42318]" },
 };
+
+const PROBLEM_SEVERITY: Record<
+  DeckProblem["severity"],
+  { label: string; className: string }
+> = {
+  high: { label: "High", className: "bg-[#fff0ef] text-[#b42318]" },
+  medium: { label: "Medium", className: "bg-[#fff5d6] text-[#76530a]" },
+  low: { label: "Low", className: "bg-[#eef1f5] text-[#33445c]" },
+};
+
+const WEAKNESS_AXES: Array<{ key: keyof WeaknessScores; label: string }> = [
+  { key: "airDefense", label: "Air defense" },
+  { key: "tankStopping", label: "Tank stopping" },
+  { key: "swarmControl", label: "Swarm control" },
+  { key: "spellCoverage", label: "Spell coverage" },
+  { key: "cycle", label: "Cycle speed" },
+  { key: "synergy", label: "Archetype synergy" },
+];
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -54,6 +72,54 @@ export function AnalysisDetails({ analysis, levelWarnings }: AnalysisDetailsProp
         <Block title="How to play it">
           <p>{analysis.strategy}</p>
         </Block>
+
+        <Block title="6-axis deck profile">
+          <dl className="space-y-2.5">
+            {WEAKNESS_AXES.map(({ key, label }) => {
+              const value = Math.round(analysis.weaknessScores[key]);
+              const barColor =
+                value >= 75
+                  ? "bg-[#087454]"
+                  : value >= 50
+                    ? "bg-[#164fc9]"
+                    : "bg-[#b42318]";
+              return (
+                <div key={key}>
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <dt className="text-[#0b1f3a]">{label}</dt>
+                    <dd className="tabular-nums text-[#5c6b7f]">{value}/100</dd>
+                  </div>
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-[#e2e7ee]">
+                    <div
+                      className={`h-full rounded-full ${barColor}`}
+                      style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </dl>
+        </Block>
+
+        {analysis.problems.length > 0 ? (
+          <Block title="Deck problems">
+            <ul className="space-y-3">
+              {analysis.problems.map((problem) => (
+                <li key={problem.title}>
+                  <p className="flex flex-wrap items-center gap-2 font-extrabold text-[#0b1f3a]">
+                    {problem.title}
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${PROBLEM_SEVERITY[problem.severity].className}`}
+                    >
+                      {PROBLEM_SEVERITY[problem.severity].label}
+                    </span>
+                  </p>
+                  <p className="text-[#5c6b7f]">{problem.description}</p>
+                </li>
+              ))}
+            </ul>
+          </Block>
+        ) : null}
 
         {analysis.matchups.length > 0 ? (
           <Block title="Matchups">

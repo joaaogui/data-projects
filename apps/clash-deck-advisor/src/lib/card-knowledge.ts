@@ -21,6 +21,7 @@ export interface CardProfile {
   archetypes: Archetype[];
   isChampion: boolean;
   isEvolutionUnlocked: boolean;
+  evolved?: boolean;
   canEvolve: boolean;
   hasHeroForm: boolean;
 }
@@ -55,6 +56,7 @@ export function buildCardProfile(card: ClashCard): CardProfile {
     archetypes: attributes.archetypes ?? [],
     isChampion: card.rarity.toLowerCase() === "champion",
     isEvolutionUnlocked: (card.evolutionLevel ?? 0) > 0,
+    evolved: (card.evolutionLevel ?? 0) > 0,
     canEvolve: (card.maxEvolutionLevel ?? 0) > 0,
     hasHeroForm: Boolean(card.iconUrls.heroMedium),
   };

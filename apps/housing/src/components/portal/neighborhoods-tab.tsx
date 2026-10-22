@@ -22,6 +22,7 @@ import {
   type ReferenceNeighborhoodRow,
 } from "@/lib/reference-neighborhood";
 import { URBAN_LIFE_CRITERIA_TEXT } from "@/lib/urban-breathing";
+import { normalizeNeighborhoodKey } from "@/lib/scoring-engine";
 import type { ComputedNeighborhood, ScoringWeights } from "@/types/housing";
 import { QOL_COLUMNS } from "@/lib/neighborhood-qol";
 import type { NeighborhoodResearchSummary, QolColumnId, QolRow } from "@/types/neighborhood-research";
@@ -50,6 +51,51 @@ function weightTitle(label: string, weights: ScoringWeights, key: keyof ScoringW
   const w = weights[key];
   const weight = `peso atual ${typeof w === "number" ? decimal(w) : "—"}×`;
   return key === "urbanBreathingWeight" ? `${URBAN_LIFE_CRITERIA_TEXT} · ${weight}` : `${label} (0–10) · ${weight}`;
+}
+
+function subScoreCellTitle(
+  s: (typeof SUB_SCORES)[number],
+  score: number,
+  weights: ScoringWeights,
+): string {
+  const w = Number(weights[s.weightKey]) || 0;
+  const wSum =
+    (Number(weights.urbanBreathingWeight) || 0) +
+    (Number(weights.commuteLogisticsWeight) || 0) +
+    (Number(weights.safetyCarWeight) || 0);
+  const contrib = wSum > 0 ? (score * w) / wSum : 0;
+  const sharePct = wSum > 0 ? Math.round((w / wSum) * 100) : 0;
+  return `${s.label}: ${subScoreText(score)}/10 × peso ${decimal(w)}× (${sharePct}%) → contribuição ponderada +${contrib.toFixed(2)} pts na Nota Dinâmica`;
+}
+
+function densityCellTitle(
+  s: NeighborhoodResearchSummary | undefined,
+  weights: ScoringWeights,
+  urbanScore?: number,
+): string {
+  const parts: string[] = [];
+  if (s?.densityPerKm2 != null) {
+    parts.push(`Densidade: ${formatDensity(s.densityPerKm2)} hab/km² (IBGE Censo 2022)`);
+  } else {
+    parts.push("Densidade demográfica, hab/km² (IBGE Censo 2022)");
+  }
+  if (s?.apartmentsShare != null) {
+    parts.push(
+      `${s.apartmentsShare.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% de apartamentos`,
+    );
+  }
+  if (urbanScore !== undefined) {
+    const w = Number(weights.urbanBreathingWeight) || 0;
+    const wSum =
+      (Number(weights.urbanBreathingWeight) || 0) +
+      (Number(weights.commuteLogisticsWeight) || 0) +
+      (Number(weights.safetyCarWeight) || 0);
+    const contrib = wSum > 0 ? (urbanScore * w) / wSum : 0;
+    parts.push(
+      `Compõe Vida urbana (${subScoreText(urbanScore)}/10, peso ${decimal(w)}× → +${contrib.toFixed(2)} pts na Nota Dinâmica)`,
+    );
+  }
+  return parts.join(" · ");
 }
 
 /** Research column: density; "—" without research. */
@@ -149,6 +195,10 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
     weights,
   } = ctl;
   const neighborhoodQol = ctl.neighborhoodQol ?? EMPTY_QOL;
+  const neighborhoodOptions =
+    (ctl as { neighborhoodOptions?: PortalController["availableNeighborhoodOptions"] }).neighborhoodOptions ??
+    ctl.availableNeighborhoodOptions ??
+    [];
   const [researchOpenKey, setResearchOpenKey] = useState<string | null>(null);
   const [showMoreMetrics, setShowMoreMetrics] = useState(false);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
@@ -156,6 +206,20 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
   const sortBy = (key: string) => setSort((s) => nextSort(s, key, COLUMN_BY_KEY.get(key)?.defaultDir ?? "desc"));
 
   if (activeTab !== "neighborhoods") return null;
+
+  const supplyCountByKey = new Map<string, number>();
+  for (const opt of neighborhoodOptions) {
+    const exactKey = `${opt.cityCode}:${opt.name}`;
+    supplyCountByKey.set(exactKey, (supplyCountByKey.get(exactKey) ?? 0) + opt.count);
+    const normKey = `${opt.cityCode}:${normalizeNeighborhoodKey(opt.name, opt.cityCode)}`;
+    if (normKey !== exactKey) {
+      supplyCountByKey.set(normKey, (supplyCountByKey.get(normKey) ?? 0) + opt.count);
+    }
+  }
+  const supplyCountOf = (n: ComputedNeighborhood): number =>
+    supplyCountByKey.get(`${n.cityCode}:${n.neighborhood}`) ??
+    supplyCountByKey.get(`${n.cityCode}:${normalizeNeighborhoodKey(n.neighborhood, n.cityCode)}`) ??
+    0;
 
   // Ranks come from the whole list with the references merged in, so a city filter keeps each row's number.
   let items: ListItem[] = [];
@@ -275,7 +339,14 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                 </div>
                 <div className="grid grid-cols-3 gap-1 rounded-lg bg-background/60 p-2 text-center">
                   {SUB_SCORES.map((s) => (
-                    <div key={s.id} title={s.id === "commute" ? commuteNeutralTitle(ref, info) : undefined}>
+                    <div
+                      key={s.id}
+                      title={
+                        s.id === "commute"
+                          ? commuteNeutralTitle(ref, info)
+                          : subScoreCellTitle(s, s.value(ref), weights)
+                      }
+                    >
                       <span className="block text-xs leading-tight text-muted-foreground">{s.short}</span>
                       <strong className="font-mono text-xs">
                         {s.id === "commute" ? COMMUTE_NEUTRAL_TEXT : subScoreText(s.value(ref))}
@@ -284,13 +355,19 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                   ))}
                 </div>
                 {showMoreMetrics && (
-                  <MobileResearchRow cells={researchCells(neighborhoodResearch[ref.key])} qol={neighborhoodQol[ref.key]} />
+                  <MobileResearchRow
+                    cells={researchCells(neighborhoodResearch[ref.key])}
+                    qol={neighborhoodQol[ref.key]}
+                    densityTitle={densityCellTitle(neighborhoodResearch[ref.key], weights, ref.urbanBreathingScore)}
+                  />
                 )}
               </article>
             );
           }
           const n = item.n;
           const rankDiff = rankDiffOf(n);
+          const supplyCount = supplyCountOf(n);
+          const summary = researchFor(n);
           return (
             <article
               key={`mob-${n.cityCode}:${n.neighborhood}`}
@@ -327,6 +404,30 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                     {n.neighborhood}
                   </button>
                   {n.isExtra && <ExtraBadge />}
+                  {supplyCount > 0 && (
+                    <span
+                      data-testid="neighborhood-supply-badge"
+                      title={`${supplyCount} ${supplyCount === 1 ? "imóvel ativo neste bairro" : "imóveis ativos neste bairro"}`}
+                      className="inline-flex items-center rounded-md border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground"
+                    >
+                      {supplyCount} {supplyCount === 1 ? "imóvel" : "imóveis"}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    data-testid="neighborhood-dossier-button"
+                    aria-haspopup="dialog"
+                    aria-label={`Abrir dossiê de ${n.neighborhood}`}
+                    title={`Abrir dossiê de pesquisa de ${n.neighborhood}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setResearchOpenKey(summary?.key ?? `${n.cityCode}:${n.neighborhood}`);
+                    }}
+                    className="inline-flex items-center gap-1 rounded border border-sky-600/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800 hover:bg-sky-500/20 dark:border-sky-400/30 dark:bg-sky-500/15 dark:text-sky-200"
+                  >
+                    <span aria-hidden="true">📊</span>
+                    <span>Dossiê</span>
+                  </button>
                 </div>
                 <span className="font-mono text-base font-bold text-primary">
                   {n.dynamicScore.toFixed(2)}/10
@@ -335,14 +436,18 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
 
               <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/50 p-2 text-center">
                 {SUB_SCORES.map((s) => (
-                  <div key={s.id}>
+                  <div key={s.id} title={subScoreCellTitle(s, s.value(n), weights)}>
                     <span className="block text-xs leading-tight text-muted-foreground">{s.short}</span>
                     <strong className="font-mono text-xs">{subScoreText(s.value(n))}</strong>
                   </div>
                 ))}
               </div>
               {showMoreMetrics && (
-                <MobileResearchRow cells={researchCells(researchFor(n))} qol={neighborhoodQol[rowKeyOf(item)]} />
+                <MobileResearchRow
+                  cells={researchCells(summary)}
+                  qol={neighborhoodQol[rowKeyOf(item)]}
+                  densityTitle={densityCellTitle(summary, weights, n.urbanBreathingScore)}
+                />
               )}
 
               <p className="text-xs font-medium text-foreground">
@@ -432,13 +537,21 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                             {COMMUTE_NEUTRAL_TEXT}
                           </td>
                         ) : (
-                          <td key={s.id} className="px-3 py-3 text-right font-mono">
+                          <td
+                            key={s.id}
+                            title={subScoreCellTitle(s, s.value(ref), weights)}
+                            className="px-3 py-3 text-right font-mono"
+                          >
                             {subScoreText(s.value(ref))}
                           </td>
                         ),
                       )}
                       {RESEARCH_HEADERS.map((h) => (
-                        <td key={h.id} className="px-3 py-3 text-right font-mono">
+                        <td
+                          key={h.id}
+                          title={densityCellTitle(neighborhoodResearch[ref.key], weights, ref.urbanBreathingScore)}
+                          className="px-3 py-3 text-right font-mono"
+                        >
                           {research[h.id]}
                         </td>
                       ))}
@@ -453,7 +566,9 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                 }
                 const n = item.n;
                 const rankDiff = rankDiffOf(n);
-                const research = researchCells(researchFor(n));
+                const summary = researchFor(n);
+                const research = researchCells(summary);
+                const supplyCount = supplyCountOf(n);
                 return (
                   <tr
                     key={`${n.cityCode}:${n.neighborhood}`}
@@ -483,25 +598,59 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
                       </span>
                     </td>
                     <td className="px-3 py-3 font-bold whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => goToNeighborhood(n)}
-                        className="text-primary hover:underline"
-                      >
-                        {n.neighborhood}
-                      </button>
-                      {n.isExtra && <ExtraBadge className="ml-1.5" />}
+                      <div className="inline-flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => goToNeighborhood(n)}
+                          className="text-primary hover:underline"
+                        >
+                          {n.neighborhood}
+                        </button>
+                        {n.isExtra && <ExtraBadge />}
+                        {supplyCount > 0 && (
+                          <span
+                            data-testid="neighborhood-supply-badge"
+                            title={`${supplyCount} ${supplyCount === 1 ? "imóvel ativo neste bairro" : "imóveis ativos neste bairro"}`}
+                            className="inline-flex items-center rounded-md border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground"
+                          >
+                            {supplyCount} {supplyCount === 1 ? "imóvel" : "imóveis"}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          data-testid="neighborhood-dossier-button"
+                          aria-haspopup="dialog"
+                          aria-label={`Abrir dossiê de ${n.neighborhood}`}
+                          title={`Abrir dossiê de pesquisa de ${n.neighborhood}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setResearchOpenKey(summary?.key ?? `${n.cityCode}:${n.neighborhood}`);
+                          }}
+                          className="inline-flex items-center gap-1 rounded border border-sky-600/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800 hover:bg-sky-500/20 dark:border-sky-400/30 dark:bg-sky-500/15 dark:text-sky-200"
+                        >
+                          <span aria-hidden="true">📊</span>
+                          <span>Dossiê</span>
+                        </button>
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-right font-mono text-sm font-bold text-primary">
                       {n.dynamicScore.toFixed(2)}
                     </td>
                     {SUB_SCORES.map((s) => (
-                      <td key={s.id} className="px-3 py-3 text-right font-mono">
+                      <td
+                        key={s.id}
+                        title={subScoreCellTitle(s, s.value(n), weights)}
+                        className="px-3 py-3 text-right font-mono"
+                      >
                         {subScoreText(s.value(n))}
                       </td>
                     ))}
                     {RESEARCH_HEADERS.map((h) => (
-                      <td key={h.id} className="px-3 py-3 text-right font-mono">
+                      <td
+                        key={h.id}
+                        title={densityCellTitle(summary, weights, n.urbanBreathingScore)}
+                        className="px-3 py-3 text-right font-mono"
+                      >
                         {research[h.id]}
                       </td>
                     ))}
@@ -531,7 +680,15 @@ export function NeighborhoodsTab({ ctl }: { ctl: PortalController }) {
         createPortal(
           <NeighborhoodResearchPanel
             researchKey={researchOpenKey}
-            neighborhood={REFERENCE_BY_KEY.get(researchOpenKey)?.neighborhood ?? researchOpenKey}
+            neighborhood={
+              REFERENCE_BY_KEY.get(researchOpenKey)?.neighborhood ??
+              neighborhoodRanking.find(
+                (n) =>
+                  `${n.cityCode}:${n.neighborhood}` === researchOpenKey ||
+                  researchFor(n)?.key === researchOpenKey,
+              )?.neighborhood ??
+              researchOpenKey.replace(/^[A-Z]+:/, "")
+            }
             onClose={closeResearch}
           />,
           document.body,
@@ -565,11 +722,19 @@ function ExtraBadge({ className = "" }: { className?: string }) {
   );
 }
 
-function MobileResearchRow({ cells, qol }: { cells: ReturnType<typeof researchCells>; qol: QolRow | undefined }) {
+function MobileResearchRow({
+  cells,
+  qol,
+  densityTitle,
+}: {
+  cells: ReturnType<typeof researchCells>;
+  qol: QolRow | undefined;
+  densityTitle?: string;
+}) {
   return (
     <div className="grid grid-cols-3 gap-1 rounded-lg border border-dashed p-2 text-center">
       {RESEARCH_HEADERS.map((h) => (
-        <div key={h.id} title={h.title} className="min-w-0">
+        <div key={h.id} title={densityTitle ?? h.title} className="min-w-0">
           <span className="block text-xs leading-tight text-muted-foreground">{h.short}</span>
           <strong className="font-mono text-xs">{cells[h.id]}</strong>
         </div>

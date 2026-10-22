@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_SEASONS,
   SEASON_FETCH_BATCH,
+  calculateMean,
   calculateMedian,
+  computeSeasonStats,
   mapInBatches,
   seasonNumbersUpTo,
 } from "./ratings";
@@ -71,6 +73,63 @@ describe("seasonNumbersUpTo", () => {
 describe("SEASON_FETCH_BATCH", () => {
   it("is capped at 5 concurrent season fetches", () => {
     expect(SEASON_FETCH_BATCH).toBe(5);
+  });
+});
+
+describe("calculateMean & computeSeasonStats", () => {
+  it("computes mean, medians, range, best/worst episode, and premiere-to-finale delta", () => {
+    expect(calculateMean([])).toBe(0);
+    expect(calculateMean([8, 9, 10])).toBe(9);
+
+    const stats = computeSeasonStats(
+      {
+        rating: 8.5,
+        episodes: [
+          {
+            episode: 1,
+            title: "Pilot",
+            rating: 8.0,
+            imdbRating: 8.2,
+            tmdbRating: 7.8,
+          },
+          {
+            episode: 2,
+            title: "Midpoint",
+            rating: 7.5,
+            imdbRating: 7.6,
+            tmdbRating: 7.4,
+          },
+          {
+            episode: 3,
+            title: "Finale",
+            rating: 9.5,
+            imdbRating: 9.6,
+            tmdbRating: 9.4,
+          },
+        ],
+      },
+      8.0
+    );
+
+    expect(stats.rating).toBe(8.5);
+    expect(stats.meanRating).toBeCloseTo(8.333, 2);
+    expect(stats.imdbMedian).toBe(8.2);
+    expect(stats.tmdbMedian).toBe(7.8);
+    expect(stats.minRating).toBe(7.5);
+    expect(stats.maxRating).toBe(9.5);
+    expect(stats.deltaFromShowMedian).toBeCloseTo(0.5, 2);
+    expect(stats.highRatedCount).toBe(2);
+    expect(stats.bestEpisode).toEqual({
+      episode: 3,
+      title: "Finale",
+      rating: 9.5,
+    });
+    expect(stats.worstEpisode).toEqual({
+      episode: 2,
+      title: "Midpoint",
+      rating: 7.5,
+    });
+    expect(stats.premiereToFinaleDelta).toBeCloseTo(1.5, 2);
   });
 });
 

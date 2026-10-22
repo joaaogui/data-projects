@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import {
   Tooltip,
   TooltipContent,
@@ -9,13 +10,29 @@ import {
   type ColumnDef,
 } from "@data-projects/ui"
 import { cn, formatSigned } from "@data-projects/shared"
-import { formatDurationMs, type SpotifyTrack } from "@/lib/spotify"
+import {
+  formatDurationMs,
+  formatRuntimeMs,
+  type AlbumSummary,
+  type CatalogStats,
+  type CollaboratorSummary,
+  type ReleaseYearSummary,
+  type SpotifyTrack,
+} from "@/lib/spotify"
 import { Crown, ExternalLink, Users } from "lucide-react"
 import { TrackCover } from "@/components/track-cover"
 
 export interface TrackColumnsOptions {
   onSelectAlbum?: (albumId: string | null) => void
   selectedAlbumId?: string | null
+  catalogStats?: CatalogStats | null
+  collaboratorsById?: Map<string, CollaboratorSummary>
+  albumsById?: Map<string, AlbumSummary>
+  yearsByYear?: Map<number, ReleaseYearSummary>
+  trackAlbumRankById?: Map<string, { rank: number; count: number }>
+  trackYearRankById?: Map<string, { rank: number; count: number }>
+  trackSoloRankById?: Map<string, { rank: number; count: number }>
+  trackDurationRankById?: Map<string, number>
 }
 
 function getAlbumTypeBadge(type: SpotifyTrack["album"]["albumType"]) {
@@ -38,21 +55,250 @@ function getAlbumTypeBadge(type: SpotifyTrack["album"]["albumType"]) {
   }
 }
 
-function formatDeltaTooltip(delta: number): string {
-  if (delta > 0) {
-    return `${delta} ${delta === 1 ? "point" : "points"} above artist catalog average (0–100 Spotify Popularity Index)`
+function formatSignedDurationMs(deltaMs: number): string {
+  const absSeconds = Math.round(Math.abs(deltaMs) / 1000)
+  if (absSeconds === 0) return "0s"
+  const sign = deltaMs > 0 ? "+" : "-"
+  const mins = Math.floor(absSeconds / 60)
+  const secs = absSeconds % 60
+  if (mins === 0) return `${sign}${secs}s`
+  return `${sign}${mins}:${secs.toString().padStart(2, "0")}`
+}
+
+function formatReleaseAge(releaseDate: string, releaseYear: number | null): string | null {
+  if (!releaseYear) return null
+  const currentYear = new Date().getFullYear()
+  const yearsAgo = currentYear - releaseYear
+  if (yearsAgo <= 0) return "Released this year"
+  if (yearsAgo === 1) return "1 year ago"
+  return `${yearsAgo} years ago`
+}
+
+function decodeIsrc(isrc: string | null): {
+  formatted: string
+  country: string
+  registrant: string
+  year: string
+  serial: string
+} | null {
+  if (!isrc) return null
+  const clean = isrc.replace(/[^A-Za-z0-9]/g, "").toUpperCase()
+  if (clean.length !== 12) return null
+  const country = clean.slice(0, 2)
+  const registrant = clean.slice(2, 5)
+  const yy = clean.slice(5, 7)
+  const serial = clean.slice(7, 12)
+  const yyNum = Number.parseInt(yy, 10)
+  const currentTwoDigit = new Date().getFullYear() % 100
+  const fullYear = Number.isFinite(yyNum)
+    ? `${yyNum <= currentTwoDigit + 2 ? 2000 + yyNum : 1900 + yyNum} (${yy})`
+    : yy
+  return {
+    formatted: `${country}-${registrant}-${yy}-${serial}`,
+    country,
+    registrant,
+    year: fullYear,
+    serial,
   }
-  if (delta < 0) {
-    const abs = Math.abs(delta)
-    return `${abs} ${abs === 1 ? "point" : "points"} below artist catalog average (0–100 Spotify Popularity Index)`
-  }
-  return "Equal to artist catalog average (0–100 Spotify Popularity Index)"
+}
+
+function CollaboratorDossierTooltip({
+  track,
+  collaboratorsById,
+}: Readonly<{
+  track: SpotifyTrack
+  collaboratorsById?: Map<string, CollaboratorSummary>
+}>) {
+  return (
+    <div className="space-y-2.5 max-w-xs py-0.5">
+      {track.featuredArtists.map((artist) => {
+        const collab =
+          collaboratorsById?.get(artist.id) ??
+          collaboratorsById?.get(artist.name.trim().toLowerCase())
+
+        if (!collab) {
+          return (
+            <div key={artist.id || artist.name} className="space-y-1 text-xs">
+              <div className="font-semibold text-foreground">{artist.name}</div>
+              <div className="flex items-center gap-2 pt-0.5">
+                <Link
+                  href={`/artist/${encodeURIComponent(artist.name)}`}
+                  className="text-spotify hover:underline font-medium"
+                >
+                  Explore {artist.name} catalog →
+                </Link>
+                {artist.spotifyUrl && (
+                  <a
+                    href={artist.spotifyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 text-muted-foreground hover:text-spotify"
+                  >
+                    Spotify <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                )}
+              </div>
+            </div>
+          )
+        }
+
+        const topCollabTrack = collab.tracks[0]
+        const previewTracks = collab.tracks.slice(0, 3)
+
+        return (
+          <div
+            key={collab.id}
+            className="space-y-1 text-xs border-b border-border/40 last:border-b-0 pb-2 last:pb-0"
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-semibold text-foreground">{collab.name}</span>
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {collab.trackCount} {collab.trackCount === 1 ? "track" : "tracks"} together in catalog
+              </span>
+            </div>
+
+            <div className="font-mono text-[11px] text-muted-foreground">
+              Avg pop <span className="text-spotify font-semibold">{collab.avgPopularity}</span>/100 ·{" "}
+              <span
+                className={cn(
+                  collab.deltaVsSoloAvg > 0
+                    ? "text-emerald-500"
+                    : "text-muted-foreground"
+                )}
+              >
+                {formatSigned(collab.deltaVsSoloAvg)} vs solo avg
+              </span>
+            </div>
+
+            {topCollabTrack && (
+              <div className="text-[11px] text-muted-foreground">
+                #1 together: <span className="text-foreground font-medium">&quot;{topCollabTrack.name}&quot;</span>{" "}
+                <span className="font-mono">
+                  (pop {topCollabTrack.popularity}, #{topCollabTrack.rank} overall)
+                </span>
+              </div>
+            )}
+
+            {previewTracks.length > 0 && (
+              <ul className="space-y-0.5 pt-0.5 text-[11px] text-muted-foreground">
+                {previewTracks.map((t) => (
+                  <li key={t.id} className="truncate font-mono">
+                    • <span className="font-sans text-foreground/90">{t.name}</span>
+                    {t.releaseYear ? ` (${t.releaseYear})` : ""} — pop {t.popularity}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <Link
+                href={`/artist/${encodeURIComponent(collab.name)}`}
+                className="text-spotify hover:underline font-medium"
+              >
+                Explore {collab.name} catalog →
+              </Link>
+              {collab.spotifyUrl && (
+                <a
+                  href={collab.spotifyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 text-muted-foreground hover:text-spotify"
+                >
+                  Spotify <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function PopularityAndRankTooltip({
+  track,
+  catalogStats,
+  albumSummary,
+  albumRankInfo,
+  yearRankInfo,
+}: Readonly<{
+  track: SpotifyTrack
+  catalogStats?: CatalogStats | null
+  albumSummary?: AlbumSummary
+  albumRankInfo?: { rank: number; count: number }
+  yearRankInfo?: { rank: number; count: number }
+}>) {
+  const totalTracks = catalogStats?.totalTracks ?? 0
+  const percentile =
+    totalTracks > 0
+      ? Math.max(1, Math.round((track.rank / totalTracks) * 100))
+      : null
+  const deltaMean = catalogStats
+    ? track.popularity - catalogStats.avgPopularity
+    : track.deltaFromArtistAvg
+  const deltaMedian = catalogStats
+    ? track.popularity - catalogStats.medianPopularity
+    : null
+  const deltaRelease = albumSummary
+    ? track.popularity - albumSummary.avgPopularity
+    : null
+
+  return (
+    <div className="space-y-1.5 max-w-xs text-xs py-0.5">
+      <div className="font-semibold text-foreground">
+        {percentile !== null && totalTracks > 0
+          ? `Top ${percentile}% of catalog · #${track.rank} of ${totalTracks}`
+          : `Catalog rank #${track.rank} · Popularity ${track.popularity}/100`}
+      </div>
+
+      {albumRankInfo && (
+        <div className="text-muted-foreground">
+          Rank on release:{" "}
+          <span className="font-mono text-foreground">
+            #{albumRankInfo.rank} of {albumRankInfo.count}
+          </span>{" "}
+          on &quot;{track.album.name}&quot;
+        </div>
+      )}
+
+      {yearRankInfo && track.album.releaseYear && (
+        <div className="text-muted-foreground">
+          Rank in release year:{" "}
+          <span className="font-mono text-foreground">
+            #{yearRankInfo.rank} of {yearRankInfo.count}
+          </span>{" "}
+          in {track.album.releaseYear}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-x-2 gap-y-0.5 font-mono text-[11px] text-muted-foreground pt-0.5 border-t border-border/40">
+        <span>{formatSigned(deltaMean)} vs artist mean</span>
+        {deltaMedian !== null && (
+          <span>· {formatSigned(deltaMedian)} vs artist median</span>
+        )}
+        {deltaRelease !== null && (
+          <span>· {formatSigned(deltaRelease)} vs release avg</span>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export function createTrackColumns(
   options: TrackColumnsOptions = {}
 ): ColumnDef<SpotifyTrack>[] {
-  const { onSelectAlbum, selectedAlbumId } = options
+  const {
+    onSelectAlbum,
+    selectedAlbumId,
+    catalogStats,
+    collaboratorsById,
+    albumsById,
+    yearsByYear,
+    trackAlbumRankById,
+    trackYearRankById,
+    trackSoloRankById,
+    trackDurationRankById,
+  } = options
 
   return [
     {
@@ -61,6 +307,10 @@ export function createTrackColumns(
       header: sortableHeader("#"),
       cell: ({ row }: CellContext<SpotifyTrack, unknown>) => {
         const track = row.original
+        const albumKey = track.album.id || track.album.name
+        const albumSummary = albumsById?.get(albumKey)
+        const albumRankInfo = trackAlbumRankById?.get(track.id)
+        const yearRankInfo = trackYearRankById?.get(track.id)
         return (
           <div className="flex flex-col items-start gap-0.5 min-w-[2.75rem]">
             <Tooltip>
@@ -70,7 +320,13 @@ export function createTrackColumns(
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                Catalog rank #{track.rank} by current Spotify popularity
+                <PopularityAndRankTooltip
+                  track={track}
+                  catalogStats={catalogStats}
+                  albumSummary={albumSummary}
+                  albumRankInfo={albumRankInfo}
+                  yearRankInfo={yearRankInfo}
+                />
               </TooltipContent>
             </Tooltip>
             {track.isAlbumLeadTrack && (
@@ -82,7 +338,7 @@ export function createTrackColumns(
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {`Most popular track on "${track.album.name}" (#1 of ${track.album.totalTracks} tracks)`}
+                  {`Most popular track on "${track.album.name}" (#1 of ${albumSummary?.trackCount ?? track.album.totalTracks} tracks)`}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -158,7 +414,10 @@ export function createTrackColumns(
                         </span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        Featured artists: {featuredNames}
+                        <CollaboratorDossierTooltip
+                          track={track}
+                          collaboratorsById={collaboratorsById}
+                        />
                       </TooltipContent>
                     </Tooltip>
                   </>
@@ -174,14 +433,72 @@ export function createTrackColumns(
       accessorFn: (row: SpotifyTrack) => row.album.name,
       header: sortableHeader("Release"),
       cell: ({ row }: CellContext<SpotifyTrack, unknown>) => {
-        const { album } = row.original
+        const track = row.original
+        const { album } = track
+        const albumKey = album.id || album.name
+        const albumSummary = albumsById?.get(albumKey)
+        const albumRankInfo = trackAlbumRankById?.get(track.id)
         const isSelected = Boolean(selectedAlbumId && selectedAlbumId === album.id)
+        const badge = getAlbumTypeBadge(album.albumType)
+        const otherReleases = track.otherReleases ?? []
+
+        const releaseTooltipContent = (
+          <div className="space-y-1.5 max-w-xs text-xs py-0.5">
+            <div className="font-semibold text-foreground">
+              {album.name}
+            </div>
+            <div className="text-muted-foreground font-mono text-[11px]">
+              {badge.label}
+              {album.releaseDate ? ` · ${album.releaseDate}` : ""}
+              {album.label ? ` · ${album.label}` : ""}
+            </div>
+            {albumSummary && albumRankInfo && (
+              <div className="text-muted-foreground">
+                Ranked{" "}
+                <span className="font-mono text-foreground font-medium">
+                  #{albumRankInfo.rank} of {albumSummary.trackCount}
+                </span>{" "}
+                on this release by popularity
+              </div>
+            )}
+            {albumSummary && catalogStats && (
+              <div className="text-muted-foreground font-mono text-[11px]">
+                Avg <span className="text-spotify font-semibold">{albumSummary.avgPopularity}</span>/100 (
+                {formatSigned(albumSummary.avgPopularity - catalogStats.avgPopularity)} vs artist avg) · Peak: &quot;{albumSummary.topTrackName}&quot; ({albumSummary.maxPopularity})
+              </div>
+            )}
+            {(album.albumPopularity != null || albumSummary) && (
+              <div className="text-muted-foreground font-mono text-[11px]">
+                {album.albumPopularity != null && (
+                  <span>Spotify Album Popularity: {album.albumPopularity}/100 · </span>
+                )}
+                {albumSummary && (
+                  <span>Runtime: {formatRuntimeMs(albumSummary.totalDurationMs)}</span>
+                )}
+              </div>
+            )}
+            {otherReleases.length > 0 && (
+              <div className="text-[11px] text-muted-foreground pt-0.5 border-t border-border/40">
+                Also appears on: {otherReleases.slice(0, 3).join(", ")}
+                {otherReleases.length > 3 ? ` (+${otherReleases.length - 3} more)` : ""}
+              </div>
+            )}
+            {onSelectAlbum && album.id && (
+              <div className="text-[11px] text-spotify pt-0.5">
+                {isSelected
+                  ? `Click to clear release filter`
+                  : `Click to filter table to "${album.name}"`}
+              </div>
+            )}
+          </div>
+        )
+
         return (
           <div className="flex flex-col gap-0.5 min-w-[150px] max-w-[240px]">
             <div className="flex items-center gap-1.5 min-w-0">
-              {onSelectAlbum && album.id ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {onSelectAlbum && album.id ? (
                     <button
                       type="button"
                       onClick={() => onSelectAlbum(isSelected ? null : album.id)}
@@ -192,16 +509,14 @@ export function createTrackColumns(
                     >
                       {album.name}
                     </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {isSelected
-                      ? `Clear release filter ("${album.name}")`
-                      : `Filter table to tracks from "${album.name}"`}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <span className="text-sm font-medium truncate">{album.name}</span>
-              )}
+                  ) : (
+                    <span className="text-sm font-medium truncate cursor-default">
+                      {album.name}
+                    </span>
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>{releaseTooltipContent}</TooltipContent>
+              </Tooltip>
               {album.spotifyUrl && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -221,8 +536,9 @@ export function createTrackColumns(
                 </Tooltip>
               )}
             </div>
-            <span className="text-xs text-muted-foreground font-mono">
+            <span className="text-xs text-muted-foreground font-mono truncate">
               {album.totalTracks} {album.totalTracks === 1 ? "track" : "tracks"}
+              {album.label ? ` · ${album.label}` : ""}
             </span>
           </div>
         )
@@ -258,21 +574,83 @@ export function createTrackColumns(
       id: "releaseDate",
       accessorFn: (row: SpotifyTrack) => row.album.releaseDate,
       header: sortableHeader("Released"),
-      cell: ({ row }: CellContext<SpotifyTrack, unknown>) => (
-        <span className="font-mono text-xs text-muted-foreground tabular-nums whitespace-nowrap">
-          {row.original.album.releaseDate || "—"}
-        </span>
-      ),
+      cell: ({ row }: CellContext<SpotifyTrack, unknown>) => {
+        const { album } = row.original
+        const yearStats =
+          album.releaseYear !== null ? yearsByYear?.get(album.releaseYear) : undefined
+        const ageLabel = formatReleaseAge(album.releaseDate, album.releaseYear)
+
+        if (!album.releaseDate) {
+          return (
+            <span className="font-mono text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+              —
+            </span>
+          )
+        }
+
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="font-mono text-xs text-muted-foreground tabular-nums whitespace-nowrap cursor-default">
+                {album.releaseDate}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs text-xs space-y-1">
+              <div className="font-semibold text-foreground">
+                Released {album.releaseDate}
+                {ageLabel ? ` (${ageLabel})` : ""}
+              </div>
+              {yearStats && (
+                <div className="font-mono text-[11px] text-muted-foreground">
+                  {yearStats.trackCount} {yearStats.trackCount === 1 ? "track" : "tracks"} across{" "}
+                  {yearStats.releaseCount} {yearStats.releaseCount === 1 ? "release" : "releases"} in{" "}
+                  {yearStats.year} · Year avg pop: {yearStats.avgPopularity} · #1: &quot;{yearStats.topTrackName}&quot;
+                </div>
+              )}
+            </TooltipContent>
+          </Tooltip>
+        )
+      },
     },
     {
       id: "durationMs",
       accessorKey: "durationMs",
       header: sortableHeader("Duration"),
-      cell: ({ row }: CellContext<SpotifyTrack, unknown>) => (
-        <span className="font-mono text-xs text-muted-foreground tabular-nums">
-          {formatDurationMs(row.original.durationMs)}
-        </span>
-      ),
+      cell: ({ row }: CellContext<SpotifyTrack, unknown>) => {
+        const track = row.original
+        const durationRank = trackDurationRankById?.get(track.id)
+        const totalTracks = catalogStats?.totalTracks ?? 0
+        const deltaMs = catalogStats
+          ? track.durationMs - catalogStats.avgDurationMs
+          : null
+
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="font-mono text-xs text-muted-foreground tabular-nums cursor-default">
+                {formatDurationMs(track.durationMs)}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs text-xs space-y-1">
+              <div className="font-semibold text-foreground font-mono">
+                {formatDurationMs(track.durationMs)}
+                {deltaMs !== null && (
+                  <span className="text-muted-foreground font-normal">
+                    {" "}
+                    ({formatSignedDurationMs(deltaMs)} vs catalog avg{" "}
+                    {formatDurationMs(catalogStats!.avgDurationMs)})
+                  </span>
+                )}
+              </div>
+              {durationRank && totalTracks > 0 && (
+                <div className="font-mono text-[11px] text-muted-foreground">
+                  #{durationRank} longest of {totalTracks} tracks
+                </div>
+              )}
+            </TooltipContent>
+          </Tooltip>
+        )
+      },
     },
     {
       id: "credits",
@@ -281,6 +659,12 @@ export function createTrackColumns(
       cell: ({ row }: CellContext<SpotifyTrack, unknown>) => {
         const track = row.original
         if (!track.isCollaboration) {
+          const soloRankInfo = trackSoloRankById?.get(track.id)
+          const soloCount = soloRankInfo?.count ?? catalogStats?.soloCount ?? 0
+          const soloAvg = catalogStats?.soloAvgPopularity ?? 0
+          const collabAvg = catalogStats?.collabAvgPopularity ?? 0
+          const deltaVsSolo = track.popularity - soloAvg
+
           return (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -288,8 +672,22 @@ export function createTrackColumns(
                   Solo
                 </span>
               </TooltipTrigger>
-              <TooltipContent>
-                Solo release — no featured artists
+              <TooltipContent className="max-w-xs text-xs space-y-1">
+                <div className="font-semibold text-foreground">
+                  {soloRankInfo
+                    ? `Solo track #${soloRankInfo.rank} of ${soloCount} solo tracks`
+                    : "Solo release — no featured artists"}
+                </div>
+                {catalogStats && (
+                  <>
+                    <div className="font-mono text-[11px] text-muted-foreground">
+                      Solo catalog avg ({soloAvg}) vs Collab avg ({collabAvg})
+                    </div>
+                    <div className="font-mono text-[11px] text-muted-foreground">
+                      This track: {formatSigned(deltaVsSolo)} vs solo avg
+                    </div>
+                  </>
+                )}
               </TooltipContent>
             </Tooltip>
           )
@@ -309,7 +707,10 @@ export function createTrackColumns(
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              {`Collaboration featuring ${names}`}
+              <CollaboratorDossierTooltip
+                track={track}
+                collaboratorsById={collaboratorsById}
+              />
             </TooltipContent>
           </Tooltip>
         )
@@ -320,7 +721,23 @@ export function createTrackColumns(
       accessorKey: "popularity",
       header: sortableHeader("Popularity"),
       cell: ({ row }: CellContext<SpotifyTrack, unknown>) => {
-        const { popularity, deltaFromArtistAvg } = row.original
+        const track = row.original
+        const { popularity, deltaFromArtistAvg } = track
+        const albumKey = track.album.id || track.album.name
+        const albumSummary = albumsById?.get(albumKey)
+        const albumRankInfo = trackAlbumRankById?.get(track.id)
+        const yearRankInfo = trackYearRankById?.get(track.id)
+
+        const tooltipNode = (
+          <PopularityAndRankTooltip
+            track={track}
+            catalogStats={catalogStats}
+            albumSummary={albumSummary}
+            albumRankInfo={albumRankInfo}
+            yearRankInfo={yearRankInfo}
+          />
+        )
+
         return (
           <div className="flex items-center gap-2.5 min-w-[155px]">
             <Tooltip>
@@ -337,9 +754,7 @@ export function createTrackColumns(
                   </span>
                 </div>
               </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                {`Spotify Popularity Index (${popularity}/100) — algorithmically calculated from recent stream volume and momentum`}
-              </TooltipContent>
+              <TooltipContent>{tooltipNode}</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -355,9 +770,7 @@ export function createTrackColumns(
                   {formatSigned(deltaFromArtistAvg)}
                 </span>
               </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                {formatDeltaTooltip(deltaFromArtistAvg)}
-              </TooltipContent>
+              <TooltipContent>{tooltipNode}</TooltipContent>
             </Tooltip>
           </div>
         )
@@ -372,6 +785,8 @@ export function createTrackColumns(
         const label = isrc
           ? `Open "${name}" on Spotify · ISRC: ${isrc}`
           : `Open "${name}" on Spotify`
+        const decodedIsrc = decodeIsrc(isrc)
+
         return (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -388,7 +803,30 @@ export function createTrackColumns(
                 </span>
               </a>
             </TooltipTrigger>
-            <TooltipContent>{label}</TooltipContent>
+            <TooltipContent className="max-w-xs text-xs space-y-1">
+              <div className="font-semibold text-foreground">
+                Open &quot;{name}&quot; on Spotify
+              </div>
+              {decodedIsrc ? (
+                <div className="font-mono text-[11px] text-muted-foreground space-y-0.5 pt-0.5 border-t border-border/40">
+                  <div className="text-foreground font-medium">
+                    ISRC: {decodedIsrc.formatted}
+                  </div>
+                  <div>
+                    Country: {decodedIsrc.country} · Registrant: {decodedIsrc.registrant}
+                  </div>
+                  <div>
+                    Year: {decodedIsrc.year} · Serial: {decodedIsrc.serial}
+                  </div>
+                </div>
+              ) : (
+                isrc && (
+                  <div className="font-mono text-[11px] text-muted-foreground">
+                    ISRC: {isrc}
+                  </div>
+                )
+              )}
+            </TooltipContent>
           </Tooltip>
         )
       },

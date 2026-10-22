@@ -608,3 +608,158 @@ describe("PropertyCard — expanded drawer", () => {
     expect(screen.getByText("Carregando análise completa…")).toBeTruthy();
   });
 });
+
+describe("PropertyCard — enriched badges & tooltips", () => {
+  it("renders instant 9-pillar ScoreBreakdown tooltip on the finalScore badge", () => {
+    const props = buildProps({
+      prop: makeProperty({
+        finalScore: 78.4,
+        breakdown: {
+          neighborhoodPoints: 62.4,
+          modernityPoints: 14.5,
+          nuancesPoints: 3.5,
+          budgetPoints: -2.0,
+          furniturePoints: 15.0,
+          areaPoints: 4.0,
+          parkingPoints: 5.0,
+          safetyPoints: 0,
+          commutePoints: -4.0,
+          cityPreferencePoints: -20.0,
+        },
+      }),
+    });
+    render(<PropertyCard {...props} />);
+
+    const scoreBadge = screen.getByTestId("score-breakdown-badge");
+    const title = scoreBadge.getAttribute("title") ?? "";
+    expect(title).toContain("Bairro: +62.40");
+    expect(title).toContain("Modernidade: +14.50");
+    expect(title).toContain("Nuances: +3.50");
+    expect(title).toContain("Orçamento: -2.00");
+    expect(title).toContain("Mobília: +15.00");
+    expect(title).toContain("Planta: +4.00");
+    expect(title).toContain("Garagem: +5.00");
+    expect(title).toContain("Segurança Rua: +0.00");
+    expect(title).toContain("Logística: -4.00");
+    expect(title).toContain("Ajuste Praça: -20.00");
+
+    const tooltip = screen.getByTestId("score-breakdown-tooltip");
+    expect(tooltip.textContent).toContain("Bairro");
+    expect(tooltip.textContent).toContain("+62.40");
+    expect(tooltip.textContent).toContain("Ajuste Praça");
+    expect(tooltip.textContent).toContain("-20.00");
+  });
+
+  it("omits Ajuste Praça from the ScoreBreakdown tooltip when cityPreferencePoints is 0", () => {
+    const props = buildProps({
+      prop: makeProperty({
+        breakdown: {
+          neighborhoodPoints: 60,
+          modernityPoints: 10,
+          nuancesPoints: 2,
+          budgetPoints: 0,
+          furniturePoints: 15,
+          areaPoints: 0,
+          parkingPoints: 5,
+          safetyPoints: 0,
+          commutePoints: 0,
+          cityPreferencePoints: 0,
+        },
+      }),
+    });
+    render(<PropertyCard {...props} />);
+    const scoreBadge = screen.getByTestId("score-breakdown-badge");
+    expect(scoreBadge.getAttribute("title")).not.toContain("Ajuste Praça");
+  });
+
+  it("renders inline R$/m² pill and price/yield/listedRent tooltip on the monthly price badge", () => {
+    const props = buildProps({
+      prop: makeProperty({
+        rent: 3000,
+        condoFee: 600,
+        iptu: 150,
+        totalMonthly: 3750,
+        areaM2: 60,
+        listedRent: 2800,
+        salePrice: 720000,
+      }),
+    });
+    render(<PropertyCard {...props} />);
+
+    const pill = screen.getByTestId("price-per-m2-pill");
+    expect(pill.textContent).toBe("R$ 63/m²");
+
+    const priceBadge = screen.getByTestId("monthly-price-badge");
+    const title = priceBadge.getAttribute("title") ?? "";
+    expect(title).toContain("Pacote total: R$ 63/m² (Aluguel: R$ 50/m²)");
+    expect(title).toContain("Condomínio: 16% do pacote mensal (R$ 10.0/m²)");
+    expect(title).toContain(
+      "Portal anunciava R$ 2.800, ajustado para R$ 3.000 conforme descrição",
+    );
+    expect(title).toContain(
+      "Preço de venda: R$ 720.000 (R$ 12.000/m² · Yield: 5.00% a.a.)",
+    );
+  });
+
+  it("renders multi-scope rank tooltip on the city rank badge", () => {
+    const props = buildProps({
+      prop: makeProperty({
+        overallRank: 4,
+        city: "Belo Horizonte",
+        cityRank: 2,
+        neighborhood: "Funcionários",
+        neighborhoodRank: 1,
+        neighborhoodDynamicScore: 9.61,
+      }),
+    });
+    render(<PropertyCard {...props} />);
+
+    const rankBadge = screen.getByTestId("property-rank-badge");
+    expect(rankBadge.getAttribute("title")).toBe(
+      "Ranking Geral (todas as praças): #4 · Ranking em Belo Horizonte: #2 · Ranking em Funcionários: #1 (Nota do bairro: 9.61/10)",
+    );
+  });
+
+  it("renders modernity signals tooltip with constructionYear, condition, doorman, and positive/negative signals", () => {
+    const props = buildProps({
+      prop: makeProperty({
+        constructionYear: 2021,
+        condition: "Reformado",
+        doorman: "24 horas",
+        positiveSignals: ["Porcelanato / Vinílico", "Ar-condicionado Split"],
+        negativeSignals: ["Rua movimentada"],
+      }),
+    });
+    render(<PropertyCard {...props} />);
+
+    const modBadge = screen.getByTestId("modernity-tier-badge");
+    const title = modBadge.getAttribute("title") ?? "";
+    expect(title).toContain("Construído em 2021");
+    expect(title).toContain("Reformado");
+    expect(title).toContain("Portaria: 24 horas");
+    expect(title).toContain("Porcelanato / Vinílico, Ar-condicionado Split");
+    expect(title).toContain("Rua movimentada");
+  });
+
+  it("renders cross-portal twins badge and tooltip when alsoListedOn is populated", () => {
+    const { rerender } = render(<PropertyCard {...buildProps()} />);
+    expect(screen.queryByTestId("also-listed-on-badge")).toBeNull();
+
+    rerender(
+      <PropertyCard
+        {...buildProps({
+          prop: makeProperty({
+            alsoListedOn: ["zapimoveis:998877", "vivareal:112233"],
+          }),
+        })}
+      />,
+    );
+    const badge = screen.getByTestId("also-listed-on-badge");
+    expect(badge.textContent).toBe(
+      "Também anunciado em: zapimoveis:998877, vivareal:112233",
+    );
+    expect(badge.getAttribute("title")).toBe(
+      "Também anunciado em: zapimoveis:998877, vivareal:112233",
+    );
+  });
+});

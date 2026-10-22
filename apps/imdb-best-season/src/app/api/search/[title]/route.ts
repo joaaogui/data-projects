@@ -5,6 +5,7 @@ import type {
   RankedSeason,
   EpisodeRating,
   SearchResult,
+  TMDBEpisode,
   TMDBFindResponse,
   TMDBSeasonResponse,
   TMDBShowData,
@@ -29,6 +30,7 @@ import {
 import {
   SEASON_FETCH_BATCH,
   calculateMedian,
+  computeSeasonStats,
   mapInBatches,
   seasonNumbersUpTo,
 } from "@/lib/ratings";
@@ -135,12 +137,10 @@ function calculateSeasonRating(
   const episodeRatings: EpisodeRating[] = [];
   const allMedianRatings: number[] = [];
 
-  const tmdbEpisodeMap = new Map<number, number>();
+  const tmdbEpisodeMap = new Map<number, TMDBEpisode>();
   if (tmdbSeason?.episodes) {
     for (const ep of tmdbSeason.episodes) {
-      if (ep.vote_average > 0 && ep.vote_count > 0) {
-        tmdbEpisodeMap.set(ep.episode_number, ep.vote_average);
-      }
+      tmdbEpisodeMap.set(ep.episode_number, ep);
     }
   }
 
@@ -150,7 +150,11 @@ function calculateSeasonRating(
     const imdbRating = imdbRatingStr !== "N/A" && !Number.isNaN(Number.parseFloat(imdbRatingStr))
       ? Number.parseFloat(imdbRatingStr)
       : null;
-    const tmdbRating = tmdbEpisodeMap.get(episodeNum) ?? null;
+    const tmdbEp = tmdbEpisodeMap.get(episodeNum);
+    const tmdbRating =
+      tmdbEp && tmdbEp.vote_average > 0 && tmdbEp.vote_count > 0
+        ? tmdbEp.vote_average
+        : null;
 
     const ratingsToMedian: number[] = [];
     if (imdbRating !== null) ratingsToMedian.push(imdbRating);
@@ -165,6 +169,10 @@ function calculateSeasonRating(
       tmdbRating,
       title: episode.Title,
       imdbID: episode.imdbID,
+      released: episode.Released && episode.Released !== "N/A" ? episode.Released : undefined,
+      overview: tmdbEp?.overview?.trim() ? tmdbEp.overview.trim() : undefined,
+      runtime: typeof tmdbEp?.runtime === "number" && tmdbEp.runtime > 0 ? tmdbEp.runtime : null,
+      tmdbVoteCount: typeof tmdbEp?.vote_count === "number" && tmdbEp.vote_count > 0 ? tmdbEp.vote_count : null,
     });
 
     if (medianRating !== null) {
@@ -254,6 +262,12 @@ export async function GET(
       imdbID: titleData.imdbID,
       totalSeasons: totalSeasons || null,
       ratings,
+      year: titleData.Year && titleData.Year !== "N/A" ? titleData.Year : undefined,
+      genre: titleData.Genre && titleData.Genre !== "N/A" ? titleData.Genre : undefined,
+      runtime: titleData.Runtime && titleData.Runtime !== "N/A" ? titleData.Runtime : undefined,
+      awards: titleData.Awards && titleData.Awards !== "N/A" ? titleData.Awards : undefined,
+      imdbRating: titleData.imdbRating && titleData.imdbRating !== "N/A" ? titleData.imdbRating : undefined,
+      imdbVotes: titleData.imdbVotes && titleData.imdbVotes !== "N/A" ? titleData.imdbVotes : undefined,
     };
 
     let tmdbSeasonsData: (TMDBSeasonResponse | null)[] = [];
@@ -265,20 +279,32 @@ export async function GET(
       );
     }
 
-    const rankedSeasons: RankedSeason[] = omdbSeasonsData.map(
-      (seasonData, index) => {
-        const tmdbSeason = tmdbSeasonsData[index] ?? null;
-        const { rating, episodeRatings } = calculateSeasonRating(
-          seasonData.Episodes,
-          tmdbSeason
-        );
-        return {
-          seasonNumber: index + 1,
-          rating,
-          episodes: episodeRatings,
-        };
-      }
-    );
+    const baseSeasons = omdbSeasonsData.map((seasonData, index) => {
+      const tmdbSeason = tmdbSeasonsData[index] ?? null;
+      const { rating, episodeRatings } = calculateSeasonRating(
+        seasonData.Episodes,
+        tmdbSeason
+      );
+      return {
+        seasonNumber: index + 1,
+        rating,
+        episodes: episodeRatings,
+      };
+    });
+
+    const validSeasonRatings = baseSeasons
+      .map((s) => s.rating)
+      .filter((r) => r > 0);
+    const showMedianRating =
+      validSeasonRatings.length > 0 ? calculateMedian(validSeasonRatings) : 0;
+
+    const rankedSeasons: RankedSeason[] = baseSeasons.map((baseSeason) => {
+      const stats = computeSeasonStats(baseSeason, showMedianRating);
+      return {
+        ...baseSeason,
+        ...stats,
+      };
+    });
 
     rankedSeasons.sort((a, b) => b.rating - a.rating);
 

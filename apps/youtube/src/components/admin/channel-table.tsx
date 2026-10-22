@@ -16,7 +16,11 @@ import {
   PopoverTrigger,
   PopoverContent,
   Skeleton,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
 } from "@data-projects/ui";
+import dayjs from "dayjs";
 import {
   Search,
   CheckCircle2,
@@ -250,6 +254,9 @@ export function ChannelTable({
                       const health = pct(transcriptCount, videoCount);
                       const totalSagas = Number(ch.playlist_sagas) + Number(ch.ai_sagas);
                       const isSelected = selectedIds.has(ch.id);
+                      const transcriptBreakdown = `Full text: ${ch.has_full_text} · Excerpt: ${ch.has_excerpt} · Empty/Null: ${ch.null_transcripts} · Missing: ${Math.max(0, videoCount - transcriptCount)}`;
+                      const sagaBreakdown = `Playlist sagas: ${ch.playlist_sagas} · AI-detected sagas: ${ch.ai_sagas}`;
+                      const lastFetchedLabel = `Last fetched: ${ch.fetched_at ? dayjs(ch.fetched_at).format("MMM D, YYYY HH:mm") : "Never"}`;
 
                       return (
                         <TableRow key={ch.id} className={isSelected ? "bg-primary/5" : ""}>
@@ -268,25 +275,51 @@ export function ChannelTable({
                             </button>
                           </TableCell>
                           <TableCell>
-                            <Link href={`/channel/${ch.id}`} className="font-medium hover:text-primary transition-colors">
-                              {ch.title}
-                            </Link>
-                            <p className="text-xs text-muted-foreground mt-0.5 font-mono">{ch.id}</p>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="inline-block cursor-help">
+                                  <Link href={`/channel/${ch.id}`} className="font-medium hover:text-primary transition-colors">
+                                    {ch.title}
+                                  </Link>
+                                  <p className="text-xs text-muted-foreground mt-0.5 font-mono">{ch.id}</p>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>{lastFetchedLabel}</TooltipContent>
+                            </Tooltip>
                           </TableCell>
                           <TableCell className="text-right tabular-nums">{videoCount.toLocaleString()}</TableCell>
-                          <TableCell className="text-right tabular-nums">{transcriptCount.toLocaleString()}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all ${healthColor(health)}`}
-                                  style={{ width: `${health}%` }}
-                                />
-                              </div>
-                              <span className="text-xs tabular-nums text-muted-foreground w-8 text-right">{health}%</span>
-                            </div>
+                          <TableCell className="text-right tabular-nums">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help">{transcriptCount.toLocaleString()}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>{transcriptBreakdown}</TooltipContent>
+                            </Tooltip>
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">{totalSagas}</TableCell>
+                          <TableCell className="text-right">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center justify-end gap-2 cursor-help">
+                                  <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all ${healthColor(health)}`}
+                                      style={{ width: `${health}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs tabular-nums text-muted-foreground w-8 text-right">{health}%</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>{transcriptBreakdown}</TooltipContent>
+                            </Tooltip>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help">{totalSagas}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>{sagaBreakdown}</TooltipContent>
+                            </Tooltip>
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => onTriggerSync(ch.id, "videos")}>

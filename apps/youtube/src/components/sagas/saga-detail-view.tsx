@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCompact } from "@/lib/format";
+import { formatCompact, getScoreColorClass } from "@/lib/format";
 import { formatDuration } from "@/lib/scoring";
 import type { Saga, VideoData } from "@/types/youtube";
 import { Button } from "@data-projects/ui";
@@ -10,7 +10,18 @@ import Image from "next/image";
 import { useMemo } from "react";
 import { SourceBadge } from "./saga-card";
 
-function SagaVideoRow({ video, index, evidence }: Readonly<{ video: VideoData; index: number; evidence?: string }>) {
+function SagaVideoRow({
+  video,
+  index,
+  sagaAvgViews,
+  evidence,
+}: Readonly<{
+  video: VideoData;
+  index: number;
+  sagaAvgViews: number;
+  evidence?: string;
+}>) {
+  const breakoutMultiplier = sagaAvgViews > 0 ? video.views / sagaAvgViews : null;
   return (
     <a
       href={video.url}
@@ -34,9 +45,16 @@ function SagaVideoRow({ video, index, evidence }: Readonly<{ video: VideoData; i
         </span>
       </div>
       <div className="flex-1 min-w-0 py-0.5">
-        <h4 className="text-sm font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-          {video.title}
-        </h4>
+        <div className="flex items-start justify-between gap-2">
+          <h4 className="text-sm font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+            {video.title}
+          </h4>
+          <span
+            className={`shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${getScoreColorClass(video.score)}`}
+          >
+            {video.score.toFixed(0)}
+          </span>
+        </div>
         <p className="text-xs text-muted-foreground mt-1">
           {dayjs(video.publishedAt).format("MMM D, YYYY")}
           {video.days > 0 && <span className="ml-1 text-muted-foreground/60">({video.days}d ago)</span>}
@@ -46,6 +64,14 @@ function SagaVideoRow({ video, index, evidence }: Readonly<{ video: VideoData; i
             <Eye className="h-3 w-3" />
             {formatCompact(video.views)}
           </span>
+          {breakoutMultiplier !== null && (
+            <span
+              className={`tabular-nums font-medium ${breakoutMultiplier >= 1.5 ? "text-data" : "text-muted-foreground"}`}
+              title={`${video.views.toLocaleString("en-US")} views vs ${Math.round(sagaAvgViews).toLocaleString("en-US")} saga average`}
+            >
+              {breakoutMultiplier.toFixed(1)}× saga avg
+            </span>
+          )}
           <span className="flex items-center gap-1">
             <ThumbsUp className="h-3 w-3" />
             {formatCompact(video.likes)}
@@ -91,6 +117,7 @@ export function SagaDetailView({
 
   const totalViews = sagaVideos.reduce((sum, v) => sum + v.views, 0);
   const totalDuration = sagaVideos.reduce((sum, v) => sum + v.duration, 0);
+  const sagaAvgViews = sagaVideos.length > 0 ? totalViews / sagaVideos.length : 0;
 
   return (
     <div className="flex flex-col h-full animate-fade-up">
@@ -139,7 +166,13 @@ export function SagaDetailView({
 
       <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5 px-1">
         {sagaVideos.map((video, i) => (
-          <SagaVideoRow key={video.videoId} video={video} index={i} evidence={saga.videoEvidence?.[video.videoId]} />
+          <SagaVideoRow
+            key={video.videoId}
+            video={video}
+            index={i}
+            sagaAvgViews={sagaAvgViews}
+            evidence={saga.videoEvidence?.[video.videoId]}
+          />
         ))}
       </div>
     </div>

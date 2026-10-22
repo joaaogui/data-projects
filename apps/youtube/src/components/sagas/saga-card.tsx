@@ -1,11 +1,11 @@
 "use client";
 
-import { formatCompact } from "@/lib/format";
+import { formatCompact, getScoreColorClass } from "@/lib/format";
 import { formatDuration } from "@/lib/scoring";
 import type { Saga, VideoData } from "@/types/youtube";
-import { Skeleton } from "@data-projects/ui";
+import { Skeleton, Tooltip, TooltipContent, TooltipTrigger } from "@data-projects/ui";
 import dayjs from "dayjs";
-import { Calendar, ChevronRight, Clock, Eye, Film, Info } from "lucide-react";
+import { Calendar, ChevronRight, Clock, Eye, Film, Info, Trophy } from "lucide-react";
 import Image from "next/image";
 import { useMemo } from "react";
 
@@ -40,6 +40,16 @@ export function SagaCard({
 
   const totalViews = sagaVideos.reduce((sum, v) => sum + v.views, 0);
   const totalRuntime = sagaVideos.reduce((sum, v) => sum + v.duration, 0);
+  const avgScore = sagaVideos.length > 0
+    ? Math.round(sagaVideos.reduce((sum, v) => sum + v.score, 0) / sagaVideos.length)
+    : 0;
+  const avgViewsPerEp = sagaVideos.length > 0
+    ? Math.round(totalViews / sagaVideos.length)
+    : 0;
+  const peakEpisode = useMemo(() => {
+    if (sagaVideos.length === 0) return null;
+    return sagaVideos.reduce((best, v) => (v.views > best.views ? v : best), sagaVideos[0]);
+  }, [sagaVideos]);
   const thumbnails = sagaVideos.slice(0, 4);
   const firstDate = saga.dateRange.first
     ? dayjs(saga.dateRange.first).format("MMM YYYY")
@@ -82,6 +92,32 @@ export function SagaCard({
               {firstDate} &mdash; {lastDate}
             </span>
           </div>
+          {sagaVideos.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+              <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${getScoreColorClass(avgScore)}`}>
+                Avg Score {avgScore}
+              </span>
+              <span className="tabular-nums">
+                {formatCompact(avgViewsPerEp)} views/ep avg
+              </span>
+              {peakEpisode && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1 tabular-nums cursor-help hover:text-foreground transition-colors">
+                      <Trophy className="h-3 w-3 text-primary/70" />
+                      Peak {formatCompact(peakEpisode.views)}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs space-y-0.5">
+                    <p className="font-medium text-xs line-clamp-2">{peakEpisode.title}</p>
+                    <p className="text-[11px] text-muted-foreground tabular-nums">
+                      {peakEpisode.views.toLocaleString("en-US")} views &middot; Score {peakEpisode.score.toFixed(0)}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {isStandalone ? (

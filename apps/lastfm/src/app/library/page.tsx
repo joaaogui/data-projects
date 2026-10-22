@@ -15,6 +15,9 @@ import {
   DataTable,
   Input,
   Skeleton,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   sortableHeader,
   type ColumnDef,
 } from "@data-projects/ui";
@@ -28,6 +31,19 @@ const TABS: { id: LibraryKind; label: string }[] = [
 ];
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+function formatListeningSpan(firstPlayed: string, lastPlayed: string): string {
+  const start = new Date(firstPlayed).getTime();
+  const end = new Date(lastPlayed).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return "Span unavailable";
+  const days = Math.max(0, Math.round((end - start) / (24 * 60 * 60 * 1000)));
+  if (days === 0) return "Span: Same day (first and last play)";
+  if (days >= 365) {
+    const years = (days / 365.25).toFixed(1);
+    return `Span: ${years} years (${formatNumber(days)} days) between first and last play`;
+  }
+  return `Span: ${formatNumber(days)} ${days === 1 ? "day" : "days"} between first and last play`;
+}
 
 export default function LibraryPage() {
   const [kind, setKind] = useState<LibraryKind>("artists");
@@ -72,21 +88,45 @@ export default function LibraryPage() {
         ),
       },
       {
+        id: "playsPerTrack",
+        accessorFn: (row) => row.plays / Math.max(1, row.tracks),
+        header: sortableHeader("Plays / Track"),
+        cell: ({ row }) => (
+          <span className="tabular-nums text-muted-foreground">
+            {(row.original.plays / Math.max(1, row.original.tracks)).toFixed(1)}
+          </span>
+        ),
+      },
+      {
         accessorKey: "firstPlayed",
         header: sortableHeader("First"),
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-muted-foreground">
-            {formatDate(row.original.firstPlayed)}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="whitespace-nowrap text-muted-foreground cursor-default">
+                {formatDate(row.original.firstPlayed)}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="text-xs">
+              {formatListeningSpan(row.original.firstPlayed, row.original.lastPlayed)}
+            </TooltipContent>
+          </Tooltip>
         ),
       },
       {
         accessorKey: "lastPlayed",
         header: sortableHeader("Last"),
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-muted-foreground">
-            {formatDate(row.original.lastPlayed)}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="whitespace-nowrap text-muted-foreground cursor-default">
+                {formatDate(row.original.lastPlayed)}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="text-xs">
+              {formatListeningSpan(row.original.firstPlayed, row.original.lastPlayed)}
+            </TooltipContent>
+          </Tooltip>
         ),
       },
     ],
@@ -129,12 +169,35 @@ export default function LibraryPage() {
         ),
       },
       {
+        accessorKey: "firstPlayed",
+        header: sortableHeader("First"),
+        cell: ({ row }) => (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="whitespace-nowrap text-muted-foreground cursor-default">
+                {formatDate(row.original.firstPlayed)}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="text-xs">
+              {formatListeningSpan(row.original.firstPlayed, row.original.lastPlayed)}
+            </TooltipContent>
+          </Tooltip>
+        ),
+      },
+      {
         accessorKey: "lastPlayed",
         header: sortableHeader("Last"),
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-muted-foreground">
-            {formatDate(row.original.lastPlayed)}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="whitespace-nowrap text-muted-foreground cursor-default">
+                {formatDate(row.original.lastPlayed)}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="text-xs">
+              {formatListeningSpan(row.original.firstPlayed, row.original.lastPlayed)}
+            </TooltipContent>
+          </Tooltip>
         ),
       },
     ],

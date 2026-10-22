@@ -119,7 +119,7 @@ export function UpgradePriorities({
                     {priority.accountImpact} account impact
                   </span>
                   <span className="text-xs font-bold text-[#5d6681]">
-                    Current power {priority.currentPower}
+                    Current power {priority.currentPower} · Rank {brawler.rank}
                   </span>
                   {matchingPush ? (
                     <span className="inline-flex items-center gap-1 rounded-full border-2 border-[#101631] bg-[#fff8db] px-2 py-0.5 text-[10px] font-black text-[#a36f00]">

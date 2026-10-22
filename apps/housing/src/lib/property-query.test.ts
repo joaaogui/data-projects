@@ -150,6 +150,8 @@ describe("server-side property query", () => {
     expect(card!.finalScore).toBe(full.finalScore);
     expect(card!.cardTags).toEqual(full.cardTags);
     expect(card!.breakdown).toEqual(full.breakdown);
+    expect(card!.positiveSignals).toEqual(full.positiveSignals);
+    expect(card!.negativeSignals).toEqual(full.negativeSignals);
   });
 
   it("only uses favorites (and only keys on them) when filtering by favorites", () => {

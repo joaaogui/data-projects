@@ -1,6 +1,6 @@
-import { formatCompact, formatNumber, getAgeLabel } from "@data-projects/shared";
+import { formatCompact, formatNumber, formatSigned, getAgeLabel } from "@data-projects/shared";
 
-export { formatCompact, formatNumber, getAgeLabel };
+export { formatCompact, formatNumber, formatSigned, getAgeLabel };
 
 /*
  * Performance is encoded as weight rather than hue: the strongest results get

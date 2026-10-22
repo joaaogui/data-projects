@@ -1,3 +1,4 @@
+import { formatSigned } from "@data-projects/shared";
 import {
   ArrowRight,
   ChevronDown,
@@ -159,7 +160,7 @@ function HistoryDisclosure({
                   <p className="mt-2 text-xs font-bold text-[#5c6b7f]">
                     {impact.toVersionLabel}: {VERDICTS[verdictFor(impact).key].title}
                     {impact.afterBattles > 0
-                      ? ` · ${percent(impact.beforeWinRate)} → ${percent(impact.afterWinRate)}`
+                      ? ` · ${percent(impact.beforeWinRate)} → ${percent(impact.afterWinRate)} · ${formatSigned(impact.trophyDelta)} trophies`
                       : ""}
                   </p>
                 </li>
@@ -180,10 +181,15 @@ function HistoryDisclosure({
                   {version.isCurrentActiveDeck ? " · current deck" : ""}
                   <span className="ml-2 font-bold text-[#5c6b7f]">
                     {version.battles > 0
-                      ? `${version.wins}W–${version.losses}L · ${percent(version.winRate)}`
+                      ? `${version.wins}W–${version.losses}L · ${percent(version.winRate)} · ${formatSigned(version.netTrophies)} trophies · ${version.avgCrownDiff > 0 ? `+${version.avgCrownDiff.toFixed(1)}` : version.avgCrownDiff.toFixed(1)} avg crown diff`
                       : "not played yet"}
                   </span>
                 </p>
+                {version.topLossesAgainst.length > 0 ? (
+                  <p className="mt-1 text-xs font-semibold text-[#b42318]">
+                    Top losses against: {version.topLossesAgainst.join(", ")}
+                  </p>
+                ) : null}
                 <p className="mt-1 text-xs leading-5 text-[#5c6b7f]">
                   {version.cards.join(" · ")}
                 </p>
@@ -266,6 +272,9 @@ export function LastChangeCard({
             <div className="rounded-xl bg-[#f5f8ff] px-4 py-3">
               <dt className="text-xs font-bold text-[#5c6b7f]">
                 After · {plural(latest.afterBattles, "battle")}
+                {latest.afterBattles > 0
+                  ? ` · ${formatSigned(latest.trophyDelta)} trophies`
+                  : ""}
               </dt>
               <dd className="mt-0.5 text-2xl font-extrabold tabular-nums">
                 {latest.afterBattles > 0 ? percent(latest.afterWinRate) : "—"}

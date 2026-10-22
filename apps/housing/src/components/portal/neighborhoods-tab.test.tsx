@@ -445,6 +445,73 @@ describe("NeighborhoodsTab metric columns", () => {
     expect(firstCard().textContent).toContain("14 mil");
     expect(screen.getByRole("button", { name: "Menos métricas" }).getAttribute("aria-pressed")).toBe("true");
   });
+
+  it("opens the research dossier panel directly from a catalog neighborhood's 📊 Dossiê button without leaving the tab", () => {
+    const fetchMock = vi.fn(() => new Promise<Response>(() => {}));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const ctl = buildCtl({
+        neighborhoodResearch: {
+          "BH:Funcionários": summary({ key: "BH:Funcionários" }),
+        },
+      });
+      render(<NeighborhoodsTab ctl={ctl} />);
+      const dossierBtns = screen.getAllByRole("button", {
+        name: "Abrir dossiê de Funcionários",
+      });
+      expect(dossierBtns.length).toBeGreaterThanOrEqual(2);
+      fireEvent.click(dossierBtns[dossierBtns.length - 1]!);
+      expect(screen.getByTestId("neighborhood-research-panel")).toBeTruthy();
+      expect(
+        screen.getByRole("dialog", { name: "Pesquisa do bairro Funcionários" }),
+      ).toBeTruthy();
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/neighborhoods/${encodeURIComponent("BH:Funcionários")}`,
+        expect.anything(),
+      );
+      expect(ctl.setActiveTab).not.toHaveBeenCalled();
+      expect(ctl.setSelectedCities).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("renders active listing supply badge and weighted contribution + apartmentsShare tooltips on sub-score and density cells", () => {
+    const ctl = buildCtl({
+      availableNeighborhoodOptions: [
+        { name: "Funcionários", count: 7, cityCode: "BH", score: 9.61 },
+        { name: "Pinheiros", count: 1, cityCode: "SP", score: 9.0 },
+      ],
+      neighborhoodResearch: {
+        "BH:Funcionários": summary({
+          key: "BH:Funcionários",
+          densityPerKm2: 13869,
+          apartmentsShare: 99,
+        }),
+      },
+    });
+    render(<NeighborhoodsTab ctl={ctl} />);
+
+    const supplyBadges = screen.getAllByTestId("neighborhood-supply-badge");
+    expect(supplyBadges.map((b) => b.textContent)).toContain("7 imóveis");
+    expect(supplyBadges.map((b) => b.textContent)).toContain("1 imóvel");
+
+    const funcionariosRow = document.querySelector("tbody tr")!;
+    const tds = [...funcionariosRow.querySelectorAll("td")];
+    const urbanTd = tds[4]!;
+    const commuteTd = tds[5]!;
+    const safetyTd = tds[6]!;
+    const densityTd = tds[7]!;
+
+    expect(urbanTd.getAttribute("title")).toContain("Vida urbana: 9.5/10");
+    expect(urbanTd.getAttribute("title")).toContain("Nota Dinâmica");
+    expect(commuteTd.getAttribute("title")).toContain("Deslocamento: 9.8/10");
+    expect(commuteTd.getAttribute("title")).toContain("Nota Dinâmica");
+    expect(safetyTd.getAttribute("title")).toContain("Segurança: 9.6/10");
+    expect(safetyTd.getAttribute("title")).toContain("Nota Dinâmica");
+    expect(densityTd.getAttribute("title")).toContain("99% de apartamentos");
+    expect(densityTd.getAttribute("title")).toContain("Nota Dinâmica");
+  });
 });
 
 describe("NeighborhoodsTab sorting", () => {
@@ -477,7 +544,7 @@ describe("NeighborhoodsTab sorting", () => {
       },
     });
   const tableNames = () =>
-    [...document.querySelectorAll("tbody tr")].map((tr) => tr.querySelector("td:nth-child(3)")!.textContent!.replace("extra", ""));
+    [...document.querySelectorAll("tbody tr")].map((tr) => tr.querySelector("td:nth-child(3) button")!.textContent!);
   const tableRanks = () => [...document.querySelectorAll("tbody tr")].map((tr) => tr.textContent!.match(/#\d+/)?.[0]);
   const header = (label: string) => screen.getByRole("columnheader", { name: label });
   const clickHeader = (label: string) => fireEvent.click(within(header(label)).getByRole("button"));
