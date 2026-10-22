@@ -18,11 +18,10 @@ describe("filter URL", () => {
     expect(roundTrip(CLEARED_FILTERS).maxTotalMonthly).toBeNull();
   });
 
-  it("round-trips Perfeito in Campinas with sort and view", () => {
+  it("round-trips Perfeito in Campinas with sort", () => {
     const state: FilterState = {
       ...applyPresetFilters({ ...CLEARED_FILTERS, selectedCities: ["CP"] }, PERFEITO_PRESET),
       sortBy: "price_asc",
-      viewMode: "split",
     };
     const search = filtersToSearch(state);
     expect(search).toContain("cidade=CP");
@@ -30,7 +29,12 @@ describe("filter URL", () => {
     const back = roundTrip(state);
     expect(sameFilters(back, state)).toBe(true);
     expect(back.sortBy).toBe("price_asc");
-    expect(back.viewMode).toBe("split");
+  });
+
+  it("never carries the view mode, so a shared link opens with the map closed", () => {
+    const search = filtersToSearch({ ...CLEARED_FILTERS, viewMode: "split" });
+    expect(search).toBe("?f=1");
+    expect(filtersFromSearch("?f=1&ver=split")!.viewMode).toBe("list");
   });
 
   it("round-trips every kind of field", () => {

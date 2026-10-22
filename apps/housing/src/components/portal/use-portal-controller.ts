@@ -447,6 +447,7 @@ export function usePortalController({
       filterStore.setState({
         ...parsed,
         onlyIneligible: parsed.onlyIneligible ?? false,
+        viewMode: filterStore.getState().viewMode,
       });
     },
     [filterStore],
@@ -715,7 +716,7 @@ export function usePortalController({
       if (!fromUrl) return;
       presetPreviousRef.current = null;
       urlStateRef.current.lastSearchQuery = fromUrl.searchQuery;
-      filterStore.setState(fromUrl);
+      filterStore.setState({ ...fromUrl, viewMode: filterStore.getState().viewMode });
       setVisibleCount(30);
     };
     window.addEventListener("popstate", onPopState);
@@ -918,7 +919,6 @@ export function usePortalController({
       enabledHiddenCities,
       deactivatedFilter,
       showAdvancedFilters,
-      viewMode,
     });
 
     try {
@@ -1059,7 +1059,6 @@ export function usePortalController({
     enabledHiddenCities,
     deactivatedFilter,
     showAdvancedFilters,
-    viewMode,
     activePresetId,
     weights,
     favoriteKeys,

@@ -3,7 +3,7 @@ import { parseExplorerFiltersObject, serializeExplorerFilters } from "@/lib/prop
 
 type Kind = "list" | "numList" | "num" | "bool" | "str";
 
-/** URL parameter for each shareable field (filters, sort, view, hidden cities). */
+/** URL parameter for each shareable field (filters, sort, hidden cities); the view mode is not shared. */
 const PARAMS: Array<[keyof FilterState, string, Kind]> = [
   ["selectedCities", "cidade", "list"],
   ["selectedNeighborhoods", "bairro", "list"],
@@ -41,7 +41,6 @@ const PARAMS: Array<[keyof FilterState, string, Kind]> = [
   ["deactivatedFilter", "status", "str"],
   ["enabledHiddenCities", "ocultas", "list"],
   ["sortBy", "ordem", "str"],
-  ["viewMode", "ver", "str"],
 ];
 
 /** Marks a URL that carries filter state, even when every filter is cleared. */

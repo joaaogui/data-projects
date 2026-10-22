@@ -11,6 +11,7 @@ import {
   usePortalController,
   type HousingPortalProps,
 } from "@/components/portal/use-portal-controller";
+import { filtersFromSearch } from "@/lib/filter-url";
 import {
   parseExplorerFiltersObject,
   serializeExplorerFilters,
@@ -1399,6 +1400,56 @@ describe("usePortalController — preferences", () => {
     await flush(900);
     expect(result.current.searchQuery).toBe("server-only");
     expect(callsTo("/api/preferences", "POST")).toHaveLength(0);
+  });
+
+  it("starts in list view even when saved prefs, localStorage and the URL say split", async () => {
+    localStorage.setItem(
+      "housing_explorer_filters_v1",
+      JSON.stringify({ viewMode: "split" }),
+    );
+    localStorage.setItem("housing_preferences_updated_at_v1", "2027-01-01T00:00:00.000Z");
+    const prefs = makePrefs({ filters: { viewMode: "split", searchQuery: "x" } });
+    const props = buildProps({ prefs });
+    const { result } = renderPortal({
+      ...props,
+      initialUrlFilters: filtersFromSearch("?f=1&ver=split"),
+    });
+    expect(result.current.viewMode).toBe("list");
+    await flush();
+    expect(result.current.viewMode).toBe("list");
+  });
+
+  it("keeps an opened map for the session without persisting it", async () => {
+    const remote = makePrefs({
+      filters: { searchQuery: "from-server" },
+      updatedAt: "2027-02-01T00:00:00.000Z",
+    });
+    let serveRemote = false;
+    preferencesGetHandler = async () =>
+      serveRemote ? jsonRes({ ok: true, preferences: remote }) : jsonRes({ ok: true });
+    const { result } = renderPortal(buildProps({ prefs: makePrefs() }));
+    await flush();
+
+    act(() => {
+      result.current.setViewMode("split");
+    });
+    await flush(900);
+    expect(callsTo("/api/preferences", "POST")).toHaveLength(0);
+    const stored = JSON.parse(
+      localStorage.getItem("housing_explorer_filters_v1") ?? "{}",
+    ) as Record<string, unknown>;
+    expect(stored).not.toHaveProperty("viewMode");
+    expect(window.location.search).not.toContain("ver=");
+
+    serveRemote = true;
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await new Promise((resolve) => {
+        setTimeout(resolve, 30);
+      });
+    });
+    expect(result.current.searchQuery).toBe("from-server");
+    expect(result.current.viewMode).toBe("split");
   });
 });
 

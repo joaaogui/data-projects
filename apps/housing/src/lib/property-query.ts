@@ -54,10 +54,10 @@ export interface PoolCounts {
   recentCount: number;
 }
 
-/** Filter state that affects which listings match (UI-only fields like viewMode are excluded). */
+/** Filter state that affects which listings match (UI-only fields are excluded). */
 export type QueryFilters = Omit<
   ReturnType<typeof serializeExplorerFilters>,
-  "showAdvancedFilters" | "viewMode"
+  "showAdvancedFilters"
 >;
 
 export interface PropertyQueryRequest {
@@ -124,7 +124,6 @@ export function toQueryFilters(state: ParsedExplorerFiltersState): QueryFilters 
   const serialized: Partial<ReturnType<typeof serializeExplorerFilters>> =
     serializeExplorerFilters(state);
   delete serialized.showAdvancedFilters;
-  delete serialized.viewMode;
   return serialized as QueryFilters;
 }
 

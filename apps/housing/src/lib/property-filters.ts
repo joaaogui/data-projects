@@ -1324,7 +1324,6 @@ export function parseExplorerFiltersObject(
   const parsed = (raw ?? {}) as Partial<
     PropertyExplorerFilters & {
       showAdvancedFilters?: boolean;
-      viewMode?: "split" | "list" | "map";
     }
   >;
 
@@ -1544,16 +1543,15 @@ export function parseExplorerFiltersObject(
       typeof parsed.showAdvancedFilters === "boolean"
         ? parsed.showAdvancedFilters
         : false,
-    viewMode:
-      parsed.viewMode === "split" ||
-      parsed.viewMode === "list" ||
-      parsed.viewMode === "map"
-        ? parsed.viewMode
-        : "list",
+    // The map always starts closed: a viewMode stored by older versions is ignored.
+    viewMode: "list",
   };
 }
 
-export function serializeExplorerFilters(state: ParsedExplorerFiltersState) {
+/** Persisted form of the filters; `viewMode` is session-only and never stored. */
+export function serializeExplorerFilters(
+  state: Omit<ParsedExplorerFiltersState, "viewMode">,
+) {
   return {
     selectedCities: state.selectedCities,
     selectedCity:
@@ -1597,6 +1595,5 @@ export function serializeExplorerFilters(state: ParsedExplorerFiltersState) {
     enabledHiddenCities: state.enabledHiddenCities,
     deactivatedFilter: state.deactivatedFilter,
     showAdvancedFilters: state.showAdvancedFilters,
-    viewMode: state.viewMode,
   };
 }

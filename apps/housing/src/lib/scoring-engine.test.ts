@@ -1398,7 +1398,7 @@ describe("Housing Dynamic Scoring Engine", () => {
     expect(parsed.onlyFavorites).toBe(true);
     expect(parsed.onlyTop20Neighborhoods).toBe(true);
     expect(parsed.showAdvancedFilters).toBe(true);
-    expect(parsed.viewMode).toBe("split");
+    expect(parsed.viewMode).toBe("list");
   });
 
   it("strictly filters units inside the Top 20 catalog neighborhoods when onlyTop20Neighborhoods is true", () => {
