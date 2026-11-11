@@ -134,8 +134,17 @@ export const battleHistorySchema = z
   .array(storedBattleSchema)
   .max(MAX_STORED_BATTLES);
 
+export const playerTagSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(16)
+  .regex(/^#?[A-Za-z0-9]+$/)
+  .transform((tag) => tag.replace(/^#+/, "").toUpperCase());
+
 export const analysisRequestSchema = z.object({
   mode: z.enum(["improve", "best"]).default("improve"),
+  playerTag: playerTagSchema.default("VGURQ0QQ2"),
   refresh: z.boolean().default(false),
   feedback: playerFeedbackInputSchema.optional(),
   battleHistory: battleHistorySchema.default([]),

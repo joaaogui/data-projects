@@ -36,6 +36,7 @@ import type {
   Player,
   StoredSuggestionEntry,
 } from "./types";
+import { DEFAULT_PLAYER_TAG } from "./player-tag";
 
 export {
   encodedTag,
@@ -47,7 +48,7 @@ export {
 };
 
 export const API_BASE = "https://proxy.royaleapi.dev/v1";
-export const PLAYER_TAG = "VGURQ0QQ2";
+export const PLAYER_TAG = DEFAULT_PLAYER_TAG;
 
 interface RankedPlayer {
   tag: string;
@@ -67,14 +68,14 @@ export const clashFetch = createSupercellFetcher({
   apiKeyEnvVar: "CLASH_ROYALE_API_KEY",
 });
 
-export async function getPlayer(): Promise<Player> {
-  return clashFetch<Player>(`/players/${encodedTag(PLAYER_TAG)}`, {
+export async function getPlayer(tag = PLAYER_TAG): Promise<Player> {
+  return clashFetch<Player>(`/players/${encodedTag(tag)}`, {
     next: { revalidate: 300 },
   });
 }
 
-export async function getBattleLog(): Promise<Battle[]> {
-  return clashFetch<Battle[]>(`/players/${encodedTag(PLAYER_TAG)}/battlelog`, {
+export async function getBattleLog(tag = PLAYER_TAG): Promise<Battle[]> {
+  return clashFetch<Battle[]>(`/players/${encodedTag(tag)}/battlelog`, {
     next: { revalidate: 300 },
   });
 }
@@ -177,13 +178,18 @@ export async function getTopLadderMeta(
  * see further back. Form and loss analysis stay on the newest battles.
  */
 export async function getAnalysisContext({
+  playerTag = PLAYER_TAG,
   suggestionHistory = [],
   storedBattles = [],
 }: {
+  playerTag?: string;
   suggestionHistory?: StoredSuggestionEntry[];
   storedBattles?: StoredBattle[];
 } = {}): Promise<AnalysisContext> {
-  const [player, battles] = await Promise.all([getPlayer(), getBattleLog()]);
+  const [player, battles] = await Promise.all([
+    getPlayer(playerTag),
+    getBattleLog(playerTag),
+  ]);
 
   let metaDecks: MetaDeckReference[] = [];
   try {

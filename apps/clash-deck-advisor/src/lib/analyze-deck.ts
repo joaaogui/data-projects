@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 
 import { toStoredBattle } from "./battle-history";
 import { getAnalysisContext, PLAYER_TAG } from "./clash-royale";
+import { normalizePlayerTagValue } from "./player-tag";
 import {
   loadPlayerPreferences,
   loadStoredSuggestions,
@@ -22,6 +23,7 @@ const ANALYSIS_CACHE_SECONDS = 30 * 60;
 export const ANALYSIS_CACHE_TAG = "clash-deck-advisor-analysis";
 
 export interface AnalysisInput {
+  playerTag?: string;
   feedback?: PlayerFeedbackInput;
   battleHistory?: StoredBattle[];
 }
@@ -40,12 +42,13 @@ export async function generateDeckAnalysis(
   input: AnalysisInput = {},
 ): Promise<AnalysisResponse> {
   const startedAt = Date.now();
+  const playerTag = normalizePlayerTagValue(input.playerTag ?? PLAYER_TAG);
 
   const [dbSuggestions, dbPrefs] = await Promise.all([
-    loadStoredSuggestions(PLAYER_TAG),
+    loadStoredSuggestions(playerTag),
     input.feedback !== undefined
       ? Promise.resolve(null)
-      : loadPlayerPreferences(PLAYER_TAG),
+      : loadPlayerPreferences(playerTag),
   ]);
 
   const lockedCards = [
@@ -56,7 +59,7 @@ export async function generateDeckAnalysis(
   ];
 
   if (input.feedback !== undefined) {
-    await savePlayerPreferences(PLAYER_TAG, { lockedCards, excludedCards });
+    await savePlayerPreferences(playerTag, { lockedCards, excludedCards });
   }
 
   const feedback: PlayerFeedbackInput = {
@@ -69,6 +72,7 @@ export async function generateDeckAnalysis(
   };
 
   const context = await getAnalysisContext({
+    playerTag,
     suggestionHistory: feedback.suggestionHistory,
     storedBattles: input.battleHistory,
   });
@@ -123,7 +127,7 @@ export async function generateDeckAnalysis(
 
   const suggestionEntry = buildSuggestionEntry(response);
   if (suggestionEntry) {
-    await saveSuggestionEntry(PLAYER_TAG, suggestionEntry);
+    await saveSuggestionEntry(playerTag, suggestionEntry);
   }
 
   return response;
@@ -150,6 +154,13 @@ export function getCachedDeckAnalysis(
   if (hasPersonalInput(input)) {
     return generateDeckAnalysis(mode, input);
   }
-
-  return cachedByMode[mode]();
+  const playerTag = normalizePlayerTagValue(input.playerTag ?? PLAYER_TAG);
+  if (playerTag === PLAYER_TAG) {
+    return cachedByMode[mode]();
+  }
+  return unstable_cache(
+    () => generateDeckAnalysis(mode, { ...input, playerTag }),
+    ["clash-deck-advisor", playerTag, "analysis-v8", mode],
+    { revalidate: ANALYSIS_CACHE_SECONDS, tags: [ANALYSIS_CACHE_TAG] },
+  )();
 }

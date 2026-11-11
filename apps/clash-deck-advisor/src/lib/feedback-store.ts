@@ -16,6 +16,10 @@ import type {
   PlayerFeedbackInput,
   StoredSuggestionEntry,
 } from "./types";
+import {
+  DEFAULT_PLAYER_TAG,
+  normalizePlayerTagValue,
+} from "./player-tag";
 
 /**
  * The browser is the advisor's only durable memory. Serverless instances keep
@@ -56,16 +60,34 @@ export function parseLedger(raw: unknown): LearningLedger {
   };
 }
 
-export function loadLedger(): LearningLedger {
-  return readLocalStorageJson(
-    LEARNING_LEDGER_STORAGE_KEY,
-    emptyLedger(),
-    parseLedger,
-  );
+function ledgerStorageKey(playerTag: string): string {
+  return `${LEARNING_LEDGER_STORAGE_KEY}:${normalizePlayerTagValue(playerTag)}`;
 }
 
-export function saveLedger(ledger: LearningLedger): void {
-  writeLocalStorageJson(LEARNING_LEDGER_STORAGE_KEY, ledger);
+export function loadLedger(playerTag = DEFAULT_PLAYER_TAG): LearningLedger {
+  const key = ledgerStorageKey(playerTag);
+  const legacyDefaultKey =
+    normalizePlayerTagValue(playerTag) === DEFAULT_PLAYER_TAG;
+  const saved = readLocalStorageJson<LearningLedger | null>(
+    key,
+    null,
+    parseLedger,
+  );
+  if (saved) return saved;
+  return legacyDefaultKey
+    ? readLocalStorageJson(
+        LEARNING_LEDGER_STORAGE_KEY,
+        emptyLedger(),
+        parseLedger,
+      )
+    : emptyLedger();
+}
+
+export function saveLedger(
+  ledger: LearningLedger,
+  playerTag = DEFAULT_PLAYER_TAG,
+): void {
+  writeLocalStorageJson(ledgerStorageKey(playerTag), ledger);
 }
 
 export function hasLedgerData(ledger: LearningLedger): boolean {

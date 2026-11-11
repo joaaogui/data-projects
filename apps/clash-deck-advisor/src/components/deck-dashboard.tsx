@@ -1,9 +1,13 @@
 "use client";
 
+import {
+  readLocalStorageJson,
+  writeLocalStorageJson,
+} from "@data-projects/shared";
 import { Skeleton } from "@data-projects/ui";
 import { RefreshCw, ServerCog, Sparkles } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import type { AnalysisMode } from "@/lib/engine-context";
 import {
@@ -19,7 +23,12 @@ import {
   type LearningLedger,
 } from "@/lib/feedback-store";
 import type { AnalysisResponse, ClashCard } from "@/lib/types";
-
+import {
+  DEFAULT_PLAYER_TAG,
+  isValidPlayerTag,
+  normalizePlayerTagValue,
+  PLAYER_TAG_STORAGE_KEY,
+} from "@/lib/player-tag";
 import { AnalysisDetails } from "./analysis-details";
 import { AnalysisError } from "./analysis-error";
 import { ChangePlan } from "./change-plan";
@@ -31,6 +40,7 @@ interface AnalysisRequestState {
   id: number;
   mode: AnalysisMode;
   refresh: boolean;
+  playerTag: string;
 }
 
 interface ViewState {
@@ -57,10 +67,20 @@ const MODES: Record<AnalysisMode, { label: string; caption: string }> = {
   },
 };
 
-function Header() {
+function Header({
+  playerTag,
+  draftTag,
+  onDraftTagChange,
+  onSubmitTag,
+}: {
+  playerTag: string;
+  draftTag: string;
+  onDraftTagChange: (value: string) => void;
+  onSubmitTag: (event: FormEvent<HTMLFormElement>) => void;
+}) {
   return (
     <header className="border-b border-[#d9e1ec]/80 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:flex-nowrap sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <Image
             src="/crown-mark.svg"
@@ -75,10 +95,35 @@ function Header() {
               Clash Deck Advisor
             </p>
             <p className="mt-1 text-[11px] font-bold text-[#6d7a8b]">
-              Personal advisor for #VGURQ0QQ2
+              Personal advisor for #{playerTag}
             </p>
           </div>
         </div>
+        <form
+          onSubmit={onSubmitTag}
+          className="flex w-full shrink-0 items-center gap-2 sm:w-auto"
+        >
+          <label htmlFor="player-tag" className="sr-only">
+            Player tag
+          </label>
+          <input
+            id="player-tag"
+            value={draftTag}
+            onChange={(event) => onDraftTagChange(event.target.value)}
+            aria-label="Clash Royale player tag"
+            autoComplete="off"
+            spellCheck={false}
+            className="royal-focus h-10 w-36 rounded-xl border border-[#cdd8e8] bg-white px-3 text-sm font-bold text-[#0b1f3a] shadow-sm sm:w-44"
+            placeholder="#VGURQ0QQ2"
+          />
+          <button
+            type="submit"
+            disabled={!isValidPlayerTag(draftTag)}
+            className="royal-focus inline-flex min-h-10 items-center rounded-xl bg-[#164fc9] px-3 text-xs font-extrabold text-white shadow-sm transition-colors hover:bg-[#103fa7] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Use tag
+          </button>
+        </form>
         <a
           href="https://joaog.space"
           className="royal-focus inline-flex min-h-10 shrink-0 items-center rounded-xl border border-[#cdd8e8] bg-white px-3 py-1.5 text-xs font-extrabold text-[#0b1f3a] shadow-sm transition-colors hover:bg-[#f8faff]"
@@ -192,12 +237,18 @@ function LoadingSkeleton() {
 }
 
 export function DeckDashboard() {
+  const [playerTag, setPlayerTag] = useState(DEFAULT_PLAYER_TAG);
+  const [draftTag, setDraftTag] = useState(`#${DEFAULT_PLAYER_TAG}`);
+  const [tagReady, setTagReady] = useState(false);
   const [request, setRequest] = useState<AnalysisRequestState>({
     id: 0,
     mode: "improve",
     refresh: false,
+    playerTag: DEFAULT_PLAYER_TAG,
   });
-  const [ledger, setLedger] = useState<LearningLedger>(() => loadLedger());
+  const [ledger, setLedger] = useState<LearningLedger>(() =>
+    loadLedger(DEFAULT_PLAYER_TAG),
+  );
   const [view, setView] = useState<ViewState>({
     data: null,
     loading: true,
@@ -205,12 +256,27 @@ export function DeckDashboard() {
   });
 
   useEffect(() => {
+    const savedTag = normalizePlayerTagValue(
+      readLocalStorageJson(PLAYER_TAG_STORAGE_KEY, DEFAULT_PLAYER_TAG),
+    );
+    const initialTag = isValidPlayerTag(savedTag)
+      ? savedTag
+      : DEFAULT_PLAYER_TAG;
+    setPlayerTag(initialTag);
+    setDraftTag(`#${initialTag}`);
+    setLedger(loadLedger(initialTag));
+    setRequest((current) => ({ ...current, playerTag: initialTag }));
+    setTagReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!tagReady) return;
     const controller = new AbortController();
     setView((current) => ({ ...current, loading: true, error: null }));
 
     async function loadAnalysis() {
       try {
-        const saved = loadLedger();
+        const saved = loadLedger(request.playerTag);
         let response: Response;
         if (hasLedgerData(saved)) {
           response = await fetch("/api/analysis", {
@@ -218,6 +284,7 @@ export function DeckDashboard() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               mode: request.mode,
+              playerTag: request.playerTag,
               refresh: request.refresh,
               feedback: toFeedbackInput(saved),
               battleHistory: saved.battleHistory,
@@ -226,7 +293,10 @@ export function DeckDashboard() {
             signal: controller.signal,
           });
         } else {
-          const query = new URLSearchParams({ mode: request.mode });
+          const query = new URLSearchParams({
+            mode: request.mode,
+            playerTag: request.playerTag,
+          });
           if (request.refresh) {
             query.set("refresh", "1");
           }
@@ -255,8 +325,8 @@ export function DeckDashboard() {
           return;
         }
 
-        const updated = recordAnalysis(loadLedger(), payload);
-        saveLedger(updated);
+        const updated = recordAnalysis(loadLedger(request.playerTag), payload);
+        saveLedger(updated, request.playerTag);
         setLedger(updated);
         setView({ data: payload, loading: false, error: null });
       } catch (error) {
@@ -279,10 +349,27 @@ export function DeckDashboard() {
 
     void loadAnalysis();
     return () => controller.abort();
-  }, [request]);
+  }, [request, tagReady]);
 
   function reanalyze() {
     setRequest((current) => ({ ...current, id: current.id + 1, refresh: false }));
+  }
+
+  function submitPlayerTag(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextTag = normalizePlayerTagValue(draftTag);
+    if (!isValidPlayerTag(nextTag)) return;
+    writeLocalStorageJson(PLAYER_TAG_STORAGE_KEY, nextTag);
+    setPlayerTag(nextTag);
+    setDraftTag(`#${nextTag}`);
+    setLedger(loadLedger(nextTag));
+    setView({ data: null, loading: true, error: null });
+    setRequest((current) => ({
+      ...current,
+      id: current.id + 1,
+      playerTag: nextTag,
+      refresh: false,
+    }));
   }
 
   function refreshNow() {
@@ -298,7 +385,7 @@ export function DeckDashboard() {
   }
 
   function updateLedger(next: LearningLedger) {
-    saveLedger(next);
+    saveLedger(next, playerTag);
     setLedger(next);
     reanalyze();
   }
@@ -319,7 +406,12 @@ export function DeckDashboard() {
   if (!data && error) {
     return (
       <>
-        <Header />
+        <Header
+          playerTag={playerTag}
+          draftTag={draftTag}
+          onDraftTagChange={setDraftTag}
+          onSubmitTag={submitPlayerTag}
+        />
         <AnalysisError
           code={error.code}
           message={error.message}
@@ -341,7 +433,12 @@ export function DeckDashboard() {
 
   return (
     <>
-      <Header />
+      <Header
+        playerTag={playerTag}
+        draftTag={draftTag}
+        onDraftTagChange={setDraftTag}
+        onSubmitTag={submitPlayerTag}
+      />
       <main
         id="main-content"
         className="mx-auto w-full max-w-6xl px-4 pb-12 pt-6 sm:px-6 lg:px-8 lg:pt-8"

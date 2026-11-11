@@ -6,7 +6,7 @@ The app is a single page (`src/app/page.tsx` renders `DeckDashboard`). Advice is
 
 ## How it works
 
-1. **Fetch.** `src/lib/clash-royale.ts` calls the Clash Royale API through `proxy.royaleapi.dev/v1` with `CLASH_ROYALE_API_KEY`, for one player tag hardcoded in that module. It loads the player (collection, levels, current deck), the battle log, and meta evidence: winning decks from top Path of Legend players, falling back to the legacy trophy ranking feed.
+1. **Fetch.** `src/lib/clash-royale.ts` calls the Clash Royale API through `proxy.royaleapi.dev/v1` with `CLASH_ROYALE_API_KEY`, for the player tag selected in the header (default `#VGURQ0QQ2`). It loads the player (collection, levels, current deck), the battle log, and meta evidence: winning decks from top Path of Legend players, falling back to the legacy trophy ranking feed.
 2. **Context.** `getAnalysisContext` in the same module turns cards into profiles (`card-knowledge.ts` over `card-roles.data.ts` and `card-mechanics.ts`, levels normalised to the 1–16 scale), filters the collection to viable candidates (`engine-context.ts`), and merges the live battle log with stored history. `learning-engine.ts` derives recent losses, a loss autopsy (recurring threats and blind spots), deck versions with per-version win rates, and the measured impact of earlier suggested changes; `battle-history.ts` handles merging and dedupe.
 3. **Deterministic recommendation.** `archetype-engine.ts` matches the collection against archetype templates (`archetypes.data.ts`), applies hard gates (`deck-rules.ts` legality — 8 unique cards and the Evolution/Hero/Wild slot limits — plus win-condition, air-defense, spell and minimum-level gates), and scores survivors with `deck-score.ts`. `deck-refine.ts` then hill-climbs: it tries every legal single-card substitution and keeps only swaps that close a structural gap without lowering the score. `level-warnings.ts` flags recommended cards below the deck's level benchmark.
 4. **AI polish.** `deck-engine.ts` (`runDeckEngine`) asks a model, via `generateText`, to rewrite only the coaching text of the deterministic recommendation. Model access goes through the shared AI provider (`@data-projects/shared/ai-provider`): the fallback chain is Gemini lite, then Groq, then the full Gemini model, and `getCandidateModels` picks at most one model per provider so proposals do not come from one backend sampled twice.
@@ -110,7 +110,7 @@ src/test/                      Vitest env loader
 
 ## Limitations
 
-- **Single configured account.** The player tag is hardcoded in `src/lib/clash-royale.ts`; analysing another account requires a code change, and there is no authentication or multi-user support.
+- **Single browser-selected account.** Change the player tag in the header to analyse another account. The selection and learning history are stored separately per tag in that browser; there is no authentication or multi-user support.
 - **Live dependencies.** Analysis needs the Clash Royale API; if the top-ladder meta fetch fails, analysis continues without meta evidence, but player or battle-log failures surface as API errors.
 - **History depth.** The live battle log is short, so long-term learning depends on stored history: up to 300 battles in the browser ledger and 500 in the DB, with form/loss analysis over the newest 25.
 - **Conservative slot assertions.** The API does not expose Hero unlock state, so `deck-rules.ts` only asserts Champions as Hero-slot occupants (see the comment there).

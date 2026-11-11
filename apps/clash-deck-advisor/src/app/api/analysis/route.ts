@@ -23,7 +23,7 @@ import {
   type AnalysisInput,
 } from "@/lib/analyze-deck";
 import type { AnalysisMode } from "@/lib/engine-context";
-import { playerFeedbackInputSchema } from "@/lib/schemas";
+import { playerFeedbackInputSchema, playerTagSchema } from "@/lib/schemas";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -215,6 +215,18 @@ export async function GET(request: Request) {
   const wantsRefresh = url.searchParams.get("refresh") === "1";
   const lockedCards = parseCommaList(url.searchParams.get("locked"));
   const excludedCards = parseCommaList(url.searchParams.get("excluded"));
+  const parsedPlayerTag = playerTagSchema.safeParse(
+    url.searchParams.get("playerTag") ?? "VGURQ0QQ2",
+  );
+  if (!parsedPlayerTag.success) {
+    return invalidRequest({
+      ok: false,
+      status: 400,
+      code: "INVALID_REQUEST",
+      message: "Enter a valid Clash Royale player tag.",
+    });
+  }
+  const playerTag = parsedPlayerTag.data;
 
   const feedback =
     lockedCards.length > 0 || excludedCards.length > 0
@@ -228,7 +240,7 @@ export async function GET(request: Request) {
   return handleAnalysisRequest(request, {
     mode,
     wantsRefresh,
-    input: { feedback },
+    input: { feedback, playerTag },
   });
 }
 
@@ -244,10 +256,10 @@ export async function POST(request: Request) {
     return invalidRequest(parsed);
   }
 
-  const { mode, refresh, feedback, battleHistory } = parsed.value;
+  const { mode, playerTag, refresh, feedback, battleHistory } = parsed.value;
   return handleAnalysisRequest(request, {
     mode,
     wantsRefresh: refresh,
-    input: { feedback, battleHistory },
+    input: { feedback, battleHistory, playerTag },
   });
 }

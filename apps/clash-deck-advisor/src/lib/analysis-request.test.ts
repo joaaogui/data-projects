@@ -37,7 +37,12 @@ describe("parseAnalysisRequestBody", () => {
     const result = parseAnalysisRequestBody("");
     expect(result).toEqual({
       ok: true,
-      value: { mode: "improve", refresh: false, battleHistory: [] },
+      value: {
+        mode: "improve",
+        playerTag: "VGURQ0QQ2",
+        refresh: false,
+        battleHistory: [],
+      },
     });
   });
 
