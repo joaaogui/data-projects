@@ -381,7 +381,12 @@ export function DeckDashboard() {
       return;
     }
     setView({ data: null, loading: true, error: null });
-    setRequest((current) => ({ id: current.id + 1, mode: next, refresh: false }));
+    setRequest((current) => ({
+      ...current,
+      id: current.id + 1,
+      mode: next,
+      refresh: false,
+    }));
   }
 
   function updateLedger(next: LearningLedger) {
