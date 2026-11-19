@@ -23,6 +23,7 @@ export function ScrapePanel({ ctl }: { ctl: PortalController }) {
     queryFavorites,
     queryFilters,
     scrapeCities,
+    scrapeStartError,
     scrapeStatus,
     selectedNeighborhoods,
     setCustomSearchUrl,
@@ -151,6 +152,12 @@ export function ScrapePanel({ ctl }: { ctl: PortalController }) {
                     {scrapeCities.join(", ")})
                   </span>
                 </button>
+
+                {scrapeStartError && (
+                  <p role="alert" className="text-xs text-destructive">
+                    {scrapeStartError}
+                  </p>
+                )}
 
                 <button
                   type="button"

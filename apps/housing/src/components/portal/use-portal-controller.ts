@@ -349,6 +349,7 @@ export function usePortalController({
     status: "idle",
   });
   const [isStartingScrape, setIsStartingScrape] = useState<boolean>(false);
+  const [scrapeStartError, setScrapeStartError] = useState<string | null>(null);
   const prevScrapeStatusRef = useRef<ScrapeJobStatus["status"]>("idle");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [galleryState, setGalleryState] = useState<{
@@ -1376,6 +1377,7 @@ export function usePortalController({
     keys?: string[];
   }) => {
     setIsStartingScrape(true);
+    setScrapeStartError(null);
     try {
       const res = await fetch("/api/scrape/run", {
         method: "POST",
@@ -1390,10 +1392,22 @@ export function usePortalController({
         status?: ScrapeJobStatus;
         error?: string;
       };
+      if (!res.ok || json.ok === false) {
+        throw new Error(
+          json.error ||
+            `Não foi possível iniciar a sincronização (${res.status}).`,
+        );
+      }
       if (json.status) {
         prevScrapeStatusRef.current = json.status.status;
         setScrapeStatus(json.status);
       }
+    } catch (error) {
+      setScrapeStartError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível iniciar a sincronização. Tente novamente.",
+      );
     } finally {
       setIsStartingScrape(false);
     }
@@ -2305,6 +2319,7 @@ export function usePortalController({
     resetAllFilters,
     scrapeCities,
     scrapeStatus,
+    scrapeStartError,
     searchQuery,
     selectedBathrooms,
     selectedBedrooms,

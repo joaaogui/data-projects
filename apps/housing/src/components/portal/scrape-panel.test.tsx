@@ -19,6 +19,7 @@ function buildCtl(
     queryFavorites: [],
     queryFilters: {},
     scrapeCities: ["BH", "SP"],
+    scrapeStartError: null,
     scrapeStatus: { jobId: "none", status: "idle" },
     selectedNeighborhoods: [],
     setCustomSearchUrl: vi.fn(),
